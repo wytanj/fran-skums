@@ -1,0 +1,22 @@
+{
+  "success": 1,
+  "error": [],
+  "data": [
+    {
+      "product_id": "385",
+      "sku": "DEMO-SKU-10",
+      "product_name": "Demo Product 10",
+      "product_variation_name": "",
+      "inventory_detail": {
+        "available_quantity": "12",
+        "ordered_quantity": "0",
+        "process_quantity": "2",
+        "picked_quantity": "1",
+        "stockout_quantity": "0",
+        "delivered_quantity": "0",
+        "damaged_quantity": "0"
+      },
+      "stock_alert_quantity": "30"
+    }
+  ]
+}

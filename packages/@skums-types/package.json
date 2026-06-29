@@ -1,0 +1,8 @@
+{
+  "name": "@skums/types",
+  "version": "0.1.0",
+  "description": "Shared TypeScript type contracts for the SKUMS platform — Perspective, Grant, AppManifest, ChannelAdapter, and supporting types.",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts"
+}

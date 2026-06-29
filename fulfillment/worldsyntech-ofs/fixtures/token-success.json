@@ -1,0 +1,12 @@
+{
+  "success": 1,
+  "error": "",
+  "data": {
+    "access_token": "demo-access-token",
+    "expires_in": 2628000,
+    "token_type": "Bearer",
+    "customer_id": "9402",
+    "username": "lise-demo",
+    "email": "ops@example.com"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "type": "ITEM",
+  "id": "ABC123",
+  "updated_at": "2026-06-10T00:00:00.000Z",
+  "version": 1,
+  "is_deleted": false,
+  "present_at_all_locations": true,
+  "item_data": {
+    "name": "Sample Hydrating Cleanser",
+    "description": "Gentle daily cleanser for normal skin.",
+    "variations": [
+      {
+        "type": "ITEM_VARIATION",
+        "id": "ABC123-V1",
+        "present_at_all_locations": true,
+        "item_variation_data": {
+          "item_id": "ABC123",
+          "name": "150 ml",
+          "sku": "SKU-CLN-150",
+          "upc": "012345678905",
+          "pricing_type": "FIXED_PRICING",
+          "price_money": {
+            "amount": 2490,
+            "currency": "USD"
+          }
+        }
+      }
+    ]
+  }
+}
