@@ -105,3 +105,4 @@ create index if not exists idx_products_fran_reward_eligible
 
 create index if not exists idx_products_fran_sample_eligible
   on public.products (public.fran_jsonb_bool(product_data, 'fran_sample_eligible', false));
+
