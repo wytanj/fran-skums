@@ -45,6 +45,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 043 | fulfillment_integrations.sql | Fulfillment integrations | Generic 3PL/WMS external entity mappings and WorldSyntech/OFS fulfillment app seed |
 | 044 | store_operations.sql | Store operations | POS-originated replenishment requests, SKUMS replenishment orders, receiving sessions, and inventory exceptions |
 | 045 | fran_product_metadata.sql | Fran product metadata | Fran product context view and JSON metadata normalizers for POS/CRM decisions |
+| 046 | loyalty_pricing_inventory.sql | Fran loyalty pricing and inventory | POS basket quotes, stock reservations, quote-linked inventory holds, and inventory commit linkage |
 
 ## Planned Phase C Spine
 

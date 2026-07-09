@@ -17,12 +17,24 @@ The Fran-specific route surface is intentionally thin. It wraps generic SKUMS pr
 | `POST` | `/fran/pos/scan/resolve` | Resolve a scanned barcode/SKU and return SKUMS graph references with Fran product context. |
 | `GET` | `/fran/pos/catalog` | List POS-enabled catalogue items with Fran metadata in `fran` and `metadata.fran`. |
 | `GET` | `/fran/pos/products/[id]` | Read a product detail by SKUMS product id with Fran context. |
+| `POST` | `/fran/pos/basket/quote` | Price a POS basket from SKUMS product facts and inventory levels, returning quote line ids, quote revision, TTL, availability, blocked lines, and Fran product context. |
+| `POST` | `/fran/pos/reservations` | Hold quoted stock against existing inventory reservations before payment or reward issue. |
+| `POST` | `/fran/pos/reservations/[id]/commit` | Commit held stock after POS payment success or product reward issue. |
+| `POST` | `/fran/pos/reservations/[id]/release` | Release held stock when checkout, reward issue, or sample issue is abandoned. |
 | `POST` | `/fran/pos/sales` | Ingest idempotent Fran POS sales while preserving CRM and reward references. |
 | `POST` | `/fran/pos/returns` | Ingest idempotent Fran POS returns while preserving CRM return/reward references. |
 | `POST` | `/fran/pos/inventory-events` | Reuse the generic POS inventory event intake for damage, found stock, and transfer receipts. |
 | `POST` | `/fran/store-ops/requests` | Create store-ops requests for replenishment, 3PL, damage, and reconciliation workflows. |
 
 Every POS write should include an `idempotency_key`. Duplicate keys return the already-recorded sale, return, inventory event, or request where the backing table supports it.
+
+## Quote And Reservation Flow
+
+Fran POS should call `POST /fran/pos/basket/quote` before loyalty policy execution. The quote response is the live pricing basis for POS and CRM-side reward decisions: it includes `quote_id`, `quote_revision`, `expires_at`, per-line quote ids, unit/list prices, line totals, `legacy_product_price` provenance, Fran product context, and inventory availability from `inventory_levels`.
+
+Quote availability is SKUMS-owned. Active reservations are reflected through the `reserved` quantity in `inventory_levels`; POS should treat quote lines with `blocked = true` as unavailable for checkout or product reward issue.
+
+When POS needs to hold stock, it should call `POST /fran/pos/reservations` with the quote id and cart/register context. SKUMS writes `pos_reservations`, `pos_reservation_lines`, and linked `inventory_reservations`, then increments the `reserved` inventory bucket through the ledger RPC. On payment success, POS can either call the reservation commit endpoint directly or include `pos_reservation_id` in the sale ingest body; sale ingest will commit the reservation and write the `sale` inventory ledger movement. If checkout is abandoned, POS should release the reservation before the quote/reservation TTL expires.
 
 ## Fran CRM Product Context
 

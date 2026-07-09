@@ -82,6 +82,8 @@ test('sales API writes sale, graph-aware items, and payments under workspace sco
   assert.match(posSaleIngest, /product_identity_id:\s*item\.product_identity_id/)
   assert.match(posSaleIngest, /trade_unit_id:\s*item\.trade_unit_id/)
   assert.match(posSaleIngest, /sku_assignment_id:\s*item\.sku_assignment_id/)
+  assert.match(posSaleIngest, /commitInventoryForPosSale/)
+  assert.match(posSaleIngest, /inventory_commit/)
 })
 
 test('inventory event API accepts POS damage, found stock, and transfer receipts', () => {

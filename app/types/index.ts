@@ -493,6 +493,125 @@ export interface PosCatalogResponse {
   next_offset: number | null
 }
 
+export type PosQuoteMode = 'checkout' | 'reward' | 'sample' | 'preview'
+export type PosBasketQuoteStatus = 'quoted' | 'reserved' | 'committed' | 'released' | 'expired' | 'cancelled'
+export type PosReservationStatus = 'active' | 'committed' | 'released' | 'expired' | 'cancelled'
+
+export interface PosQuoteAvailability {
+  track_inventory: boolean
+  on_hand: number | null
+  reserved: number | null
+  available_to_sell: number | null
+  reservable_quantity: number
+  by_location: Array<{
+    location_id: string
+    location_name: string | null
+    location_code: string | null
+    location_type: string | null
+    on_hand: number
+    reserved: number
+    available_to_sell: number
+    on_order: number
+    in_transit: number
+  }>
+}
+
+export interface PosBasketQuoteLine {
+  quote_line_id: string
+  line_id: string
+  product_id: string | null
+  variant_id: string | null
+  product_identity_id: string | null
+  trade_unit_id: string | null
+  sku_assignment_id: string | null
+  sku: string | null
+  display_name: string | null
+  quantity: number
+  unit_price: number
+  list_price: number
+  discount_amount: number
+  tax_basis: Record<string, any>
+  line_total: number
+  currency: string
+  price_source: Record<string, any>
+  product_context: FranProductContext | Record<string, never>
+  availability: PosQuoteAvailability
+  blocked: boolean
+  warnings: string[]
+}
+
+export interface PosBasketQuote {
+  quote_id: string
+  quote_revision: string
+  status: 'quoted' | 'blocked'
+  ttl_seconds: number
+  expires_at: string
+  workspace_id: string
+  location_id: string | null
+  inventory_location_id: string | null
+  register_id: string | null
+  register_session_id: string | null
+  quote_mode: PosQuoteMode
+  currency: string
+  customer: {
+    customer_ref: string | null
+    member_ref: string | null
+  }
+  price_source: Record<string, any>
+  totals: {
+    subtotal: number
+    discount_total: number
+    tax_total: number
+    total: number
+  }
+  lines: PosBasketQuoteLine[]
+  blocked_lines: Array<{
+    quote_line_id: string
+    line_id: string
+    product_id: string | null
+    warnings: string[]
+  }>
+  warnings: string[]
+}
+
+export interface PosReservation {
+  id: string
+  workspace_id: string
+  quote_id: string | null
+  status: PosReservationStatus
+  source: string
+  pos_cart_id: string | null
+  pos_sale_id: string | null
+  location_id: string | null
+  inventory_location_id: string | null
+  register_id: string | null
+  register_session_id: string | null
+  idempotency_key: string | null
+  expires_at: string
+  committed_at: string | null
+  released_at: string | null
+  metadata: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface PosReservationLine {
+  id: string
+  workspace_id: string
+  reservation_id: string
+  quote_line_id: string | null
+  inventory_reservation_id: string | null
+  product_id: string | null
+  variant_id: string | null
+  inventory_location_id: string | null
+  requested_qty: number
+  reserved_qty: number
+  status: PosReservationStatus | 'failed'
+  metadata: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
 export interface FranProductMetadata {
   fran_category: string | null
   fran_brand: string | null

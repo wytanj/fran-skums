@@ -15,6 +15,7 @@ here with Supabase-style timestamped filenames.
 - `202606240043_fulfillment_integrations.sql` mirrors `core/db/043_fulfillment_integrations.sql`
 - `202606240044_store_operations.sql` mirrors `core/db/044_store_operations.sql`
 - `202606290045_fran_product_metadata.sql` mirrors `core/db/045_fran_product_metadata.sql`
+- `202607090046_loyalty_pricing_inventory.sql` mirrors `core/db/046_loyalty_pricing_inventory.sql`
 
 ## Rule
 

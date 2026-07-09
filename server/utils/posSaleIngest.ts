@@ -1,3 +1,5 @@
+import { commitInventoryForPosSale } from '../fran/pricingInventory'
+
 export async function createPosSaleFromBody(event: any, body: any) {
   const ctx = await requireApiKey(event, 'pos:write')
   const client = getAdminClient()
@@ -132,6 +134,19 @@ export async function createPosSaleFromBody(event: any, body: any) {
     salePayments = data || []
   }
 
+  const inventoryCommit = await commitInventoryForPosSale(client, ctx.workspaceId, sale, saleItems || [], body)
+  if (inventoryCommit.status === 'applied') {
+    sale.metadata = {
+      ...(sale.metadata || {}),
+      inventory_commit: inventoryCommit,
+    }
+    await client
+      .from('pos_sales')
+      .update({ metadata: sale.metadata })
+      .eq('id', sale.id)
+      .eq('workspace_id', ctx.workspaceId)
+  }
+
   const isReturn = sale.sale_type === 'return' || (saleItems || []).some((item: any) => item.line_type === 'return')
   const eventType = isReturn ? 'pos_return.completed' : 'pos_sale.completed'
   await client.from('domain_events').insert({
@@ -146,6 +161,7 @@ export async function createPosSaleFromBody(event: any, body: any) {
       sale,
       items: saleItems || [],
       payments: salePayments,
+      inventory_commit: inventoryCommit,
     },
     metadata: {
       receipt_number: sale.receipt_number,
