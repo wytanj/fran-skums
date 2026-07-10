@@ -1,0 +1,66 @@
+{
+  "bff_meta": null,
+  "error": null,
+  "error_msg": null,
+  "items": [
+    {
+      "item_basic": {
+        "itemid": 28800123456,
+        "shopid": 123456789,
+        "name": "ANUA Heartleaf 77% Soothing Toner 250ml Official",
+        "currency": "SGD",
+        "price": 1890000,
+        "price_before_discount": 2200000,
+        "price_min": 1890000,
+        "historical_sold": 5200,
+        "sold": 5200,
+        "is_official_shop": true,
+        "show_official_shop_label": true,
+        "shopee_verified": true,
+        "shop_name": "ANUA Official Store",
+        "shop_location": "Singapore",
+        "item_rating": {
+          "rating_star": 4.92,
+          "rating_count": [0, 10, 20, 50, 3100]
+        },
+        "image": "sg-11134207-7r98o-demo"
+      }
+    },
+    {
+      "item_basic": {
+        "itemid": 28800999999,
+        "shopid": 987654321,
+        "name": "Anua Toner Preferred Seller Bundle",
+        "currency": "SGD",
+        "price": 1750000,
+        "historical_sold": 1100,
+        "is_preferred_plus_seller": false,
+        "shopee_verified": true,
+        "shop_name": "Beauty Preferred SG",
+        "shop_location": "Singapore",
+        "item_rating": {
+          "rating_star": 4.7,
+          "rating_count": [890]
+        }
+      }
+    },
+    {
+      "item_basic": {
+        "itemid": 28800888888,
+        "shopid": 555666777,
+        "name": "Anua Heartleaf Toner Dropship Style",
+        "currency": "SGD",
+        "price": 1590000,
+        "historical_sold": 456,
+        "is_pre_order": true,
+        "estimated_days": 10,
+        "shop_name": "Global Deals",
+        "shop_location": "Mainland China",
+        "item_rating": {
+          "rating_star": 4.5,
+          "rating_count": [120]
+        }
+      }
+    }
+  ]
+}

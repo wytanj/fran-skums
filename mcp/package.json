@@ -1,0 +1,17 @@
+{
+  "name": "@fran/mcp",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Fran SKUMS MCP server — marketplace BI, study, and pipeline tools",
+  "bin": {
+    "fran-mcp": "./src/index.mjs"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "mcp": "node src/index.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

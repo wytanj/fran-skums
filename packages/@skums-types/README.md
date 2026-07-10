@@ -10,6 +10,8 @@ Shared TypeScript type contracts for the SKUMS platform.
 | `Grant` | Authorization passed from one entity to another in the brand → distributor → retailer → channel-seller chain. |
 | `AppManifest` | Declaration a vertical app makes about itself: industries, fields it adds, routes it provides, requirements it has. |
 | `ChannelAdapter` | Contract every channel integration (Shopee, Shopify, etc.) implements: auth, push, pull, feed, validate. |
+| Marketplace intelligence | Competitive observation seeds/jobs/listings/snapshots + `CollectAdapter` (not seller channel). |
+| Study / pipeline | Study sessions, artifacts, pipeline candidates, grounded Grok result contract. |
 
 ## Why these four
 

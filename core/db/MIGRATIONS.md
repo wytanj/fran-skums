@@ -46,6 +46,10 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 044 | store_operations.sql | Store operations | POS-originated replenishment requests, SKUMS replenishment orders, receiving sessions, and inventory exceptions |
 | 045 | fran_product_metadata.sql | Fran product metadata | Fran product context view and JSON metadata normalizers for POS/CRM decisions |
 | 046 | loyalty_pricing_inventory.sql | Fran loyalty pricing and inventory | POS basket quotes, stock reservations, quote-linked inventory holds, and inventory commit linkage |
+| 047 | marketplace_intelligence.sql | Marketplace intelligence (BI collect) | Crawl seeds, jobs, shops, listings, snapshots, metrics, digests, alerts — Shopee-first competitive warehouse |
+| 048 | study_pipeline.sql | Study sessions and pipeline candidates | Explore → propose → decide → promote into watchlist/catalog/purchase interest |
+| 049 | internal_purchase_orders.sql | Internal (decision-layer) POs | Fran buying drafts from study/MCP — separate from inventory purchase_orders |
+| 050 | projections.sql | Financial projection runs | Assumptions + engine results + optional Grok commentary |
 
 ## Planned Phase C Spine
 

@@ -73,6 +73,8 @@ export default defineNuxtConfig({
     x402FacilitatorUrl: process.env.X402_FACILITATOR_URL || 'https://x402.org/facilitator',
     // Queue processor API key
     queueProcessorKey: process.env.QUEUE_PROCESSOR_KEY || '',
+    // Marketplace BI scheduler (falls back to QUEUE_PROCESSOR_KEY in route)
+    marketplaceCronSecret: process.env.MARKETPLACE_CRON_SECRET || '',
     public: {
       appName: 'Fran SKUMS',
       x402Network: process.env.X402_NETWORK || 'base',
