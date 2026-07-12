@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProductSchemaDefinition, SchemaProperty } from '~/types'
+import { LARGE_IMPORT_ROW_THRESHOLD } from '../../core/import/index.mjs'
 
 let Papa: typeof import('papaparse') | null = null
 onMounted(async () => {
@@ -11,6 +12,27 @@ const { currentWorkspace } = useWorkspace()
 const { schemas, fetchSchemas, resolveSchemaLocally, GLOBAL_BASE_SCHEMA_ID } = useProductSchema()
 
 const activeTab = ref<'import' | 'export'>('import')
+const dragOver = ref(false)
+
+const {
+  step,
+  fileName,
+  providerHint,
+  csvHeaders,
+  csvRows,
+  columnMappings,
+  mappingConfidence,
+  importResult,
+  importing,
+  activeJobId,
+  jobSnapshot,
+  importProgress,
+  importProgressPercent,
+  isLargeImport,
+  parseImportFile,
+  runImport,
+  resetImport,
+} = useCatalogImport()
 
 // ─── Schema-Driven Fields ───
 const selectedSchemaId = ref<string | null>(null)
@@ -113,141 +135,7 @@ async function resolveSelectedSchema() {
   schemaReady.value = true
 }
 
-// Build a generous alias map from the schema field paths
-function buildAliases(): Record<string, string[]> {
-  const map: Record<string, string[]> = {
-    title: ['title', 'name', 'product_name', 'product name', 'product title', 'item name', 'item_name', 'item'],
-    sku: ['sku', 'variant_sku', 'variant sku', 'item_sku', 'product_sku', 'stock keeping unit', 'article_number'],
-    upc: ['upc', 'barcode', 'bar code'],
-    ean: ['ean', 'ean13', 'ean_13', 'ean-13'],
-    gtin: ['gtin', 'gtin14', 'global trade item number'],
-    status: ['status', 'published', 'active', 'state', 'visibility'],
-    retail_price: ['price', 'retail_price', 'retail price', 'unit_price', 'unit price', 'list_price', 'list price', 'abw selling price usd', 'abw selling price'],
-    sale_price: ['sale_price', 'sale price', 'discount_price', 'special_price'],
-    cost_price: ['cost_price', 'cost price', 'cost', 'wholesale_price', 'wholesale'],
-    currency: ['currency', 'currency_code', 'iso_currency'],
-    stock_quantity: ['stock_quantity', 'stock quantity', 'quantity', 'qty', 'stock', 'inventory'],
-    weight: ['weight', 'wholesale unit weight pc g', 'wholesale unit weight', 'unit weight'],
-    weight_unit: ['weight_unit', 'weight unit'],
-    pos_enabled: ['pos_enabled', 'pos enabled', 'sellable_in_pos', 'sellable in pos', 'enabled', 'active for pos'],
-    storage_location_code: ['storage_location_code', 'storage location code', 'store_location_code', 'store location code', 'bin_location', 'bin location', 'shelf_location', 'shelf location', 'location_code', 'location code'],
-    supplier_item: ['abw catalog no', 'abw catalog no.', 'catalog no', 'catalog no.', 'supplier item', 'supplier_item', 'supplier sku', 'supplier_sku'],
-    supplier_availability: ['availability', 'supplier availability'],
-    option_name: ['option name', 'option_name', 'variant title', 'variant_title', 'size'],
-    tags_csv: ['tags', 'tag', 'labels', 'product_tags'],
-    _brand: ['brand', 'brand_name', 'brand name', 'vendor', 'vendor_name', 'vendor name', 'maker', 'label'],
-    _category: ['category', 'category_name', 'category name', 'product_type', 'product type', 'product_category', 'department', 'collection'],
-  }
-
-  for (const field of skumsFields.value) {
-    if (map[field.key]) continue
-    const key = field.key
-    const lastPart = key.split('.').pop() || key
-    const aliases = [
-      lastPart,
-      lastPart.replace(/_/g, ' '),
-      key,
-      key.replace(/\./g, '_'),
-      key.replace(/\./g, ' '),
-    ]
-
-    // Extra known aliases for common fields
-    const extras: Record<string, string[]> = {
-      'identifiers.sku': ['sku', 'variant_sku', 'variant sku', 'item_sku', 'product_sku', 'stock keeping unit', 'article_number'],
-      'identifiers.ean': ['ean', 'ean13', 'ean_13', 'ean-13', 'european article number', 'barcode'],
-      'identifiers.upc': ['upc', 'upc_a', 'upc-a', 'upc12', 'universal product code'],
-      'identifiers.gtin': ['gtin', 'gtin14', 'gtin_14', 'gtin-14', 'global trade item number'],
-      'identifiers.isbn': ['isbn', 'isbn13', 'isbn_13'],
-      'identifiers.asin': ['asin', 'amazon_id'],
-      'identifiers.mpn': ['mpn', 'manufacturer_part_number', 'manufacturer part number', 'part_number', 'part number', 'model_number'],
-      'core.name': ['name', 'product_name', 'product name', 'product title', 'item name'],
-      'core.slug': ['slug', 'handle', 'url_key', 'url key'],
-      'core.description': ['description', 'desc', 'product_description', 'long_description', 'body', 'body_html', 'content'],
-      'core.short_description': ['short_description', 'short description', 'summary', 'excerpt', 'brief'],
-      'core.type': ['product_type', 'product type', 'type'],
-      'core.brand': ['core_brand'],
-      'core.manufacturer': ['manufacturer', 'manufacturer_name', 'manufacturer name', 'mfg', 'mfr', 'producer', 'made_by'],
-      'core.manufacturer_id': ['manufacturer_id', 'manufacturer_code', 'mfg_id', 'supplier_code'],
-      'pricing.price': ['price', 'retail_price', 'retail price', 'unit_price', 'unit price', 'list_price', 'list price', 'msrp', 'variant_price', 'variant price'],
-      'pricing.sale_price': ['sale_price', 'sale price', 'compare_at_price', 'compare at price', 'discount_price', 'special_price'],
-      'pricing.cost_price': ['cost_price', 'cost price', 'cost', 'cogs', 'unit_cost', 'unit cost', 'wholesale_price', 'wholesale'],
-      'pricing.currency': ['currency', 'currency_code', 'iso_currency'],
-      'pricing.tax_class': ['tax_class', 'tax class'],
-      'pricing.tax_code': ['tax_code', 'tax code'],
-      'inventory.stock_quantity': ['stock_quantity', 'stock quantity', 'quantity', 'qty', 'stock', 'inventory', 'inventory_quantity', 'variant_inventory_qty', 'in_stock'],
-      'inventory.stock_tracking': ['track_inventory', 'stock_tracking', 'inventory_tracking'],
-      'inventory.low_stock_threshold': ['low_stock_threshold', 'low stock threshold', 'reorder_level', 'min_stock'],
-      'inventory.stock_status': ['stock_status', 'stock status', 'availability'],
-      'shipping.weight': ['weight', 'variant_weight', 'variant weight', 'shipping_weight', 'item_weight'],
-      'shipping.weight_unit': ['weight_unit', 'weight unit', 'variant_weight_unit'],
-      'shipping.length': ['length', 'product_length', 'package_length'],
-      'shipping.width': ['width', 'product_width', 'package_width'],
-      'shipping.height': ['height', 'product_height', 'package_height'],
-      'shipping.dimension_unit': ['dimension_unit', 'dimension unit', 'size_unit'],
-      'seo.meta_title': ['seo_title', 'seo title', 'meta_title', 'meta title', 'page_title'],
-      'seo.meta_description': ['seo_description', 'seo description', 'meta_description', 'meta description'],
-      'seo.meta_keywords': ['seo_keywords', 'seo keywords', 'meta_keywords', 'meta keywords', 'keywords'],
-      'seo.canonical_url': ['canonical_url', 'canonical url', 'url', 'product_url'],
-    }
-
-    if (extras[key]) {
-      aliases.push(...extras[key])
-    }
-
-    map[key] = [...new Set(aliases)]
-  }
-  return map
-}
-
-// ─── Import State ───
-type ImportStep = 'upload' | 'map' | 'preview' | 'importing' | 'done'
-const step = ref<ImportStep>('upload')
-const dragOver = ref(false)
-const fileName = ref('')
-
-const csvHeaders = ref<string[]>([])
-const csvRows = ref<Record<string, string>[]>([])
-const columnMappings = ref<Record<string, string>>({})
-const importResult = ref<{ success: number; errors: number; messages: string[] } | null>(null)
-const importing = ref(false)
-const importProgress = ref({
-  phase: 'Waiting',
-  detail: '',
-  current: 0,
-  total: 0,
-  success: 0,
-  errors: 0,
-})
-
-const importProgressPercent = computed(() => {
-  if (!importProgress.value.total) return 0
-  return Math.min(100, Math.round((importProgress.value.current / importProgress.value.total) * 100))
-})
-
-function setImportProgress(update: Partial<typeof importProgress.value>) {
-  importProgress.value = { ...importProgress.value, ...update }
-}
-
-function autoMapColumn(csvHeader: string, aliases: Record<string, string[]>): string {
-  const normalized = csvHeader.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
-
-  for (const [field, fieldAliases] of Object.entries(aliases)) {
-    for (const alias of fieldAliases) {
-      const normalizedAlias = alias.replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
-      if (normalized === normalizedAlias) return field
-    }
-  }
-
-  for (const [field, fieldAliases] of Object.entries(aliases)) {
-    for (const alias of fieldAliases) {
-      const normalizedAlias = alias.replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '')
-      if (normalized.includes(normalizedAlias) || normalizedAlias.includes(normalized)) return field
-    }
-  }
-
-  return ''
-}
-
+// ─── Import helpers (state lives in useCatalogImport) ───
 function handleDrop(e: DragEvent) {
   dragOver.value = false
   const file = e.dataTransfer?.files?.[0]
@@ -257,104 +145,6 @@ function handleDrop(e: DragEvent) {
 function handleFileSelect(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (file) parseImportFile(file)
-}
-
-function makeUniqueHeaders(headers: string[]) {
-  const counts = new Map<string, number>()
-  return headers.map((header, index) => {
-    const base = String(header || `Column ${index + 1}`).replace(/\s+/g, ' ').trim() || `Column ${index + 1}`
-    const count = counts.get(base) || 0
-    counts.set(base, count + 1)
-    return count === 0 ? base : `${base} ${count + 1}`
-  })
-}
-
-function applyParsedRows(headers: string[], rows: Record<string, string>[]) {
-  csvHeaders.value = headers
-  csvRows.value = rows
-
-  const aliases = buildAliases()
-  const mappings: Record<string, string> = {}
-  const usedFields = new Set<string>()
-
-  for (const header of csvHeaders.value) {
-    const match = autoMapColumn(header, aliases)
-    if (match && !usedFields.has(match)) {
-      mappings[header] = match
-      usedFields.add(match)
-    } else {
-      mappings[header] = ''
-    }
-  }
-
-  columnMappings.value = mappings
-  step.value = 'map'
-}
-
-async function parseImportFile(file: File) {
-  const lowerName = file.name.toLowerCase()
-  if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
-    await parseXlsx(file)
-    return
-  }
-  parseCSV(file)
-}
-
-async function parseXlsx(file: File) {
-  fileName.value = file.name
-  try {
-    const XLSX = await import('xlsx')
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const matrix = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: '' })
-      .map((row: string[]) => row.map(cell => String(cell ?? '').trim()))
-
-    const headerIndex = matrix
-      .slice(0, 25)
-      .reduce((best, row, index) => {
-        const filled = row.filter(Boolean).length
-        return filled > best.filled ? { index, filled } : best
-      }, { index: 0, filled: 0 }).index
-
-    const headers = makeUniqueHeaders(matrix[headerIndex] || [])
-    const rows = matrix
-      .slice(headerIndex + 1)
-      .map((row) => {
-        const obj: Record<string, string> = {}
-        headers.forEach((header, index) => { obj[header] = row[index] || '' })
-        return obj
-      })
-      .filter(row => Object.values(row).some(Boolean))
-      .filter(row => {
-        const firstValue = Object.values(row).find(Boolean) || ''
-        return !String(firstValue).startsWith('* Information in this catalog')
-          && !String(firstValue).startsWith('# Due to packaging')
-      })
-
-    applyParsedRows(headers, rows)
-  } catch (error: any) {
-    importResult.value = { success: 0, errors: 1, messages: [`Failed to parse Excel file: ${error?.message || 'Unknown error'}`] }
-  }
-}
-
-function parseCSV(file: File) {
-  if (!file.name.endsWith('.csv') && !file.name.endsWith('.tsv') && !file.name.endsWith('.txt')) {
-    importResult.value = { success: 0, errors: 1, messages: ['Please upload a CSV, TSV, TXT, XLS, or XLSX file'] }
-    return
-  }
-
-  fileName.value = file.name
-
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: (results) => {
-      applyParsedRows(results.meta.fields || [], results.data as Record<string, string>[])
-    },
-    error: () => {
-      importResult.value = { success: 0, errors: 1, messages: ['Failed to parse file'] }
-    },
-  })
 }
 
 const mappedCount = computed(() =>
@@ -373,457 +163,13 @@ function getFieldLabel(key: string) {
 }
 
 function getMatchConfidence(csvHeader: string): 'high' | 'low' | 'none' {
-  const mapping = columnMappings.value[csvHeader]
-  if (!mapping) return 'none'
-  const normalized = csvHeader.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')
-  const aliases = buildAliases()[mapping] || []
-  for (const alias of aliases) {
-    if (normalized === alias.replace(/[^a-z0-9]+/g, '_')) return 'high'
-  }
-  return 'low'
+  const conf = mappingConfidence.value[csvHeader]
+  if (conf === 'high' || conf === 'low' || conf === 'none') return conf
+  return columnMappings.value[csvHeader] ? 'low' : 'none'
 }
 
-function convertValue(fieldKey: string, raw: string): any {
-  const field = skumsFields.value.find(f => f.key === fieldKey)
-  if (!field) return raw.trim()
-
-  if (field.type === 'number') return parseFloat(raw) || null
-  if (field.type === 'integer') return parseInt(raw) || 0
-  if (field.type === 'boolean') return ['true', '1', 'yes', 'y'].includes(raw.toLowerCase().trim())
-  if (field.type === 'string_array') return raw.split(',').map(s => s.trim()).filter(Boolean)
-  if (field.enumVals?.length) {
-    const s = raw.toLowerCase().trim()
-    return field.enumVals.includes(s) ? s : raw.trim()
-  }
-  return raw.trim()
-}
-
-function cleanString(value: any) {
-  return String(value ?? '').trim()
-}
-
-function importSourceType() {
-  const lower = fileName.value.toLowerCase()
-  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return 'xlsx'
-  if (lower.endsWith('.tsv')) return 'tsv'
-  if (lower.endsWith('.json')) return 'json'
-  return 'csv'
-}
-
-function normalizeProductFromRow(row: Record<string, string>, rowIndex: number, reverseMap: Record<string, string>) {
-  const titleHeader = reverseMap.title
-  const titleVal = cleanString(row[titleHeader])
-  if (!titleVal) throw new Error(`Row ${rowIndex + 2}: Missing title value`)
-
-  const optionValue = reverseMap.option_name ? cleanString(row[reverseMap.option_name]) : ''
-  const product: Record<string, any> = {
-    workspace_id: currentWorkspace.value!.id,
-    title: optionValue && !titleVal.toLowerCase().includes(optionValue.toLowerCase())
-      ? `${titleVal} - ${optionValue}`
-      : titleVal,
-    status: 'active',
-    product_data: {
-      pos_enabled: true,
-      sellable_in_pos: true,
-      import_source: fileName.value,
-    },
-    schema_id: selectedSchemaId.value || null,
-    currency: 'USD',
-  }
-
-  for (const [skumsField, csvHeader] of Object.entries(reverseMap)) {
-    if (skumsField === 'title') continue
-    const val = row[csvHeader]
-    if (val === undefined || val === '') continue
-
-    const converted = convertValue(skumsField, val)
-
-    if (skumsField === 'status') {
-      product.status = ['active', 'draft', 'archived'].includes(String(converted).toLowerCase())
-        ? String(converted).toLowerCase() : 'active'
-    } else if (skumsField === 'tags_csv') {
-      product.tags = Array.isArray(converted) ? converted : String(converted).split(',').map(s => s.trim()).filter(Boolean)
-    } else if (skumsField === '_brand') {
-      setNested(product.product_data, 'core.brand', cleanString(val))
-    } else if (skumsField === '_category') {
-      setNested(product.product_data, 'core.category', cleanString(val))
-    } else if (skumsField === 'pos_enabled') {
-      product.product_data.pos_enabled = converted
-      product.product_data.sellable_in_pos = converted
-    } else if (skumsField === 'storage_location_code') {
-      const locationCode = cleanString(val).toUpperCase()
-      product.product_data.storage_location_code = locationCode
-      product.product_data.store_location_code = locationCode
-    } else if (skumsField === 'supplier_item') {
-      setNested(product.product_data, 'supplier.item_id', cleanString(val))
-      setNested(product.product_data, 'supplier.source', 'ABW')
-    } else if (skumsField === 'supplier_availability') {
-      setNested(product.product_data, 'supplier.availability', cleanString(val))
-      product.product_data.availability = cleanString(val)
-    } else if (skumsField === 'option_name') {
-      setNested(product.product_data, 'supplier.option_name', cleanString(val))
-    } else if (skumsField === 'core.manufacturer' || skumsField === 'core.brand') {
-      setNested(product.product_data, skumsField, converted)
-    } else if (skumsField.includes('.')) {
-      setNested(product.product_data, skumsField, converted)
-    } else {
-      product[skumsField] = converted
-    }
-  }
-
-  if (product.weight && !product.weight_unit) product.weight_unit = 'g'
-  if (product.upc && !/^\d{6,14}$/.test(String(product.upc))) delete product.upc
-  if (product.ean && !/^\d{6,14}$/.test(String(product.ean))) delete product.ean
-  if (product.gtin && !/^\d{6,14}$/.test(String(product.gtin))) delete product.gtin
-
-  return product
-}
-
-function setNested(obj: Record<string, any>, path: string, value: any) {
-  const parts = path.split('.')
-  let cur = obj
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!cur[parts[i]] || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {}
-    cur = cur[parts[i]]
-  }
-  cur[parts[parts.length - 1]] = value
-}
-
-// Brand/category resolution caches (populated per import run)
-const brandCache = ref<Record<string, string>>({}) // lowercase name → brand uuid
-const categoryCache = ref<Record<string, string>>({}) // lowercase name → category uuid
-
-async function resolveBrandId(name: string): Promise<string | null> {
-  if (!name.trim() || !currentWorkspace.value) return null
-  const key = name.trim().toLowerCase()
-
-  if (brandCache.value[key]) return brandCache.value[key]
-
-  // Try to find existing brand (case-insensitive)
-  const { data: existing } = await client
-    .from('brands')
-    .select('id, name')
-    .eq('workspace_id', currentWorkspace.value.id)
-    .ilike('name', name.trim())
-    .limit(1)
-
-  if (existing && existing.length > 0) {
-    brandCache.value[key] = existing[0].id
-    return existing[0].id
-  }
-
-  // Create new brand
-  const { data: created, error } = await client
-    .from('brands')
-    .insert({ workspace_id: currentWorkspace.value.id, name: name.trim() })
-    .select('id')
-    .single()
-
-  if (error || !created) return null
-  brandCache.value[key] = created.id
-  return created.id
-}
-
-async function resolveCategoryId(name: string): Promise<string | null> {
-  if (!name.trim() || !currentWorkspace.value) return null
-  const key = name.trim().toLowerCase()
-
-  if (categoryCache.value[key]) return categoryCache.value[key]
-
-  const { data: existing } = await client
-    .from('categories')
-    .select('id, name')
-    .eq('workspace_id', currentWorkspace.value.id)
-    .ilike('name', name.trim())
-    .limit(1)
-
-  if (existing && existing.length > 0) {
-    categoryCache.value[key] = existing[0].id
-    return existing[0].id
-  }
-
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-  const { data: created, error } = await client
-    .from('categories')
-    .insert({ workspace_id: currentWorkspace.value.id, name: name.trim(), slug })
-    .select('id')
-    .single()
-
-  if (error || !created) return null
-  categoryCache.value[key] = created.id
-  return created.id
-}
-
-const IMPORT_BATCH_SIZE = 100
-
-interface PendingProductInsert {
-  rowNumber: number
-  product: Record<string, any>
-}
-
-function buildImportJobRow(importJobId: string, rowNumber: number, row: Record<string, string>, product: Record<string, any>) {
-  return {
-    workspace_id: currentWorkspace.value!.id,
-    import_job_id: importJobId,
-    row_number: rowNumber,
-    raw_data: row,
-    normalized_product: product,
-    normalized_identity: { name: product.title, status: product.status },
-    normalized_identifiers: [
-      product.upc ? { identifier_type: 'upc', identifier_value: product.upc, source: 'supplier_upload' } : null,
-      product.ean ? { identifier_type: 'ean', identifier_value: product.ean, source: 'supplier_upload' } : null,
-      product.gtin ? { identifier_type: 'gtin', identifier_value: product.gtin, source: 'supplier_upload' } : null,
-      product.product_data?.supplier?.item_id ? { identifier_type: 'supplier_item', identifier_value: product.product_data.supplier.item_id, issuer: 'ABW', source: 'supplier_upload' } : null,
-    ].filter(Boolean),
-    normalized_sku_assignments: product.product_data?.supplier?.item_id
-      ? [{ sku: product.product_data.supplier.item_id, scope_type: 'supplier', scope_label: 'ABW', assignment_kind: 'supplier' }]
-      : [],
-    status: 'valid',
-    approval_status: 'approved',
-    normalization_confidence: 0.8,
-  }
-}
-
-async function flushImportBatch(
-  importJobId: string | null,
-  stagedRows: Record<string, any>[],
-  pendingProducts: PendingProductInsert[],
-  messages: string[],
-) {
-  let success = 0
-  let errors = 0
-  const firstRow = pendingProducts[0]?.rowNumber || stagedRows[0]?.row_number || 0
-  const lastRow = pendingProducts[pendingProducts.length - 1]?.rowNumber || stagedRows[stagedRows.length - 1]?.row_number || firstRow
-
-  if (importJobId && stagedRows.length > 0) {
-    const { error } = await client.from('import_job_rows').insert(stagedRows as any[])
-    if (error) {
-      messages.push(`Rows ${firstRow}-${lastRow}: staging failed: ${error.message}`)
-    }
-  }
-
-  if (pendingProducts.length === 0) {
-    return { success, errors }
-  }
-
-  const { error } = await client.from('products').insert(pendingProducts.map(item => item.product))
-  if (!error) {
-    return { success: pendingProducts.length, errors }
-  }
-
-  messages.push(`Rows ${firstRow}-${lastRow}: batch product insert failed, retrying rows individually`)
-  for (const item of pendingProducts) {
-    const { error: rowError } = await client.from('products').insert(item.product)
-    if (rowError) {
-      errors++
-      messages.push(`Row ${item.rowNumber + 1}: ${rowError.message}`)
-    } else {
-      success++
-    }
-  }
-
-  return { success, errors }
-}
-
-function yieldToBrowser() {
-  return new Promise(resolve => setTimeout(resolve, 0))
-}
-
-async function runImport() {
-  if (!currentWorkspace.value || !hasTitleMapped.value) return
-
-  step.value = 'importing'
-  importing.value = true
-  setImportProgress({
-    phase: 'Preparing import',
-    detail: 'Loading workspace brands and categories',
-    current: 0,
-    total: csvRows.value.length,
-    success: 0,
-    errors: 0,
-  })
-  let success = 0
-  let errors = 0
-  const messages: string[] = []
-
-  // Reset caches for this import run
-  brandCache.value = {}
-  categoryCache.value = {}
-
-  // Pre-warm caches with existing brands and categories
-  const [brandsRes, categoriesRes] = await Promise.all([
-    client.from('brands').select('id, name').eq('workspace_id', currentWorkspace.value.id),
-    client.from('categories').select('id, name').eq('workspace_id', currentWorkspace.value.id),
-  ])
-  for (const b of brandsRes.data || []) {
-    brandCache.value[b.name.toLowerCase()] = b.id
-  }
-  for (const c of categoriesRes.data || []) {
-    categoryCache.value[c.name.toLowerCase()] = c.id
-  }
-  setImportProgress({
-    phase: 'Creating import job',
-    detail: `Preparing staged review records for ${csvRows.value.length} rows`,
-  })
-
-  const reverseMap: Record<string, string> = {}
-  for (const [csvHeader, skumsField] of Object.entries(columnMappings.value)) {
-    if (skumsField) reverseMap[skumsField] = csvHeader
-  }
-
-  let importJobId: string | null = null
-  const importJobBase = {
-    workspace_id: currentWorkspace.value.id,
-    source_type: importSourceType(),
-    source_name: 'LISE staff upload',
-    file_name: fileName.value,
-    status: 'validated',
-    column_mapping: columnMappings.value,
-    import_options: {
-      demo_commit: true,
-      default_status: 'active',
-      default_pos_enabled: true,
-    },
-    total_rows: csvRows.value.length,
-    valid_rows: csvRows.value.length,
-  }
-  const { data: createdJob, error: createJobError } = await client
-    .from('import_jobs')
-    .insert({
-      ...importJobBase,
-      mapping_source: 'deterministic',
-      inferred_column_mapping: columnMappings.value,
-      review_status: 'approved',
-    })
-    .select('id')
-    .single()
-
-  if (createJobError) {
-    const { data: fallbackJob } = await client
-      .from('import_jobs')
-      .insert(importJobBase)
-      .select('id')
-      .single()
-    importJobId = fallbackJob?.id || null
-  } else {
-    importJobId = createdJob?.id || null
-  }
-
-  const stagedRows: Record<string, any>[] = []
-  const pendingProducts: PendingProductInsert[] = []
-  const totalBatches = Math.max(1, Math.ceil(csvRows.value.length / IMPORT_BATCH_SIZE))
-
-  for (let i = 0; i < csvRows.value.length; i++) {
-    const row = csvRows.value[i]
-    let product: Record<string, any>
-    setImportProgress({
-      phase: importJobId ? 'Staging and committing rows' : 'Committing rows',
-      detail: `Row ${i + 1} of ${csvRows.value.length}`,
-      current: i,
-      success,
-      errors,
-    })
-    try {
-      product = normalizeProductFromRow(row, i, reverseMap)
-    } catch (error: any) {
-      errors++
-      messages.push(error.message)
-      setImportProgress({
-        detail: `Skipped row ${i + 1}: ${error.message}`,
-        current: i + 1,
-        success,
-        errors,
-      })
-      continue
-    }
-    setImportProgress({
-      detail: `Row ${i + 1} of ${csvRows.value.length}: ${product.title}`,
-    })
-
-    if (reverseMap._brand) {
-      const val = row[reverseMap._brand]
-      if (val) {
-        const brandId = await resolveBrandId(String(val))
-        if (brandId) product.brand_id = brandId
-      }
-    }
-    if (reverseMap._category) {
-      const val = row[reverseMap._category]
-      if (val) {
-        const categoryId = await resolveCategoryId(String(val))
-        if (categoryId) product.category_id = categoryId
-      }
-    }
-
-    if (importJobId) stagedRows.push(buildImportJobRow(importJobId, i + 1, row, product))
-    pendingProducts.push({ rowNumber: i + 1, product })
-
-    if (pendingProducts.length >= IMPORT_BATCH_SIZE || i === csvRows.value.length - 1) {
-      const batchNumber = Math.ceil((i + 1) / IMPORT_BATCH_SIZE)
-      const firstRow = pendingProducts[0]?.rowNumber || i + 1
-      const lastRow = pendingProducts[pendingProducts.length - 1]?.rowNumber || i + 1
-      setImportProgress({
-        phase: `Writing batch ${batchNumber} of ${totalBatches}`,
-        detail: `Rows ${firstRow}-${lastRow}: staging and committing ${pendingProducts.length} products`,
-        current: i + 1,
-        success,
-        errors,
-      })
-
-      const result = await flushImportBatch(importJobId, stagedRows, pendingProducts, messages)
-      success += result.success
-      errors += result.errors
-      stagedRows.length = 0
-      pendingProducts.length = 0
-
-      setImportProgress({
-        current: i + 1,
-        success,
-        errors,
-        detail: `Completed batch ${batchNumber} of ${totalBatches}`,
-      })
-      await yieldToBrowser()
-    }
-  }
-
-  setImportProgress({
-    phase: 'Finalizing import',
-    detail: 'Updating import job totals',
-    current: csvRows.value.length,
-    success,
-    errors,
-  })
-  importResult.value = { success, errors, messages }
-  if (importJobId) {
-    await client.from('import_jobs').update({
-      status: errors > 0 ? 'completed' : 'completed',
-      committed_rows: success,
-      error_rows: errors,
-      approved_row_count: success,
-      rejected_row_count: errors,
-      committed_at: new Date().toISOString(),
-    } as any).eq('id', importJobId)
-  }
-  importing.value = false
-  step.value = 'done'
-}
-
-function resetImport() {
-  step.value = 'upload'
-  fileName.value = ''
-  csvHeaders.value = []
-  csvRows.value = []
-  columnMappings.value = {}
-  importResult.value = null
-  importing.value = false
-  setImportProgress({
-    phase: 'Waiting',
-    detail: '',
-    current: 0,
-    total: 0,
-    success: 0,
-    errors: 0,
-  })
+async function startImport() {
+  await runImport({ demoCommit: true })
 }
 
 // ─── Export State ───
@@ -1007,7 +353,7 @@ onMounted(async () => {
                 : 'bg-gray-800 text-gray-500',
           ]"
           :disabled="idx > ['upload', 'map', 'preview', 'done'].indexOf(step)"
-          @click="step === 'done' ? null : (step = s.key as ImportStep)"
+          @click="step === 'done' ? null : (step = s.key as any)"
         >
           {{ s.label }}
         </button>
@@ -1022,8 +368,9 @@ onMounted(async () => {
         <div class="card p-6">
           <h2 class="mb-2 text-lg font-semibold text-white">Upload product sheet</h2>
           <p class="mb-4 text-sm text-gray-400">
-            Drop any CSV, TSV, or Excel file - we'll auto-detect columns and map them to the
-            <span class="text-white font-medium">{{ skumsFields.length }}</span> fields from your selected schema.
+            Drop a dirty supplier catalog (CSV / TSV / Excel). We detect headers (including ABW-style multi-line
+            preambles), auto-map columns, and for large files ({{ LARGE_IMPORT_ROW_THRESHOLD.toLocaleString() }}+)
+            persist job progress until completion.
           </p>
 
           <button class="btn-ghost mb-4 text-indigo-400 text-xs" @click="downloadTemplate">
@@ -1065,9 +412,12 @@ onMounted(async () => {
               <p class="mt-0.5 text-sm text-gray-400">
                 We found <span class="text-white font-medium">{{ csvHeaders.length }}</span> columns
                 in <span class="text-white font-medium">{{ fileName }}</span>
-                ({{ csvRows.length }} rows).
-                Auto-matched <span class="text-emerald-400 font-medium">{{ mappedCount }}</span> columns
-                to <span class="text-indigo-400 font-medium">{{ skumsFields.length }}</span> schema fields.
+                ({{ csvRows.length.toLocaleString() }} rows
+                <span v-if="providerHint === 'abw'" class="text-amber-400">· ABW catalog detected</span>).
+                Auto-matched <span class="text-emerald-400 font-medium">{{ mappedCount }}</span> columns.
+                <span v-if="isLargeImport" class="block mt-1 text-indigo-300">
+                  Large file ({{ LARGE_IMPORT_ROW_THRESHOLD.toLocaleString() }}+ rows): progress is saved on an import job you can track to completion.
+                </span>
               </p>
             </div>
           </div>
@@ -1196,24 +546,29 @@ onMounted(async () => {
           </div>
 
           <div class="mt-4 flex items-center justify-between">
-            <p class="text-sm text-gray-400">
-              Ready to import <span class="text-white font-medium">{{ csvRows.length }}</span> products with
-              <span class="text-white font-medium">{{ mappedCount }}</span> fields each.
-            </p>
+            <div class="text-sm text-gray-400 space-y-1">
+              <p>
+                Ready to import <span class="text-white font-medium">{{ csvRows.length.toLocaleString() }}</span> products with
+                <span class="text-white font-medium">{{ mappedCount }}</span> fields each.
+              </p>
+              <p v-if="providerHint === 'abw'" class="text-xs text-amber-400/90">
+                ABW wholesale prices map to <strong>cost</strong>; POS is off by default for full catalogs. Re-import upserts by catalog no / SKU.
+              </p>
+            </div>
             <div class="flex gap-3">
               <button class="btn-secondary" @click="step = 'map'">Back</button>
-              <button class="btn-primary" @click="runImport">
+              <button class="btn-primary" :disabled="importing" @click="startImport">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                 </svg>
-                Import {{ csvRows.length }} Products
+                Import {{ csvRows.length.toLocaleString() }} Products
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- STEP 3.5: Importing progress -->
+      <!-- STEP 3.5: Importing progress + job status -->
       <div v-if="step === 'importing'" class="card p-6">
         <div class="flex items-start gap-4">
           <svg class="mt-1 h-8 w-8 shrink-0 animate-spin text-indigo-400" fill="none" viewBox="0 0 24 24">
@@ -1225,10 +580,18 @@ onMounted(async () => {
               <div class="min-w-0">
                 <h3 class="text-lg font-semibold text-white">{{ importProgress.phase }}</h3>
                 <p class="mt-1 truncate text-sm text-gray-400">{{ importProgress.detail || 'Starting import' }}</p>
+                <p v-if="activeJobId" class="mt-2 text-xs font-mono text-gray-500">
+                  Job {{ activeJobId }}
+                  <span v-if="jobSnapshot?.status" class="ml-2 rounded bg-gray-800 px-1.5 py-0.5 text-indigo-300">
+                    {{ jobSnapshot.status }}
+                  </span>
+                </p>
               </div>
               <div class="shrink-0 text-right">
                 <p class="text-2xl font-bold text-white">{{ importProgressPercent }}%</p>
-                <p class="text-xs text-gray-500">{{ importProgress.current }} / {{ importProgress.total }} rows</p>
+                <p class="text-xs text-gray-500">
+                  {{ importProgress.current.toLocaleString() }} / {{ importProgress.total.toLocaleString() }} rows
+                </p>
               </div>
             </div>
 
@@ -1239,46 +602,78 @@ onMounted(async () => {
               />
             </div>
 
-            <div class="mt-5 grid grid-cols-3 gap-3">
+            <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div class="rounded-lg bg-gray-900/70 p-3">
                 <p class="text-xs text-gray-500">Processed</p>
-                <p class="mt-1 text-lg font-semibold text-white">{{ importProgress.current }}</p>
+                <p class="mt-1 text-lg font-semibold text-white">{{ importProgress.current.toLocaleString() }}</p>
               </div>
               <div class="rounded-lg bg-emerald-500/10 p-3">
-                <p class="text-xs text-emerald-400/70">Imported</p>
-                <p class="mt-1 text-lg font-semibold text-emerald-400">{{ importProgress.success }}</p>
+                <p class="text-xs text-emerald-400/70">Committed</p>
+                <p class="mt-1 text-lg font-semibold text-emerald-400">{{ importProgress.success.toLocaleString() }}</p>
+              </div>
+              <div class="rounded-lg bg-sky-500/10 p-3">
+                <p class="text-xs text-sky-400/70">Created / Updated</p>
+                <p class="mt-1 text-lg font-semibold text-sky-300">
+                  {{ importProgress.created.toLocaleString() }} / {{ importProgress.updated.toLocaleString() }}
+                </p>
               </div>
               <div class="rounded-lg bg-red-500/10 p-3">
                 <p class="text-xs text-red-400/70">Errors</p>
-                <p class="mt-1 text-lg font-semibold text-red-400">{{ importProgress.errors }}</p>
+                <p class="mt-1 text-lg font-semibold text-red-400">{{ importProgress.errors.toLocaleString() }}</p>
               </div>
             </div>
 
             <p class="mt-4 text-xs text-gray-500">
-              Staging rows for review and committing approved product records. Large files may take a moment.
+              Progress is written to the import job every batch
+              <span v-if="isLargeImport"> (large catalog mode — keep this tab open until complete)</span>.
+              Status updates every few seconds from the job record.
             </p>
           </div>
         </div>
       </div>
 
-      <!-- STEP 4: Results -->
+      <!-- STEP 4: Results / job completion -->
       <div v-if="step === 'done' && importResult" class="space-y-4">
         <div class="card p-6">
-          <h2 class="mb-4 text-lg font-semibold text-white">Import Complete</h2>
+          <div class="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-lg font-semibold text-white">
+                {{ importResult.errors && !importResult.success ? 'Import Finished with Errors' : 'Import Complete' }}
+              </h2>
+              <p v-if="importResult.jobId" class="mt-1 text-xs font-mono text-gray-500">
+                Job {{ importResult.jobId }}
+                <span v-if="jobSnapshot?.status" class="ml-2 text-emerald-400">· {{ jobSnapshot.status }}</span>
+              </p>
+            </div>
+            <span
+              v-if="jobSnapshot?.status === 'completed' || importResult.success"
+              class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-400"
+            >
+              Completed
+            </span>
+          </div>
 
-          <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="grid grid-cols-2 gap-4 mb-4 sm:grid-cols-4">
             <div class="rounded-lg bg-emerald-500/10 p-5 text-center">
-              <p class="text-3xl font-bold text-emerald-400">{{ importResult.success }}</p>
-              <p class="mt-1 text-sm text-emerald-400/70">Products imported</p>
+              <p class="text-3xl font-bold text-emerald-400">{{ importResult.success.toLocaleString() }}</p>
+              <p class="mt-1 text-sm text-emerald-400/70">Committed</p>
+            </div>
+            <div class="rounded-lg bg-sky-500/10 p-5 text-center">
+              <p class="text-3xl font-bold text-sky-300">{{ (importResult.created || 0).toLocaleString() }}</p>
+              <p class="mt-1 text-sm text-sky-400/70">Created</p>
+            </div>
+            <div class="rounded-lg bg-indigo-500/10 p-5 text-center">
+              <p class="text-3xl font-bold text-indigo-300">{{ (importResult.updated || 0).toLocaleString() }}</p>
+              <p class="mt-1 text-sm text-indigo-400/70">Updated</p>
             </div>
             <div class="rounded-lg bg-red-500/10 p-5 text-center">
-              <p class="text-3xl font-bold text-red-400">{{ importResult.errors }}</p>
+              <p class="text-3xl font-bold text-red-400">{{ importResult.errors.toLocaleString() }}</p>
               <p class="mt-1 text-sm text-red-400/70">Errors</p>
             </div>
           </div>
 
           <div v-if="importResult.messages.length > 0" class="mb-4">
-            <p class="mb-2 text-xs font-medium text-gray-400">Error details:</p>
+            <p class="mb-2 text-xs font-medium text-gray-400">Error details (first {{ importResult.messages.length }}):</p>
             <div class="max-h-48 overflow-y-auto rounded-lg bg-gray-800 p-3 space-y-1">
               <p v-for="(msg, i) in importResult.messages" :key="i" class="text-xs text-gray-400 font-mono">
                 {{ msg }}

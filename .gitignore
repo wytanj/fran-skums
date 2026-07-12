@@ -24,6 +24,20 @@ logs
 .env.*
 !.env.example
 
+# Local Shopee session export (do not commit)
+sample-cookie.json
+second-sample.json
+*-sample.json
+# Persistent Chrome profile for interactive Shopee smoke (do not commit)
+.shopee-chrome-profile/
+# Large local supplier dumps (do not commit)
+product-list.csv
+# Local scrape debug artifacts
+scripts/_shopee_*.png
+scripts/_shopee_*.txt
+scripts/_product_list_analysis.json
+.data/
+
 .vercel
 .claude/settings.local.json
 

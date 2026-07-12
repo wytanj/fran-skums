@@ -5,6 +5,7 @@
 import { getCollectAdapter } from '../../marketplace/collectors/registry.mjs'
 import { scrapeShopeeWithPuppeteer } from '../../marketplace/collectors/shopee-puppeteer/adapter.mjs'
 import { scrapeShopeeWithCloudflare } from '../../marketplace/collectors/cloudflare-browser-run/adapter.mjs'
+import { scrapeShopeeWithBrowserbase } from '../../marketplace/collectors/browserbase/adapter.mjs'
 import { upsertObservationCards } from '../../marketplace/writers/upsertObservations.mjs'
 import { createStealthPage, getBrowser } from './browser-manager'
 import { getServiceClient } from './supabase'
@@ -46,6 +47,10 @@ async function runCollector(
 
   if (collectorId === 'cloudflare_browser_run') {
     return scrapeShopeeWithCloudflare(seedInput, jobId)
+  }
+
+  if (collectorId === 'browserbase') {
+    return scrapeShopeeWithBrowserbase(seedInput, jobId)
   }
 
   const adapter = getCollectAdapter(collectorId)

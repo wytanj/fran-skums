@@ -24,5 +24,28 @@ export default defineEventHandler(async (event) => {
 
   if (rowsError) throw createError({ statusCode: 500, statusMessage: rowsError.message })
 
-  return { data: { ...data, rows: rows || [] } }
+  // Live progress for large catalog imports (written by UI/worker into import_options.progress)
+  const progress = (data as any).import_options?.progress || null
+  const complete =
+    data.status === 'completed' ||
+    data.status === 'failed' ||
+    data.status === 'cancelled'
+
+  return {
+    data: {
+      ...data,
+      rows: rows || [],
+      progress,
+      is_complete: complete,
+      completion: {
+        status: data.status,
+        total_rows: data.total_rows,
+        committed_rows: data.committed_rows,
+        error_rows: data.error_rows,
+        review_status: (data as any).review_status ?? null,
+        committed_at: data.committed_at,
+        progress,
+      },
+    },
+  }
 })

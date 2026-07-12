@@ -218,7 +218,7 @@ export const toolDefinitions = [
         max_listings: { type: 'number' },
         collector_id: {
           type: 'string',
-          description: 'mock | shopee_puppeteer | cloudflare_browser_run',
+          description: 'mock | browserbase | shopee_puppeteer | cloudflare_browser_run',
         },
         enabled: { type: 'boolean' },
         priority: { type: 'number' },

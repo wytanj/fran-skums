@@ -30,6 +30,7 @@ test('phase 1 registers shopee and cloudflare collectors', () => {
   assert.ok(ids.includes('mock'))
   assert.ok(ids.includes('shopee_puppeteer'))
   assert.ok(ids.includes('cloudflare_browser_run'))
+  assert.ok(ids.includes('browserbase'))
 })
 
 test('shopee URLs and item id parsing', () => {
@@ -170,10 +171,11 @@ test('process-jobs and collect runner are wired for phase 1', () => {
   assert.match(collectUtil, /processMarketplaceJobs/)
   assert.match(collectUtil, /shopee_puppeteer/)
   assert.match(collectUtil, /cloudflare_browser_run/)
+  assert.match(collectUtil, /browserbase/)
   assert.match(collectUtil, /upsertObservationCards/)
   assert.match(collectUtil, /scrapeShopeeWithPuppeteer/)
   assert.match(processRoute, /processMarketplaceJobs/)
   assert.match(snapshotsRoute, /marketplace_listing_snapshots/)
-  assert.match(marketplaceReadme, /shopee_puppeteer|Phase 1/)
+  assert.match(marketplaceReadme, /shopee_puppeteer|browserbase|Phase 1/)
   assert.match(majorUpdate, /Phase 1/)
 })

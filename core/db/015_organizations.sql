@@ -267,6 +267,8 @@ end;
 $$;
 
 -- ── 12. Update create_workspace to optionally link to org ──
+-- NOTE: CREATE OR REPLACE does not drop the 2-arg overload from 007.
+-- Migration 051 drops public.create_workspace(text, text) to resolve ambiguity.
 
 create or replace function public.create_workspace(ws_name text, ws_slug text, ws_org_id uuid default null)
 returns json

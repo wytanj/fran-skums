@@ -8,7 +8,8 @@ Competitive observation for public marketplaces (Shopee first).
 | `collector_id` | Runtime | Notes |
 |----------------|---------|--------|
 | `mock` | In-process | Deterministic fixtures (tests / dry-run) |
-| `shopee_puppeteer` | Puppeteer via `browser-manager` | Best SERP quality; run on local/worker with Chrome |
+| `shopee_puppeteer` | Puppeteer via `browser-manager` | Local Chrome; often captcha/traffic-walled |
+| `browserbase` | Browserbase cloud browser + Puppeteer | Preferred live path; `BROWSERBASE_API_KEY` |
 | `cloudflare_browser_run` | Cloudflare Browser Rendering REST | Needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` |
 
 ## Phase 0
@@ -29,6 +30,7 @@ Competitive observation for public marketplaces (Shopee first).
 | `shopee/fixtures/` | Sample search JSON for tests |
 | `writers/upsertObservations.mjs` | Upsert shops/listings + insert snapshots |
 | `collectors/shopee-puppeteer` | Puppeteer SERP scrape + session cookies |
+| `collectors/browserbase` | Browserbase session + Puppeteer (proxies, captcha solve) |
 | `collectors/cloudflare-browser-run` | CF `/browser-rendering/content` fallback |
 
 ### Job APIs
@@ -50,7 +52,11 @@ GET  /api/v1/marketplace/snapshots
 ```env
 SHOPEE_SG_SESSION_JSON=[{"name":"SPC_ST","value":"...","domain":".shopee.sg","path":"/"}]
 MARKETPLACE_CRON_SECRET=...
-# Optional cloud path:
+# Preferred live cloud path:
+BROWSERBASE_API_KEY=...
+# BROWSERBASE_PROXIES=1
+# BROWSERBASE_REGION=ap-southeast-1
+# Optional CF fallback:
 CLOUDFLARE_ACCOUNT_ID=...
 CLOUDFLARE_API_TOKEN=...
 ```
@@ -63,13 +69,19 @@ CLOUDFLARE_API_TOKEN=...
   "country": "sg",
   "mode": "keyword",
   "schedule_kind": "daily",
-  "collector_id": "shopee_puppeteer",
+  "collector_id": "browserbase",
   "max_pages": 2,
   "max_listings": 40
 }
 ```
 
 Use `collector_id: "mock"` to validate the write path without hitting Shopee.
+
+Live smoke (Browserbase):
+
+```bash
+node scripts/_smoke_shopee_browserbase.mjs
+```
 
 ## Phase 2 (current)
 

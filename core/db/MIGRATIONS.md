@@ -50,6 +50,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 048 | study_pipeline.sql | Study sessions and pipeline candidates | Explore → propose → decide → promote into watchlist/catalog/purchase interest |
 | 049 | internal_purchase_orders.sql | Internal (decision-layer) POs | Fran buying drafts from study/MCP — separate from inventory purchase_orders |
 | 050 | projections.sql | Financial projection runs | Assumptions + engine results + optional Grok commentary |
+| 051 | fix_create_workspace_overload.sql | Drop ambiguous 2-arg create_workspace | Keeps only (name, slug, org_id default null) so signup RPC resolves |
 
 ## Planned Phase C Spine
 

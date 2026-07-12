@@ -267,6 +267,11 @@ end;
 $$;
 
 -- ── 12. Update create_workspace to optionally link to org ──
+-- Drop the 2-arg overload from fix-workspace-creation first. CREATE OR REPLACE
+-- only matches the exact signature, so leaving both overloads makes (name, slug)
+-- calls ambiguous.
+
+drop function if exists public.create_workspace(text, text);
 
 create or replace function public.create_workspace(ws_name text, ws_slug text, ws_org_id uuid default null)
 returns json

@@ -25,6 +25,89 @@ function humanDelay(min = 800, max = 1800) {
 }
 
 /**
+ * Pause so a human can clear Shopee captcha/traffic walls in the open browser.
+ * - TTY: poll until healthy, or until Enter is pressed (whichever first, max wait).
+ * - Non-TTY: timed wait only.
+ * - SHOPEE_FORCE_MANUAL_WAIT=1: always wait for Enter (or deadline), even if page looks "ok".
+ *   Use this for profile smoke — homepage often scores "ok" and the window races closed.
+ * @param {any} page
+ * @param {string} label
+ */
+async function waitForManualUnblock(page, label = 'page') {
+  const interactiveMs = Number(process.env.SHOPEE_CAPTCHA_WAIT_MS || 0)
+  const waitMs = interactiveMs > 0 ? interactiveMs : 180_000
+  const canStdin = Boolean(process.stdin.isTTY)
+  const forceWait = process.env.SHOPEE_FORCE_MANUAL_WAIT === '1'
+
+  const snapshot = async () => {
+    const title = await page.title()
+    const url = page.url()
+    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 1500) || '')
+    return { title, url, bodyText, health: detectSessionHealth({ title, bodyText, url }) }
+  }
+
+  let snap = await snapshot()
+  console.error(
+    `[shopee_puppeteer] ${label} health=${snap.health} url=${snap.url.slice(0, 140)}`,
+  )
+
+  // Default path: skip pause when page already looks healthy.
+  if (!forceWait && snap.health === 'ok' && !snap.url.includes('/verify/')) return snap
+
+  console.error(
+    canStdin
+      ? `[shopee_puppeteer] ${label}: fix page in Chrome, then press Enter (max ${Math.round(waitMs / 1000)}s)…`
+      : `[shopee_puppeteer] ${label}: waiting up to ${Math.round(waitMs / 1000)}s for manual unblock…`,
+  )
+
+  let enterPressed = false
+  const onData = (buf) => {
+    if (String(buf).includes('\n') || String(buf).includes('\r')) enterPressed = true
+  }
+  if (canStdin) {
+    try {
+      process.stdin.resume()
+      process.stdin.setEncoding('utf8')
+      process.stdin.on('data', onData)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const deadline = Date.now() + waitMs
+  try {
+    while (Date.now() < deadline) {
+      if (enterPressed) {
+        snap = await snapshot()
+        console.error(`[shopee_puppeteer] ${label} enter pressed → health=${snap.health}`)
+        break
+      }
+      await humanDelay(2000, 3000)
+      snap = await snapshot()
+      // Only auto-continue when not force-wait (force mode requires Enter).
+      if (
+        !forceWait &&
+        snap.health === 'ok' &&
+        !snap.url.includes('/verify/')
+      ) {
+        console.error(`[shopee_puppeteer] ${label} unblocked`)
+        break
+      }
+    }
+  } finally {
+    if (canStdin) {
+      try {
+        process.stdin.off('data', onData)
+        process.stdin.pause()
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return snap
+}
+
+/**
  * @returns {Array<{name:string,value:string,domain?:string,path?:string}>}
  */
 export function loadShopeeSessionCookies(country = 'sg') {
@@ -151,9 +234,23 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
       await page.setCookie(...cookies)
     }
 
+    // Optional human solve: SHOPEE_INTERACTIVE=1 opens time to clear captcha in Chrome.
+    // Prefer stdin (press Enter) when TTY; else timed wait via SHOPEE_CAPTCHA_WAIT_MS.
+    const interactiveOn =
+      process.env.SHOPEE_INTERACTIVE === '1' || Number(process.env.SHOPEE_CAPTCHA_WAIT_MS || 0) > 0
+    // SHOPEE_SKIP_HOME=1 → go straight to search SERP (often where captcha actually appears).
+    const skipHome = process.env.SHOPEE_SKIP_HOME === '1'
     const host = country === 'sg' ? 'shopee.sg' : `shopee.${country}`
-    await page.goto(`https://${host}/`, { waitUntil: 'domcontentloaded', timeout: 45000 })
-    await humanDelay(1000, 2000)
+
+    if (!skipHome) {
+      await page.goto(`https://${host}/`, { waitUntil: 'domcontentloaded', timeout: 45000 })
+      await humanDelay(1000, 2000)
+      if (interactiveOn) {
+        await waitForManualUnblock(page, 'home')
+      }
+    } else {
+      console.error('[shopee_puppeteer] SHOPEE_SKIP_HOME=1 — opening search first')
+    }
 
     for (let pageIdx = 0; pageIdx < maxPages; pageIdx++) {
       if (allCards.length >= maxListings) break
@@ -171,10 +268,15 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
       await page.evaluate(() => window.scrollBy(0, 900))
       await humanDelay(800, 1200)
 
+      if (interactiveOn) {
+        await waitForManualUnblock(page, 'serp')
+      }
+
       const title = await page.title()
       const pageUrl = page.url()
       const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 1500) || '')
       const health = detectSessionHealth({ title, bodyText, url: pageUrl })
+
       if (health !== 'ok') {
         return {
           cards: allCards.slice(0, maxListings),

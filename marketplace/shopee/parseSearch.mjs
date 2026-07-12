@@ -292,9 +292,17 @@ export function detectSessionHealth(page = {}) {
     return 'login_required'
   }
   if (
+    url.includes('/verify/traffic') ||
+    url.includes('/verify/captcha') ||
+    url.includes('/verify/') ||
+    body.includes('page unavailable') ||
+    body.includes('sorry, something went wrong') ||
+    body.includes('loading issue') ||
     body.includes('verify you are human') ||
     body.includes('captcha') ||
     body.includes('unusual traffic') ||
+    body.includes('robot') ||
+    body.includes('try again') && body.includes('loading') ||
     title.includes('captcha')
   ) {
     return 'blocked'

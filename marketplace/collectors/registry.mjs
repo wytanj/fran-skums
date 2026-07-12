@@ -1,6 +1,7 @@
 import { mockCollectAdapter } from './mock/adapter.mjs'
 import { shopeePuppeteerAdapter } from './shopee-puppeteer/adapter.mjs'
 import { cloudflareBrowserRunAdapter } from './cloudflare-browser-run/adapter.mjs'
+import { browserbaseAdapter } from './browserbase/adapter.mjs'
 
 /** @type {Map<string, import('./types.mjs').CollectAdapter>} */
 const adapters = new Map()
@@ -22,3 +23,4 @@ export function listCollectAdapterIds() {
 registerCollectAdapter(mockCollectAdapter)
 registerCollectAdapter(shopeePuppeteerAdapter)
 registerCollectAdapter(cloudflareBrowserRunAdapter)
+registerCollectAdapter(browserbaseAdapter)
