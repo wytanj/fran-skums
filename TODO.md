@@ -1,58 +1,79 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-12  
-**Active focus:** **MCP-ready SKUMS** — draft-first mutations, Approvals UI, audit (manual vs MCP)  
-**Parked:** Live Shopee scrape / Browserbase / brand radar (until Linux + capacity)  
+**Date:** 2026-07-13 (EOD handoff)  
+**Shipped:** MCP-ready **M0–M4** on `main` (`650148e` + summary `d041ab9`)  
+**DB (local SUPABASE_DB_URL):** migrations **001–052 applied** (052 audit channels ✅).  
+**Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
-**Plans:** This file (ops queue) · `Major Update.md` (platform) · `mcp/README.md`
+**Plans:** This file · `docs/Commit Summary 13072026.md` · `mcp/README.md` · `Major Update.md`
 
 ---
 
-## North star (now)
+## Start here tomorrow
 
-**Goal:** Agents (Cursor/Claude via MCP) can propose work in natural language — e.g. *“copy previous PO but remove Anua and 3CE”* — and humans always see:
+**MCP-ready v1 core is done.** Pick one track:
 
-1. **What** was created (object + status chip: DRAFT / PENDING / …)  
-2. **Who/how** (UI vs MCP vs API) with tool name when relevant  
-3. **No silent production mutation** without explicit submit / approve / execute  
+| Priority | Track | First tasks |
+|----------|--------|-------------|
+| **A (recommended)** | **Phase N** — stakeholder notifications | N1 schema: `notification_policies` + `notification_deliveries`; wire `po.submitted` → in_app (then Slack/email) |
+| **B** | **M5** — import / catalog / POS consistency | Import defaults draft/POS-off; activate-for-POS UI; confirm POS filters drafts |
+| **C** | **M6** — audit explorer | Actions subtab: filter audit by channel / tool / entity |
+| **D (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke; not blocking product |
 
-**Success:** Clone-PO story ends in a **visible draft** internal PO; submit/approve only with clear privilege or UI click; audit log can answer “manual or MCP?”
+### Quick smoke when you sit down
+
+```bash
+npm run db:migrate:status    # expect 052 applied
+npm run dev                  # /actions, dashboard Actions strip
+npm run mcp                  # stderr: scopes=safe
+# Optional: MCP clone draft → open deep_link → Submit (member) → Approve (admin)
+```
+
+### Ops leftovers (5–15 min)
+
+- [ ] Confirm **Vercel production Supabase** also has **052** (if different project from local migrate)
+- [ ] Optional: `FRAN_MCP_ACTOR_USER_ID=<profiles.id>` in `.env` for human attribution on MCP audits
+- [ ] Secret rotation / Vercel env audit (service role, cron secrets) — hygiene
+- [ ] Note: **015_organizations.sql** still `checksum-mismatch` on local runner (pre-existing; do not re-apply blindly)
 
 ---
 
-## Implement next (ordered)
+## North star (current product)
 
-### Phase M0 — Prep (hours) ✅
+**Goal:** Agents propose work in chat (e.g. clone PO, drop brands); humans see **DRAFT** in Actions; submit/approve only with privilege; audit shows **ui vs mcp**.
 
-- [x] Lock **recommended MCP scope profiles** in `mcp/README.md` + `mcp/src/context.mjs`:
-  - **safe (default):** `intel:read`, `study:write`, `pipeline:propose`, `po:draft`, `projection:run`  
-    — **no** `po:submit`, `po:decide`, `pipeline:decide`, `pipeline:execute`, `intel:write`
-  - **full (ops):** `FRAN_MCP_PROFILE=full` / `FRAN_MCP_SCOPES=full` / `*`
-- [x] Empty scopes no longer mean “all” — default **safe**
-- [x] Startup logs profile + client; helpers `getMcpClientName` / `getMcpActorUserId`
-- [x] `.env.example` + local `.env` set to safe + `FRAN_MCP_CLIENT=cursor`
+**Success (v1 — largely met):** Clone → draft + deep link → Actions UI → role-gated approve; `audit_events.source_type` distinguishes channels.
+
+---
+
+## Migrations (local)
+
+| Status | Notes |
+|--------|--------|
+| **052 applied** | `audit_source_channels` — ui/mcp/api/… on `audit_events` |
+| **No pending** | `npm run db:migrate` reports only 015 checksum-mismatch (historical file drift) |
+| **Next SQL** | None for M0–M4; Phase **N1** will add notification tables when started |
+
+---
+
+## Completed (M0–M4) — do not redo
+
+### Phase M0 — Prep ✅
+
+### Phase M0 — Prep ✅
+
+- [x] Safe/full MCP scope profiles; default **safe**
+- [x] Startup logs; client/actor helpers
 - [x] Tests: `tests/mcp-scopes.test.mjs`
-- [ ] Optional: set `FRAN_MCP_ACTOR_USER_ID` to your `profiles.id` when ready for M1 audit
+- [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` (attribution)
 
----
+### Phase M1 — Audit ✅
 
-### Phase M1 — Audit: manual vs MCP (foundation) ✅
-
-**Why first:** Without this, drafts exist but you can’t prove origin.
-
-- [x] **Migration 052:** extend `audit_events.source_type` with  
-  `ui | mcp | assistant | cron | worker` (+ index)
-- [x] **Helper** `core/audit/record.mjs` + `server/utils/audit.ts`  
-  `recordAudit` / `auditMcpMutation` / `mutationEnvelope`
-- [x] **MCP:** mutating tools audit with `channel: mcp`, `tool_name`, `request_id`, client/actor
-- [x] **UI:** product create/update → `source_type=ui` + `actor_user_id`  
-- [x] **API:** product create + internal PO create → `source_type=api`
-- [x] Mutation responses include envelope: `object_type`, `id`, `status`, `is_draft`, `channel`, `next_allowed_actions`
+- [x] Migration **052** applied (local)
+- [x] `recordAudit` / MCP instrumentation / UI+API channels
 - [x] Tests: `tests/audit-record.test.mjs`
-- [ ] **You:** apply `core/db/052_audit_source_channels.sql` on Supabase if not auto-migrated
-- [ ] (Later polish) DB trigger reads `current_setting('skums.channel')` when set
-
-**Done when:** `select source_type, metadata from audit_events where entity_id = $po` shows `mcp` vs `ui` vs `api`.
+- [ ] (Later) trigger GUC `skums.channel`
+- [ ] Confirm 052 on **production** Supabase if different DB
 
 ---
 
@@ -281,32 +302,35 @@ See historical notes at end of this file if needed.
 
 ---
 
-## Architecture decisions to lock while implementing
+## Architecture decisions (status)
 
-- [ ] Default MCP install = **safe** scopes  
-- [ ] Accept ≠ execute (keep two steps on pipeline)  
-- [ ] Internal PO vs inventory PO: separate UI labels; merge later only if product requires  
-- [ ] Who may `po:decide` / `pipeline:execute` (recommend owner/admin only)  
-- [ ] Optional later: unify `pipeline_candidates` + `agent_proposals` into one Actions spine  
+- [x] Default MCP install = **safe** scopes  
+- [x] Accept ≠ execute (two steps)  
+- [x] Internal PO (Actions) vs inventory PO (Inventory) — separate UI labels  
+- [x] UI approve: owner/admin only; member can submit drafts  
+- [ ] Pipeline execute in UI vs full-MCP only (still MCP full for execute)  
+- [ ] Optional later: unify `pipeline_candidates` + `agent_proposals`  
+- [ ] Phase N: email provider choice (Resend / SES / Postmark)
 
 ---
 
-## Suggested build order (strict)
+## Suggested build order
 
 ```text
-M0  Scope profiles                           ✅
-M1  Audit channels                           ✅ (apply migration 052 on DB if needed)
-M2  PO clone / preview tools                 ✅
-M3  Actions UI                               ✅
-M3.5 UI polish                               ✅
-M4  Roles + agent prompt                     ✅
-N1–N3 Stakeholder notifs                     ← next product track
-M5  Import/catalog/POS draft consistency
-M6  Audit explorer (optional)
-── scrape / brand radar still parked ──
+M0–M4 + M3.5     ✅ shipped (main)
+DB 052           ✅ local applied; verify prod if needed
+─────────────────
+Tomorrow pick:
+  N1  notification_policies + deliveries schema
+  N2  po.submitted / po.approved → in_app (+ Slack)
+  N3  email templates + deep links
+  or M5 import/POS consistency
+  or M6 audit explorer
+─────────────────
+Parked: Browserbase smoke, brand radar, scrape scale
 ```
 
-**Next:** Phase N (notifs) or M5 (import consistency), or ship/commit current work.
+**Recommended first session tomorrow:** **N1** (schema only) or **M5** (import defaults) — both unblocked.
 
 ---
 
@@ -314,13 +338,11 @@ M6  Audit explorer (optional)
 
 | Area | Delivered |
 |------|-----------|
-| MI 0–5 | Seeds, jobs, Shopee parse, metrics, study, MCP tools, internal PO status machine, projections |
-| Collect research | Browserbase adapter + smoke; local captcha paths documented; **live collect KIV** |
-| Import | Dirty multi-provider pipeline + large-job progress UI |
-| Ops | Workspace, MCP workspace id, mock smoke, migration 051 |
-| PO server rules | Update/add lines only when `status=draft`; submit → pending_approval |
-| Pipeline | proposed → accepted → execute; catalog product defaults **draft** |
-| Audit table | `audit_events` exists — needs channel attribution (M1) |
+| MI 0–5 | Seeds, jobs, study, MCP, internal PO machine, projections |
+| MCP M0–M4 | Safe scopes, audit channels, clone tools, Actions UI, roles |
+| Import | Dirty multi-provider + large-job progress |
+| Collect research | Browserbase adapter; live scrape **KIV** |
+| Ops | Workspace, MCP id, migrations through **052** (local) |
 
 ---
 
