@@ -9,6 +9,8 @@
  *   BROWSERBASE_REGION           default "ap-southeast-1" (near Shopee SG)
  *   BROWSERBASE_SOLVE_CAPTCHAS   default "1"
  *   BROWSERBASE_ADVANCED_STEALTH default "0" (plan-dependent)
+ *   BROWSERBASE_OS               default "linux" (Developer plan).
+ *                                "windows" / "mac" need Verified / Enterprise.
  *   BROWSERBASE_CONTEXT_ID       optional persistent context id
  *   BROWSERBASE_TIMEOUT_SEC      default 300
  *
@@ -41,6 +43,12 @@ export async function createBrowserbaseSession(overrides = {}) {
   )
   const projectId = process.env.BROWSERBASE_PROJECT_ID || undefined
   const contextId = process.env.BROWSERBASE_CONTEXT_ID || undefined
+  // Developer plan: Linux only. Windows/mac require Verified/Enterprise.
+  // https://docs.browserbase.com/platform/identity/verified-customization#verified
+  const osRaw = (process.env.BROWSERBASE_OS || 'linux').toLowerCase().trim()
+  const os = ['linux', 'windows', 'mac', 'mobile', 'tablet'].includes(osRaw)
+    ? osRaw
+    : 'linux'
 
   /** @type {Record<string, unknown>} */
   const body = {
@@ -50,7 +58,7 @@ export async function createBrowserbaseSession(overrides = {}) {
       solveCaptchas,
       ...(advancedStealth ? { advancedStealth: true } : {}),
       viewport: { width: 1920, height: 1080 },
-      os: 'windows',
+      os,
       ...(contextId
         ? { context: { id: contextId, persist: true } }
         : {}),

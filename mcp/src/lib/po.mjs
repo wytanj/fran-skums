@@ -5,6 +5,7 @@ import {
   canDecidePo,
   canSubmitPo,
   exportPoPayload,
+  filterPoLinesForClone,
   makePoNumber,
   recomputePoTotals,
 } from '../../../intelligence/po/service.mjs'
@@ -256,6 +257,129 @@ export async function decide(input) {
 
 export function exportPo(po, lines) {
   return exportPoPayload(po, lines)
+}
+
+/**
+ * Preview clone of a PO with brand/sku/title filters (no write).
+ */
+export async function previewClone(workspaceId, sourcePoId, filters = {}) {
+  const pack = await loadPo(workspaceId, sourcePoId)
+  if (!pack) throw new Error('Source PO not found')
+  const filtered = filterPoLinesForClone(pack.lines, filters)
+  return {
+    source_po: {
+      id: pack.po.id,
+      po_number: pack.po.po_number,
+      status: pack.po.status,
+      supplier_name: pack.po.supplier_name,
+      currency: pack.po.currency,
+      line_count: pack.po.line_count,
+      subtotal: pack.po.subtotal,
+    },
+    ...filtered,
+    would_create_status: 'draft',
+    is_draft: true,
+    note: 'Preview only — no PO written. Call po_clone_as_draft to create a DRAFT.',
+  }
+}
+
+/**
+ * Clone source PO into a new draft, applying exclusions.
+ */
+export async function cloneAsDraft(workspaceId, sourcePoId, filters = {}, options = {}) {
+  const pack = await loadPo(workspaceId, sourcePoId)
+  if (!pack) throw new Error('Source PO not found')
+  const filtered = filterPoLinesForClone(pack.lines, filters)
+  if (!filtered.kept_lines.length) {
+    throw new Error('Clone would have zero lines after filters — adjust exclusions')
+  }
+
+  const lines = filtered.kept_lines.map((l) => ({
+    title: l.title,
+    sku: l.sku,
+    quantity: l.quantity,
+    unit_cost: l.unit_cost,
+    currency: l.currency || pack.po.currency,
+    product_id: l.product_id,
+    listing_id: l.listing_id,
+    marketplace: l.marketplace,
+    shop_id: l.shop_id,
+    item_id: l.item_id,
+    listing_url: l.listing_url,
+    notes: l.notes,
+    metadata: {
+      ...(l.metadata && typeof l.metadata === 'object' ? l.metadata : {}),
+      cloned_from_line_id: l.id || null,
+    },
+  }))
+
+  const notesParts = [
+    options.notes || pack.po.notes || '',
+    `Cloned from ${pack.po.po_number} (${pack.po.id})`,
+    filtered.dropped_count
+      ? `Excluded ${filtered.dropped_count} line(s): brands=${(filters.exclude_brands || []).join(',') || '—'} skus=${(filters.exclude_skus || []).join(',') || '—'}`
+      : 'No lines excluded',
+  ].filter(Boolean)
+
+  const result = await createDraft({
+    workspace_id: workspaceId,
+    supplier_name: options.supplier_name ?? pack.po.supplier_name,
+    currency: options.currency ?? pack.po.currency,
+    needed_by: options.needed_by ?? pack.po.needed_by,
+    notes: notesParts.join('\n'),
+    study_session_id: options.study_session_id ?? pack.po.study_session_id,
+    pipeline_candidate_id: options.pipeline_candidate_id ?? null,
+    idempotency_key: options.idempotency_key || null,
+    lines,
+    metadata: {
+      ...(pack.po.metadata && typeof pack.po.metadata === 'object' ? pack.po.metadata : {}),
+      source_po_id: pack.po.id,
+      source_po_number: pack.po.po_number,
+      cloned_via: 'mcp',
+      excluded_brands: filters.exclude_brands || [],
+      exclude_skus: filters.exclude_skus || [],
+      exclude_title_contains: filters.exclude_title_contains || [],
+      dropped_count: filtered.dropped_count,
+      dropped_lines_summary: filtered.dropped_lines.map((l) => ({
+        title: l.title,
+        sku: l.sku,
+        drop_reason: l.drop_reason,
+      })),
+    },
+  })
+
+  return {
+    ...result,
+    clone: {
+      source_po_id: pack.po.id,
+      source_po_number: pack.po.po_number,
+      kept_count: filtered.kept_count,
+      dropped_count: filtered.dropped_count,
+      dropped_lines: filtered.dropped_lines.map((l) => ({
+        title: l.title,
+        sku: l.sku,
+        drop_reason: l.drop_reason,
+      })),
+    },
+  }
+}
+
+/**
+ * Submit with named lifecycle event for Phase N hooks.
+ */
+export async function submitWithEvent(workspaceId, poId) {
+  const result = await submit(workspaceId, poId)
+  return { ...result, lifecycle_event: 'po.submitted' }
+}
+
+/**
+ * Decide with named lifecycle event.
+ */
+export async function decideWithEvent(input) {
+  const result = await decide(input)
+  const lifecycle_event =
+    input.decision === 'approved' ? 'po.approved' : input.decision === 'rejected' ? 'po.rejected' : null
+  return { ...result, lifecycle_event }
 }
 
 export function suggestQty(input) {

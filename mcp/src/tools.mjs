@@ -1,17 +1,61 @@
 /**
  * Fran MCP tool definitions + handlers (BI + study + pipeline).
  */
+import { randomUUID } from 'node:crypto'
 import {
   errorResult,
+  getDb,
+  getMcpActorUserId,
+  getMcpClientName,
   jsonResult,
   requireScope,
   requireWorkspaceId,
 } from './context.mjs'
+import { auditMcpMutation } from '../../core/audit/record.mjs'
 import * as bi from './lib/bi.mjs'
 import * as pipeline from './lib/pipeline.mjs'
 import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
 import * as study from './lib/study.mjs'
+
+/**
+ * Record MCP mutation audit + attach envelope fields to result payload.
+ * @param {string} toolName
+ * @param {string} requestId
+ * @param {{
+ *   object_type: string,
+ *   entity_id: string,
+ *   status?: string|null,
+ *   is_draft?: boolean,
+ *   operation?: 'INSERT'|'UPDATE'|'DELETE',
+ *   event_type?: string,
+ *   after_data?: unknown,
+ *   before_data?: unknown,
+ *   metadata?: Record<string, unknown>,
+ * }} entity
+ * @param {Record<string, unknown>} resultBody
+ */
+async function withMcpAudit(toolName, requestId, entity, resultBody) {
+  const workspace_id = requireWorkspaceId()
+  const envelope = await auditMcpMutation(getDb(), {
+    workspace_id,
+    tool_name: toolName,
+    request_id: requestId,
+    client_name: getMcpClientName(),
+    actor_user_id: getMcpActorUserId(),
+    object_type: entity.object_type,
+    entity_id: entity.entity_id,
+    status: entity.status,
+    is_draft: entity.is_draft,
+    operation: entity.operation || 'INSERT',
+    event_type: entity.event_type,
+    after_data: entity.after_data,
+    before_data: entity.before_data,
+    metadata: entity.metadata,
+    result: resultBody,
+  })
+  return jsonResult(envelope)
+}
 
 /** @type {import('@modelcontextprotocol/sdk/types.js').Tool[]} */
 export const toolDefinitions = [
@@ -180,7 +224,17 @@ export const toolDefinitions = [
   {
     name: 'pipeline_execute',
     description:
-      'Execute an accepted candidate. Phase 3/4: watchlist_seed → crawl seed; catalog_product → draft product.',
+      'PRIVILEGED. Executes an accepted candidate (writes crawl seed or draft product). Prefer pipeline_preview_execute first. Requires full MCP profile.',
+    inputSchema: {
+      type: 'object',
+      properties: { candidate_id: { type: 'string' } },
+      required: ['candidate_id'],
+    },
+  },
+  {
+    name: 'pipeline_preview_execute',
+    description:
+      'READ ONLY dry-run of pipeline_execute: shows the seed/product payload that would be written. No DB write. Safe for agents.',
     inputSchema: {
       type: 'object',
       properties: { candidate_id: { type: 'string' } },
@@ -316,8 +370,46 @@ export const toolDefinitions = [
 
   // ── Internal POs ───────────────────────────────────────────
   {
+    name: 'po_preview_clone',
+    description:
+      'READ ONLY. Preview cloning an internal PO with brand/sku/title exclusions (e.g. remove Anua and 3CE). No DB write. Always would create status=draft.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_po_id: { type: 'string' },
+        exclude_brands: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Drop lines whose title/brand contains these tokens (case-insensitive)',
+        },
+        exclude_skus: { type: 'array', items: { type: 'string' } },
+        exclude_title_contains: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['source_po_id'],
+    },
+  },
+  {
+    name: 'po_clone_as_draft',
+    description:
+      'Creates a NEW internal PO in DRAFT only (never submits). Copies lines from source_po_id applying exclusions. Does not change the source PO. User must po_submit (full profile) or use UI to advance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_po_id: { type: 'string' },
+        exclude_brands: { type: 'array', items: { type: 'string' } },
+        exclude_skus: { type: 'array', items: { type: 'string' } },
+        exclude_title_contains: { type: 'array', items: { type: 'string' } },
+        notes: { type: 'string' },
+        supplier_name: { type: 'string' },
+        idempotency_key: { type: 'string' },
+      },
+      required: ['source_po_id'],
+    },
+  },
+  {
     name: 'po_create_draft',
-    description: 'Create an internal purchase order draft (decision-layer, not inventory PO).',
+    description:
+      'Creates an internal purchase order in DRAFT only (decision-layer, not inventory PO). Does not submit or approve.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -388,7 +480,8 @@ export const toolDefinitions = [
   },
   {
     name: 'po_submit',
-    description: 'Submit draft PO for approval (draft → pending_approval).',
+    description:
+      'PRIVILEGED. Submits a DRAFT internal PO for approval (draft → pending_approval). Emits lifecycle po.submitted. Requires full profile. Prefer human UI when possible.',
     inputSchema: {
       type: 'object',
       properties: { po_id: { type: 'string' } },
@@ -397,7 +490,8 @@ export const toolDefinitions = [
   },
   {
     name: 'po_decide',
-    description: 'Approve or reject a pending internal PO.',
+    description:
+      'PRIVILEGED. Approve or reject a PO in pending_approval (emits po.approved / po.rejected). Requires full profile.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -529,6 +623,7 @@ export const toolDefinitions = [
  * @param {Record<string, unknown>} args
  */
 export async function handleTool(name, args = {}) {
+  const requestId = randomUUID()
   try {
     const a = args || {}
     switch (name) {
@@ -543,7 +638,18 @@ export async function handleTool(name, args = {}) {
           country: a.country,
           metadata: a.metadata,
         })
-        return jsonResult({ session })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'study_sessions',
+            entity_id: session.id,
+            status: session.status || 'open',
+            operation: 'INSERT',
+            after_data: session,
+          },
+          { session },
+        )
       }
       case 'study_get': {
         requireScope('intel:read')
@@ -566,7 +672,18 @@ export async function handleTool(name, args = {}) {
           requireWorkspaceId(),
           { force_offline: a.force_offline === true },
         )
-        return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'study_sessions',
+            entity_id: String(a.session_id),
+            status: 'briefed',
+            operation: 'UPDATE',
+            after_data: result,
+          },
+          result,
+        )
       }
       case 'study_match_catalog': {
         requireScope('study:write')
@@ -575,7 +692,18 @@ export async function handleTool(name, args = {}) {
           requireWorkspaceId(),
           { force_offline: a.force_offline === true },
         )
-        return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'study_sessions',
+            entity_id: String(a.session_id),
+            status: 'matched',
+            operation: 'UPDATE',
+            after_data: result,
+          },
+          result,
+        )
       }
       case 'study_propose': {
         requireScope('pipeline:propose')
@@ -584,7 +712,20 @@ export async function handleTool(name, args = {}) {
           study_session_id: String(a.session_id),
           kinds: Array.isArray(a.kinds) ? a.kinds.map(String) : undefined,
         })
-        return jsonResult(result)
+        const first = Array.isArray(result?.candidates) ? result.candidates[0] : result?.candidate
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'pipeline_candidates',
+            entity_id: first?.id || String(a.session_id),
+            status: first?.status || 'proposed',
+            operation: 'INSERT',
+            after_data: result,
+            metadata: { study_session_id: a.session_id },
+          },
+          result,
+        )
       }
       case 'market_search': {
         requireScope('intel:read')
@@ -625,7 +766,20 @@ export async function handleTool(name, args = {}) {
           product_id: a.product_id,
           idempotency_key: a.idempotency_key,
         })
-        return jsonResult(result)
+        const c = result.candidate
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'pipeline_candidates',
+            entity_id: c.id,
+            status: c.status,
+            is_draft: c.status === 'proposed',
+            operation: result.deduped ? 'UPDATE' : 'INSERT',
+            after_data: c,
+          },
+          result,
+        )
       }
       case 'pipeline_list': {
         requireScope('intel:read')
@@ -644,7 +798,18 @@ export async function handleTool(name, args = {}) {
           decision: a.decision,
           decision_note: a.decision_note,
         })
-        return jsonResult({ candidate })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'pipeline_candidates',
+            entity_id: candidate.id,
+            status: candidate.status,
+            operation: 'UPDATE',
+            after_data: candidate,
+          },
+          { candidate },
+        )
       }
       case 'pipeline_execute': {
         requireScope('pipeline:execute')
@@ -652,7 +817,37 @@ export async function handleTool(name, args = {}) {
           workspace_id: requireWorkspaceId(),
           candidate_id: String(a.candidate_id),
         })
-        return jsonResult({ candidate })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'pipeline_candidates',
+            entity_id: candidate.id || String(a.candidate_id),
+            status: candidate.status || 'executed',
+            operation: 'UPDATE',
+            after_data: candidate,
+            metadata: { lifecycle_event: 'pipeline.executed' },
+          },
+          { candidate, lifecycle_event: 'pipeline.executed' },
+        )
+      }
+      case 'pipeline_preview_execute': {
+        requireScope('intel:read')
+        const preview = await pipeline.previewExecutePipelineCandidate({
+          workspace_id: requireWorkspaceId(),
+          candidate_id: String(a.candidate_id),
+        })
+        return jsonResult({
+          ...preview,
+          object_type: 'pipeline_candidates',
+          id: preview.candidate?.id,
+          status: preview.candidate?.status,
+          channel: 'mcp',
+          is_draft: true,
+          next_allowed_actions: preview.can_execute_now
+            ? ['pipeline_execute']
+            : ['pipeline_decide', 'pipeline_list'],
+        })
       }
       case 'bi_list_seeds': {
         requireScope('intel:read')
@@ -666,20 +861,57 @@ export async function handleTool(name, args = {}) {
       case 'bi_upsert_seed': {
         requireScope('intel:write')
         const seed = await bi.upsertSeed(requireWorkspaceId(), a)
-        return jsonResult({ seed })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'marketplace_crawl_seeds',
+            entity_id: seed.id,
+            status: seed.enabled === false ? 'disabled' : 'enabled',
+            is_draft: false,
+            operation: 'UPDATE',
+            after_data: seed,
+          },
+          { seed },
+        )
       }
       case 'bi_set_cadence': {
         requireScope('intel:write')
         const seed = await bi.setSeedCadence(requireWorkspaceId(), String(a.seed_id), a)
-        return jsonResult({ seed })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'marketplace_crawl_seeds',
+            entity_id: seed.id,
+            status: seed.enabled === false ? 'disabled' : 'enabled',
+            is_draft: false,
+            operation: 'UPDATE',
+            after_data: seed,
+          },
+          { seed },
+        )
       }
       case 'bi_run_seed_now': {
         requireScope('intel:write')
         const job = await bi.runSeedNow(requireWorkspaceId(), String(a.seed_id))
-        return jsonResult({
-          job,
-          note: 'Job enqueued as pending. Run POST /api/internal/marketplace/process-jobs (or worker) to collect.',
-        })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'marketplace_crawl_jobs',
+            entity_id: job.id,
+            status: job.status || 'pending',
+            is_draft: false,
+            operation: 'INSERT',
+            after_data: job,
+            metadata: { seed_id: a.seed_id },
+          },
+          {
+            job,
+            note: 'Job enqueued as pending. Run POST /api/internal/marketplace/process-jobs (or worker) to collect.',
+          },
+        )
       }
       case 'bi_job_status': {
         requireScope('intel:read')
@@ -711,13 +943,86 @@ export async function handleTool(name, args = {}) {
         const digest = await bi.latestDigest(requireWorkspaceId())
         return jsonResult({ digest: digest || null })
       }
+      case 'po_preview_clone': {
+        requireScope('intel:read')
+        const preview = await po.previewClone(requireWorkspaceId(), String(a.source_po_id), {
+          exclude_brands: a.exclude_brands,
+          exclude_skus: a.exclude_skus,
+          exclude_title_contains: a.exclude_title_contains,
+        })
+        return jsonResult({
+          ...preview,
+          object_type: 'internal_purchase_orders',
+          id: preview.source_po?.id,
+          status: 'preview',
+          is_draft: true,
+          channel: 'mcp',
+          next_allowed_actions: ['po_clone_as_draft'],
+        })
+      }
+      case 'po_clone_as_draft': {
+        requireScope('po:draft')
+        const result = await po.cloneAsDraft(
+          requireWorkspaceId(),
+          String(a.source_po_id),
+          {
+            exclude_brands: a.exclude_brands,
+            exclude_skus: a.exclude_skus,
+            exclude_title_contains: a.exclude_title_contains,
+          },
+          {
+            notes: a.notes,
+            supplier_name: a.supplier_name,
+            idempotency_key: a.idempotency_key,
+          },
+        )
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'internal_purchase_orders',
+            entity_id: result.po.id,
+            status: 'draft',
+            is_draft: true,
+            operation: result.deduped ? 'UPDATE' : 'INSERT',
+            after_data: result.po,
+            metadata: {
+              source_po_id: a.source_po_id,
+              clone: result.clone,
+              deep_link_hint: `/actions/internal-pos/${result.po.id}`,
+            },
+          },
+          {
+            ...result,
+            deep_link: `/actions/internal-pos/${result.po.id}`,
+            note: 'DRAFT created only — not submitted. Review in SKUMS Actions UI or call po_submit (full profile).',
+          },
+        )
+      }
       case 'po_create_draft': {
         requireScope('po:draft')
         const result = await po.createDraft({
           workspace_id: requireWorkspaceId(),
           ...a,
         })
-        return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'internal_purchase_orders',
+            entity_id: result.po.id,
+            status: result.po.status,
+            is_draft: true,
+            operation: result.deduped ? 'UPDATE' : 'INSERT',
+            after_data: result.po,
+            metadata: { deep_link_hint: `/actions/internal-pos/${result.po.id}` },
+          },
+          {
+            ...result,
+            deep_link: `/actions/internal-pos/${result.po.id}`,
+            note: 'DRAFT only — not submitted.',
+          },
+        )
       }
       case 'po_update_draft': {
         requireScope('po:draft')
@@ -726,7 +1031,19 @@ export async function handleTool(name, args = {}) {
           String(a.po_id),
           a,
         )
-        return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'internal_purchase_orders',
+            entity_id: result.po.id,
+            status: result.po.status,
+            is_draft: result.po.status === 'draft',
+            operation: 'UPDATE',
+            after_data: result.po,
+          },
+          result,
+        )
       }
       case 'po_add_lines': {
         requireScope('po:draft')
@@ -735,7 +1052,20 @@ export async function handleTool(name, args = {}) {
           String(a.po_id),
           a.lines || [],
         )
-        return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'internal_purchase_orders',
+            entity_id: result.po.id,
+            status: result.po.status,
+            is_draft: result.po.status === 'draft',
+            operation: 'UPDATE',
+            after_data: { po: result.po, line_count: result.lines?.length },
+            metadata: { lines_added: Array.isArray(a.lines) ? a.lines.length : 0 },
+          },
+          result,
+        )
       }
       case 'po_suggest_qty': {
         requireScope('intel:read')
@@ -743,18 +1073,46 @@ export async function handleTool(name, args = {}) {
       }
       case 'po_submit': {
         requireScope('po:submit')
-        const result = await po.submit(requireWorkspaceId(), String(a.po_id))
-        return jsonResult(result)
+        const result = await po.submitWithEvent(requireWorkspaceId(), String(a.po_id))
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'internal_purchase_orders',
+            entity_id: result.po.id,
+            status: result.po.status,
+            is_draft: false,
+            operation: 'UPDATE',
+            event_type: 'po.submitted',
+            after_data: result.po,
+            metadata: { lifecycle_event: 'po.submitted' },
+          },
+          result,
+        )
       }
       case 'po_decide': {
         requireScope('po:decide')
-        const result = await po.decide({
+        const result = await po.decideWithEvent({
           workspace_id: requireWorkspaceId(),
           po_id: String(a.po_id),
           decision: a.decision,
           decision_note: a.decision_note,
         })
-        return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'internal_purchase_orders',
+            entity_id: result.po.id,
+            status: result.po.status,
+            is_draft: false,
+            operation: 'UPDATE',
+            event_type: result.lifecycle_event || 'po.decided',
+            after_data: result.po,
+            metadata: { lifecycle_event: result.lifecycle_event },
+          },
+          result,
+        )
       }
       case 'po_get': {
         requireScope('intel:read')
@@ -795,12 +1153,37 @@ export async function handleTool(name, args = {}) {
           },
           force_offline: a.force_offline === true,
         })
-        return jsonResult({ projection: run })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'projection_runs',
+            entity_id: run.id,
+            status: run.status || 'completed',
+            is_draft: false,
+            operation: 'INSERT',
+            after_data: run,
+          },
+          { projection: run },
+        )
       }
       case 'projection_from_po': {
         requireScope('projection:run')
         const run = await projection.fromPo(requireWorkspaceId(), String(a.po_id), a)
-        return jsonResult({ projection: run })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'projection_runs',
+            entity_id: run.id,
+            status: run.status || 'completed',
+            is_draft: false,
+            operation: 'INSERT',
+            after_data: run,
+            metadata: { po_id: a.po_id },
+          },
+          { projection: run },
+        )
       }
       case 'projection_from_study': {
         requireScope('projection:run')
@@ -809,7 +1192,20 @@ export async function handleTool(name, args = {}) {
           String(a.study_session_id),
           a,
         )
-        return jsonResult({ projection: run })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'projection_runs',
+            entity_id: run.id,
+            status: run.status || 'completed',
+            is_draft: false,
+            operation: 'INSERT',
+            after_data: run,
+            metadata: { study_session_id: a.study_session_id },
+          },
+          { projection: run },
+        )
       }
       case 'projection_get': {
         requireScope('intel:read')

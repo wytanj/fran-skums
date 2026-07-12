@@ -3,10 +3,71 @@
 stdio MCP server for agents (Cursor, Claude, Grok, etc.) to:
 
 - **Study** new products (brief via Grok, catalog match, pipeline propose)
-- **BI** watch Shopee warehouse data (seeds, snapshots, export tables)
-- **Pipeline** decide/execute watchlist seeds and catalog drafts
+- **BI** read Shopee warehouse data (seeds, snapshots, export tables)
+- **Pipeline** propose (and, if privileged, decide/execute) watchlist seeds and catalog drafts
+- **Internal POs** as **drafts** first; submit/approve only with privileged scopes
 
-Does **not** scrape Shopee itself for every tool call — it reads/writes the Supabase warehouse. Use `bi_run_seed_now` + the collect worker for new pulls.
+Does **not** scrape Shopee on every tool call — it reads/writes the Supabase warehouse. Use `bi_run_seed_now` + a collect worker for new pulls (privileged / ops profile).
+
+---
+
+## Scope profiles (M0 — required reading)
+
+Agents must not silently submit POs, approve decisions, or execute pipeline writes. Use a **profile**.
+
+| Profile | Env | Can do | Cannot do |
+|---------|-----|--------|-----------|
+| **safe** (default) | `FRAN_MCP_PROFILE=safe` or `FRAN_MCP_SCOPES=safe` or unset | Read BI, study, **propose** pipeline, **draft** POs, run projections | `po:submit`, `po:decide`, `pipeline:decide`, `pipeline:execute`, `intel:write` (seed upsert/run) |
+| **full** (ops only) | `FRAN_MCP_PROFILE=full` or `FRAN_MCP_SCOPES=full` or `*` | Everything | — |
+| **custom** | `FRAN_MCP_SCOPES=intel:read,po:draft,...` | Only listed scopes | Anything not listed |
+
+### Safe scopes (explicit list)
+
+```text
+intel:read
+study:write
+pipeline:propose
+po:draft
+projection:run
+```
+
+### Full scopes (when unrestricted is intentional)
+
+```text
+intel:read,intel:write
+study:write
+pipeline:propose,pipeline:decide,pipeline:execute
+po:draft,po:submit,po:decide
+projection:run
+```
+
+**Default if `FRAN_MCP_SCOPES` is empty:** **safe** (not “all scopes”).  
+To get the old unrestricted behavior: `FRAN_MCP_SCOPES=full` or `FRAN_MCP_PROFILE=full`.
+
+### Agent contract (safe profile) — paste into system prompts
+
+```text
+You are operating Fran SKUMS via MCP in SAFE mode unless told otherwise.
+
+Rules:
+1. Prefer draft/propose tools. Never imply a PO is ordered or a product is live unless status says so.
+2. For “copy previous PO but remove brands X,Y”:
+   - po_list / po_get to find source
+   - po_preview_clone(source_po_id, exclude_brands: [...])  # read only
+   - po_clone_as_draft(...)  # ALWAYS creates status=draft
+   - Return the deep_link (/actions/internal-pos/:id) so the human can open SKUMS Actions
+3. Do NOT call po_submit, po_decide, pipeline_decide, pipeline_execute, bi_run_seed_now
+   unless the user explicitly says APPROVE / SUBMIT / EXECUTE and the server profile is full.
+4. After creating a draft, stop and tell the user to review in Actions UI.
+
+OK:  study_*, pipeline_propose, po_create_draft, po_update_draft, po_add_lines,
+     po_preview_clone, po_clone_as_draft, po_list, po_get, market_*, bi_list_*, bi_export_*
+NO (safe): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now
+```
+
+Preferred chat story: *“copy previous PO, remove Anua and 3CE”* → **draft only** → user opens **Actions** → Submit / Approve (owner/admin).
+
+---
 
 ## Setup
 
@@ -17,8 +78,16 @@ SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 XAI_API_KEY=...                  # live Grok briefs / projection commentary
 FRAN_MCP_WORKSPACE_ID=<uuid>     # your Fran workspace
-# optional:
-# FRAN_MCP_SCOPES=intel:read,study:write,pipeline:propose,pipeline:decide,pipeline:execute,po:draft,po:submit,po:decide,projection:run
+
+# --- M0 scope + attribution (recommended) ---
+FRAN_MCP_PROFILE=safe
+# or: FRAN_MCP_SCOPES=safe
+# privileged machine only:
+# FRAN_MCP_PROFILE=full
+
+FRAN_MCP_CLIENT=cursor
+# optional: your profiles.id for audit attribution (M1+)
+# FRAN_MCP_ACTOR_USER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 ### How to get `FRAN_MCP_WORKSPACE_ID`
@@ -53,6 +122,13 @@ npm run mcp
 node mcp/src/index.mjs
 ```
 
+On start, stderr logs profile/scopes, e.g.:
+
+```text
+[fran-mcp] scopes=safe (profile=safe): intel:read,study:write,...
+[fran-mcp] client=cursor
+```
+
 ## Cursor / Claude Desktop config example
 
 ```json
@@ -62,7 +138,9 @@ node mcp/src/index.mjs
       "command": "node",
       "args": ["C:/Users/Jeremy Tan/CodeProjects/fran-skums/mcp/src/index.mjs"],
       "env": {
-        "FRAN_MCP_WORKSPACE_ID": "your-workspace-uuid"
+        "FRAN_MCP_WORKSPACE_ID": "your-workspace-uuid",
+        "FRAN_MCP_PROFILE": "safe",
+        "FRAN_MCP_CLIENT": "cursor"
       }
     }
   }
@@ -71,7 +149,9 @@ node mcp/src/index.mjs
 
 Env vars can also come from the shell that launches the MCP process; the server loads repo `.env` automatically.
 
-## Tools (Phase 4)
+---
+
+## Tools
 
 ### Study
 | Tool | Scope |
@@ -88,37 +168,96 @@ Env vars can also come from the shell that launches the MCP process; the server 
 |------|--------|
 | `pipeline_propose` | pipeline:propose |
 | `pipeline_list` | intel:read |
-| `pipeline_decide` | pipeline:decide |
-| `pipeline_execute` | pipeline:execute |
+| `pipeline_decide` | pipeline:decide (**full** only) |
+| `pipeline_execute` | pipeline:execute (**full** only) |
 
 ### BI
 | Tool | Scope |
 |------|--------|
 | `bi_list_seeds` / `bi_job_status` / `bi_query_snapshots` / `bi_export_table` / `bi_list_metrics` / `bi_latest_digest` | intel:read |
-| `bi_upsert_seed` / `bi_set_cadence` / `bi_run_seed_now` | intel:write |
+| `bi_upsert_seed` / `bi_set_cadence` / `bi_run_seed_now` | intel:write (**full** only) |
 
-Empty `FRAN_MCP_SCOPES` = all scopes allowed.
-
-## Typical agent flow
-
-```text
-study_start → study_brief → study_match_catalog
-  → study_propose → pipeline_decide(accepted) → pipeline_execute
-bi_export_table(search_query) for sheets
-```
-
-### Internal POs + projections (Phase 5)
-
+### Internal POs + projections
 | Tool | Scope |
 |------|--------|
 | `po_create_draft` / `po_update_draft` / `po_add_lines` | po:draft |
-| `po_submit` | po:submit |
-| `po_decide` | po:decide |
-| `po_get` / `po_list` / `po_export` / `po_suggest_qty` | intel:read (suggest) / draft scopes for writes |
+| `po_get` / `po_list` / `po_export` / `po_suggest_qty` | intel:read (+ draft for writes) |
+| `po_submit` | po:submit (**full** only) |
+| `po_decide` | po:decide (**full** only) |
 | `projection_create` / `projection_from_po` / `projection_from_study` | projection:run |
 | `projection_get` / `projection_list` / `projection_export` | intel:read |
+
+---
+
+## Typical agent flows
+
+### Safe (default)
+
+```text
+study_start → study_brief → study_match_catalog → study_propose
+po_create_draft / po_add_lines   # status stays draft
+po_list / po_get                 # show human the draft id
+# STOP — human submits/approves in SKUMS (or full-profile MCP)
+```
+
+### Full (ops)
+
+```text
+…propose → pipeline_decide(accepted) → pipeline_execute
+po_submit → po_decide(approved)
+bi_run_seed_now + worker process-jobs
+```
+
+---
+
+## Audit (M1)
+
+Mutating tools write `audit_events` with:
+
+| Field | MCP value |
+|-------|-----------|
+| `source_type` | `mcp` |
+| `metadata.tool_name` | e.g. `po_create_draft` |
+| `metadata.client_name` | `FRAN_MCP_CLIENT` |
+| `metadata.request_id` | per tool call UUID |
+| `actor_user_id` | `FRAN_MCP_ACTOR_USER_ID` if set |
+
+Tool responses include envelope fields: `object_type`, `id`, `status`, `is_draft`, `channel`, `next_allowed_actions`.
+
+UI product create/update uses `source_type=ui`. API key creates use `source_type=api`.
+
+Apply migration **052** on Supabase if not yet applied:
+
+```bash
+# core/db/052_audit_source_channels.sql
+```
+
+## Clone PO story (M2)
+
+```text
+po_list / po_get
+  → po_preview_clone(source_po_id, exclude_brands: ["anua","3ce"])
+  → po_clone_as_draft(...)   # always DRAFT
+  → open deep_link /actions/internal-pos/:id in SKUMS
+  → human Submit / Approve in UI
+```
+
+`FRAN_MCP_MODE=safe` hard-blocks submit/decide/execute even if scopes are full.
+
+## UI (M3)
+
+- **Actions** inbox: `/actions`
+- Internal PO detail: `/actions/internal-pos/:id`
+- Pipeline candidate: `/actions/pipeline/:id`
 
 ## Not in MCP yet
 
 - Reconciliation packs (Phase 6)
 - Browser collect inside MCP (use worker `process-jobs`)
+- Email stakeholder notifs (Phase N — hooks via lifecycle events)
+
+## Tests
+
+```bash
+node --test tests/mcp-scopes.test.mjs tests/audit-record.test.mjs tests/po-clone.test.mjs
+```

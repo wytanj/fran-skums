@@ -1,248 +1,362 @@
-# Fran SKUMS — TODO (review queue)
+# Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-11  
-**Context:** Marketplace intelligence phases **0–5** are implemented, committed (`3aad5bd`), and deployed to Vercel (`https://fran-skums.vercel.app`).  
-**Plan of record:** `Major Update.md`
-
-Use this list for tomorrow’s pass. Check boxes as you go.
-
----
-
-## 0. Do first (unblocks everything else)
-
-- [x] **Create a Fran workspace** (DB currently had zero workspaces at last check)
-  1. `npm run dev` → sign up / log in
-  2. Complete **onboarding** (creates workspace via `create_workspace`)
-  3. `npm run workspace:id` (or `node scripts/print-workspace-id.mjs`)
-  4. Add to `.env`: `FRAN_MCP_WORKSPACE_ID=<uuid>`
-  - Workspace: `c21c057f-ea01-4e19-bc79-fafcf2626b19` (set in `.env` 2026-07-11)
-  - Also fixed `create_workspace` overload ambiguity (migration **051**)
-- [ ] **Rotate secrets** that were pasted in chat (if not already)
-  - Supabase **service role** key
-  - Confirm `.env` is never committed (still gitignored)
-- [ ] **Confirm production env on Vercel** matches what APIs need:
-  - `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-  - `XAI_API_KEY`
-  - `MARKETPLACE_CRON_SECRET` and/or `QUEUE_PROCESSOR_KEY` *(not in local `.env` yet)*
-  - Optional later: `SHOPEE_SG_SESSION_JSON`, Cloudflare browser tokens
-- [x] **Confirm migrations 047–051** on the Supabase project wired by local `SUPABASE_DB_URL`  
-  (All applied including 051 overload fix. Re-check if Vercel uses a *different* DB.)
+**Date:** 2026-07-12  
+**Active focus:** **MCP-ready SKUMS** — draft-first mutations, Approvals UI, audit (manual vs MCP)  
+**Parked:** Live Shopee scrape / Browserbase / brand radar (until Linux + capacity)  
+**Production:** https://fran-skums.vercel.app  
+**Plans:** This file (ops queue) · `Major Update.md` (platform) · `mcp/README.md`
 
 ---
 
-## 1. Smoke path (30–45 min once workspace exists)
+## North star (now)
 
-End-to-end without real Shopee (mock collector):
+**Goal:** Agents (Cursor/Claude via MCP) can propose work in natural language — e.g. *“copy previous PO but remove Anua and 3CE”* — and humans always see:
 
-- [x] Local mock collect via `node scripts/_smoke_marketplace_phase2.mjs` → `SMOKE_OK`  
-  (seed `anua official` / mock, 3 shops, 3 listings, 3 snapshots, metrics daily)
-- [ ] HTTP path (needs workspace **API key** + `MARKETPLACE_CRON_SECRET`):
-  - [ ] `POST /api/v1/marketplace/seeds` with `target: "anua official"`, `collector_id: "mock"`, `schedule_kind: "daily"`
-  - [ ] `POST /api/internal/marketplace/scheduler-tick` (or seed `.../run`)
-  - [ ] `POST /api/internal/marketplace/process-jobs` → expect completed job + snapshots
-  - [ ] `POST /api/internal/marketplace/metrics-tick`
-  - [ ] `GET /api/v1/marketplace/export?search_query=anua%20official`
-- [x] Study + pipeline via MCP tools (service role):  
-  `study_start` → offline `study_brief` → `study_propose` → `pipeline_decide` (`accepted`) → `pipeline_execute`  
-  → catalog product draft + watchlist seed linked
-- [x] PO via MCP: draft (`quantity` not `qty`) → `po_submit` → `po_decide` (`approved`) → `projection_from_po`
-- [x] MCP: `FRAN_MCP_WORKSPACE_ID` set; 37 tools; BI list/export/metrics against smoke data
+1. **What** was created (object + status chip: DRAFT / PENDING / …)  
+2. **Who/how** (UI vs MCP vs API) with tool name when relevant  
+3. **No silent production mutation** without explicit submit / approve / execute  
 
-Optional local smoke: `node scripts/_smoke_marketplace_phase2.mjs` (needs workspace + service role).
+**Success:** Clone-PO story ends in a **visible draft** internal PO; submit/approve only with clear privilege or UI click; audit log can answer “manual or MCP?”
 
 ---
 
-## 2. Live Shopee collect
+## Implement next (ordered)
 
-### Done this session
+### Phase M0 — Prep (hours) ✅
 
-- [x] Cookie export format validated (`sample-cookie.json` — EditThisCookie style; loader OK; has `SPC_ST` / `SPC_U`)
-- [x] Seed `anua official` → `collector_id: "shopee_puppeteer"` (workspace `c21c057f-…`)
-- [x] Live unattended attempt: cookies accepted (`is_logged_in=true`) but Shopee **traffic/captcha wall**  
-  (`/verify/traffic/error`, `/verify/captcha?scene=crawler_item`) — not a missing-ID problem
-- [x] Session-health detector improved (traffic / captcha / “page unavailable” → `blocked`)
-- [x] Interactive local smoke path: `node scripts/_smoke_shopee_live.mjs`  
-  - Loads `./sample-cookie.json` (no env cookie required)  
-  - Opens system Chrome (`channel: 'chrome'`)  
-  - Waits for manual captcha + optional **Enter** in TTY  
-  - Writes jobs/snapshots via service role  
-- [x] First interactive agent-run timed out still on captcha (`session_health=blocked`, 0 cards)  
-  → **you must run the script in your own terminal** so you can solve captcha and press Enter
+- [x] Lock **recommended MCP scope profiles** in `mcp/README.md` + `mcp/src/context.mjs`:
+  - **safe (default):** `intel:read`, `study:write`, `pipeline:propose`, `po:draft`, `projection:run`  
+    — **no** `po:submit`, `po:decide`, `pipeline:decide`, `pipeline:execute`, `intel:write`
+  - **full (ops):** `FRAN_MCP_PROFILE=full` / `FRAN_MCP_SCOPES=full` / `*`
+- [x] Empty scopes no longer mean “all” — default **safe**
+- [x] Startup logs profile + client; helpers `getMcpClientName` / `getMcpActorUserId`
+- [x] `.env.example` + local `.env` set to safe + `FRAN_MCP_CLIENT=cursor`
+- [x] Tests: `tests/mcp-scopes.test.mjs`
+- [ ] Optional: set `FRAN_MCP_ACTOR_USER_ID` to your `profiles.id` when ready for M1 audit
 
-### Your next action (local interactive — profile path)
+---
 
-Cookie-export smoke (`_smoke_shopee_live.mjs`) hit traffic wall even with `is_logged_in=true`.  
-**Prefer the persistent profile smoke** (login once inside Puppeteer’s Chrome; no cookie file):
+### Phase M1 — Audit: manual vs MCP (foundation) ✅
 
-```bash
-# From repo root, in a real terminal (so Chrome + stdin work):
-node scripts/_smoke_shopee_profile.mjs
+**Why first:** Without this, drafts exist but you can’t prove origin.
+
+- [x] **Migration 052:** extend `audit_events.source_type` with  
+  `ui | mcp | assistant | cron | worker` (+ index)
+- [x] **Helper** `core/audit/record.mjs` + `server/utils/audit.ts`  
+  `recordAudit` / `auditMcpMutation` / `mutationEnvelope`
+- [x] **MCP:** mutating tools audit with `channel: mcp`, `tool_name`, `request_id`, client/actor
+- [x] **UI:** product create/update → `source_type=ui` + `actor_user_id`  
+- [x] **API:** product create + internal PO create → `source_type=api`
+- [x] Mutation responses include envelope: `object_type`, `id`, `status`, `is_draft`, `channel`, `next_allowed_actions`
+- [x] Tests: `tests/audit-record.test.mjs`
+- [ ] **You:** apply `core/db/052_audit_source_channels.sql` on Supabase if not auto-migrated
+- [ ] (Later polish) DB trigger reads `current_setting('skums.channel')` when set
+
+**Done when:** `select source_type, metadata from audit_events where entity_id = $po` shows `mcp` vs `ui` vs `api`.
+
+---
+
+### Phase M2 — MCP draft-first tools (clone PO story) ✅
+
+**Why:** Agent must not invent multi-step unsafe writes.
+
+- [x] `po_preview_clone` — read only keep/drop preview
+- [x] `po_clone_as_draft` — always DRAFT + metadata + audit + deep_link
+- [x] Tool descriptions hardened (DRAFT / PRIVILEGED)
+- [x] `FRAN_MCP_MODE=safe` hard-blocks privileged scopes
+- [x] `pipeline_preview_execute` dry-run
+- [x] Lifecycle events on submit/decide/execute (`po.submitted`, `po.approved`, …)
+- [x] Tests: `tests/po-clone.test.mjs` + mode=safe in mcp-scopes
+
+**Done when:** Agent can preview + create draft IPO without submit; dropped brands visible in metadata.
+
+---
+
+### Phase M3 — Approvals / Actions UI (humans see drafts) ✅
+
+**Why:** MCP objects are invisible in the app today.
+
+- [x] Sidebar **Actions** → `/actions`
+- [x] Inbox tabs: draft / pending / pipeline proposed / accepted / recent
+- [x] Status + channel badges
+- [x] Internal PO detail `/actions/internal-pos/:id` (submit, approve/reject, history, clone exclusions)
+- [x] Pipeline detail `/actions/pipeline/:id` (accept/reject/defer)
+- [x] Deep links from MCP clone/create
+- [x] Lifecycle audit events from UI submit/decide (hooks for Phase N)
+- [ ] Role-gate approve (M4)
+- [ ] UI execute for pipeline (optional; MCP full-profile for now)
+
+**Done when:** After MCP clone, user opens SKUMS → sees DRAFT + MCP badge without SQL.
+
+---
+
+### Phase M3.5 — UI polish (before M4) ✅
+
+- [x] Channel badges from **audit_events** (mcp/ui/api), tool_name on cards
+- [x] Actions counts strip + empty/loading copy; channel filter
+- [x] Dashboard **Actions queue** (draft/pending decision POs)
+- [x] Inventory PO tab note + link to Actions (warehouse vs decision PO)
+- [x] Draft PO: edit notes + qty/unit cost; save draft
+- [x] Copy deep link on PO + pipeline detail
+- [x] Relative times; confirm text on status transitions
+
+### Phase M4 — Roles, scopes, chat contract ✅
+
+- [x] Role matrix (UI):
+  - Member: view inbox, edit/submit draft  
+  - Owner/admin: approve/reject PO + pipeline decide  
+- [x] Enforce on Actions detail buttons + `useActions` throws if unauthorized
+- [x] Refresh `memberRole` on workspace switch
+- [x] Agent system-prompt blurb in `mcp/README.md` (safe clone flow)
+- [ ] Optional: in-app Assistant read tools for draft inbox
+- [ ] Attention item / email notifs → Phase N
+- [ ] (Prep for N) stakeholder roles beyond owner/admin (finance, buyer)
+
+**Done when:** Safe MCP profile + UI roles match the story; chat copy never implies committed.
+
+---
+
+### Phase N — Stakeholder notifications (plan now; build after M3–M4)
+
+**Why document before M3:** Complex notifs (e.g. email finance when a decision PO needs approval, or “invoice / PO ready for next action”) must **not** be bolted onto random UI clicks. They hang off **lifecycle events + stakeholder graph + delivery adapters**.
+
+#### N0 — Principles (lock these)
+
+| Principle | Meaning |
+|-----------|---------|
+| **Notify on lifecycle, not on every field edit** | e.g. `draft → pending_approval`, not every `po_add_lines` |
+| **Never auto-email on MCP draft create** | Draft = private workbench; email only after submit (or explicit “Request review”) |
+| **Deep link or no email** | Every email CTA → Actions URL from M3 |
+| **Idempotent delivery** | Same `(event_id, recipient, channel)` delivered once |
+| **Channel pluggable** | In-app / email / Slack / webhook first; SMS later if ever |
+| **Audit both ways** | “notification requested” + “notification delivered/failed” in `audit_events` or `notification_deliveries` |
+| **No secrets in MCP agent** | Agent does not send email; system does after human/policy gate |
+
+#### N1 — Domain model (schema sketch)
+
+```text
+notification_policies
+  workspace_id
+  event_type          -- e.g. po.submitted, po.approved, pipeline.accepted
+  enabled
+  channels[]          -- email, slack, in_app
+  recipient_rules     -- jsonb: roles | user_ids | dynamic (po.created_by, workspace owners)
+  template_key
+  quiet_hours / throttle (optional)
+
+notification_deliveries
+  id, workspace_id
+  event_type, entity_type, entity_id
+  channel             -- email | slack | in_app | webhook
+  recipient           -- email or user_id or webhook_url id
+  status              -- pending | sent | failed | skipped
+  provider_ref        -- Resend/SendGrid/Slack ts
+  payload_snapshot    -- subject, body meta (no secrets)
+  idempotency_key
+  created_at, sent_at, error
+
+workspace_notification_settings
+  default_from / reply-to
+  email_provider config ref
+  slack_webhook (already partial on assistant settings)
 ```
 
-Defaults now: **direct SERP** (`shopee.sg/search?keyword=anua`), **force Enter** (won’t race-close), hold Chrome open on fail.
+Reuse where possible: `product_attention_items` for **in-app** queue; `audit_events` for provenance; existing Slack webhook on assistant settings as **v1 Slack channel**.
 
-1. Chrome opens → search URL (not homepage)  
-2. Log in / solve captcha until product cards show  
-3. Press **Enter** (required — does not auto-continue when page looks “ok”)  
-4. Expect `LIVE_SMOKE_OK` + non-zero snapshots  
+#### N2 — Event catalog (start small)
 
-Local Puppeteer hit permanent captcha loop → **escalated to Browserbase**.
+| Event | When | Default recipients (policy) | Channels v1 |
+|-------|------|-----------------------------|-------------|
+| `po.submitted` | draft → pending_approval | owners/admins + optional “finance” role | in_app + email |
+| `po.approved` / `po.rejected` | decide | submitter + watchers | in_app + email |
+| `pipeline.proposed` | MCP/agent propose | optional watchers | in_app only |
+| `pipeline.accepted` | human/agent decide | execute owners | in_app |
+| `pipeline.executed` | execute done | requester | in_app + email |
+| `import.completed` / `import.failed` | large import job | uploader | in_app |
+| Later: `invoice.*` / supplier docs | when invoice entity exists | AP stakeholders | email |
 
-```bash
-# Preferred live path (cloud browser + SG residential proxy):
-node scripts/_smoke_shopee_browserbase.mjs
+**Invoice note:** Today “invoice” may mean **internal/decision PO** or a future AP invoice object. Phase N should use **entity_type + event_type**, so when true invoices land, same bus works (`invoice.ready_for_payment`, etc.).
+
+#### N3 — Delivery pipeline
+
+```text
+status transition (service)
+  → write audit_events (already M1)
+  → enqueue notification_outbox (or insert deliveries pending)
+  → worker/cron: resolve policy → expand recipients → render template → send
+  → update delivery status + audit
 ```
 
-Watch session replay at the URL printed (`https://browserbase.com/sessions/<id>`).
+v1 can be **synchronous** for in_app + Slack; email should be **async** (queue) once volume > toy.
 
-- [x] Persistent Chrome profile smoke (`scripts/_smoke_shopee_profile.mjs`) — local blocked
-- [x] **Browserbase adapter** (`collector_id: browserbase`) + smoke script
-- [ ] Browserbase live smoke succeeds (`LIVE_SMOKE_OK`) with real SERP cards  
-- [ ] Validate Mall / Preferred / normal badges on real SERP for `anua` / `anua official`
+Providers (decide later, do not hardcode in M3):
 
-### Longer-term collect options
+- Email: Resend / Postmark / SES  
+- Slack: existing workspace webhook pattern  
+- Webhook: outbound to n8n/Zapier for weird stakeholder workflows  
 
-- [ ] **Cloudflare Browser Run** — fallback only; set CF env; seed `cloudflare_browser_run`
-- [ ] **Warm always-on PC worker** — only if Browserbase fails / cost too high
-- [x] **Persistent Chrome profile** — local research path; not production
-- [ ] **CDP attach to real user Chrome** — last-resort local
-- [x] **Browserbase adapter** — implemented; production cron still TBD
-- [ ] **Hosted worker** (Fly / Railway / Cloud Run) for nightly collect once a stable path exists
-- [ ] Wire cron once unattended path works:
-  - hourly/daily: `scheduler-tick`
-  - after enqueue: `process-jobs` (or dedicated worker loop)
-  - daily: `metrics-tick`
-- [ ] Session health ops: login wall / captcha → alert + pause seeds (runbook)  
-  (detector improved; alerting not wired)
+#### N4 — Templates & UX
 
----
+- Templates: subject + body with vars `{po_number}`, `{status}`, `{deep_link}`, `{actor}`, `{channel_created}`  
+- Preferences: per-user mute / digest (daily) later  
+- UI: on PO detail — “Notify approvers” button (manual trigger) + “Stakeholders” list  
+- MCP: **no** `send_email` tool in safe mode; optional full-mode `notify_request_review` that only creates a `pending` delivery for policy engine  
 
-## 3. Product / phase backlog (from Major Update)
+#### N5 — Build order relative to M-phases
 
-### Phase 6 — Reconciliation (not built)
+```text
+M2  clone draft tools
+M3  Actions UI + deep links + event names on transitions   ← enables N
+M4  roles / who can approve                               ← recipient rules
+N1  schema: policies + deliveries
+N2  wire po.submitted / po.approved → in_app + Slack (email optional)
+N3  email provider + templates for PO approval
+N4  digests, mute, invoice events when AP exists
+```
 
-- [ ] Design recon report types: `pos_vs_inventory`, `warehouse_vs_3pl`, `store_receive_vs_outbound`, `market_vs_retail`, `inbound_discrepancy`
-- [ ] Schema: `recon_reports` + `recon_report_lines`
-- [ ] Engines: compute variances in code; Grok narrative only
-- [ ] HTTP: `/api/v1/recon/*`
-- [ ] MCP tools: `recon_generate`, `recon_get`, `recon_list`, `recon_explain`, `recon_export`
+**Do not block M2/M3 on email.** Do **design M3/M4** so N is a thin layer on top.
 
-### Phase 7 — Hardening / scale
+#### N6 — Success criteria (notifications)
 
-- [ ] Daily shallow vs weekly deep seed policies
-- [ ] BI digests with Grok (table exists; generation thin)
-- [ ] Alerts → Slack / attention items
-- [ ] Per-workspace browser + token budgets
-- [ ] Second country (e.g. PH) only after SG stable
-- [ ] Official shop seed list for brands Fran cares about
-
-### UI (deferred)
-
-- [ ] `app/pages/intelligence/*` — seeds, study, POs, projections, recon
-- [ ] Sidebar entry for Intelligence / Marketplace BI
-
-### Collectors / workers (partial)
-
-- [ ] Dedicated `workers/marketplace-worker` package (claim loop, not only HTTP process-jobs)
-- [ ] Cloudflare Browser Run production path hardened
-- [ ] Optional Browserbase adapter if CF IPs blocked
-- [ ] Detail-page pull for `detail_top_n` listings
-- [x] Local interactive puppeteer smoke (`scripts/_smoke_shopee_live.mjs` + captcha wait)
+| Check | Pass |
+|-------|------|
+| Draft PO from MCP | **No** email storm |
+| Human submits PO | Approvers get in_app (+ email when enabled) with **working deep link** |
+| Duplicate submit retry | One delivery per idempotency key |
+| Audit | Can see who was notified, channel, success/fail |
+| Agent | Cannot bypass policy to mail arbitrary addresses in safe mode |
 
 ---
 
-## 4. Architecture / product decisions to lock
+---
 
-- [ ] **Liability / ops:** finish LOFT SOW open items (`docs/LOFT_SOW_KIV.md`) — not code-blocking but commercial
-- [ ] Default collector for production seeds: mock vs puppeteer (interactive) vs cloudflare
-- [ ] Who may `po:decide` / `pipeline:execute` (roles vs API key scopes)
-- [ ] Whether internal POs later convert into inventory `purchase_orders` + LOFT inbound
-- [ ] MCP transport: stdio only vs hosted HTTP for remote agents
-- [ ] Grok models: brief vs digest vs projection commentary (cost tiers)
+### Phase M5 — Consistency (import / catalog / POS)
+
+- [ ] Import: prefer draft products or pending approval (stop demo auto-active + POS-on for wholesale dumps)
+- [ ] Pipeline `catalog_product` execute stays **product.status=draft**; UI “Activate for POS”
+- [ ] Confirm POS catalog never lists drafts / non-`pos_enabled`
+- [ ] Optional row columns: `created_channel`, `updated_channel` on hot tables for list badges without join
 
 ---
 
-## 5. Security & hygiene
+### Phase M6 — Audit explorer UI (nice-to-have after M3)
 
-- [ ] Rotate any keys shared in chat
-- [ ] Ensure Vercel env has no accidental commit of secrets
-- [ ] Keep `sample-cookie.json` local (do not commit) — real Shopee session
-- [ ] Review API key scopes for production keys (`intel:*`, `study:*`, `pipeline:*`, `po:*`, `projection:run`)
-- [ ] Rate-limit cron endpoints; keep secrets off browser clients
-- [ ] Document competitive-scrape ToS posture for Fran (internal BI only)
+- [ ] Page or Actions subtab: filter by channel, entity_type, tool_name, actor
+- [ ] Link from any entity → filtered audit trail
 
 ---
 
-## 6. Docs / cleanup (low priority)
+## Definition of done (MCP-ready v1)
 
-- [ ] Slim pointer doc `docs/FRAN_MARKET_INTELLIGENCE_ARCHITECTURE.md` → `Major Update.md` if wanted
-- [ ] Remove or promote smoke scripts into formal npm scripts (`smoke:marketplace`, `smoke:shopee-live`)
-- [ ] Add Nuxt `database.types.ts` (build warns missing) when ready
-- [ ] Update `STRUCTURE.md` / root `README.md` with marketplace + MCP entrypoints
-
----
-
-## 7. Already done (don’t redo)
-
-| Phase | Delivered |
-|-------|-----------|
-| 0 | Seeds/jobs schema, scheduler enqueue, mock collector, types |
-| 1 | Shopee parse, writers, puppeteer/CF adapters, process-jobs, snapshots |
-| 2 | Metrics daily, export CSV/JSON, richer filters |
-| 3 | Study brief/match, pipeline propose/decide/execute |
-| 4 | MCP stdio server (`npm run mcp`), 30+ tools |
-| 5 | Internal POs + projection engine + MCP/HTTP |
-| Ship | Git `main` + Vercel production deploy |
-| Ops | Workspace created; MCP workspace id; mock+MCP smoke; migration 051 overload fix |
-| Live | Cookie validated; interactive smoke script; captcha wall documented |
+| Check | Pass |
+|-------|------|
+| Clone story | `po_preview_clone` + `po_clone_as_draft` → draft only |
+| Visibility | Actions inbox shows DRAFT + MCP badge |
+| No silent live mutate | Safe scopes/mode block submit/decide/execute |
+| Attribution | `audit_events` distinguishes `ui` vs `mcp` (+ tool_name) |
+| Escalate | Human (or full-scope) submit → approve → (pipeline) execute |
+| POS safe | Agent products stay draft / non-POS until promoted |
 
 ---
 
-## 8. Suggested order (updated 2026-07-11 evening)
+## Explicitly parked (do not start until MCP v1 done)
 
-1. ~~Workspace + `.env` workspace id~~ done  
-2. ~~Mock + MCP smoke (section 1 core)~~ done  
-3. **You:** `node scripts/_smoke_shopee_browserbase.mjs` → `LIVE_SMOKE_OK` (§2)  
-4. Then product build (Phase 6 / UI / worker) **or** cron on browserbase seeds  
-5. Secret rotation + Vercel env audit (§0 / §5) if keys were shared  
-6. LOFT SOW KIV commercial follow-ups when you have bandwidth  
+### Live scrape / Browserbase / brand radar
+
+- [ ] Browserbase smoke on Linux (`BROWSERBASE_OS=linux`) → `LIVE_SMOKE_OK`  
+- [ ] Seed pack `skincare_trend_v1`, brand rollup, weekly shortlist  
+- [ ] Cron collect worker, Lazada clone  
+- [ ] Local Puppeteer / cookie / profile as production (research only; captcha-walled)
+
+See historical notes at end of this file if needed.
+
+### Other backlog
+
+- [ ] Phase 6 reconciliation (POS vs 3PL vs warehouse)  
+- [ ] Intelligence BI charts UI  
+- [ ] Server-side 59k import worker  
+- [ ] Import LLM mapping / saved provider profiles  
+- [ ] LOFT SOW commercial KIV  
+- [ ] Secret rotation / Vercel env audit (still good hygiene anytime)
+
+---
+
+## Architecture decisions to lock while implementing
+
+- [ ] Default MCP install = **safe** scopes  
+- [ ] Accept ≠ execute (keep two steps on pipeline)  
+- [ ] Internal PO vs inventory PO: separate UI labels; merge later only if product requires  
+- [ ] Who may `po:decide` / `pipeline:execute` (recommend owner/admin only)  
+- [ ] Optional later: unify `pipeline_candidates` + `agent_proposals` into one Actions spine  
+
+---
+
+## Suggested build order (strict)
+
+```text
+M0  Scope profiles                           ✅
+M1  Audit channels                           ✅ (apply migration 052 on DB if needed)
+M2  PO clone / preview tools                 ✅
+M3  Actions UI                               ✅
+M3.5 UI polish                               ✅
+M4  Roles + agent prompt                     ✅
+N1–N3 Stakeholder notifs                     ← next product track
+M5  Import/catalog/POS draft consistency
+M6  Audit explorer (optional)
+── scrape / brand radar still parked ──
+```
+
+**Next:** Phase N (notifs) or M5 (import consistency), or ship/commit current work.
+
+---
+
+## Already done (don’t redo)
+
+| Area | Delivered |
+|------|-----------|
+| MI 0–5 | Seeds, jobs, Shopee parse, metrics, study, MCP tools, internal PO status machine, projections |
+| Collect research | Browserbase adapter + smoke; local captcha paths documented; **live collect KIV** |
+| Import | Dirty multi-provider pipeline + large-job progress UI |
+| Ops | Workspace, MCP workspace id, mock smoke, migration 051 |
+| PO server rules | Update/add lines only when `status=draft`; submit → pending_approval |
+| Pipeline | proposed → accepted → execute; catalog product defaults **draft** |
+| Audit table | `audit_events` exists — needs channel attribution (M1) |
 
 ---
 
 ## Quick commands
 
 ```bash
-# Workspace id for MCP
 npm run workspace:id
-
-# Local app
 npm run dev
-
-# MCP server
 npm run mcp
 
-# Mock marketplace smoke (no Shopee)
-node scripts/_smoke_marketplace_phase2.mjs
+# After M1/M2: run MCP-related tests you add
+node --test tests/import-pipeline.test.mjs tests/imports-api.test.mjs
 
-# Live Shopee smoke — preferred: Browserbase cloud browser
+# Parked live smoke (when Linux ready)
 node scripts/_smoke_shopee_browserbase.mjs
-
-# Live Shopee smoke — local profile / cookie (usually captcha-walled)
-node scripts/_smoke_shopee_profile.mjs
-node scripts/_smoke_shopee_live.mjs
-
-# Migrations (if needed on another DB)
-npm run db:migrate:status
-npm run db:migrate -- --from 047 --to 051
-
-# Tests
-node --test tests/marketplace-intelligence-phase*.test.mjs
 ```
 
 ## Links
 
 - Production: https://fran-skums.vercel.app  
-- Repo plan: `Major Update.md`  
-- LOFT ops KIV: `docs/LOFT_SOW_KIV.md`  
-- MCP setup: `mcp/README.md`  
-- Marketplace collect: `marketplace/README.md`  
+- MCP: `mcp/README.md`  
+- Platform: `Major Update.md`  
+- Commit: `docs/Commit Summary 12072026.md`  
+- Marketplace (parked): `marketplace/README.md`  
+
+---
+
+## Appendix — brand approach radar (parked reference)
+
+**Goal (later):** Monday shortlist of rising K-beauty / skincare brands from sparse Shopee SERP sampling.
+
+| Build (when unparked) | Notes |
+|------------------------|--------|
+| Seed pack `skincare_trend_v1` | ~30 keywords × SG+PH; mock first |
+| Brand extract + rollup | SERP share, sold growth, mall mix, multi-market echo |
+| Leaderboard API + MCP + digest | Approach / watch / ignore |
+| Browserbase production collect | After Linux smoke green |
+
+**Not required for MCP-ready v1.**

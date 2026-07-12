@@ -566,7 +566,13 @@ watch(() => currentWorkspace.value?.id, async () => {
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-lg font-semibold text-white">Purchase Orders</h2>
-            <p class="mt-1 text-sm text-gray-400">Inbound stock from suppliers. Confirm → mark shipped (ASN) → receive goods.</p>
+            <p class="mt-1 text-sm text-gray-400">
+              Warehouse inbound stock from suppliers. Confirm → mark shipped (ASN) → receive goods.
+            </p>
+            <p class="mt-2 text-xs text-gray-500">
+              Looking for agent / decision-layer POs (MCP drafts, approvals)?
+              <NuxtLink to="/actions" class="text-indigo-400 hover:underline">Open Actions →</NuxtLink>
+            </p>
           </div>
           <button class="btn-primary" @click="showPoForm = !showPoForm">
             {{ showPoForm ? 'Cancel' : '+ New PO' }}

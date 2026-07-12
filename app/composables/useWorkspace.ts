@@ -77,8 +77,21 @@ export function useWorkspace() {
     hasFetched.value = true
   }
 
-  function selectWorkspace(ws: Workspace) {
+  async function selectWorkspace(ws: Workspace) {
     currentWorkspace.value = ws
+    const uid = getUid(user.value)
+    if (!uid) return
+    if (ws.owner_id === uid) {
+      memberRole.value = 'owner'
+      return
+    }
+    const { data: mem } = await client
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', ws.id)
+      .eq('user_id', uid)
+      .maybeSingle()
+    memberRole.value = mem?.role || 'member'
   }
 
   async function createWorkspace(name: string, organizationId?: string) {

@@ -25,6 +25,7 @@ const filteredWorkspaces = computed(() => {
 const navigation = [
   { name: 'Fran Ops', href: '/fran', icon: 'sparkle' },
   { name: 'Dashboard', href: '/', icon: 'home' },
+  { name: 'Actions', href: '/actions', icon: 'check' },
   { name: 'Products', href: '/products', icon: 'cube' },
   { name: 'Inventory', href: '/inventory', icon: 'warehouse' },
   { name: 'Store Ops', href: '/store-ops', icon: 'arrows' },

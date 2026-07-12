@@ -7,7 +7,10 @@
  *   SUPABASE_SERVICE_ROLE_KEY
  *   FRAN_MCP_WORKSPACE_ID   — required workspace UUID
  *   XAI_API_KEY             — optional; enables live Grok briefs
- *   FRAN_MCP_SCOPES         — optional comma list; empty = all
+ *   FRAN_MCP_PROFILE        — safe (default) | full
+ *   FRAN_MCP_SCOPES         — safe | full | * | comma list (overrides profile)
+ *   FRAN_MCP_CLIENT         — audit label e.g. cursor
+ *   FRAN_MCP_ACTOR_USER_ID  — optional human profile uuid for attribution
  *
  * Run:
  *   node mcp/src/index.mjs
@@ -19,7 +22,13 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { getWorkspaceId, getXaiApiKey } from './context.mjs'
+import {
+  describeMcpScopes,
+  getMcpActorUserId,
+  getMcpClientName,
+  getWorkspaceId,
+  getXaiApiKey,
+} from './context.mjs'
 import { handleTool, toolDefinitions } from './tools.mjs'
 
 const server = new Server(
@@ -56,6 +65,20 @@ async function main() {
   }
   console.error(
     `[fran-mcp] XAI_API_KEY=${getXaiApiKey() ? 'set' : 'missing (offline briefs only)'}`,
+  )
+  const scopeInfo = describeMcpScopes()
+  if (scopeInfo.scopes == null) {
+    console.error(
+      `[fran-mcp] scopes=UNRESTRICTED (profile=${scopeInfo.profile}) — can submit/decide/execute`,
+    )
+  } else {
+    console.error(
+      `[fran-mcp] scopes=${scopeInfo.mode} (profile=${scopeInfo.profile}): ${scopeInfo.scopes.join(',')}`,
+    )
+  }
+  console.error(`[fran-mcp] client=${getMcpClientName()}`)
+  console.error(
+    `[fran-mcp] actor_user_id=${getMcpActorUserId() || 'unset (agent-only attribution)'}`,
   )
   console.error(`[fran-mcp] tools=${toolDefinitions.length}`)
 

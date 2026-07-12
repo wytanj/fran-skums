@@ -19,6 +19,8 @@ const stats = ref({
   draftProducts: 0,
   lowStock: 0,
   totalValue: 0,
+  actionDraftPos: 0,
+  actionPendingPos: 0,
 })
 const recentProducts = ref<any[]>([])
 const loading = ref(true)
@@ -28,12 +30,14 @@ async function loadDashboard() {
   loading.value = true
   const wsId = currentWorkspace.value.id
 
-  const [totalRes, activeRes, draftRes, lowStockRes, recentRes] = await Promise.all([
+  const [totalRes, activeRes, draftRes, lowStockRes, recentRes, draftPoRes, pendingPoRes] = await Promise.all([
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId),
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'active'),
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'draft'),
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).lt('stock_quantity', 10).eq('track_inventory', true),
     client.from('products').select('id, title, sku, status, stock_quantity, retail_price, currency, updated_at').eq('workspace_id', wsId).order('updated_at', { ascending: false }).limit(5),
+    client.from('internal_purchase_orders').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'draft'),
+    client.from('internal_purchase_orders').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'pending_approval'),
   ])
 
   stats.value = {
@@ -42,6 +46,8 @@ async function loadDashboard() {
     draftProducts: draftRes.count || 0,
     lowStock: lowStockRes.count || 0,
     totalValue: 0,
+    actionDraftPos: draftPoRes.count || 0,
+    actionPendingPos: pendingPoRes.count || 0,
   }
   recentProducts.value = recentRes.data || []
   loading.value = false
@@ -368,7 +374,7 @@ watch(isAuthed, (v) => {
       <div class="card p-5">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-gray-400">Drafts</p>
+            <p class="text-sm text-gray-400">Draft products</p>
             <p class="mt-1 text-3xl font-bold text-yellow-400">{{ loading ? '-' : stats.draftProducts }}</p>
           </div>
           <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-600/10">
@@ -395,6 +401,30 @@ watch(isAuthed, (v) => {
         </div>
       </div>
     </div>
+
+    <!-- Actions queue strip -->
+    <NuxtLink
+      to="/actions"
+      class="card mb-8 flex flex-wrap items-center justify-between gap-4 p-5 transition-colors hover:border-indigo-500/40"
+    >
+      <div>
+        <p class="text-sm font-semibold text-white">Actions queue</p>
+        <p class="mt-0.5 text-xs text-gray-400">
+          Decision POs and pipeline items from agents — not warehouse inventory POs.
+        </p>
+      </div>
+      <div class="flex gap-4 text-center">
+        <div>
+          <p class="text-2xl font-bold text-amber-300">{{ loading ? '—' : stats.actionDraftPos }}</p>
+          <p class="text-[10px] uppercase text-gray-500">Draft POs</p>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-sky-300">{{ loading ? '—' : stats.actionPendingPos }}</p>
+          <p class="text-[10px] uppercase text-gray-500">Pending</p>
+        </div>
+        <span class="self-center text-xs text-indigo-400">Open Actions →</span>
+      </div>
+    </NuxtLink>
 
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Recent products -->

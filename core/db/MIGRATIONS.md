@@ -51,6 +51,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 049 | internal_purchase_orders.sql | Internal (decision-layer) POs | Fran buying drafts from study/MCP — separate from inventory purchase_orders |
 | 050 | projections.sql | Financial projection runs | Assumptions + engine results + optional Grok commentary |
 | 051 | fix_create_workspace_overload.sql | Drop ambiguous 2-arg create_workspace | Keeps only (name, slug, org_id default null) so signup RPC resolves |
+| 052 | audit_source_channels.sql | Expand audit_events.source_type | ui / mcp / assistant / cron / worker for M1 attribution |
 
 ## Planned Phase C Spine
 

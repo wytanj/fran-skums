@@ -48,6 +48,72 @@ export function canDecidePo(status, decision) {
 }
 
 /**
+ * Filter PO lines for clone/preview (exclude brands / skus / title tokens).
+ * @param {Array<Record<string, any>>} lines
+ * @param {{
+ *   exclude_brands?: string[],
+ *   exclude_skus?: string[],
+ *   exclude_title_contains?: string[],
+ * }} filters
+ */
+export function filterPoLinesForClone(lines, filters = {}) {
+  const brands = (filters.exclude_brands || []).map((b) => String(b).toLowerCase().trim()).filter(Boolean)
+  const skus = (filters.exclude_skus || []).map((s) => String(s).toLowerCase().trim()).filter(Boolean)
+  const titleTokens = (filters.exclude_title_contains || [])
+    .map((t) => String(t).toLowerCase().trim())
+    .filter(Boolean)
+
+  const kept = []
+  const dropped = []
+
+  for (const line of lines || []) {
+    const title = String(line.title || '').toLowerCase()
+    const sku = String(line.sku || '').toLowerCase()
+    const brandMeta = String(line.metadata?.brand || line.brand || line.brand_name || '').toLowerCase()
+    const hay = `${title} ${brandMeta} ${sku}`
+
+    let reason = null
+    if (skus.length && sku && skus.includes(sku)) reason = `sku:${line.sku}`
+    if (!reason && brands.length) {
+      for (const b of brands) {
+        if (hay.includes(b) || brandMeta === b) {
+          reason = `brand:${b}`
+          break
+        }
+      }
+    }
+    if (!reason && titleTokens.length) {
+      for (const t of titleTokens) {
+        if (title.includes(t)) {
+          reason = `title:${t}`
+          break
+        }
+      }
+    }
+
+    if (reason) dropped.push({ ...line, drop_reason: reason })
+    else kept.push(line)
+  }
+
+  const keptTotals = recomputePoTotals(kept)
+  const droppedTotals = recomputePoTotals(dropped)
+
+  return {
+    kept_lines: keptTotals.lines,
+    dropped_lines: droppedTotals.lines,
+    kept_count: keptTotals.line_count,
+    dropped_count: droppedTotals.line_count,
+    kept_subtotal: keptTotals.subtotal,
+    dropped_subtotal: droppedTotals.subtotal,
+    filters: {
+      exclude_brands: brands,
+      exclude_skus: skus,
+      exclude_title_contains: titleTokens,
+    },
+  }
+}
+
+/**
  * Flatten PO + lines for export / projection.
  */
 export function exportPoPayload(po, lines) {

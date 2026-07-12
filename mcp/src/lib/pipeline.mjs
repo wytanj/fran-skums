@@ -10,6 +10,70 @@ import {
 import { computeNextRunAt } from '../../../marketplace/scheduler.mjs'
 import { getDb } from '../context.mjs'
 
+/**
+ * Dry-run execute payload (no DB write).
+ */
+export async function previewExecutePipelineCandidate(input) {
+  const db = getDb()
+  const { data: candidate, error } = await db
+    .from('pipeline_candidates')
+    .select('*')
+    .eq('id', input.candidate_id)
+    .eq('workspace_id', input.workspace_id)
+    .single()
+  if (error || !candidate) throw new Error('Candidate not found')
+
+  let context = {}
+  if (candidate.source_study_id) {
+    const { data: session } = await db
+      .from('study_sessions')
+      .select('*')
+      .eq('id', candidate.source_study_id)
+      .maybeSingle()
+    if (session) {
+      context = {
+        query: session.query || session.hypothesis,
+        marketplace: session.marketplace,
+        country: session.country,
+        hypothesis: session.hypothesis,
+      }
+    }
+  }
+
+  let would_write = null
+  if (candidate.kind === 'watchlist_seed') {
+    would_write = {
+      type: 'marketplace_crawl_seeds_upsert',
+      row: buildWatchlistSeedPayload(candidate, context),
+    }
+  } else if (candidate.kind === 'catalog_product') {
+    would_write = {
+      type: 'products_insert',
+      row: buildCatalogProductPayload(candidate, context),
+      note: 'Product would be created with status draft by default',
+    }
+  } else {
+    would_write = {
+      type: 'unsupported',
+      kind: candidate.kind,
+      note: 'Execute not implemented for this kind',
+    }
+  }
+
+  return {
+    candidate: {
+      id: candidate.id,
+      kind: candidate.kind,
+      status: candidate.status,
+      title: candidate.title,
+    },
+    can_execute_now: canExecute(candidate.status),
+    would_write,
+    is_draft: true,
+    note: 'Preview only — no write. Call pipeline_execute only when status=accepted (full profile).',
+  }
+}
+
 export async function proposePipelineCandidate(input) {
   const db = getDb()
   const allowed = [

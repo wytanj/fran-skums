@@ -97,6 +97,30 @@ export function useProducts() {
       .single()
 
     if (error) throw error
+
+    // M1: UI provenance (best-effort; never block create)
+    try {
+      const user = (await client.auth.getUser()).data.user
+      await client.from('audit_events').insert({
+        workspace_id: currentWorkspace.value.id,
+        entity_type: 'products',
+        entity_id: data.id,
+        event_type: 'product.created',
+        operation: 'INSERT',
+        actor_user_id: user?.id || null,
+        source_type: 'ui',
+        after_data: data as any,
+        metadata: {
+          channel: 'ui',
+          actor_kind: 'user',
+          client_name: 'fran-web',
+          status: data.status,
+        },
+      } as any)
+    } catch {
+      /* ignore until migration 052 applied */
+    }
+
     return data as Product
   }
 
@@ -109,6 +133,30 @@ export function useProducts() {
       .single()
 
     if (error) throw error
+
+    if (currentWorkspace.value) {
+      try {
+        const user = (await client.auth.getUser()).data.user
+        await client.from('audit_events').insert({
+          workspace_id: currentWorkspace.value.id,
+          entity_type: 'products',
+          entity_id: id,
+          event_type: 'product.updated',
+          operation: 'UPDATE',
+          actor_user_id: user?.id || null,
+          source_type: 'ui',
+          after_data: data as any,
+          metadata: {
+            channel: 'ui',
+            actor_kind: 'user',
+            client_name: 'fran-web',
+          },
+        } as any)
+      } catch {
+        /* ignore */
+      }
+    }
+
     return data as Product
   }
 

@@ -1,3 +1,5 @@
+import { recordApiAudit } from '../../utils/audit'
+
 export default defineEventHandler(async (event) => {
   const ctx = await requireApiKey(event, 'products:write')
   const client = getAdminClient()
@@ -86,6 +88,24 @@ export default defineEventHandler(async (event) => {
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
+  await recordApiAudit(client, {
+    workspace_id: ctx.workspaceId,
+    entity_type: 'products',
+    entity_id: data.id,
+    event_type: 'product.created',
+    operation: 'INSERT',
+    api_key_id: ctx.keyId || null,
+    after_data: data,
+    metadata: { title: data.title, status: data.status },
+  })
+
   setResponseStatus(event, 201)
-  return { data }
+  return {
+    data,
+    object_type: 'products',
+    id: data.id,
+    status: data.status,
+    is_draft: data.status === 'draft',
+    channel: 'api',
+  }
 })
