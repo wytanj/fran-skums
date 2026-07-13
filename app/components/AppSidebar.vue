@@ -36,6 +36,7 @@ const navigation = [
   { name: 'Categories', href: '/categories', icon: 'folder' },
   { name: 'Import / Export', href: '/import-export', icon: 'arrows' },
   { name: 'Schema Builder', href: '/schema', icon: 'schema' },
+  { name: 'Help', href: '/help', icon: 'help' },
 ]
 
 const bottomNav = [

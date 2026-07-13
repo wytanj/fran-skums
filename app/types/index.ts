@@ -1742,6 +1742,28 @@ export interface ExpiryMicrosite {
   updated_at: string
 }
 
+// --- Help Center ---
+
+export interface HelpArticleListItem {
+  id: string
+  slug: string
+  title: string
+  summary: string | null
+  category: string
+  primary_path: string | null
+  related_paths: string[]
+  intent_tags: string[]
+  sort_order: number
+  updated_at?: string
+  help_path: string
+}
+
+export interface HelpArticle extends HelpArticleListItem {
+  body_md: string
+  published?: boolean
+  created_at?: string
+}
+
 // --- AI Assistant ---
 
 export interface AssistantContextProfile {

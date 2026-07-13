@@ -4,6 +4,7 @@ import {
   catalogSearch,
   catalogStats,
 } from '../../core/catalog/index.mjs'
+import { listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 
 export interface ToolContext {
   client: SupabaseClient
@@ -13,6 +14,42 @@ export interface ToolContext {
 
 export function buildToolDefinitions() {
   return [
+    {
+      type: 'function',
+      function: {
+        name: 'resolve_help',
+        description:
+          'REQUIRED for navigation/how-to questions (where do I…, how do I…, which page…). Returns matching Help Center articles from Supabase with deterministic paths (/help/{slug}, primary_path). Never invent app routes — always call this for help/nav intents. Point the user to help_path links.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'User question, e.g. "where should I go to edit products"',
+            },
+            limit: { type: 'number', description: 'Max articles (default 3, max 10)' },
+          },
+          required: ['query'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_help_articles',
+        description: 'List published Help Center articles (titles, summaries, paths). Use when the user wants to browse help topics.',
+        parameters: {
+          type: 'object',
+          properties: {
+            category: {
+              type: 'string',
+              description: 'Optional category filter: products, inventory, actions, operations, integrations, settings, ai, getting-started, general',
+            },
+          },
+          required: [],
+        },
+      },
+    },
     {
       type: 'function',
       function: {
@@ -175,6 +212,19 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
 
   try {
     switch (name) {
+      case 'resolve_help': {
+        return await resolveHelp(client, String(args.query || ''), {
+          limit: args.limit,
+        })
+      }
+
+      case 'list_help_articles': {
+        const articles = await listHelpArticles(client, {
+          category: args.category || null,
+        })
+        return { articles, help_index_path: '/help', count: articles.length }
+      }
+
       case 'get_catalog_stats': {
         return await catalogStats(client, {
           workspace_id: workspaceId,

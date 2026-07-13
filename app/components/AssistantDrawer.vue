@@ -9,10 +9,10 @@ const { currentWorkspace } = useWorkspace()
 
 const catalogPrompts = [
   'How many products are in this catalog?',
+  'Where should I go to edit products?',
   'Break down products by status (draft vs active)',
   'Which brands have the most products?',
-  'Search for products missing a SKU',
-  'Show me low stock products',
+  'How do I import a catalog?',
   'What is in my Actions queue?',
 ]
 
@@ -223,8 +223,9 @@ const visibleMessages = computed(() =>
               <div>
                 <p class="text-sm font-medium text-white">Ask about your catalog</p>
                 <p class="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                  Live counts &amp; search over imported products (10k+ OK).
-                  Marketplace study / draft POs from an IDE use <strong class="text-gray-400">MCP</strong>; approve in <strong class="text-gray-400">Actions</strong>.
+                  Live catalog data (counts, search). For “where do I click?”, we send you to
+                  <NuxtLink to="/help" class="text-indigo-400 hover:underline" @click="close">Help</NuxtLink>.
+                  MCP agents draft work; humans approve in <strong class="text-gray-400">Actions</strong>.
                 </p>
               </div>
               <div class="mt-1 flex flex-col gap-2 w-full max-w-xs">

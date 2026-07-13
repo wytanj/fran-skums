@@ -52,6 +52,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 050 | projections.sql | Financial projection runs | Assumptions + engine results + optional Grok commentary |
 | 051 | fix_create_workspace_overload.sql | Drop ambiguous 2-arg create_workspace | Keeps only (name, slug, org_id default null) so signup RPC resolves |
 | 052 | audit_source_channels.sql | Expand audit_events.source_type | ui / mcp / assistant / cron / worker for M1 attribution |
+| 053 | help_articles.sql | Platform Help Center articles | In-app `/help` + assistant `resolve_help`; seed upsert by slug |
 
 ## Planned Phase C Spine
 

@@ -16,8 +16,9 @@
 | Priority | Track | First tasks |
 |----------|--------|-------------|
 | **A (recommended)** | **Phase N** — stakeholder notifications | N1 schema: `notification_policies` + `notification_deliveries`; wire `po.submitted` → in_app (then Slack/email) |
-| **B** | **M6.5** — audit explorer | Actions subtab: filter audit by channel / tool / entity |
-| **C (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke; not blocking product |
+| **B** | **Help Center** | ✅ `/help` + Supabase `help_articles` + assistant `resolve_help` (update seeds as features ship) |
+| **C** | **M6.5** — audit explorer | Actions subtab: filter audit by channel / tool / entity |
+| **D (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke; not blocking product |
 
 ### Quick smoke (catalog + MCP)
 
@@ -32,8 +33,8 @@ node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs
 
 ### Ops leftovers (5–15 min)
 
-- [ ] Confirm **Vercel production Supabase** also has **052** (if different project from local migrate)
-- [ ] Confirm production has **XAI_API_KEY** (assistant chat + MCP briefs)
+- [ ] Confirm **Vercel production Supabase** also has **052** and **053** (help articles)
+- [x] Confirm production has **XAI_API_KEY** (assistant chat + MCP briefs) — set 2026-07-13, redeployed
 - [ ] Optional: `FRAN_MCP_ACTOR_USER_ID=<profiles.id>` in `.env` for human attribution on MCP audits
 - [ ] Secret rotation / Vercel env audit (service role, cron secrets) — hygiene
 - [ ] Note: **015_organizations.sql** still `checksum-mismatch` on local runner (pre-existing; do not re-apply blindly)
@@ -273,6 +274,8 @@ N4  digests, mute, invoice events when AP exists
 - [x] Page `setContext` on products / actions / import / expiry
 - [x] Drawer UX rename + catalog question chips; Settings blurb
 - [x] `study_match_catalog` uses token DB pool (not last 200 updated only)
+- [x] Help Center: migration **053**, `/help` + `/help/:slug`, nav item, `resolve_help` / `list_help_articles`
+- [ ] When shipping features: add/update rows in `help_articles` (upsert by slug in `053` seed or new migration)
 - [ ] M6.5 Audit explorer UI (nice-to-have): filter by channel / tool / entity
 
 ### Phase M6.5 — Audit explorer UI (deferred)
