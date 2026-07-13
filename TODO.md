@@ -1,40 +1,41 @@
 # Fran SKUMS — TODO (implementation queue)
 
 **Date:** 2026-07-13  
-**Shipped on `main`:** **M0–M6** — MCP-ready Actions (M0–M4), import/POS draft safety (**M5**), catalog Q&A + agent context unify (**M6**)  
-**DB (local SUPABASE_DB_URL):** migrations **001–052 applied** (052 audit channels ✅).  
+**Shipped on `main`:** **M0–M6** — MCP-ready Actions (M0–M4), import/POS draft safety (**M5**), catalog Q&A + agent context + Help Center (**M6**)  
+**DB:** migrations **001–053** on shared Supabase project (052 audit ✅, 053 help_articles ✅).  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
-**Plans:** This file · `docs/Commit Summary 13072026.md` · `mcp/README.md` · `Major Update.md`
+**Plans:** This file · `mcp/README.md` · `docs/Commit Summary 13072026.md` · `Major Update.md`
 
 ---
 
 ## Start here next
 
-**M0–M6 shipped.** Catalog AI drawer + MCP `catalog_*` can answer questions on large imports (exact totals). Next product track:
+**Local MCP v1 is done** (stdio + safe scopes + catalog tools + Actions).  
+**Next strategic track:** cloud-hosted MCP so non-technical staff can connect **Claude / other AIs** without Node or `.env`.
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A (recommended)** | **Phase N** — stakeholder notifications | N1 schema: `notification_policies` + `notification_deliveries`; wire `po.submitted` → in_app (then Slack/email) |
-| **B** | **Help Center** | ✅ `/help` + Supabase `help_articles` + assistant `resolve_help` (update seeds as features ship) |
-| **C** | **M6.5** — audit explorer | Actions subtab: filter audit by channel / tool / entity |
-| **D (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke; not blocking product |
+| **A (recommended)** | **Phase R — Remote / cloud MCP** | R1 ✅ code; deploy `/mcp` + **054**; human pilot → then R2 OAuth |
+| **B** | **Phase N** — stakeholder notifications | N1 schema after R1 pilot (or parallel if staffing allows) |
+| **C** | **M6.5** — audit explorer | Complements cloud MCP (see who called which tool) |
+| **D (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke |
 
-### Quick smoke (catalog + MCP)
+### Quick smoke (catalog + local MCP)
 
 ```bash
-npm run db:migrate:status    # expect 052 applied
-npm run dev                  # Catalog AI drawer: "How many products?"
-npm run mcp                  # stderr: scopes=safe; tools include catalog_stats
-node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs
-# In app: Catalog AI → census questions; product page → Activate for POS
-# MCP: catalog_stats / catalog_search / catalog_get
+npm run db:migrate:status    # expect 053 applied
+npm run dev                  # Catalog AI + /help
+npm run mcp                  # local stdio; scopes=safe; catalog_*
+node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs tests/help-resolve.test.mjs
+# Cloud (after R1): Claude custom integration → HTTPS MCP URL + workspace API key
 ```
 
 ### Ops leftovers (5–15 min)
 
-- [ ] Confirm **Vercel production Supabase** also has **052** and **053** (help articles)
-- [x] Confirm production has **XAI_API_KEY** (assistant chat + MCP briefs) — set 2026-07-13, redeployed
+- [x] Confirm production Supabase has **053** (same project as app; help_articles live)
+- [x] Confirm production has **XAI_API_KEY** — set 2026-07-13, redeployed
+- [ ] Fill Vercel **`SUPABASE_DB_URL`** (currently empty in prod env pull — migrate via local URL works only because same project)
 - [ ] Optional: `FRAN_MCP_ACTOR_USER_ID=<profiles.id>` in `.env` for human attribution on MCP audits
 - [ ] Secret rotation / Vercel env audit (service role, cron secrets) — hygiene
 - [ ] Note: **015_organizations.sql** still `checksum-mismatch` on local runner (pre-existing; do not re-apply blindly)
@@ -43,9 +44,12 @@ node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs
 
 ## North star (current product)
 
-**Goal:** Agents propose work in chat (e.g. clone PO, drop brands); humans see **DRAFT** in Actions; submit/approve only with privilege; audit shows **ui vs mcp**.
+**Goal (v1 — largely met):** Agents propose work; humans see **DRAFT** in Actions; submit/approve with privilege; audit shows **ui vs mcp**.
 
-**Success (v1 — largely met):** Clone → draft + deep link → Actions UI → role-gated approve; `audit_events.source_type` distinguishes channels.
+**Goal (v2 — cloud MCP):** Non-technical employees connect **Claude (or other remote-MCP clients)** to Fran SKUMS over **HTTPS**, ask catalog/analysis questions and create **drafts**, without local install. Service role never leaves the server. Privileged execute stays in Actions (or admin-only keys).
+
+**Success (v1):** Clone → draft + deep link → Actions UI → role-gated approve.  
+**Success (v2 pilot):** Employee pastes connector URL + safe API key (or OAuth later) → `catalog_stats` works in Claude → draft PO deep-links to Actions.
 
 ---
 
@@ -55,7 +59,8 @@ node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs
 |--------|--------|
 | **052 applied** | `audit_source_channels` — ui/mcp/api/… on `audit_events` |
 | **No pending** | `npm run db:migrate` reports only 015 checksum-mismatch (historical file drift) |
-| **Next SQL** | None for M0–M4; Phase **N1** will add notification tables when started |
+| **053 applied** | `help_articles` — Help Center + assistant resolve_help |
+| **Next SQL** | Phase **R** may need none for key-auth MVP; OAuth may add token tables; **N1** adds notification tables |
 
 ---
 
@@ -278,10 +283,70 @@ N4  digests, mute, invoice events when AP exists
 - [ ] When shipping features: add/update rows in `help_articles` (upsert by slug in `053` seed or new migration)
 - [ ] M6.5 Audit explorer UI (nice-to-have): filter by channel / tool / entity
 
-### Phase M6.5 — Audit explorer UI (deferred)
+### Phase M6.5 — Audit explorer UI (deferred; higher value after Phase R)
 
 - [ ] Page or Actions subtab: filter by channel, entity_type, tool_name, actor
 - [ ] Link from any entity → filtered audit trail
+- [ ] Useful for cloud MCP: filter `source_type=mcp`, `client_name`, tool_name
+
+---
+
+### Phase R — Remote / cloud MCP (non-technical employees)
+
+**Why:** Local stdio MCP requires Node, repo, and env. Staff who already pay for Claude need a **public HTTPS MCP** + auth bound to a workspace — not `FRAN_MCP_WORKSPACE_ID` + service role on a laptop.
+
+**Contrast with shipped MCP v1 (M0–M4):**
+
+| | Today (local) | Phase R (cloud) |
+|--|---------------|-----------------|
+| Transport | stdio | Streamable HTTP (HTTPS) |
+| Who runs server | Developer machine | Fran cloud (Vercel first) |
+| Auth | Service role + fixed workspace env | API key (R1) → OAuth (R2) |
+| Employee setup | Impossible | URL + key or “Sign in with Fran” |
+| Default power | Safe scopes | **Cloud-safe allowlist** (no submit/execute) |
+| Tool code | `mcp/src/*` | **Reuse** handlers; new gateway only |
+
+**Reuse:** `mcp/src/tools.mjs` handlers, `core/catalog`, scopes concept, `api_keys` + `requireApiKey`, `audit_events`, Actions for human approval.  
+**Do not reuse for clients:** `SUPABASE_SERVICE_ROLE_KEY`, single global `FRAN_MCP_WORKSPACE_ID` in employee config.
+
+#### R0 — Lock decisions (½ day)
+
+- [ ] Default cloud profile = **safe only** (catalog read, help, BI/market read, study?, draft PO/pipeline propose, projections create — **no** po_submit / pipeline_execute / bi_run_seed_now)
+- [ ] Hosting = **same Nuxt app on Vercel** for MVP (`/mcp` or `/api/mcp`); dedicated service only if timeouts bite
+- [ ] Auth v1 = **workspace API keys** (existing `api_keys`); map scopes to MCP scopes
+- [ ] Auth v2 = **OAuth 2.1** + SKUMS login (Claude connector UX)
+- [ ] Keep local `npm run mcp` forever for engineers
+
+#### R1 — Remote MCP MVP (pilot) ✅ implemented (pending deploy + human pilot)
+
+- [x] Shared runtime: `runWithMcpRequestContext` ALS — workspace/scopes from API key
+- [x] HTTP JSON-RPC MCP: `POST/GET /mcp`, `GET /mcp/tools`
+- [x] Auth: Bearer / X-API-Key → `authenticateApiKey` → `resolveCloudMcpScopes`
+- [x] Privileged tools filtered from cloud `tools/list` + blocked on call
+- [x] Audit via existing MCP mutation path + client name from key / `x-mcp-client`
+- [x] Settings: **Create Claude / MCP key** + copy snippet
+- [x] Help: migration **054** `connect-claude`; tools `help_resolve` / `help_list`
+- [x] Tests: `tests/remote-mcp.test.mjs`
+- [ ] Deploy production + run **054** on Supabase
+- [ ] Pilot: 2–3 non-engineers on Claude custom integration
+
+**Done when:** Employee with only Claude + a safe key can ask “how many products?” and get exact totals; no local Node.
+
+#### R2 — OAuth for non-technical default
+
+- [ ] OAuth authorize + token endpoints (PKCE); consent screen (workspace + scopes)
+- [ ] Claude (and similar) connector uses OAuth instead of pasting long-lived keys
+- [ ] Revoke UI: list active connectors / tokens per user
+- [ ] Prefer actor_user_id from token for audit
+
+#### R3 — Hardening
+
+- [ ] Rate limits per key/user
+- [ ] Usage strip in Settings (tool call counts)
+- [ ] Optional dedicated gateway if Vercel timeouts block study/long tools
+- [ ] Document ChatGPT / other clients if/when remote MCP supported similarly
+
+**Explicit non-goals for R1:** live scrape, full privileged cloud keys for all staff, replacing Catalog AI or Actions UI.
 
 ---
 
@@ -295,6 +360,19 @@ N4  digests, mute, invoice events when AP exists
 | Attribution | `audit_events` distinguishes `ui` vs `mcp` (+ tool_name) |
 | Escalate | Human (or full-scope) submit → approve → (pipeline) execute |
 | POS safe | Agent/import products stay draft / non-POS until **Activate for POS** | ✅ M5 |
+
+### Definition of done (MCP cloud pilot — Phase R1)
+
+| Check | Pass |
+|-------|------|
+| Public URL | HTTPS MCP endpoint on production (or stable preview) |
+| No laptop | Employee does not run `npm run mcp` |
+| Auth | Valid API key required; invalid → 401 |
+| Isolation | Key A cannot read workspace B |
+| Safe only | Submit/decide/execute blocked on cloud path |
+| Catalog Q&A | `catalog_stats` / `catalog_search` work in Claude |
+| Handoff | Draft tools still return Actions deep links |
+| Audit | Tool calls appear with `source_type=mcp` |
 
 ---
 
@@ -326,7 +404,12 @@ See historical notes at end of this file if needed.
 - [x] Accept ≠ execute (two steps)  
 - [x] Internal PO (Actions) vs inventory PO (Inventory) — separate UI labels  
 - [x] UI approve: owner/admin only; member can submit drafts  
-- [ ] Pipeline execute in UI vs full-MCP only (still MCP full for execute)  
+- [x] Help Center in Supabase; assistant routes nav Qs to `/help/*`  
+- [ ] **Cloud MCP transport** = Streamable HTTP on Vercel MVP (Phase R1)  
+- [ ] **Cloud MCP auth v1** = workspace API keys; **v2** = OAuth to SKUMS login  
+- [ ] **Cloud MCP never exposes** service role or env-fixed workspace to clients  
+- [ ] **Cloud default** = safe allowlist; privileged tools off public connector  
+- [ ] Pipeline execute in UI vs full-MCP only (still MCP full / local for execute)  
 - [ ] Optional later: unify `pipeline_candidates` + `agent_proposals`  
 - [ ] Phase N: email provider choice (Resend / SES / Postmark)
 
@@ -335,20 +418,26 @@ See historical notes at end of this file if needed.
 ## Suggested build order
 
 ```text
-M0–M4 + M3.5     ✅ shipped (main)
-DB 052           ✅ local applied; verify prod if needed
+M0–M6 + Help     ✅ shipped (main)
+DB 052–053       ✅ on shared Supabase project
+Local stdio MCP  ✅ engineers only
 ─────────────────
-Next pick:
-  N1  notification_policies + deliveries schema
-  N2  po.submitted / po.approved → in_app (+ Slack)
-  N3  email templates + deep links
-  or M6.5 audit explorer
+Next (recommended):
+  R0  lock cloud-safe allowlist + host + auth choice
+  R1  HTTPS MCP + API key + Settings connector + pilot
+  R2  OAuth for non-technical default
+  R3  rate limits / usage / optional dedicated gateway
+─────────────────
+Parallel / after R1 pilot:
+  N1–N3  stakeholder notifications
+  M6.5   audit explorer (mcp channel filter)
 ─────────────────
 Parked: Browserbase smoke, brand radar, scrape scale
 ```
 
-**Recommended next:** **N1** (notifications).  
-**Catalog Q&A now:** in-app **Catalog AI** drawer, or MCP `catalog_stats` / `catalog_search` / `catalog_get`.
+**Recommended next:** **Phase R0 → R1** (cloud MCP pilot).  
+**Catalog Q&A today:** Catalog AI drawer, `/help`, or local MCP `catalog_*`.  
+**Phase N** remains important but is no longer the only “recommended first” — cloud MCP unblocks non-engineer AI use.
 
 ---
 
@@ -359,10 +448,11 @@ Parked: Browserbase smoke, brand radar, scrape scale
 | MI 0–5 | Seeds, jobs, study, MCP, internal PO machine, projections |
 | MCP M0–M4 | Safe scopes, audit channels, clone tools, Actions UI, roles |
 | M5 | Import draft/POS-off; pipeline draft products; Activate for POS UI |
-| M6 | Shared `core/catalog`; Catalog AI + MCP `catalog_*`; page context; study match pool |
+| M6 | Shared `core/catalog`; Catalog AI + MCP `catalog_*`; Help Center **053** |
+| Local MCP | stdio `npm run mcp`; env workspace + service role |
 | Import | Dirty multi-provider + large-job progress |
 | Collect research | Browserbase adapter; live scrape **KIV** |
-| Ops | Workspace, MCP id, migrations through **052** (local) |
+| Ops | Workspace, MCP id, migrations through **053** |
 
 ---
 

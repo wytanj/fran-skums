@@ -175,15 +175,33 @@ const newKeyScopes = ref<string[]>([])
 const keySaving = ref(false)
 const posKeySaving = ref(false)
 const newlyCreatedKey = ref('')
-const newlyCreatedKeyUse = ref<'general' | 'pos'>('general')
+const newlyCreatedKeyUse = ref<'general' | 'pos' | 'mcp'>('general')
 const POS_SCOPES = ['pos:read', 'pos:write']
+/** Cloud MCP safe profile scopes (matches mcp MCP_SCOPE_PROFILES.safe) */
+const MCP_SAFE_SCOPES = [
+  'mcp:safe',
+  'intel:read',
+  'study:write',
+  'pipeline:propose',
+  'po:draft',
+  'projection:run',
+]
+const mcpKeySaving = ref(false)
 const skumsApiUrl = computed(() => {
   if (import.meta.client) return window.location.origin
-  return 'https://skums.vercel.app'
+  return 'https://fran-skums.vercel.app'
 })
+const mcpEndpointUrl = computed(() => `${skumsApiUrl.value}/mcp`)
 const posConnectorSnippet = computed(() => [
   `SKUMS API URL: ${skumsApiUrl.value}`,
   `SKUMS account key: ${newlyCreatedKey.value || 'sk_live_...'}`,
+].join('\n'))
+const mcpConnectorSnippet = computed(() => [
+  `Fran SKUMS remote MCP (Claude / custom integration)`,
+  `URL: ${mcpEndpointUrl.value}`,
+  `Auth header: Authorization: Bearer ${newlyCreatedKey.value || 'sk_live_...'}`,
+  `Profile: cloud-safe (catalog Q&A, drafts, help — no submit/execute)`,
+  `Help: ${skumsApiUrl.value}/help/connect-claude`,
 ].join('\n'))
 
 async function loadApiKeys() {
@@ -245,6 +263,30 @@ async function handleCreatePosKey() {
   }
 }
 
+async function handleCreateMcpKey() {
+  if (!currentWorkspace.value) return
+  mcpKeySaving.value = true
+  try {
+    const result = await $fetch('/api/v1/keys/create', {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        name: `Claude / MCP connector - ${currentWorkspace.value.name}`,
+        description: 'Remote MCP cloud-safe (catalog, drafts, help). No submit/execute.',
+        scopes: MCP_SAFE_SCOPES,
+        created_by: getUserId(),
+      },
+    })
+    newlyCreatedKey.value = (result as any).key
+    newlyCreatedKeyUse.value = 'mcp'
+    await loadApiKeys()
+  } catch (e: any) {
+    showError(e.data?.statusMessage || e.message || 'Failed to create MCP connector key')
+  } finally {
+    mcpKeySaving.value = false
+  }
+}
+
 async function handleDeleteKey(id: string) {
   if (!confirm('Revoke this API key? Any systems using it will lose access.')) return
   const supaClient = useSupabaseClient()
@@ -262,6 +304,8 @@ async function handleToggleKey(id: string, active: boolean) {
 }
 
 const AVAILABLE_SCOPES = [
+  { key: 'mcp:safe', label: 'MCP cloud-safe' },
+  { key: 'intel:read', label: 'MCP intel:read' },
   { key: 'products:read', label: 'Read Products' },
   { key: 'products:write', label: 'Write Products' },
   { key: 'products:delete', label: 'Delete Products' },
@@ -1020,6 +1064,37 @@ onMounted(async () => {
             </button>
           </div>
           <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-gray-950 p-3 font-mono text-xs text-gray-200">{{ posConnectorSnippet }}</pre>
+        </div>
+        <div v-if="newlyCreatedKeyUse === 'mcp'" class="mt-4 rounded-lg border border-violet-500/20 bg-gray-950/70 p-3">
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <p class="text-xs font-medium text-violet-300">Claude / remote MCP values</p>
+            <button class="btn-secondary shrink-0 text-xs" @click="copyToClipboard(mcpConnectorSnippet)">
+              Copy MCP values
+            </button>
+          </div>
+          <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-gray-950 p-3 font-mono text-xs text-gray-200">{{ mcpConnectorSnippet }}</pre>
+        </div>
+      </div>
+
+      <!-- Claude / Remote MCP connector -->
+      <div class="card p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="max-w-2xl">
+            <p class="text-xs font-medium uppercase tracking-wider text-violet-400">Remote MCP (Phase R1)</p>
+            <h2 class="mt-1 text-lg font-semibold text-white">Connect Claude to this workspace</h2>
+            <p class="mt-1 text-sm text-gray-400">
+              Non-technical staff can add this HTTPS endpoint as a custom MCP integration in Claude.
+              Keys are <strong class="text-gray-300">cloud-safe</strong>: catalog Q&amp;A, help, drafts — not submit/execute.
+              Humans still approve in <NuxtLink to="/actions" class="text-indigo-400 hover:underline">Actions</NuxtLink>.
+            </p>
+            <p class="mt-2 font-mono text-xs text-violet-300/90">{{ mcpEndpointUrl }}</p>
+            <p class="mt-2 text-xs text-gray-500">
+              Full guide: <NuxtLink to="/help/connect-claude" class="text-indigo-400 hover:underline">/help/connect-claude</NuxtLink>
+            </p>
+          </div>
+          <button class="btn-primary shrink-0" :disabled="mcpKeySaving || !currentWorkspace" @click="handleCreateMcpKey">
+            {{ mcpKeySaving ? 'Creating…' : 'Create Claude / MCP key' }}
+          </button>
         </div>
       </div>
 

@@ -34,7 +34,7 @@ import { handleTool, toolDefinitions } from './tools.mjs'
 const server = new Server(
   {
     name: 'fran-skums',
-    version: '0.5.0',
+    version: '0.6.0',
   },
   {
     capabilities: {

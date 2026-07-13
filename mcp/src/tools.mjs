@@ -12,6 +12,7 @@ import {
   requireWorkspaceId,
 } from './context.mjs'
 import { auditMcpMutation } from '../../core/audit/record.mjs'
+import { listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 import * as bi from './lib/bi.mjs'
 import * as catalog from './lib/catalog.mjs'
 import * as pipeline from './lib/pipeline.mjs'
@@ -240,6 +241,31 @@ export const toolDefinitions = [
       type: 'object',
       properties: { candidate_id: { type: 'string' } },
       required: ['candidate_id'],
+    },
+  },
+
+  // ── Help Center (nav / how-to — same articles as in-app /help) ──
+  {
+    name: 'help_resolve',
+    description:
+      'Resolve "where do I…" / how-to questions to Fran Help Center articles with deterministic paths (/help/{slug}). Never invent routes. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'User question e.g. where do I edit products' },
+        limit: { type: 'number' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'help_list',
+    description: 'List published Help Center articles (titles, summaries, paths). intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: { type: 'string' },
+      },
     },
   },
 
@@ -774,6 +800,20 @@ export async function handleTool(name, args = {}) {
           },
           result,
         )
+      }
+      case 'help_resolve': {
+        requireScope('intel:read')
+        const result = await resolveHelp(getDb(), String(a.query || ''), {
+          limit: a.limit,
+        })
+        return jsonResult(result)
+      }
+      case 'help_list': {
+        requireScope('intel:read')
+        const articles = await listHelpArticles(getDb(), {
+          category: a.category || null,
+        })
+        return jsonResult({ articles, help_index_path: '/help', count: articles.length })
       }
       case 'catalog_stats': {
         requireScope('intel:read')

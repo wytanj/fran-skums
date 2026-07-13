@@ -7,11 +7,30 @@
  *     - empty → use FRAN_MCP_PROFILE (default safe)
  *     - safe / full → named profile
  *     - * / all / full → unrestricted (null)
+ *
+ * Phase R1: HTTP cloud MCP uses AsyncLocalStorage request context so
+ * workspace/scopes come from API key, not process env.
  */
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
+
+/**
+ * @typedef {{
+ *   workspaceId: string,
+ *   scopes: string[] | null,
+ *   clientName?: string,
+ *   actorUserId?: string | null,
+ *   cloud?: boolean,
+ *   keyId?: string | null,
+ *   keyName?: string | null,
+ * }} McpRequestContext
+ */
+
+/** @type {AsyncLocalStorage<McpRequestContext>} */
+export const mcpRequestContext = new AsyncLocalStorage()
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -84,7 +103,27 @@ export function getXaiApiKey() {
   return process.env.XAI_API_KEY || process.env.xaiApiKey || ''
 }
 
+/**
+ * @returns {McpRequestContext | null}
+ */
+export function getMcpRequestContext() {
+  return mcpRequestContext.getStore() || null
+}
+
+/**
+ * Run fn with per-request MCP context (HTTP cloud path).
+ * @template T
+ * @param {McpRequestContext} ctx
+ * @param {() => T | Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function runWithMcpRequestContext(ctx, fn) {
+  return mcpRequestContext.run(ctx, fn)
+}
+
 export function getWorkspaceId() {
+  const req = getMcpRequestContext()
+  if (req?.workspaceId) return String(req.workspaceId).trim()
   const id =
     process.env.FRAN_MCP_WORKSPACE_ID ||
     process.env.MCP_WORKSPACE_ID ||
@@ -94,9 +133,11 @@ export function getWorkspaceId() {
 }
 
 /**
- * Client label for audit (e.g. cursor, claude-desktop).
+ * Client label for audit (e.g. cursor, claude-desktop, claude-cloud).
  */
 export function getMcpClientName() {
+  const req = getMcpRequestContext()
+  if (req?.clientName) return String(req.clientName).trim() || 'mcp'
   return (process.env.FRAN_MCP_CLIENT || process.env.MCP_CLIENT || 'mcp').trim() || 'mcp'
 }
 
@@ -104,8 +145,45 @@ export function getMcpClientName() {
  * Optional human operator profile UUID for attribution.
  */
 export function getMcpActorUserId() {
+  const req = getMcpRequestContext()
+  if (req && 'actorUserId' in req) return req.actorUserId || null
   const id = (process.env.FRAN_MCP_ACTOR_USER_ID || process.env.MCP_ACTOR_USER_ID || '').trim()
   return id || null
+}
+
+export function isCloudMcpRequest() {
+  return getMcpRequestContext()?.cloud === true
+}
+
+/**
+ * Map workspace API key scopes → MCP scopes for cloud.
+ * Cloud never grants privileged scopes.
+ * @param {string[] | null | undefined} apiKeyScopes
+ * @returns {string[]}
+ */
+export function resolveCloudMcpScopes(apiKeyScopes) {
+  const safe = [...MCP_SCOPE_PROFILES.safe]
+  const list = Array.isArray(apiKeyScopes) ? apiKeyScopes.map(String) : []
+
+  // Empty = historical full API key → still cloud-safe only
+  if (list.length === 0) return safe
+  if (list.includes('mcp:safe') || list.includes('mcp:cloud')) return safe
+
+  /** @type {Set<string>} */
+  const mapped = new Set()
+  for (const s of list) {
+    if (safe.includes(s)) mapped.add(s)
+    // Map common product API scopes to catalog read
+    if (s === 'products:read' || s === 'pos:read') mapped.add('intel:read')
+  }
+
+  if (mapped.size === 0) {
+    throw new Error(
+      'API key has no MCP-compatible scopes. In SKUMS Settings create a "Claude / MCP connector" key (mcp:safe).',
+    )
+  }
+
+  return [...mapped].filter((s) => !MCP_PRIVILEGED_SCOPES.includes(s))
 }
 
 /**
@@ -128,6 +206,12 @@ export function getMcpProfileName() {
  * @returns {string[] | null} null means unrestricted (full)
  */
 export function getMcpScopes() {
+  const req = getMcpRequestContext()
+  if (req && 'scopes' in req && req.scopes !== undefined) {
+    // Request context always wins (cloud never passes null/full)
+    return req.scopes
+  }
+
   const raw = (process.env.FRAN_MCP_SCOPES || process.env.MCP_SCOPES || '').trim()
   const lower = raw.toLowerCase()
 
@@ -170,6 +254,14 @@ export function describeMcpScopes() {
 }
 
 export function requireScope(scope) {
+  // R1: cloud HTTP path never allows privileged ops
+  if (isCloudMcpRequest() && MCP_PRIVILEGED_SCOPES.includes(scope)) {
+    throw new Error(
+      `Cloud MCP blocks privileged scope "${scope}". ` +
+        `Submit/decide/execute only in SKUMS Actions UI or local full-profile MCP.`,
+    )
+  }
+
   // M2: FRAN_MCP_MODE=safe hard-blocks privileged scopes even if SCOPES misconfigured
   const mode = (process.env.FRAN_MCP_MODE || process.env.MCP_MODE || '').trim().toLowerCase()
   if (mode === 'safe' && MCP_PRIVILEGED_SCOPES.includes(scope)) {
@@ -182,11 +274,13 @@ export function requireScope(scope) {
   const scopes = getMcpScopes()
   if (scopes == null) return
   if (!scopes.includes(scope)) {
-    const profile = getMcpProfileName()
+    const profile = isCloudMcpRequest() ? 'cloud-safe' : getMcpProfileName()
     throw new Error(
       `MCP scope denied: need "${scope}" (profile=${profile}). ` +
         `Safe profile cannot submit/decide/execute or write crawl seeds. ` +
-        `Set FRAN_MCP_PROFILE=full or FRAN_MCP_SCOPES=full for privileged ops.`,
+        (isCloudMcpRequest()
+          ? 'Use SKUMS Actions for privileged steps.'
+          : 'Set FRAN_MCP_PROFILE=full or FRAN_MCP_SCOPES=full for privileged ops.'),
     )
   }
 }

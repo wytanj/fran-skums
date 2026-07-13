@@ -15,10 +15,32 @@ Does **not** scrape Shopee on every tool call — it reads/writes the Supabase w
 | Surface | Where | Best for |
 |---------|--------|----------|
 | **Catalog Assistant** | SKUMS web drawer (“Catalog AI”) | “How many products?”, brand counts, inventory, Actions queue |
-| **MCP (this server)** | Cursor / Claude Desktop / `npm run mcp` | Study, draft POs, pipeline, marketplace BI, same catalog tools |
+| **MCP local (stdio)** | Cursor / Claude Desktop / `npm run mcp` | Engineers: study, draft POs, pipeline, BI |
+| **MCP remote (cloud)** | `POST https://<host>/mcp` + API key | **Non-technical staff** via Claude custom integration (Phase R1) |
 | **Actions UI** | `/actions` | Human submit/approve of MCP drafts |
+| **Help** | `/help` | How-to; tools `help_resolve` / `help_list` |
 
 Both use the same workspace DB and `XAI_API_KEY`. Catalog tools share `core/catalog` — totals are exact counts, not guesses.
+
+### Remote MCP (cloud) — employee setup
+
+1. Admin: **Settings → API keys → Create Claude / MCP key**
+2. Employee: Claude → custom MCP integration  
+   - **URL:** `https://fran-skums.vercel.app/mcp`  
+   - **Auth:** `Authorization: Bearer sk_live_…`
+3. Guide: `/help/connect-claude`
+
+**Cloud always enforces safe scopes** (no `po_submit` / `pipeline_execute` / seed writes), even if the API key is over-scoped.
+
+```http
+POST /mcp
+Authorization: Bearer sk_live_…
+Content-Type: application/json
+
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"catalog_stats","arguments":{}}}
+```
+
+`GET /mcp` returns discovery (no auth). `GET /mcp/tools` lists tools (auth required).
 
 ---
 
