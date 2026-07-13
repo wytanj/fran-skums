@@ -233,8 +233,8 @@ export function useActions() {
         } else if (qty !== undefined || cost !== undefined) {
           const existing = pack.lines.find((l: any) => l.id === line.id)
           if (existing) {
-            const q = qty ?? Number(existing.quantity) || 0
-            const c = cost ?? Number(existing.unit_cost) || 0
+            const q = qty ?? (Number(existing.quantity) || 0)
+            const c = cost ?? (Number(existing.unit_cost) || 0)
             update.line_total = Math.round(q * c * 100) / 100
           }
         }
