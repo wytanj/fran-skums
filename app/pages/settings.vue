@@ -1253,8 +1253,15 @@ onMounted(async () => {
     <!-- AI Assistant -->
     <div v-show="activeTab === 'assistant'" class="card p-6 space-y-5">
       <div>
-        <h2 class="text-lg font-semibold text-white">AI Assistant</h2>
-        <p class="mt-1 text-sm text-gray-400">Configure your workspace AI assistant powered by xAI Grok.</p>
+        <h2 class="text-lg font-semibold text-white">Catalog Assistant (in-app)</h2>
+        <p class="mt-1 text-sm text-gray-400">
+          Powered by xAI Grok. This is the floating <strong class="text-gray-300">Catalog AI</strong> drawer — live Q&amp;A over your imported products, inventory, and Actions queue.
+        </p>
+        <div class="mt-3 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-2 text-xs text-gray-400 space-y-1">
+          <p><strong class="text-gray-300">In-app Assistant</strong> — catalog counts/search for large imports (uses tools + your xAI key on the server).</p>
+          <p><strong class="text-gray-300">MCP</strong> (<code class="text-gray-500">npm run mcp</code> in Cursor/Claude) — marketplace study, draft POs, pipeline. Same workspace data; approve in <strong class="text-gray-300">Actions</strong>.</p>
+          <p>They share Supabase + xAI but are different surfaces — pick one based on whether you are in the browser or an IDE agent.</p>
+        </div>
       </div>
 
       <div>

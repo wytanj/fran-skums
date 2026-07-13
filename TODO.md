@@ -1,7 +1,7 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-13 (EOD handoff)  
-**Shipped:** MCP-ready **M0–M4** on `main` (`650148e` + summary `d041ab9`)  
+**Date:** 2026-07-13  
+**Shipped on `main`:** **M0–M6** — MCP-ready Actions (M0–M4), import/POS draft safety (**M5**), catalog Q&A + agent context unify (**M6**)  
 **DB (local SUPABASE_DB_URL):** migrations **001–052 applied** (052 audit channels ✅).  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
@@ -9,29 +9,31 @@
 
 ---
 
-## Start here tomorrow
+## Start here next
 
-**MCP-ready v1 core is done.** Pick one track:
+**M0–M6 shipped.** Catalog AI drawer + MCP `catalog_*` can answer questions on large imports (exact totals). Next product track:
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
 | **A (recommended)** | **Phase N** — stakeholder notifications | N1 schema: `notification_policies` + `notification_deliveries`; wire `po.submitted` → in_app (then Slack/email) |
-| **B** | **M5** — import / catalog / POS consistency | Import defaults draft/POS-off; activate-for-POS UI; confirm POS filters drafts |
-| **C** | **M6** — audit explorer | Actions subtab: filter audit by channel / tool / entity |
-| **D (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke; not blocking product |
+| **B** | **M6.5** — audit explorer | Actions subtab: filter audit by channel / tool / entity |
+| **C (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke; not blocking product |
 
-### Quick smoke when you sit down
+### Quick smoke (catalog + MCP)
 
 ```bash
 npm run db:migrate:status    # expect 052 applied
-npm run dev                  # /actions, dashboard Actions strip
-npm run mcp                  # stderr: scopes=safe
-# Optional: MCP clone draft → open deep_link → Submit (member) → Approve (admin)
+npm run dev                  # Catalog AI drawer: "How many products?"
+npm run mcp                  # stderr: scopes=safe; tools include catalog_stats
+node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs
+# In app: Catalog AI → census questions; product page → Activate for POS
+# MCP: catalog_stats / catalog_search / catalog_get
 ```
 
 ### Ops leftovers (5–15 min)
 
 - [ ] Confirm **Vercel production Supabase** also has **052** (if different project from local migrate)
+- [ ] Confirm production has **XAI_API_KEY** (assistant chat + MCP briefs)
 - [ ] Optional: `FRAN_MCP_ACTOR_USER_ID=<profiles.id>` in `.env` for human attribution on MCP audits
 - [ ] Secret rotation / Vercel env audit (service role, cron secrets) — hygiene
 - [ ] Note: **015_organizations.sql** still `checksum-mismatch` on local runner (pre-existing; do not re-apply blindly)
@@ -251,16 +253,29 @@ N4  digests, mute, invoice events when AP exists
 
 ---
 
-### Phase M5 — Consistency (import / catalog / POS)
+### Phase M5 — Consistency (import / catalog / POS) ✅
 
-- [ ] Import: prefer draft products or pending approval (stop demo auto-active + POS-on for wholesale dumps)
-- [ ] Pipeline `catalog_product` execute stays **product.status=draft**; UI “Activate for POS”
-- [ ] Confirm POS catalog never lists drafts / non-`pos_enabled`
+- [x] Import: prefer draft products (stop demo auto-active + POS-on for wholesale dumps)
+- [x] Pipeline `catalog_product` execute stays **product.status=draft** + POS-off; UI “Activate for POS”
+- [x] Confirm POS catalog never lists drafts / non-`pos_enabled` (default catalog)
 - [ ] Optional row columns: `created_channel`, `updated_channel` on hot tables for list badges without join
 
 ---
 
-### Phase M6 — Audit explorer UI (nice-to-have after M3)
+### Phase M6 — Catalog Q&A + agent context unify ✅
+
+**Why:** Demo-era in-app Assistant and MCP were separate stacks; 10k imports were invisible to both AI surfaces at scale.
+
+- [x] Shared `core/catalog` (`catalogSearch` / `catalogStats` / `catalogGet` / match pool)
+- [x] In-app tools: `get_catalog_stats`, improved `search_products`/`get_product`, `get_actions_queue`
+- [x] Prompt: distinguish **Catalog Assistant** vs **MCP**; inject live catalog snapshot; never invent totals
+- [x] MCP safe tools: `catalog_stats`, `catalog_search`, `catalog_get`
+- [x] Page `setContext` on products / actions / import / expiry
+- [x] Drawer UX rename + catalog question chips; Settings blurb
+- [x] `study_match_catalog` uses token DB pool (not last 200 updated only)
+- [ ] M6.5 Audit explorer UI (nice-to-have): filter by channel / tool / entity
+
+### Phase M6.5 — Audit explorer UI (deferred)
 
 - [ ] Page or Actions subtab: filter by channel, entity_type, tool_name, actor
 - [ ] Link from any entity → filtered audit trail
@@ -276,7 +291,7 @@ N4  digests, mute, invoice events when AP exists
 | No silent live mutate | Safe scopes/mode block submit/decide/execute |
 | Attribution | `audit_events` distinguishes `ui` vs `mcp` (+ tool_name) |
 | Escalate | Human (or full-scope) submit → approve → (pipeline) execute |
-| POS safe | Agent products stay draft / non-POS until promoted |
+| POS safe | Agent/import products stay draft / non-POS until **Activate for POS** | ✅ M5 |
 
 ---
 
@@ -320,17 +335,17 @@ See historical notes at end of this file if needed.
 M0–M4 + M3.5     ✅ shipped (main)
 DB 052           ✅ local applied; verify prod if needed
 ─────────────────
-Tomorrow pick:
+Next pick:
   N1  notification_policies + deliveries schema
   N2  po.submitted / po.approved → in_app (+ Slack)
   N3  email templates + deep links
-  or M5 import/POS consistency
-  or M6 audit explorer
+  or M6.5 audit explorer
 ─────────────────
 Parked: Browserbase smoke, brand radar, scrape scale
 ```
 
-**Recommended first session tomorrow:** **N1** (schema only) or **M5** (import defaults) — both unblocked.
+**Recommended next:** **N1** (notifications).  
+**Catalog Q&A now:** in-app **Catalog AI** drawer, or MCP `catalog_stats` / `catalog_search` / `catalog_get`.
 
 ---
 
@@ -340,6 +355,8 @@ Parked: Browserbase smoke, brand radar, scrape scale
 |------|-----------|
 | MI 0–5 | Seeds, jobs, study, MCP, internal PO machine, projections |
 | MCP M0–M4 | Safe scopes, audit channels, clone tools, Actions UI, roles |
+| M5 | Import draft/POS-off; pipeline draft products; Activate for POS UI |
+| M6 | Shared `core/catalog`; Catalog AI + MCP `catalog_*`; page context; study match pool |
 | Import | Dirty multi-provider + large-job progress |
 | Collect research | Browserbase adapter; live scrape **KIV** |
 | Ops | Workspace, MCP id, migrations through **052** (local) |

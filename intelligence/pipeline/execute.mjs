@@ -45,26 +45,31 @@ export function buildCatalogProductPayload(candidate, context = {}) {
   const title = String(p.title || candidate.title || context.hypothesis || '').trim()
   if (!title) throw new Error('catalog_product requires title')
 
+  // M5: pipeline execute always creates draft / POS-off; promote via UI "Activate for POS"
+  const product_data = {
+    source: 'pipeline_execute',
+    pipeline_candidate_id: candidate.id || null,
+    study_session_id: candidate.source_study_id || null,
+    marketplace: p.marketplace || context.marketplace || 'shopee',
+    country: p.country || context.country || 'sg',
+    listing_url: p.listing_url || null,
+    shop_id: p.shop_id || null,
+    item_id: p.item_id || null,
+    evidence_refs: candidate.evidence_refs || [],
+    ...(p.product_data && typeof p.product_data === 'object' ? p.product_data : {}),
+    pos_enabled: false,
+    sellable_in_pos: false,
+  }
+
   return {
     title,
-    status: p.status || 'draft',
+    status: 'draft',
     description: p.description || candidate.summary || null,
     brand_name: p.brand_name || null,
     retail_price: p.retail_price ?? p.price ?? null,
     currency: p.currency || 'SGD',
     tags: Array.isArray(p.tags) ? p.tags : ['marketplace-study', 'pipeline'],
-    product_data: {
-      source: 'pipeline_execute',
-      pipeline_candidate_id: candidate.id || null,
-      study_session_id: candidate.source_study_id || null,
-      marketplace: p.marketplace || context.marketplace || 'shopee',
-      country: p.country || context.country || 'sg',
-      listing_url: p.listing_url || null,
-      shop_id: p.shop_id || null,
-      item_id: p.item_id || null,
-      evidence_refs: candidate.evidence_refs || [],
-      ...(p.product_data && typeof p.product_data === 'object' ? p.product_data : {}),
-    },
+    product_data,
   }
 }
 

@@ -5,8 +5,20 @@ const route = useRoute()
 const router = useRouter()
 const client = useSupabaseClient()
 const { currentWorkspace } = useWorkspace()
-const { getProduct, updateProduct, deleteProduct, forkProduct, getManuals, createManual, updateManual, deleteManual } = useProducts()
+const {
+  getProduct,
+  updateProduct,
+  activateForPos,
+  deactivateForPos,
+  deleteProduct,
+  forkProduct,
+  getManuals,
+  createManual,
+  updateManual,
+  deleteManual,
+} = useProducts()
 const { schemas, fetchSchemas, getResolvedSchema, resolveSchemaLocally, flattenSchemaProperties } = useProductSchema()
+const { setContext, clearContext } = useAssistant()
 
 // Brands & categories for dropdowns
 const brands = ref<Brand[]>([])
@@ -25,8 +37,29 @@ async function loadBrandsAndCategories() {
 const product = ref<Product | null>(null)
 const loading = ref(true)
 const saving = ref(false)
+const activatingPos = ref(false)
 const error = ref('')
 const activeTab = ref<'details' | 'identifiers' | 'pricing' | 'seo' | 'forks' | 'manuals' | 'schema'>('details')
+
+function isPosEnabledFromProduct(p: Product | null): boolean {
+  if (!p) return false
+  const pd = (p.product_data || {}) as Record<string, any>
+  const value = pd.pos_enabled ?? pd.sellable_in_pos
+  // Align with POS catalog: missing flag → true for legacy active products
+  if (value === undefined || value === null || value === '') return p.status === 'active'
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  const normalized = String(value).trim().toLowerCase()
+  return !['false', '0', 'no', 'n', 'disabled', 'inactive', 'off'].includes(normalized)
+}
+
+const posEnabled = computed(() => isPosEnabledFromProduct(product.value))
+/** Show activate when draft/archived, or when POS is explicitly off. */
+const needsPosActivation = computed(() => {
+  if (!product.value) return false
+  if (product.value.status !== 'active') return true
+  return !posEnabled.value
+})
 
 // Schema tab state
 const resolvedSchema = ref<ProductSchemaDefinition | null>(null)
@@ -112,12 +145,32 @@ async function load() {
         if (s) resolvedSchema.value = resolveSchemaLocally(s, schemas.value)
       }
     }
+
+    const pd = (data.product_data || {}) as Record<string, any>
+    setContext(
+      'product',
+      data.id,
+      {
+        id: data.id,
+        title: data.title,
+        sku: data.sku,
+        status: data.status,
+        brand: data.brand,
+        category: data.category,
+        pos_enabled: pd.pos_enabled ?? pd.sellable_in_pos ?? null,
+        description: data.description,
+      },
+      data.title || data.sku || 'Product',
+    )
   } catch {
     error.value = 'Product not found'
+    clearContext()
   } finally {
     loading.value = false
   }
 }
+
+onUnmounted(() => clearContext())
 
 async function handleSchemaChange(schemaId: string) {
   if (!product.value) return
@@ -225,6 +278,36 @@ async function handleDelete() {
   if (!confirm('Are you sure you want to delete this product?')) return
   await deleteProduct(route.params.id as string)
   router.push('/products')
+}
+
+async function handleActivateForPos() {
+  if (!product.value) return
+  if (!confirm('Activate this product for POS? It will become status=active and appear in the POS catalog.')) return
+  activatingPos.value = true
+  error.value = ''
+  try {
+    await activateForPos(product.value.id)
+    await load()
+  } catch (e: any) {
+    error.value = e?.message || 'Failed to activate for POS'
+  } finally {
+    activatingPos.value = false
+  }
+}
+
+async function handleDeactivateForPos() {
+  if (!product.value) return
+  if (!confirm('Remove this product from the POS catalog? Status stays as-is; only POS sellable flags are cleared.')) return
+  activatingPos.value = true
+  error.value = ''
+  try {
+    await deactivateForPos(product.value.id)
+    await load()
+  } catch (e: any) {
+    error.value = e?.message || 'Failed to deactivate POS'
+  } finally {
+    activatingPos.value = false
+  }
 }
 
 async function handleFork() {
@@ -346,6 +429,18 @@ onMounted(() => { load(); loadBrandsAndCategories() })
             <h1 class="text-2xl font-bold text-white">{{ product.title }}</h1>
             <div class="mt-1 flex flex-wrap items-center gap-2">
               <StatusBadge :status="product.status" />
+              <span
+                v-if="posEnabled && product.status === 'active'"
+                class="badge bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20"
+              >
+                POS on
+              </span>
+              <span
+                v-else
+                class="badge bg-gray-500/10 text-gray-400 ring-1 ring-inset ring-gray-500/20"
+              >
+                POS off
+              </span>
               <span v-if="product.is_canonical" class="badge bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/20">
                 Canonical
               </span>
@@ -359,7 +454,25 @@ onMounted(() => { load(); loadBrandsAndCategories() })
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            v-if="needsPosActivation"
+            type="button"
+            class="btn-secondary"
+            :disabled="activatingPos"
+            @click="handleActivateForPos"
+          >
+            {{ activatingPos ? 'Activating…' : 'Activate for POS' }}
+          </button>
+          <button
+            v-else
+            type="button"
+            class="btn-ghost text-xs text-gray-400"
+            :disabled="activatingPos"
+            @click="handleDeactivateForPos"
+          >
+            {{ activatingPos ? 'Updating…' : 'Remove from POS' }}
+          </button>
           <button class="btn-secondary" @click="showForkModal = true">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
@@ -474,6 +587,16 @@ onMounted(() => { load(); loadBrandsAndCategories() })
               <label class="label-field">Tags</label>
               <input v-model="form.tags" type="text" class="input-field" placeholder="tag1, tag2" />
             </div>
+          </div>
+          <div
+            v-if="needsPosActivation"
+            class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-amber-100/90"
+          >
+            <p class="font-medium text-amber-200">Not on POS catalog</p>
+            <p class="mt-1 text-xs text-amber-200/70">
+              Imports and pipeline products stay <strong>draft</strong> with POS off until you promote them.
+              Use <strong>Activate for POS</strong> to set status=active and enable POS sellable flags.
+            </p>
           </div>
           <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
             <label class="flex items-center gap-3 cursor-pointer">

@@ -43,6 +43,9 @@ test('catalog API returns POS-enabled active products with graph references', ()
   assert.match(catalogRoute, /storage_location_code: storageLocationCode/)
   assert.match(catalogRoute, /productData\.store_location_code/)
   assert.match(catalogRoute, /productData\.bin_location/)
+  // M5: never list drafts on default POS catalog
+  assert.match(catalogRoute, /item\.status === 'draft'/)
+  assert.match(catalogRoute, /item\.pos_enabled/)
 })
 
 test('catalog API exposes timeout-safe cursor pagination', () => {

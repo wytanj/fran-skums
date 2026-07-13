@@ -2,12 +2,23 @@
 
 stdio MCP server for agents (Cursor, Claude, Grok, etc.) to:
 
+- **Catalog Q&A** over Fran products (stats / search / get) — safe for 10k+ imports
 - **Study** new products (brief via Grok, catalog match, pipeline propose)
 - **BI** read Shopee warehouse data (seeds, snapshots, export tables)
 - **Pipeline** propose (and, if privileged, decide/execute) watchlist seeds and catalog drafts
 - **Internal POs** as **drafts** first; submit/approve only with privileged scopes
 
 Does **not** scrape Shopee on every tool call — it reads/writes the Supabase warehouse. Use `bi_run_seed_now` + a collect worker for new pulls (privileged / ops profile).
+
+### In-app Assistant vs MCP (do not confuse)
+
+| Surface | Where | Best for |
+|---------|--------|----------|
+| **Catalog Assistant** | SKUMS web drawer (“Catalog AI”) | “How many products?”, brand counts, inventory, Actions queue |
+| **MCP (this server)** | Cursor / Claude Desktop / `npm run mcp` | Study, draft POs, pipeline, marketplace BI, same catalog tools |
+| **Actions UI** | `/actions` | Human submit/approve of MCP drafts |
+
+Both use the same workspace DB and `XAI_API_KEY`. Catalog tools share `core/catalog` — totals are exact counts, not guesses.
 
 ---
 
@@ -60,9 +71,12 @@ Rules:
    unless the user explicitly says APPROVE / SUBMIT / EXECUTE and the server profile is full.
 4. After creating a draft, stop and tell the user to review in Actions UI.
 
-OK:  study_*, pipeline_propose, po_create_draft, po_update_draft, po_add_lines,
+OK:  catalog_stats, catalog_search, catalog_get,
+     study_*, pipeline_propose, po_create_draft, po_update_draft, po_add_lines,
      po_preview_clone, po_clone_as_draft, po_list, po_get, market_*, bi_list_*, bi_export_*
 NO (safe): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now
+
+For large catalog questions: catalog_stats first, then catalog_search with filters. Never invent product counts.
 ```
 
 Preferred chat story: *“copy previous PO, remove Anua and 3CE”* → **draft only** → user opens **Actions** → Submit / Approve (owner/admin).
@@ -152,6 +166,13 @@ Env vars can also come from the shell that launches the MCP process; the server 
 ---
 
 ## Tools
+
+### Catalog (Fran products — imported catalog Q&A)
+| Tool | Scope |
+|------|--------|
+| `catalog_stats` | intel:read |
+| `catalog_search` | intel:read |
+| `catalog_get` | intel:read |
 
 ### Study
 | Tool | Scope |

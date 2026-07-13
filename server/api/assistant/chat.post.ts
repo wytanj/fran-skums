@@ -1,4 +1,5 @@
 import { serverSupabaseUser } from '#supabase/server'
+import { catalogStats } from '../../../core/catalog/index.mjs'
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
@@ -57,6 +58,14 @@ export default defineEventHandler(async (event) => {
 
   const integrationNames = (integrations || []).map((i: any) => i.node_definition?.name || i.name)
 
+  // M6: inject live catalog census so 10k imports are immediately query-aware
+  let liveCatalogStats: any = null
+  try {
+    liveCatalogStats = await catalogStats(client, { workspace_id: workspaceId, top_brands: 8 })
+  } catch (e) {
+    console.warn('[assistant] catalogStats failed', (e as any)?.message)
+  }
+
   const systemPrompt = buildSystemPrompt({
     workspaceName: workspace?.name || workspaceId,
     userRole: profile?.user_role || 'retailer',
@@ -65,6 +74,7 @@ export default defineEventHandler(async (event) => {
     contextType,
     contextData,
     systemPromptAdditions: profile?.system_prompt_additions,
+    catalogStats: liveCatalogStats,
   })
 
   const model = profile?.preferred_model || 'grok-3-mini'

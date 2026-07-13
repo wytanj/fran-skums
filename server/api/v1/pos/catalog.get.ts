@@ -10,6 +10,12 @@ export default defineEventHandler(async (event) => {
   const search = String(query.search || '').trim()
   const includeDisabled = query.include_disabled === 'true'
 
+  /**
+   * POS opt-in flag in product_data.
+   * Missing/empty → true for legacy products created before M5.
+   * Explicit false/off → excluded from default catalog.
+   * New import/pipeline products set pos_enabled: false until "Activate for POS".
+   */
   function isPosEnabled(value: unknown) {
     if (value === undefined || value === null || value === '') return true
     if (typeof value === 'boolean') return value
@@ -39,6 +45,7 @@ export default defineEventHandler(async (event) => {
     .order('title')
     .range(offset, offset + limit)
 
+  // M5: default POS catalog = active only (never draft/archived). include_disabled can surface others for tooling.
   if (!includeDisabled) {
     productQuery = productQuery.eq('status', 'active')
   }
@@ -124,7 +131,13 @@ export default defineEventHandler(async (event) => {
         },
       }
     })
-    .filter((item: any) => includeDisabled || item.pos_enabled)
+    // Exclude drafts always; exclude non-pos_enabled unless include_disabled
+    .filter((item: any) => {
+      if (item.status === 'draft' || item.status === 'archived') {
+        return includeDisabled
+      }
+      return includeDisabled || item.pos_enabled
+    })
 
   return {
     data,

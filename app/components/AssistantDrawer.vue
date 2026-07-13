@@ -7,6 +7,15 @@ const {
 
 const { currentWorkspace } = useWorkspace()
 
+const catalogPrompts = [
+  'How many products are in this catalog?',
+  'Break down products by status (draft vs active)',
+  'Which brands have the most products?',
+  'Search for products missing a SKU',
+  'Show me low stock products',
+  'What is in my Actions queue?',
+]
+
 const input = ref('')
 const messagesEl = ref<HTMLElement>()
 
@@ -134,8 +143,8 @@ const visibleMessages = computed(() =>
               </svg>
             </div>
             <div>
-              <p class="text-sm font-semibold text-white">SKUMS Assistant</p>
-              <p class="text-xs text-gray-500">{{ currentWorkspace?.name }}</p>
+              <p class="text-sm font-semibold text-white">Catalog Assistant</p>
+              <p class="text-xs text-gray-500">{{ currentWorkspace?.name }} · in-app Q&amp;A</p>
             </div>
           </div>
           <div class="flex items-center gap-1">
@@ -205,19 +214,22 @@ const visibleMessages = computed(() =>
           <!-- Messages -->
           <div ref="messagesEl" class="flex-1 overflow-y-auto p-4 space-y-4">
             <!-- Empty state -->
-            <div v-if="visibleMessages.length === 0 && !streaming" class="flex flex-col items-center justify-center h-full text-center py-12 gap-3">
+            <div v-if="visibleMessages.length === 0 && !streaming" class="flex flex-col items-center justify-center h-full text-center py-8 gap-3 px-2">
               <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-400">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                 </svg>
               </div>
               <div>
-                <p class="text-sm font-medium text-white">How can I help?</p>
-                <p class="text-xs text-gray-500 mt-1">Ask about products, inventory, expiry,<br>or request data transformations.</p>
+                <p class="text-sm font-medium text-white">Ask about your catalog</p>
+                <p class="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                  Live counts &amp; search over imported products (10k+ OK).
+                  Marketplace study / draft POs from an IDE use <strong class="text-gray-400">MCP</strong>; approve in <strong class="text-gray-400">Actions</strong>.
+                </p>
               </div>
-              <div class="mt-2 flex flex-col gap-2 w-full max-w-xs">
+              <div class="mt-1 flex flex-col gap-2 w-full max-w-xs">
                 <button
-                  v-for="prompt in ['Show me low stock products', 'What products are expiring soon?', 'Summarize my inventory']"
+                  v-for="prompt in catalogPrompts"
                   :key="prompt"
                   class="rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-400 hover:border-indigo-500/50 hover:text-white text-left transition-colors"
                   @click="input = prompt; submit()"
@@ -276,7 +288,7 @@ const visibleMessages = computed(() =>
                 v-model="input"
                 rows="1"
                 class="flex-1 resize-none bg-transparent text-sm text-white placeholder-gray-500 outline-none"
-                placeholder="Ask anything about your workspace..."
+                placeholder="e.g. How many draft products? Search brand Anua…"
                 style="max-height: 120px; overflow-y: auto;"
                 :disabled="streaming"
                 @keydown.enter.exact.prevent="submit"
@@ -292,7 +304,9 @@ const visibleMessages = computed(() =>
                 </svg>
               </button>
             </div>
-            <p class="mt-1.5 text-center text-xs text-gray-600">Enter to send · Shift+Enter for newline</p>
+            <p class="mt-1.5 text-center text-xs text-gray-600">
+              Enter to send · In-app only (not MCP)
+            </p>
           </div>
         </div>
       </div>

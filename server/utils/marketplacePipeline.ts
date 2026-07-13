@@ -184,15 +184,21 @@ async function executeCatalogProduct(candidate: Record<string, any>, context: Re
     }
   }
 
+  // M5: never insert active/POS-on from pipeline execute (payload may not opt out)
+  const product_data = {
+    ...(body.product_data && typeof body.product_data === 'object' ? body.product_data : {}),
+    pos_enabled: false,
+    sellable_in_pos: false,
+  }
   const product: Record<string, any> = {
     workspace_id: candidate.workspace_id,
     title: body.title,
-    status: body.status || 'draft',
+    status: 'draft',
     description: body.description,
     retail_price: body.retail_price,
     currency: body.currency,
     tags: body.tags,
-    product_data: body.product_data,
+    product_data,
   }
   if (brand_id) product.brand_id = brand_id
 

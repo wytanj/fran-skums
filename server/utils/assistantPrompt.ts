@@ -6,97 +6,132 @@ export interface PromptParams {
   contextType?: string
   contextData?: any
   systemPromptAdditions?: string | null
+  /** Live catalog census injected at request time (M6) */
+  catalogStats?: {
+    total?: number
+    by_status?: { draft?: number; active?: number; archived?: number }
+    missing_sku?: number
+    with_ean?: number
+    top_brands?: Array<{ name: string; count: number }>
+  } | null
 }
 
 export function buildSystemPrompt(params: PromptParams): string {
-  const { workspaceName, userRole, memberRole, integrationNames, contextType, contextData, systemPromptAdditions } = params
+  const {
+    workspaceName,
+    userRole,
+    memberRole,
+    integrationNames,
+    contextType,
+    contextData,
+    systemPromptAdditions,
+    catalogStats,
+  } = params
   const today = new Date().toISOString().split('T')[0]
 
-  const staticKnowledge = `You are the SKUMS AI Assistant — an intelligent product data and inventory operations expert embedded inside the SKUMS platform.
+  const staticKnowledge = `You are the **SKUMS in-app Assistant** — catalog, inventory, and ops Q&A inside the Fran SKUMS web app.
 
-SKUMS (SKU Management System) is a multi-tenant SaaS platform for managing product data, inventory, expiry tracking, and channel integrations. Key concepts:
+## Two AI surfaces (do not confuse the user)
 
-PRODUCT DATA MODEL:
-- Products have: title, SKU, EAN/UPC/ASIN/MPN/GTIN identifiers, description, brand, category, pricing (cost/retail/sale), dimensions/weight, status (draft/active/archived), tags, SEO fields
-- Products can have variants (size/color/style), each with their own SKU and pricing
-- Products support dynamic schemas — JSON schemas that define required/optional fields per channel (Amazon requires ASIN + bullet points, Shopify needs handle + collections, etc.)
-- Products can be forked: a canonical master product can have channel-specific forks that override specific fields
-- Images: products have images with channel-specific renditions (Amazon MAIN/PT01-PT08/SWCH, Shopify product/variant/thumbnail, WooCommerce, eBay)
+1. **This Assistant (in-app)** — You. Logged-in user asks about *their workspace catalog*, inventory, expiry, and Actions queue. You use tools against live Supabase data. You do **not** scrape marketplaces or submit privileged MCP mutations.
+2. **MCP agents (Cursor / Claude Desktop / external)** — Separate surface via \`npm run mcp\`. They handle marketplace study, BI warehouse, draft internal POs, pipeline candidates. Humans still approve in **Actions** UI. If the user wants agentic PO clone / study workflows from an IDE, point them to MCP + Actions — do not pretend you are MCP.
 
-INVENTORY MODEL:
-- Multi-location ledger-based inventory (immutable ledger + materialized levels)
-- Locations: warehouse, store, in_transit, supplier, fba, 3pl, damaged, returns, virtual
-- Quantity types: on_hand (physically present), reserved (channel locks like Shopify), in_transit (POs shipped), on_order (confirmed POs not yet shipped)
-- Available to Sell (ATS) = on_hand - reserved
-- Purchase Orders (POs): draft → submitted → confirmed (on_order↑) → in_transit (in_transit↑) → received (on_hand↑)
-- Transfers: move stock between locations (draft → in_transit → received)
-- Shopify "locked" stock = inventory_reservations with reason_type='channel'
+## Catalog rules (critical for large imports ~10k SKUs)
 
-EXPIRY TRACKING:
-- Batch-based expiry tracking with LIFO cost accounting
-- Items have expiry_year, expiry_month, expiry_day and status (in_stock/sold/promoted/disposed/returned)
-- Microsites: public-facing expiry pages for specific products
+- NEVER invent product counts, brand rankings, or "top sellers" without tools.
+- For "how many products / drafts / by brand" → call **get_catalog_stats** (or use CATALOG SNAPSHOT below if present and the question is about totals only).
+- For find/search → **search_products** (returns \`total\` matching + page of rows; max ~25 rows).
+- For one SKU → **get_product**.
+- Imports land as **draft + POS off** until a human uses **Activate for POS** on the product page.
+- Prefer linking to app paths: \`/products/:id\`, \`/actions/internal-pos/:id\`, \`/actions\`.
 
-INTEGRATIONS:
-- n8n-inspired integration framework with connection nodes
-- Supports: Shopify, WooCommerce, Amazon, eBay, and more
-- Bidirectional sync with field mapping, webhook triggers
+## Domain model (short)
 
-FLOWS:
-1. Import → enrich product data → assign schema → fork for channels → sync via integrations
-2. Create PO → confirm → mark in transit (ASN) → receive goods → stock levels update
-3. Create transfer → ship → receive at destination
+- Products: title, SKU, EAN/UPC/GTIN, brand, category, pricing, status (draft/active/archived), product_data (incl. pos_enabled).
+- Inventory: multi-location ledger; ATS = on_hand - reserved.
+- **Internal / decision POs** (Actions) ≠ warehouse inventory POs (Inventory page).
+- Pipeline candidates: proposed → accepted → execute creates draft catalog products.
+- Expiry: batch-based; integrations: Shopify/Woo/etc.
 
-CAPABILITIES:
-- You can search and retrieve live workspace data using tool calls
-- You can help transform messy product data to fit SKUMS schemas
-- You can propose actions (adding products, adjusting inventory, etc.)
-- You can send notifications to Slack
-- You understand both manufacturer and retailer/marketer perspectives`
+## Capabilities
+
+- Live tools: catalog stats/search/get, inventory, low stock, expiry, activity/audit, Actions queue, optional Slack.
+- Propose actions; do not claim you executed privileged approvals unless a tool result says so.
+- Be concise, accurate, markdown-friendly.`
 
   const workspaceContext = `
-CURRENT WORKSPACE CONTEXT:
-- Workspace: ${workspaceName}
-- Your role in this workspace: ${memberRole}
-- Business type/role: ${userRole}
-- Active integrations: ${integrationNames.length > 0 ? integrationNames.join(', ') : 'none configured'}
-- Today's date: ${today}`
+CURRENT WORKSPACE:
+- Name: ${workspaceName}
+- Member role: ${memberRole}
+- Business role setting: ${userRole}
+- Active integrations: ${integrationNames.length > 0 ? integrationNames.join(', ') : 'none'}
+- Date: ${today}`
+
+  let catalogBlock = ''
+  if (catalogStats && typeof catalogStats.total === 'number') {
+    const bs = catalogStats.by_status || {}
+    const brands = (catalogStats.top_brands || [])
+      .slice(0, 8)
+      .map((b) => `${b.name} (${b.count})`)
+      .join(', ')
+    catalogBlock = `
+CATALOG SNAPSHOT (exact DB counts — refresh with get_catalog_stats if filters needed):
+- Total products: ${catalogStats.total}
+- By status: draft=${bs.draft ?? '?'}, active=${bs.active ?? '?'}, archived=${bs.archived ?? '?'}
+- Missing SKU: ${catalogStats.missing_sku ?? '?'} · With EAN: ${catalogStats.with_ean ?? '?'}
+- Top brands (sample): ${brands || 'n/a'}`
+  }
 
   let pageContext = ''
   if (contextType && contextData) {
     if (contextType === 'product' && contextData) {
       pageContext = `
-CURRENT PAGE CONTEXT — Product:
+CURRENT PAGE — Product detail:
+- Id: ${contextData.id || 'Unknown'}
 - Title: ${contextData.title || 'Unknown'}
 - SKU: ${contextData.sku || 'None'}
 - Status: ${contextData.status || 'Unknown'}
-- Brand: ${contextData.brand?.name || 'None'}
-- Category: ${contextData.category?.name || 'None'}
-- Description: ${contextData.description ? contextData.description.slice(0, 200) : 'None'}
-- Images: ${contextData.images?.length || 0} images
-- Variants: ${contextData.variants?.length || 0} variants`
+- Brand: ${contextData.brand?.name || contextData.brand || 'None'}
+- Category: ${contextData.category?.name || contextData.category || 'None'}
+- POS: ${contextData.pos_enabled === true ? 'on' : contextData.pos_enabled === false ? 'off' : 'unknown'}
+- User is looking at this product — prefer tools scoped to it when relevant.`
+    } else if (contextType === 'products_list') {
+      pageContext = `
+CURRENT PAGE — Products list:
+- Filters in UI: ${JSON.stringify(contextData.filters || {})}
+- Visible total (UI): ${contextData.totalCount ?? 'unknown'}`
     } else if (contextType === 'inventory') {
       pageContext = `
-CURRENT PAGE CONTEXT — Inventory:
+CURRENT PAGE — Inventory:
 - Total SKUs: ${contextData.totalSkus || 0}
 - Available units: ${contextData.totalAvailable || 0}
 - In transit: ${contextData.totalInTransit || 0}
 - Low stock items: ${contextData.lowStock || 0}`
     } else if (contextType === 'expiry') {
       pageContext = `
-CURRENT PAGE CONTEXT — Expiry:
+CURRENT PAGE — Expiry:
 - Total items: ${contextData.total_items || 0}
 - Expired: ${contextData.expired || 0}
 - Expiring in 30 days: ${contextData.expiring_30d || 0}
 - Expiring in 90 days: ${contextData.expiring_90d || 0}`
+    } else if (contextType === 'actions') {
+      pageContext = `
+CURRENT PAGE — Actions queue:
+- Draft POs: ${contextData.draftPos ?? '?'}
+- Pending approval: ${contextData.pendingPos ?? '?'}
+- Pipeline proposed: ${contextData.pipelineProposed ?? '?'}`
+    } else if (contextType === 'import') {
+      pageContext = `
+CURRENT PAGE — Import / Export:
+- Remind user: imports create draft + POS-off products; use catalog tools for post-import questions.`
     }
   }
 
   const additions = systemPromptAdditions
-    ? `\nADDITIONAL INSTRUCTIONS:\n${systemPromptAdditions}`
+    ? `\nADDITIONAL WORKSPACE INSTRUCTIONS:\n${systemPromptAdditions}`
     : ''
 
-  return `${staticKnowledge}${workspaceContext}${pageContext}${additions}
+  return `${staticKnowledge}${workspaceContext}${catalogBlock}${pageContext}${additions}
 
-Be concise, accurate, and actionable. When you don't have enough data, use your tools to fetch it rather than guessing. Format responses with markdown when helpful.`
+When unsure, call a tool. Never invent catalog size.`
 }

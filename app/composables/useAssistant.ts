@@ -251,13 +251,15 @@ export function useAssistant() {
 
   function formatToolLabel(toolName: string): string {
     const labels: Record<string, string> = {
-      search_products: 'Searching products...',
+      get_catalog_stats: 'Counting catalog...',
+      search_products: 'Searching catalog...',
       get_product: 'Loading product...',
       get_inventory_summary: 'Checking inventory...',
       get_low_stock_alerts: 'Checking low stock...',
       get_expiry_summary: 'Checking expiry...',
       get_top_products_by_value: 'Calculating top products...',
       get_recent_activity: 'Loading activity...',
+      get_actions_queue: 'Loading Actions queue...',
       send_slack_notification: 'Sending to Slack...',
     }
     return labels[toolName] || `Running ${toolName}...`

@@ -20,6 +20,7 @@ const {
 } = useActions()
 
 const { currentWorkspace } = useWorkspace()
+const { setContext, clearContext } = useAssistant()
 
 type TabKey = 'draft_pos' | 'pending_pos' | 'pipeline_proposed' | 'pipeline_accepted' | 'recent'
 const tab = ref<TabKey>('draft_pos')
@@ -49,9 +50,23 @@ const filteredAccepted = computed(() => filterByChannel(acceptedPipeline.value))
 
 watch(
   () => currentWorkspace.value?.id,
-  () => loadInbox(),
+  async () => {
+    await loadInbox()
+    setContext(
+      'actions',
+      'inbox',
+      {
+        draftPos: counts.value.draftPos,
+        pendingPos: counts.value.pendingPos,
+        pipelineProposed: counts.value.proposedPipeline,
+      },
+      'Actions queue',
+    )
+  },
   { immediate: true },
 )
+
+onUnmounted(() => clearContext())
 
 function formatMoney(n: number | null | undefined, currency = 'SGD') {
   if (n == null) return '—'

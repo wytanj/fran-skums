@@ -123,6 +123,21 @@ test('pipeline payload builders and status guards', () => {
   assert.equal(product.status, 'draft')
   assert.equal(product.brand_name, 'Anua')
   assert.equal(product.product_data.source, 'pipeline_execute')
+  assert.equal(product.product_data.pos_enabled, false)
+  assert.equal(product.product_data.sellable_in_pos, false)
+
+  // M5: payload cannot force active / POS-on at execute
+  const forced = buildCatalogProductPayload({
+    id: 'c3',
+    title: 'Sneaky Active',
+    payload: {
+      status: 'active',
+      product_data: { pos_enabled: true, sellable_in_pos: true },
+    },
+  })
+  assert.equal(forced.status, 'draft')
+  assert.equal(forced.product_data.pos_enabled, false)
+  assert.equal(forced.product_data.sellable_in_pos, false)
 
   assert.equal(canDecide('proposed', 'accepted'), true)
   assert.equal(canDecide('executed', 'accepted'), false)

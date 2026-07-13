@@ -3,6 +3,7 @@ import type { Product, ProductStatus } from '~/types'
 
 const router = useRouter()
 const { products, loading, totalCount, fetchProducts, deleteProducts } = useProducts()
+const { setContext, clearContext } = useAssistant()
 
 const page = ref(1)
 const perPage = ref(25)
@@ -34,7 +35,18 @@ async function load() {
     sortBy: sortBy.value,
     sortDir: sortDir.value,
   })
+  setContext(
+    'products_list',
+    'list',
+    {
+      totalCount: totalCount.value,
+      filters: { search: search.value, status: statusFilter.value, page: page.value },
+    },
+    `Products (${totalCount.value.toLocaleString()})`,
+  )
 }
+
+onUnmounted(() => clearContext())
 
 function handleSearch(val: string) {
   clearTimeout(searchTimeout)

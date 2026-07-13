@@ -160,6 +160,34 @@ export function useProducts() {
     return data as Product
   }
 
+  /**
+   * M5: promote a draft/import/pipeline product into the POS catalog.
+   * Sets status=active and product_data.pos_enabled / sellable_in_pos.
+   */
+  async function activateForPos(id: string) {
+    const existing = await getProduct(id)
+    const product_data = {
+      ...(existing.product_data || {}),
+      pos_enabled: true,
+      sellable_in_pos: true,
+    }
+    return updateProduct(id, {
+      status: 'active',
+      product_data,
+    } as any)
+  }
+
+  /** Remove from POS catalog without archiving the product. */
+  async function deactivateForPos(id: string) {
+    const existing = await getProduct(id)
+    const product_data = {
+      ...(existing.product_data || {}),
+      pos_enabled: false,
+      sellable_in_pos: false,
+    }
+    return updateProduct(id, { product_data } as any)
+  }
+
   async function deleteProduct(id: string) {
     const { error } = await client
       .from('products')
@@ -246,6 +274,8 @@ export function useProducts() {
     getProduct,
     createProduct,
     updateProduct,
+    activateForPos,
+    deactivateForPos,
     deleteProduct,
     deleteProducts,
     forkProduct,

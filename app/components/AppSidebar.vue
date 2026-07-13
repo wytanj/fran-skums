@@ -157,7 +157,7 @@ function isActive(href: string) {
         @click="openAssistant"
       >
         <SidebarIcon name="sparkle" class="h-5 w-5 shrink-0" />
-        <span v-if="!collapsed">Assistant</span>
+        <span v-if="!collapsed">Catalog AI</span>
       </button>
 
       <!-- Collapse toggle (desktop) -->

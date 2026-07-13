@@ -77,8 +77,9 @@ export function normalizeProductFromRow(row, rowIndex, reverseMap, opts) {
 
   const optionValue = reverseMap.option_name ? cleanString(row[reverseMap.option_name]) : ''
   const provider = opts.provider_hint || opts.supplier_source || 'supplier'
+  // M5: imports default to draft + POS-off; promote via product UI "Activate for POS"
   const posDefault = opts.default_pos_enabled === true
-  const statusDefault = opts.default_status || 'active'
+  const statusDefault = opts.default_status || 'draft'
   const currencyDefault = opts.default_currency || (provider === 'abw' ? 'USD' : 'USD')
 
   /** @type {Record<string, any>} */

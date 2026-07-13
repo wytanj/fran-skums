@@ -254,22 +254,15 @@ export async function runStudyMatchCatalog(sessionId, workspaceId, opts = {}) {
   const evidence = await loadStudyEvidence(pack.session)
   const listing_titles = evidence.export_rows.map((r) => r.title).filter(Boolean)
 
-  const { data: products, error: pErr } = await db
-    .from('products')
-    .select('id, title, sku, retail_price, brands(name)')
-    .eq('workspace_id', workspaceId)
-    .order('updated_at', { ascending: false })
-    .limit(opts.product_limit ?? 200)
-
-  if (pErr) throw new Error(pErr.message)
-
-  const productRows = (products || []).map((p) => ({
-    id: p.id,
-    title: p.title,
-    sku: p.sku,
-    retail_price: p.retail_price,
-    brand_name: p.brands?.name || null,
-  }))
+  // M6: token-based pool instead of last-N updated (works on 10k catalogs)
+  const { fetchCatalogMatchPool } = await import('../../../core/catalog/index.mjs')
+  const pool = await fetchCatalogMatchPool(db, {
+    workspace_id: workspaceId,
+    query: pack.session.query || pack.session.hypothesis,
+    listing_titles,
+    limit: opts.product_limit ?? 200,
+  })
+  const productRows = pool.products
 
   const rule_matches = matchCatalogCandidates({
     query: pack.session.query || pack.session.hypothesis,

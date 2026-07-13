@@ -56,10 +56,38 @@ describe('import pipeline map + normalize', () => {
     })
     assert.match(n.product.title, /Lamella Hair Essence/)
     assert.equal(n.product.cost_price, 11.43)
+    assert.equal(n.product.status, 'draft')
     assert.equal(n.product.product_data.pos_enabled, false)
     assert.equal(n.product.product_data.supplier.item_id, '1135354896')
     assert.equal(n.match_key, 'supplier:ABW:1135354896')
     assert.ok(n.identifiers.some((i) => i.identifier_type === 'ean' || i.identifier_type === 'upc'))
+  })
+
+  test('M5: defaults are draft + POS-off when opts omit status/pos', () => {
+    const parsed = parseDelimitedText(sample)
+    const proposal = proposeColumnMapping(parsed.headers, { providerHint: parsed.providerHint })
+    const reverse = reverseColumnMap(proposal.mapping)
+    const n = normalizeProductFromRow(parsed.rows[0], 0, reverse, {
+      workspace_id: 'ws-1',
+      provider_hint: 'abw',
+      supplier_source: 'ABW',
+    })
+    assert.equal(n.product.status, 'draft')
+    assert.equal(n.product.product_data.pos_enabled, false)
+    assert.equal(n.product.product_data.sellable_in_pos, false)
+  })
+
+  test('M5: default_pos_enabled only true when explicitly true', () => {
+    const parsed = parseDelimitedText(sample)
+    const proposal = proposeColumnMapping(parsed.headers, { providerHint: parsed.providerHint })
+    const reverse = reverseColumnMap(proposal.mapping)
+    const n = normalizeProductFromRow(parsed.rows[0], 0, reverse, {
+      workspace_id: 'ws-1',
+      default_pos_enabled: true,
+      default_status: 'active',
+    })
+    assert.equal(n.product.status, 'active')
+    assert.equal(n.product.product_data.pos_enabled, true)
   })
 
   test('box tiers captured when present', () => {

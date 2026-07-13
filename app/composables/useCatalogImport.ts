@@ -299,10 +299,9 @@ export function useCatalogImport() {
     if (!reverse.title) return
 
     const demoCommit = options?.demoCommit !== false
-    // Wholesale catalogs (ABW): POS off unless explicitly enabled
-    const defaultPos =
-      options?.defaultPosEnabled ??
-      (providerHint.value === 'abw' ? false : true)
+    // M5: all catalog dumps default draft + POS-off (opt-in only via defaultPosEnabled: true)
+    const defaultPos = options?.defaultPosEnabled === true
+    const defaultStatus = 'draft'
 
     step.value = 'importing'
     importing.value = true
@@ -333,7 +332,7 @@ export function useCatalogImport() {
 
     const importOptionsBase = {
       demo_commit: demoCommit,
-      default_status: 'active',
+      default_status: defaultStatus,
       default_pos_enabled: defaultPos,
       provider_hint: providerHint.value,
       upsert_by_sku: true,
@@ -539,7 +538,7 @@ export function useCatalogImport() {
           file_name: fileName.value,
           provider_hint: providerHint.value,
           default_pos_enabled: defaultPos,
-          default_status: 'active',
+          default_status: defaultStatus,
           supplier_source: providerHint.value === 'abw' ? 'ABW' : 'supplier',
         })
       } catch (error: any) {

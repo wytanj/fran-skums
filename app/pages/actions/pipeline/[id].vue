@@ -147,6 +147,21 @@ async function onCopyLink() {
 
       <div v-if="c.execution_result" class="card mb-6 p-4">
         <h2 class="mb-2 text-xs font-medium uppercase text-gray-500">Execution result</h2>
+        <div
+          v-if="c.execution_result?.type === 'catalog_product' && (c.product_id || c.execution_result?.product?.id)"
+          class="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100/90"
+        >
+          <p class="font-medium text-amber-200">Product created as draft (POS off)</p>
+          <p class="mt-1 text-amber-200/70">
+            Open the product and use <strong>Activate for POS</strong> when you want it on the register catalog.
+          </p>
+          <NuxtLink
+            :to="`/products/${c.product_id || c.execution_result.product.id}`"
+            class="mt-2 inline-block text-indigo-300 hover:underline"
+          >
+            Open product →
+          </NuxtLink>
+        </div>
         <pre class="overflow-auto text-xs text-gray-300">{{ JSON.stringify(c.execution_result, null, 2) }}</pre>
       </div>
 

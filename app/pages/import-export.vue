@@ -10,6 +10,12 @@ onMounted(async () => {
 const client = useSupabaseClient()
 const { currentWorkspace } = useWorkspace()
 const { schemas, fetchSchemas, resolveSchemaLocally, GLOBAL_BASE_SCHEMA_ID } = useProductSchema()
+const { setContext, clearContext } = useAssistant()
+
+onMounted(() => {
+  setContext('import', 'import-export', {}, 'Import / Export')
+})
+onUnmounted(() => clearContext())
 
 const activeTab = ref<'import' | 'export'>('import')
 const dragOver = ref(false)
@@ -551,8 +557,9 @@ onMounted(async () => {
                 Ready to import <span class="text-white font-medium">{{ csvRows.length.toLocaleString() }}</span> products with
                 <span class="text-white font-medium">{{ mappedCount }}</span> fields each.
               </p>
-              <p v-if="providerHint === 'abw'" class="text-xs text-amber-400/90">
-                ABW wholesale prices map to <strong>cost</strong>; POS is off by default for full catalogs. Re-import upserts by catalog no / SKU.
+              <p class="text-xs text-amber-400/90">
+                New rows import as <strong>draft</strong> with <strong>POS off</strong>. Activate products for POS from the product page when ready.
+                <span v-if="providerHint === 'abw'"> ABW wholesale prices map to <strong>cost</strong>; re-import upserts by catalog no / SKU.</span>
               </p>
             </div>
             <div class="flex gap-3">

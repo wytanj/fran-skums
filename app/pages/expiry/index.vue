@@ -7,6 +7,7 @@ const {
   createBatch, deleteBatch, createMicrosite, deleteMicrosite,
   expiryLabel, daysUntilExpiry, expiryUrgency,
 } = useExpiry()
+const { setContext, clearContext } = useAssistant()
 
 const activeTab = ref<'overview' | 'batches' | 'lifo' | 'microsites'>('overview')
 
@@ -97,7 +98,13 @@ const tabs = [
 
 onMounted(async () => {
   await Promise.all([loadSummary(), loadBatches(), loadLifo({ limit: 50 }), loadMicrosites()])
+  if (summary.value) {
+    setContext('expiry', 'expiry', summary.value, 'Expiry')
+  } else {
+    setContext('expiry', 'expiry', {}, 'Expiry')
+  }
 })
+onUnmounted(() => clearContext())
 </script>
 
 <template>

@@ -50,7 +50,7 @@ export async function previewExecutePipelineCandidate(input) {
     would_write = {
       type: 'products_insert',
       row: buildCatalogProductPayload(candidate, context),
-      note: 'Product would be created with status draft by default',
+      note: 'Product would be created with status=draft and POS off; activate via product UI',
     }
   } else {
     would_write = {
@@ -226,15 +226,21 @@ async function executeCatalogProduct(candidate, context) {
     }
   }
 
+  // M5: never insert active/POS-on from pipeline execute (payload may not opt out)
+  const product_data = {
+    ...(body.product_data && typeof body.product_data === 'object' ? body.product_data : {}),
+    pos_enabled: false,
+    sellable_in_pos: false,
+  }
   const product = {
     workspace_id: candidate.workspace_id,
     title: body.title,
-    status: body.status || 'draft',
+    status: 'draft',
     description: body.description,
     retail_price: body.retail_price,
     currency: body.currency,
     tags: body.tags,
-    product_data: body.product_data,
+    product_data,
   }
   if (brand_id) product.brand_id = brand_id
 

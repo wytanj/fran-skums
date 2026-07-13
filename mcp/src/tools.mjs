@@ -13,6 +13,7 @@ import {
 } from './context.mjs'
 import { auditMcpMutation } from '../../core/audit/record.mjs'
 import * as bi from './lib/bi.mjs'
+import * as catalog from './lib/catalog.mjs'
 import * as pipeline from './lib/pipeline.mjs'
 import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
@@ -239,6 +240,53 @@ export const toolDefinitions = [
       type: 'object',
       properties: { candidate_id: { type: 'string' } },
       required: ['candidate_id'],
+    },
+  },
+
+  // ── Catalog Q&A (Fran products table — not marketplace BI) ──
+  {
+    name: 'catalog_stats',
+    description:
+      'Exact product census for the workspace catalog (total, by status, missing SKU, with EAN, top brands). Use for "how many products" after large imports. Does NOT invent counts. intel:read / safe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand: { type: 'string', description: 'Optional brand name filter' },
+        top_brands: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'catalog_search',
+    description:
+      'Search Fran catalog products (title/sku/ean, status, brand). Returns paginated rows + exact total. Safe for 10k+ catalogs. intel:read / safe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', description: 'Search text (title/sku/ean)' },
+        query: { type: 'string', description: 'Alias of q' },
+        status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+        brand: { type: 'string' },
+        sku: { type: 'string' },
+        ean: { type: 'string' },
+        limit: { type: 'number', description: 'Max rows (default 15, max 25)' },
+        offset: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'catalog_get',
+    description: 'Get one catalog product by id, sku, ean, upc, or gtin. intel:read / safe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        product_id: { type: 'string' },
+        sku: { type: 'string' },
+        ean: { type: 'string' },
+        upc: { type: 'string' },
+        gtin: { type: 'string' },
+      },
     },
   },
 
@@ -726,6 +774,24 @@ export async function handleTool(name, args = {}) {
           },
           result,
         )
+      }
+      case 'catalog_stats': {
+        requireScope('intel:read')
+        const result = await catalog.statsCatalog(requireWorkspaceId(), {
+          brand: a.brand,
+          top_brands: a.top_brands,
+        })
+        return jsonResult(result)
+      }
+      case 'catalog_search': {
+        requireScope('intel:read')
+        const result = await catalog.searchCatalog(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'catalog_get': {
+        requireScope('intel:read')
+        const result = await catalog.getCatalogProduct(requireWorkspaceId(), a)
+        return jsonResult(result)
       }
       case 'market_search': {
         requireScope('intel:read')
