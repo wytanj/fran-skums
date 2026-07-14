@@ -66,6 +66,8 @@ let _db = null
 export const MCP_SCOPE_PROFILES = {
   safe: [
     'intel:read',
+    'inventory:read',
+    'store_ops:read',
     'study:write',
     'pipeline:propose',
     'po:draft',
@@ -75,6 +77,8 @@ export const MCP_SCOPE_PROFILES = {
   full: [
     'intel:read',
     'intel:write',
+    'inventory:read',
+    'store_ops:read',
     'study:write',
     'pipeline:propose',
     'pipeline:decide',
@@ -93,6 +97,9 @@ export const MCP_PRIVILEGED_SCOPES = [
   'pipeline:execute',
   'po:submit',
   'po:decide',
+  'store_ops:approve',
+  'store_ops:execute_3pl',
+  'store_ops:verify',
 ]
 
 export function getRoot() {

@@ -77,15 +77,19 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
 
 /**
  * Checks if the API key has a given scope.
- * Empty scopes array means "all scopes" (full access).
+ * Empty scopes array means "all scopes" (legacy full access).
+ * Prefer explicit packages on new keys (pos_connector, worldsyntech_ofs, …).
+ * @see server/utils/scopes.ts
  */
 export function hasScope(ctx: ApiKeyContext, scope: string): boolean {
   if (ctx.scopes.length === 0) return true
+  if (ctx.scopes.includes('*') || ctx.scopes.includes('full')) return true
   return ctx.scopes.includes(scope)
 }
 
 /**
  * Require API key auth. Throws 401 if not present, 403 if scope denied.
+ * Prefer requireApiKeyScope / requireScope from scopeAuth for multi-scope checks.
  */
 export async function requireApiKey(event: H3Event, requiredScope?: string): Promise<ApiKeyContext> {
   const ctx = await authenticateApiKey(event)

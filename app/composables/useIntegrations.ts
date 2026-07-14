@@ -291,6 +291,26 @@ export function useIntegrations() {
     return result as any
   }
 
+  async function pullWorldsyntechProducts(connectionId: string, opts: {
+    reset?: boolean
+    offset?: number
+    limit?: number
+    languageId?: number
+  } = {}) {
+    const result = await $fetch('/api/integrations/worldsyntech-ofs/pull-products', {
+      method: 'POST',
+      body: {
+        connection_id: connectionId,
+        reset: opts.reset,
+        offset: opts.offset,
+        limit: opts.limit,
+        language_id: opts.languageId,
+      },
+    })
+    await fetchConnections()
+    return result as any
+  }
+
   // ── Executions ──
 
   async function fetchExecutions(connectionId?: string, limit = 50) {
@@ -403,6 +423,7 @@ export function useIntegrations() {
     pullWooCommerceProducts,
     syncWorldsyntechReferenceData,
     pullWorldsyntechInventory,
+    pullWorldsyntechProducts,
 
     fetchExecutions,
     createExecution,

@@ -108,8 +108,73 @@ const defaultStoreLocation = computed(() =>
 )
 
 const queueRequests = computed(() =>
-  requests.value.filter(request => ['submitted', 'in_review', 'approved'].includes(request.status)),
+  requests.value.filter(request =>
+    ['submitted', 'in_review', 'approved', 'deferred_to_wave'].includes(request.status),
+  ),
 )
+
+const decideSaving = ref<string | null>(null)
+
+async function decideRequest(
+  request: StoreReplenishmentRequest,
+  decision: 'approve_now' | 'reject' | 'defer_to_wave',
+) {
+  if (!currentWorkspace.value?.id) return
+  decideSaving.value = request.id
+  try {
+    await $fetch(`/api/store-ops/requests/${request.id}/decide`, {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        decision,
+        decision_reason: decision === 'defer_to_wave'
+          ? 'Deferred to next Mon/Thu wave'
+          : decision === 'approve_now'
+            ? 'HQ approved for lift now'
+            : 'HQ rejected',
+      },
+    })
+    showOk(
+      decision === 'approve_now'
+        ? 'Approved — order created (send to Loft is a separate step)'
+        : decision === 'defer_to_wave'
+          ? 'Deferred to Mon/Thu wave'
+          : 'Request rejected',
+    )
+    await loadStoreOperations()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Decision failed')
+  } finally {
+    decideSaving.value = null
+  }
+}
+
+async function verifyException(
+  exception: InventoryException,
+  action: 'confirm' | 'reject' | 'escalate',
+) {
+  if (!currentWorkspace.value?.id) return
+  try {
+    await $fetch(`/api/store-ops/exceptions/${exception.id}/verify`, {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        action,
+        note: action === 'escalate' ? 'Escalated to Loft ops' : null,
+      },
+    })
+    showOk(
+      action === 'confirm'
+        ? 'POS claim confirmed'
+        : action === 'escalate'
+          ? 'Escalated'
+          : 'POS claim rejected',
+    )
+    await loadStoreOperations()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Verify failed')
+  }
+}
 
 const activeOrders = computed(() =>
   orders.value.filter(order => !['received', 'cancelled', 'failed'].includes(order.status)),
@@ -599,16 +664,35 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             <p class="text-xs text-gray-500">{{ request.line_count || 0 }} lines</p>
           </div>
           <div class="flex flex-wrap gap-2 xl:justify-end">
-            <button v-if="request.status === 'submitted'" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setRequestStatus(request, 'in_review')">
-              Review
+            <button
+              v-if="['submitted', 'in_review'].includes(request.status)"
+              class="btn-primary !px-3 !py-1.5 text-xs"
+              :disabled="decideSaving === request.id"
+              @click="decideRequest(request, 'approve_now')"
+            >
+              Lift now
             </button>
-            <button v-if="request.status !== 'approved'" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setRequestStatus(request, 'approved')">
-              Approve
+            <button
+              v-if="['submitted', 'in_review'].includes(request.status)"
+              class="btn-secondary !px-3 !py-1.5 text-xs"
+              :disabled="decideSaving === request.id"
+              @click="decideRequest(request, 'defer_to_wave')"
+            >
+              Defer Mon/Thu
             </button>
-            <button class="btn-primary !px-3 !py-1.5 text-xs" @click="convertRequestToOrder(request)">
-              Create order
+            <button
+              v-if="request.status === 'deferred_to_wave'"
+              class="btn-secondary !px-3 !py-1.5 text-xs"
+              @click="convertRequestToOrder(request)"
+            >
+              Convert (legacy)
             </button>
-            <button class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10" @click="setRequestStatus(request, 'rejected')">
+            <button
+              v-if="['submitted', 'in_review', 'deferred_to_wave'].includes(request.status)"
+              class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10"
+              :disabled="decideSaving === request.id"
+              @click="decideRequest(request, 'reject')"
+            >
               Reject
             </button>
           </div>
@@ -906,14 +990,25 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               <p class="text-xs text-gray-500">Actual {{ qtyLabel(exception.actual_qty) }}</p>
             </div>
             <div class="flex flex-wrap gap-2 xl:justify-end">
-              <button v-if="exception.status === 'open'" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setExceptionStatus(exception, 'in_review')">
-                Review
+              <button
+                v-if="['open', 'in_review'].includes(exception.status)"
+                class="btn-primary !px-3 !py-1.5 text-xs"
+                @click="verifyException(exception, 'confirm')"
+              >
+                Confirm claim
               </button>
-              <button class="btn-secondary !px-3 !py-1.5 text-xs" @click="setExceptionStatus(exception, 'resolved')">
-                Resolve
+              <button
+                v-if="['open', 'in_review'].includes(exception.status)"
+                class="btn-secondary !px-3 !py-1.5 text-xs"
+                @click="verifyException(exception, 'escalate')"
+              >
+                Escalate Loft
               </button>
-              <button class="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-white" @click="setExceptionStatus(exception, 'dismissed')">
-                Dismiss
+              <button
+                class="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+                @click="verifyException(exception, 'reject')"
+              >
+                Reject claim
               </button>
             </div>
           </div>

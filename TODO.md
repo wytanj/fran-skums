@@ -1,44 +1,48 @@
 # Fran SKUMS — TODO (implementation queue)
 
 **Date:** 2026-07-13  
-**Shipped on `main`:** **M0–M6** — MCP-ready Actions (M0–M4), import/POS draft safety (**M5**), catalog Q&A + agent context + Help Center (**M6**)  
-**DB:** migrations **001–053** on shared Supabase project (052 audit ✅, 053 help_articles ✅).  
+**Shipped on `main`:** **M0–M6**, Help Center, **Phase R1** remote MCP (`/mcp` + API-key cloud-safe)  
+**DB:** migrations **001–054** on shared Supabase (053 help, 054 connect-claude).  
+**Held:** **R2 OAuth** (remote MCP stays API-key until org permissioning is solid)  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
-**Plans:** This file · `mcp/README.md` · `docs/Commit Summary 13072026.md` · `Major Update.md`
+**Plans:** This file · `docs/ORG_PERMISSION_SCOPES.md` · `mcp/README.md` · `Major Update.md`
 
 ---
 
 ## Start here next
 
-**Local MCP v1 is done** (stdio + safe scopes + catalog tools + Actions).  
-**Next strategic track:** cloud-hosted MCP so non-technical staff can connect **Claude / other AIs** without Node or `.env`.
+**R1 remote MCP is implemented** (HTTPS `/mcp`, Claude connector key, cloud-safe allowlist).  
+**R2 OAuth: hold.**  
+**Next strategic track:** **Phase P — org/workspace permission scopes** so multi-workspace organizations can be rolled out safely (humans, API keys, MCP, and integrations-as-apps share one vocabulary).
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A (recommended)** | **Phase R — Remote / cloud MCP** | R1 ✅ code; deploy `/mcp` + **054**; human pilot → then R2 OAuth |
-| **B** | **Phase N** — stakeholder notifications | N1 schema after R1 pilot (or parallel if staffing allows) |
-| **C** | **M6.5** — audit explorer | Complements cloud MCP (see who called which tool) |
-| **D (parked)** | Scrape / brand radar | Only after Linux + Browserbase smoke |
+| **A (recommended)** | **Phase P — Org permission scopes** | Freeze catalog in `docs/ORG_PERMISSION_SCOPES.md` → expand `permission_schemas` → `resolveScopes` helper → gate UI/API/apps |
+| **B** | **Phase R** (remote MCP) | R1 ✅; pilot with API keys; **R2 OAuth held** until Phase P |
+| **C** | **Phase N** — stakeholder notifications | After P0/P1 or parallel if staffed |
+| **D** | **M6.5** — audit explorer | After cloud MCP pilot (filter mcp channel) |
+| **E (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
 
-### Quick smoke (catalog + local MCP)
+### Quick smoke
 
 ```bash
-npm run db:migrate:status    # expect 053 applied
-npm run dev                  # Catalog AI + /help
-npm run mcp                  # local stdio; scopes=safe; catalog_*
-node --test tests/m5-pos-consistency.test.mjs tests/m6-catalog-agent.test.mjs tests/help-resolve.test.mjs
-# Cloud (after R1): Claude custom integration → HTTPS MCP URL + workspace API key
+npm run db:migrate:status    # expect 054 applied
+npm run dev                  # Settings → Claude/MCP key; /help/connect-claude
+# Remote: POST https://fran-skums.vercel.app/mcp  Authorization: Bearer sk_live_…
+npm run mcp                  # local stdio still for engineers
+node --test tests/remote-mcp.test.mjs tests/help-resolve.test.mjs
 ```
 
 ### Ops leftovers (5–15 min)
 
-- [x] Confirm production Supabase has **053** (same project as app; help_articles live)
-- [x] Confirm production has **XAI_API_KEY** — set 2026-07-13, redeployed
-- [ ] Fill Vercel **`SUPABASE_DB_URL`** (currently empty in prod env pull — migrate via local URL works only because same project)
-- [ ] Optional: `FRAN_MCP_ACTOR_USER_ID=<profiles.id>` in `.env` for human attribution on MCP audits
-- [ ] Secret rotation / Vercel env audit (service role, cron secrets) — hygiene
-- [ ] Note: **015_organizations.sql** still `checksum-mismatch` on local runner (pre-existing; do not re-apply blindly)
+- [x] Help **053/054** on shared Supabase project
+- [x] Production **XAI_API_KEY**
+- [ ] Confirm Vercel deploy includes **R1** (`/mcp` discovery GET)
+- [ ] Fill Vercel **`SUPABASE_DB_URL`** (empty in prod env pull)
+- [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` for local MCP attribution
+- [ ] Secret rotation / Vercel env audit
+- [ ] Note: **015_organizations.sql** checksum-mismatch (historical)
 
 ---
 
@@ -332,21 +336,63 @@ N4  digests, mute, invoice events when AP exists
 
 **Done when:** Employee with only Claude + a safe key can ask “how many products?” and get exact totals; no local Node.
 
-#### R2 — OAuth for non-technical default
+#### R2 — OAuth for non-technical default ⏸ HELD
+
+**Hold until Phase P (org scopes) is designed/enforced** so OAuth consents grant the right scope packages.
 
 - [ ] OAuth authorize + token endpoints (PKCE); consent screen (workspace + scopes)
-- [ ] Claude (and similar) connector uses OAuth instead of pasting long-lived keys
-- [ ] Revoke UI: list active connectors / tokens per user
-- [ ] Prefer actor_user_id from token for audit
+- [ ] Claude connector uses OAuth instead of long-lived keys
+- [ ] Revoke UI: connectors / tokens per user
+- [ ] actor_user_id from token for audit
 
-#### R3 — Hardening
+#### R3 — Hardening (after R2 or late R1 pilot)
 
 - [ ] Rate limits per key/user
 - [ ] Usage strip in Settings (tool call counts)
-- [ ] Optional dedicated gateway if Vercel timeouts block study/long tools
-- [ ] Document ChatGPT / other clients if/when remote MCP supported similarly
+- [ ] Optional dedicated gateway if timeouts block study tools
+- [ ] Document other remote-MCP clients as they support HTTPS MCP
 
 **Explicit non-goals for R1:** live scrape, full privileged cloud keys for all staff, replacing Catalog AI or Actions UI.
+
+---
+
+### Phase P — Organization permission scopes (before full org workspace rollout)
+
+**Why:** Org + workspace exist (`015`, `009`) but scopes are fragmented (role strings, half-used permission JSON, free-form API key scopes, separate MCP scopes, app `required_scopes` unused at install). Full multi-workspace org setup needs one catalog.
+
+**Design doc:** [`docs/ORG_PERMISSION_SCOPES.md`](docs/ORG_PERMISSION_SCOPES.md)  
+**Inspiration:** [Shopify access scopes](https://shopify.dev/docs/api/usage/access-scopes) — resource `read_*`/`write_*`, least privilege, apps declare required scopes at install.  
+**Integrations = apps:** connectors (Shopify, Woo, 3PL, POS, MCP cloud) are `workspace_apps` with `required_scopes` / `granted_scopes`, not ad-hoc free access.
+
+#### P0 — Freeze scope catalog (design only) ✅ draft
+
+- [x] Inventory current layers (roles, permission_schemas, API keys, MCP, app platform)
+- [x] Propose canonical `{resource}:{action}` catalog (org + workspace + apps)
+- [x] Role packages (owner/admin/member/viewer + buyer/store/finance)
+- [x] Example app required_scopes (shopify, pos-connector, mcp-cloud, …)
+- [ ] **Sign-off** on decisions in doc §11 (empty key ≠ full, org passthrough rules, sensitive scopes)
+
+#### P1 — Schema + types
+
+- [ ] Expand global `permission_schemas` seeds (inventory, actions, pos, apps, assistant, intel, …)
+- [ ] Align `PermissionArea` / `PermissionSet` in `app/types`
+- [ ] Optional: `scope_definitions` table or codegen from catalog doc
+- [ ] `workspace_apps.granted_scopes text[]` (if not present) + install check against `required_scopes`
+
+#### P2 — Resolve + enforce
+
+- [ ] `resolveScopes({ userId, workspaceId })` / `resolveScopesForApiKey(key)`
+- [ ] Gate UI `can()` via scopes; Actions approve → `actions:approve`
+- [ ] Gate `requireApiKey` against catalog; stop treating empty scopes as unlimited (migration path)
+- [ ] Map MCP scopes as aliases into canonical set
+
+#### P3 — Org workspace matrix
+
+- [ ] Clarify org roles vs workspace membership (member only sees assigned workspaces)
+- [ ] Org admin passthrough: UI admin only, never machine keys
+- [ ] Invite flows: org invite + workspace invite + permission schema selection
+
+**Done when:** Enabling Shopify (or MCP cloud) for a workspace requires explicit scope grant; a viewer cannot create API keys; a member cannot approve Actions without `actions:approve`.
 
 ---
 
@@ -405,10 +451,13 @@ See historical notes at end of this file if needed.
 - [x] Internal PO (Actions) vs inventory PO (Inventory) — separate UI labels  
 - [x] UI approve: owner/admin only; member can submit drafts  
 - [x] Help Center in Supabase; assistant routes nav Qs to `/help/*`  
-- [ ] **Cloud MCP transport** = Streamable HTTP on Vercel MVP (Phase R1)  
-- [ ] **Cloud MCP auth v1** = workspace API keys; **v2** = OAuth to SKUMS login  
-- [ ] **Cloud MCP never exposes** service role or env-fixed workspace to clients  
-- [ ] **Cloud default** = safe allowlist; privileged tools off public connector  
+- [x] **Cloud MCP transport** = HTTPS JSON-RPC on `/mcp` (R1)  
+- [x] **Cloud MCP auth v1** = workspace API keys + cloud-safe allowlist  
+- [x] **Cloud MCP never exposes** service role to clients  
+- [ ] **R2 OAuth** — held until Phase P scope packages exist for consent UI  
+- [ ] **Canonical permission scopes** — see `docs/ORG_PERMISSION_SCOPES.md` (sign-off P0)  
+- [ ] **Integrations as apps** — install grants `required_scopes` only  
+- [ ] Empty API key scopes ≠ unlimited (breaking change; migrate carefully)  
 - [ ] Pipeline execute in UI vs full-MCP only (still MCP full / local for execute)  
 - [ ] Optional later: unify `pipeline_candidates` + `agent_proposals`  
 - [ ] Phase N: email provider choice (Resend / SES / Postmark)
@@ -418,26 +467,27 @@ See historical notes at end of this file if needed.
 ## Suggested build order
 
 ```text
-M0–M6 + Help     ✅ shipped (main)
-DB 052–053       ✅ on shared Supabase project
-Local stdio MCP  ✅ engineers only
+M0–M6 + Help + R1   ✅ shipped (main)
+DB 052–054          ✅ shared Supabase
+Local stdio MCP     ✅ engineers
+Remote /mcp + key   ✅ cloud-safe (R2 OAuth held)
 ─────────────────
 Next (recommended):
-  R0  lock cloud-safe allowlist + host + auth choice
-  R1  HTTPS MCP + API key + Settings connector + pilot
-  R2  OAuth for non-technical default
-  R3  rate limits / usage / optional dedicated gateway
+  P0  sign-off scope catalog (docs/ORG_PERMISSION_SCOPES.md)
+  P1  expand permission_schemas + types + app granted_scopes
+  P2  resolveScopes + enforce UI/API
+  P3  org ↔ workspace membership matrix
 ─────────────────
-Parallel / after R1 pilot:
-  N1–N3  stakeholder notifications
-  M6.5   audit explorer (mcp channel filter)
+Then / parallel:
+  R1 pilot (Claude keys) · N1–N3 notifications · M6.5 audit explorer
+  R2 OAuth (after P)
 ─────────────────
-Parked: Browserbase smoke, brand radar, scrape scale
+Parked: Browserbase, brand radar
 ```
 
-**Recommended next:** **Phase R0 → R1** (cloud MCP pilot).  
-**Catalog Q&A today:** Catalog AI drawer, `/help`, or local MCP `catalog_*`.  
-**Phase N** remains important but is no longer the only “recommended first” — cloud MCP unblocks non-engineer AI use.
+**Recommended next:** **Phase P0 sign-off** → **P1 schema**.  
+**Cloud AI today:** Settings → Claude/MCP key → `https://…/mcp`.  
+**Do not start R2** until scope packages are real enough to put on an OAuth consent screen.
 
 ---
 
@@ -449,10 +499,11 @@ Parked: Browserbase smoke, brand radar, scrape scale
 | MCP M0–M4 | Safe scopes, audit channels, clone tools, Actions UI, roles |
 | M5 | Import draft/POS-off; pipeline draft products; Activate for POS UI |
 | M6 | Shared `core/catalog`; Catalog AI + MCP `catalog_*`; Help Center **053** |
+| R1 | Remote MCP `POST /mcp`, cloud-safe keys, Settings connector, help **054** |
 | Local MCP | stdio `npm run mcp`; env workspace + service role |
 | Import | Dirty multi-provider + large-job progress |
 | Collect research | Browserbase adapter; live scrape **KIV** |
-| Ops | Workspace, MCP id, migrations through **053** |
+| Ops | Migrations through **054** |
 
 ---
 
@@ -473,9 +524,10 @@ node scripts/_smoke_shopee_browserbase.mjs
 ## Links
 
 - Production: https://fran-skums.vercel.app  
+- Remote MCP: `https://fran-skums.vercel.app/mcp` · Help: `/help/connect-claude`  
+- Org scopes design: `docs/ORG_PERMISSION_SCOPES.md`  
 - MCP: `mcp/README.md`  
 - Platform: `Major Update.md`  
-- Commit: `docs/Commit Summary 12072026.md`  
 - Marketplace (parked): `marketplace/README.md`  
 
 ---

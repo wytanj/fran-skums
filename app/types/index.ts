@@ -1329,7 +1329,18 @@ export interface IntegrationEntityMapping {
 }
 
 export type StoreReplenishmentRequestType = 'manual' | 'low_stock' | 'cycle_count' | 'campaign' | 'system_suggested' | 'pos_requested'
-export type StoreReplenishmentRequestStatus = 'draft' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'converted' | 'cancelled'
+export type StoreReplenishmentRequestStatus =
+  | 'draft'
+  | 'submitted'
+  | 'in_review'
+  | 'approved'
+  | 'rejected'
+  | 'deferred_to_wave'
+  | 'converted'
+  | 'cancelled'
+
+export type StoreReplenishmentDecision = 'approve_now' | 'reject' | 'defer_to_wave'
+export type StoreDeliveryMode = 'delivery' | 'self_collect'
 export type StoreOpsPriority = 'low' | 'normal' | 'urgent' | 'critical'
 export type StoreOpsSourceType = 'pos' | 'skums' | 'system' | 'integration'
 export type StoreReplenishmentLineStatus = 'requested' | 'approved' | 'rejected' | 'converted' | 'unresolved'
@@ -1373,6 +1384,13 @@ export interface StoreReplenishmentRequest {
   needed_by: string | null
   approved_at: string | null
   reason: string | null
+  decision?: StoreReplenishmentDecision | null
+  decision_reason?: string | null
+  decided_by?: string | null
+  decided_at?: string | null
+  wave_id?: string | null
+  wave_date?: string | null
+  mcp_context?: Record<string, any>
   metadata: Record<string, any>
   created_at: string
   updated_at: string
@@ -1603,6 +1621,16 @@ export interface PermissionSet {
   invite?: boolean
   remove?: boolean
   change_role?: boolean
+  /** Inventory / store-ops extensions (TODO-LOFT Phase P) */
+  po?: boolean
+  override_expiry?: boolean
+  approve?: boolean
+  verify?: boolean
+  execute_3pl?: boolean
+  inbound?: boolean
+  config?: boolean
+  submit?: boolean
+  install?: boolean
 }
 
 export type PermissionArea =
@@ -1612,8 +1640,10 @@ export type PermissionArea =
   | 'activity' | 'api'
   | 'inventory' | 'expiry' | 'images'
   | 'assistant' | 'organization'
+  | 'locations' | 'store_ops' | 'pos'
+  | 'forecasting' | 'actions' | 'intel' | 'apps'
 
-export type PermissionsMap = Record<PermissionArea, PermissionSet>
+export type PermissionsMap = Partial<Record<PermissionArea, PermissionSet>>
 
 export interface PermissionSchema {
   id: string

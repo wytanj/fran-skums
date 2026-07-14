@@ -74,6 +74,8 @@ test('WorldSyntech/OFS server routes require workspace access and write integrat
   assert.match(inventoryRoute, /pull_inventory/)
   assert.match(inboundRoute, /create_inbound_shipment/)
   assert.match(replenishmentRoute, /create_store_replenishment/)
+  const pullProductsRoute = readFileSync(new URL('../server/api/integrations/worldsyntech-ofs/pull-products.post.ts', import.meta.url), 'utf8')
+  assert.match(pullProductsRoute, /pull_products/)
   assert.match(integrationActions, /requireWorkspaceAccess/)
   assert.match(integrationActions, /integration_entity_mappings/)
 })

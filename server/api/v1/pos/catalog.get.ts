@@ -9,6 +9,9 @@ export default defineEventHandler(async (event) => {
   const offset = Math.max(Math.floor(requestedOffset), 0)
   const search = String(query.search || '').trim()
   const includeDisabled = query.include_disabled === 'true'
+  /** Store-scoped ATS: pos_location_code (e.g. LIS-ION) or inventory location_id UUID */
+  const posLocationCode = String(query.pos_location_code || query.store_code || '').trim().toUpperCase()
+  const locationIdParam = String(query.location_id || query.inventory_location_id || '').trim()
 
   /**
    * POS opt-in flag in product_data.
@@ -62,6 +65,9 @@ export default defineEventHandler(async (event) => {
   const rows = fetchedRows.slice(0, limit)
   const productIds = rows.map((row: any) => row.id)
   let graphByProductId = new Map<string, any>()
+  let stockByProductId = new Map<string, { on_hand: number; reserved: number; available: number; location_id: string; location_code: string | null }>()
+  let resolvedLocationId: string | null = locationIdParam || null
+  let resolvedLocationCode: string | null = posLocationCode || null
 
   if (productIds.length > 0) {
     const { data: graphRows, error: graphError } = await client
@@ -72,6 +78,53 @@ export default defineEventHandler(async (event) => {
 
     if (graphError) throw createError({ statusCode: 500, statusMessage: graphError.message })
     graphByProductId = new Map((graphRows || []).map((row: any) => [row.product_id, row]))
+  }
+
+  // Resolve store inventory location for ATS
+  if (!resolvedLocationId && posLocationCode) {
+    const { data: posLoc } = await client
+      .from('pos_locations')
+      .select('id, code, inventory_location_id')
+      .eq('workspace_id', ctx.workspaceId)
+      .ilike('code', posLocationCode)
+      .maybeSingle()
+    if (posLoc?.inventory_location_id) {
+      resolvedLocationId = posLoc.inventory_location_id
+      resolvedLocationCode = posLoc.code || posLocationCode
+    } else {
+      const { data: invLoc } = await client
+        .from('inventory_locations')
+        .select('id, code')
+        .eq('workspace_id', ctx.workspaceId)
+        .ilike('code', posLocationCode)
+        .maybeSingle()
+      if (invLoc?.id) {
+        resolvedLocationId = invLoc.id
+        resolvedLocationCode = invLoc.code
+      }
+    }
+  }
+
+  if (resolvedLocationId && productIds.length > 0) {
+    const { data: levels, error: levelsError } = await client
+      .from('inventory_levels')
+      .select('product_id, on_hand, reserved, location_id')
+      .eq('workspace_id', ctx.workspaceId)
+      .eq('location_id', resolvedLocationId)
+      .in('product_id', productIds)
+
+    if (levelsError) throw createError({ statusCode: 500, statusMessage: levelsError.message })
+    for (const level of levels || []) {
+      const onHand = Number(level.on_hand || 0)
+      const reserved = Number(level.reserved || 0)
+      stockByProductId.set(level.product_id, {
+        on_hand: onHand,
+        reserved,
+        available: Math.max(0, onHand - reserved),
+        location_id: level.location_id,
+        location_code: resolvedLocationCode,
+      })
+    }
   }
 
   const data = rows
@@ -87,6 +140,11 @@ export default defineEventHandler(async (event) => {
         || skuAssignments.find((assignment: any) => assignment.is_active)
         || null
       const unitPrice = Number(product.sale_price ?? product.retail_price ?? 0)
+      const level = stockByProductId.get(product.id)
+      // Prefer store-scoped inventory_levels ATS; fall back to legacy product.stock_quantity
+      const stockQuantity = level
+        ? level.available
+        : (product.stock_quantity ?? 0)
 
       return {
         id: product.id,
@@ -110,10 +168,15 @@ export default defineEventHandler(async (event) => {
         list_price: product.retail_price == null ? unitPrice : Number(product.retail_price),
         currency: product.currency || 'USD',
         storage_location_code: storageLocationCode,
-        stock_quantity: product.stock_quantity ?? 0,
+        stock_quantity: stockQuantity,
         track_inventory: product.track_inventory ?? true,
         status: product.status,
         pos_enabled: posEnabled,
+        inventory_location_id: level?.location_id || resolvedLocationId || null,
+        inventory_location_code: level?.location_code || resolvedLocationCode || null,
+        on_hand: level?.on_hand ?? null,
+        reserved: level?.reserved ?? null,
+        available: level?.available ?? null,
         identifiers: {
           sku: product.sku || null,
           ean: product.ean || null,
@@ -128,6 +191,7 @@ export default defineEventHandler(async (event) => {
           storage_location_code: storageLocationCode,
           source: productData.source || null,
           availability: productData.availability || null,
+          stock_source: level ? 'inventory_levels' : 'product_legacy',
         },
       }
     })
@@ -146,5 +210,8 @@ export default defineEventHandler(async (event) => {
     offset,
     has_more: hasMore,
     next_offset: hasMore ? offset + rows.length : null,
+    inventory_location_id: resolvedLocationId,
+    inventory_location_code: resolvedLocationCode,
+    stock_scoped: Boolean(resolvedLocationId),
   }
 })

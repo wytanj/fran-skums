@@ -18,6 +18,7 @@ import * as catalog from './lib/catalog.mjs'
 import * as pipeline from './lib/pipeline.mjs'
 import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
+import * as storeOps from './lib/storeOps.mjs'
 import * as study from './lib/study.mjs'
 
 /**
@@ -690,6 +691,40 @@ export const toolDefinitions = [
       required: ['projection_id'],
     },
   },
+  // ── Store ops (HQ decision support — read only) ───────────
+  {
+    name: 'store_ops_list_requests',
+    description:
+      'List open store replenishment requests awaiting HQ review. Advisory only — does not approve or send to Loft.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', description: 'Filter status; default open queue' },
+        limit: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'store_ops_list_waves',
+    description:
+      'List Mon/Thu-style replenishment waves and upcoming wave dates. Default cadence Monday + Thursday.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'number' } },
+    },
+  },
+  {
+    name: 'store_ops_recommend',
+    description:
+      'Baseline + lift recommendation for one request: approve_now vs defer_to_wave. Label only — human must decide with store_ops:approve.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: { type: 'string' },
+      },
+      required: ['request_id'],
+    },
+  },
 ]
 
 /**
@@ -1239,6 +1274,21 @@ export async function handleTool(name, args = {}) {
         const pack = await po.getPo(requireWorkspaceId(), String(a.po_id))
         if (!pack) throw new Error('PO not found')
         return jsonResult(po.exportPo(pack.po, pack.lines))
+      }
+      case 'store_ops_list_requests': {
+        requireScope('store_ops:read')
+        return jsonResult(await storeOps.listOpenRequests({
+          status: a.status,
+          limit: a.limit,
+        }))
+      }
+      case 'store_ops_list_waves': {
+        requireScope('store_ops:read')
+        return jsonResult(await storeOps.listWaves({ limit: a.limit }))
+      }
+      case 'store_ops_recommend': {
+        requireScope('store_ops:read')
+        return jsonResult(await storeOps.recommendDecision(String(a.request_id)))
       }
       case 'projection_create': {
         requireScope('projection:run')

@@ -1,4 +1,5 @@
 import { genericStoreOpsRequestType, normalizeFranStoreOpsType } from '../../../fran/pos'
+import { notifyReplenishmentRequestSubmitted } from '../../../utils/storeReplenishment'
 
 function trimString(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
@@ -14,7 +15,20 @@ function requestNumber() {
 }
 
 export default defineEventHandler(async (event) => {
-  const ctx = await requireApiKey(event, 'pos:write')
+  // Signal-only request: pos:write OR store_ops:write (never approve/execute)
+  const ctx = await authenticateApiKey(event)
+  if (!ctx) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'API key required. Pass via Authorization: Bearer <key> or X-API-Key header.',
+    })
+  }
+  if (!hasScope(ctx, 'pos:write') && !hasScope(ctx, 'store_ops:write')) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'API key lacks required scope: pos:write or store_ops:write',
+    })
+  }
   const client = getAdminClient()
   const body = await readBody(event)
   const franRequestType = normalizeFranStoreOpsType(body.fran_request_type || body.request_type)
@@ -88,6 +102,30 @@ export default defineEventHandler(async (event) => {
 
   if (lineError) throw createError({ statusCode: 500, statusMessage: lineError.message })
 
+  // B.0: signal HQ only — never auto-approve or call Loft
+  let notification = null
+  try {
+    notification = await notifyReplenishmentRequestSubmitted(client, {
+      workspaceId: ctx.workspaceId,
+      requestId: request.id,
+      requestNumber: request.request_number,
+      priority: request.priority,
+      reason: request.reason,
+      lineCount: (requestLines || []).length,
+      storeLabel: trimString(body.pos_location_code || body.store_code) || null,
+    })
+  } catch (notifyError: any) {
+    console.error('[store-ops] notify failed', notifyError?.message || notifyError)
+  }
+
   setResponseStatus(event, 201)
-  return { data: { request, lines: requestLines || [] } }
+  return {
+    data: {
+      request,
+      lines: requestLines || [],
+      notification_id: notification?.id || null,
+      hq_status: 'queued_for_review',
+      message: 'Request sent to HQ. Reviewed against Mon & Thu replenishment — not sent to Loft.',
+    },
+  }
 })
