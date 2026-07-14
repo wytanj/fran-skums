@@ -1015,6 +1015,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | 2026-07-14 | **Build start Phases P + 0 + A:** migration `055_loft_permissions_topology.sql`; `server/utils/scopes.ts` + `scopeAuth.ts`; `docs/LOFT_OPS_DICTIONARY.md`; pull-products; store-scoped POS catalog; POS `pos-store-config` binding |
 | 2026-07-14 | **Phase B:** migration `056` waves+inbox+decisions; `storeReplenishment` orchestrator; decide/send/poll APIs; MCP store_ops_* tools; POS Request stock page |
 | 2026-07-14 | **Migrations 055+056 applied** (via `--from 055`; 015 checksum drift pre-existing). **B.4** near-expiry gate; **Phase C start:** expected-deliveries, receive apply, exception verify APIs; POS Receive page; HQ Lift now / Defer / Confirm claim UI |
+| 2026-07-14 | **Committed** skums `38d4383` + pos `4148095` (no deploy). **C.4:** ready-for-collect queue, pickup_ready_at on poll, fran receive alias, inbox mark-read |
 
 ---
 

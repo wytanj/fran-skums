@@ -77,18 +77,23 @@ export default defineEventHandler(async (event) => {
 
       for (const local of byExternal || []) {
         const skumsStatus = mapRemoteOrderStatus(remoteStatus, local.status)
+        const patch: Record<string, unknown> = {
+          external_order_id: orderId,
+          external_status: remoteStatus || null,
+          status: skumsStatus,
+          metadata: {
+            ...(local.metadata || {}),
+            last_polled_at: new Date().toISOString(),
+            last_remote: raw,
+            ready_for_collect: isReadyForCollect(remoteStatus),
+          },
+        }
+        if (isReadyForCollect(remoteStatus)) {
+          patch.pickup_ready_at = new Date().toISOString()
+        }
         await client
           .from('store_replenishment_orders')
-          .update({
-            external_order_id: orderId,
-            external_status: remoteStatus || null,
-            status: skumsStatus,
-            metadata: {
-              ...(local.metadata || {}),
-              last_polled_at: new Date().toISOString(),
-              last_remote: raw,
-            },
-          })
+          .update(patch)
           .eq('id', local.id)
         updated += 1
       }
@@ -131,10 +136,16 @@ function mapRemoteOrderStatus(remote: string, current: string): string {
   if (r.includes('cancel')) return 'cancelled'
   if (r.includes('deliver') || r.includes('complete')) return current === 'received' ? 'received' : 'shipped'
   if (r.includes('ship') || r.includes('dispatch')) return 'shipped'
+  // Ready for LISE self-collect / courier pickup at Loft
   if (r.includes('pick') || r.includes('ready') || r.includes('collect')) return 'shipped'
   if (r.includes('process') || r.includes('ack')) return 'acknowledged'
   if (r.includes('fail') || r.includes('error') || r.includes('stockout')) return 'exception'
   return current === 'sent_to_3pl' || current === 'acknowledged' || current === 'shipped'
     ? current
     : 'sent_to_3pl'
+}
+
+function isReadyForCollect(remote: string): boolean {
+  const r = remote.toLowerCase()
+  return r.includes('ready') || r.includes('collect') || r.includes('picked') || r.includes('pick complete')
 }

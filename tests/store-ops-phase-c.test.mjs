@@ -22,8 +22,10 @@ describe('Store ops Phase C + B.4', () => {
     assert.match(recv, /listExpectedDeliveries/)
     assert.match(recv, /submitStoreReceive/)
     assert.match(recv, /verifyInventoryException/)
+    assert.match(recv, /listReadyForCollect/)
     assert.match(recv, /upsert_inventory_level/)
     assert.match(recv, /pending_verification/)
+    assert.match(recv, /collector_name/)
 
     const expected = readFileSync(
       new URL('../server/api/store-ops/expected-deliveries.get.ts', import.meta.url),
@@ -37,6 +39,18 @@ describe('Store ops Phase C + B.4', () => {
     )
     assert.match(receiveRoute, /idempotency_key/)
     assert.match(receiveRoute, /submitStoreReceive/)
+
+    const franReceive = readFileSync(
+      new URL('../server/routes/fran/store-ops/receive.post.ts', import.meta.url),
+      'utf8',
+    )
+    assert.match(franReceive, /submitStoreReceive/)
+
+    const ready = readFileSync(
+      new URL('../server/api/store-ops/ready-for-collect.get.ts', import.meta.url),
+      'utf8',
+    )
+    assert.match(ready, /listReadyForCollect|Self-collect/)
 
     const verify = readFileSync(
       new URL('../server/api/store-ops/exceptions/[id]/verify.post.ts', import.meta.url),

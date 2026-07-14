@@ -95,6 +95,12 @@ export async function listExpectedDeliveries(
       }
     }).filter((l: any) => l.expected_qty > 0 || order.status === 'shipped')
 
+    const readyForCollect = Boolean(
+      order.pickup_ready_at
+      || (order.metadata as any)?.ready_for_collect
+      || order.delivery_mode === 'self_collect',
+    )
+
     return {
       id: order.id,
       order_number: order.order_number,
@@ -102,11 +108,35 @@ export async function listExpectedDeliveries(
       delivery_mode: order.delivery_mode,
       external_order_id: order.external_order_id,
       expected_delivery_at: order.expected_delivery_at,
+      pickup_ready_at: order.pickup_ready_at || null,
+      ready_for_collect: readyForCollect,
       destination_location_id: order.destination_location_id,
       pos_location_id: order.pos_location_id,
       lines,
     }
   })
+}
+
+/** HQ ops: orders ready for LISE self-collect at Loft. */
+export async function listReadyForCollect(
+  client: SupabaseClient,
+  params: { workspaceId: string; limit?: number },
+) {
+  const limit = Math.min(Math.max(params.limit || 50, 1), 100)
+  const { data, error } = await client
+    .from('store_replenishment_orders')
+    .select('id, order_number, status, delivery_mode, pickup_ready_at, external_order_id, destination_location_id, pos_location_id, metadata, updated_at')
+    .eq('workspace_id', params.workspaceId)
+    .eq('delivery_mode', 'self_collect')
+    .in('status', ['sent_to_3pl', 'acknowledged', 'shipped', 'partially_shipped'])
+    .order('pickup_ready_at', { ascending: true, nullsFirst: false })
+    .limit(limit)
+
+  if (error) throw error
+  return (data || []).map((o: any) => ({
+    ...o,
+    ready_for_collect: Boolean(o.pickup_ready_at || o.metadata?.ready_for_collect),
+  }))
 }
 
 /**
