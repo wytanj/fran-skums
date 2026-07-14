@@ -56,6 +56,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 054 | help_connect_claude.sql | Help: Connect Claude remote MCP | Phase R1 connector docs |
 | 055 | loft_permissions_topology.sql | Loft store-ops permission schemas + LOFT-SG topology + app scopes | TODO-LOFT Phase P.0 / A.1; pull_products action; pos_connector app |
 | 056 | store_ops_waves_inbox.sql | Waves Mon/Thu, HQ inbox, request decisions, delivery_mode | TODO-LOFT Phase B.0 / B.1 / B.1b |
+| 057 | inbound_shipments.sql | KR/HK → Loft ASN lifecycle + lines | TODO-LOFT Phase D |
 
 ## Planned Phase C Spine
 

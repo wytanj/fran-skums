@@ -311,6 +311,22 @@ export function useIntegrations() {
     return result as any
   }
 
+  async function pollWorldsyntechInbound(connectionId: string, opts: {
+    offset?: number
+    limit?: number
+  } = {}) {
+    const result = await $fetch('/api/integrations/worldsyntech-ofs/poll-inbound', {
+      method: 'POST',
+      body: {
+        connection_id: connectionId,
+        offset: opts.offset,
+        limit: opts.limit,
+      },
+    })
+    await fetchConnections()
+    return result as any
+  }
+
   // ── Executions ──
 
   async function fetchExecutions(connectionId?: string, limit = 50) {
@@ -424,6 +440,7 @@ export function useIntegrations() {
     syncWorldsyntechReferenceData,
     pullWorldsyntechInventory,
     pullWorldsyntechProducts,
+    pollWorldsyntechInbound,
 
     fetchExecutions,
     createExecution,

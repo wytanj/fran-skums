@@ -146,6 +146,11 @@ See `server/utils/scopes.ts` and `docs/ORG_PERMISSION_SCOPES.md`.
 | Submit receive | `POST /api/store-ops/receive` | pos:write / store_ops:write |
 | List exceptions | `GET /api/store-ops/exceptions` | store_ops:read |
 | Verify exception | `POST /api/store-ops/exceptions/:id/verify` | store_ops:verify |
+| List inbound ASN | `GET /api/store-ops/inbound` | store_ops:read |
+| Create ASN draft | `POST /api/store-ops/inbound` | store_ops:inbound |
+| Send ASN to Loft | `POST /api/store-ops/inbound/:id/send-to-loft` | store_ops:inbound / execute_3pl |
+| Poll inbound | `POST /api/integrations/worldsyntech-ofs/poll-inbound` | connection write |
+| LISE confirm + promote LOFT-SG | `POST /api/store-ops/inbound/:id/confirm` | store_ops:inbound + inventory:write |
 
 MCP (safe, advisory): `store_ops_list_requests`, `store_ops_list_waves`, `store_ops_recommend`
 

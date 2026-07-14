@@ -41,13 +41,116 @@ const {
   exceptionStatusBadge,
 } = useStoreOperations()
 
-const activeTab = ref<'queue' | 'orders' | 'receiving' | 'exceptions'>('queue')
+const activeTab = ref<'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions'>('queue')
 const tabs = [
   { key: 'queue', label: 'Queue' },
   { key: 'orders', label: 'Orders' },
+  { key: 'inbound', label: 'Inbound ASN' },
   { key: 'receiving', label: 'Receiving' },
   { key: 'exceptions', label: 'Exceptions' },
 ] as const
+
+const inboundShipments = ref<any[]>([])
+const inboundLoading = ref(false)
+const inboundSaving = ref(false)
+const showInboundForm = ref(false)
+const inboundForm = ref({
+  tracking_number: '',
+  date_estimate: '',
+  reference_no: '',
+  offshore_forwarder: '',
+  palletization: 'mixed' as string,
+  carton_count: '',
+  pallet_count: '',
+  notes: '',
+  connection_id: '',
+})
+const inboundLines = ref<Array<{ sku: string; quantity: number; product_name: string }>>([
+  { sku: '', quantity: 1, product_name: '' },
+])
+
+async function loadInbound() {
+  if (!currentWorkspace.value?.id) return
+  inboundLoading.value = true
+  try {
+    const res = await $fetch<{ data: any[] }>('/api/store-ops/inbound', {
+      query: { workspace_id: currentWorkspace.value.id, limit: 50 },
+    })
+    inboundShipments.value = res.data || []
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Failed to load inbound')
+  } finally {
+    inboundLoading.value = false
+  }
+}
+
+async function createInboundAsn() {
+  if (!currentWorkspace.value?.id) return
+  const lines = inboundLines.value.filter(l => l.sku.trim() && l.quantity > 0)
+  if (!inboundForm.value.tracking_number || !inboundForm.value.date_estimate || !lines.length) {
+    return showErr('Tracking, ETA, and at least one line required')
+  }
+  inboundSaving.value = true
+  try {
+    await $fetch('/api/store-ops/inbound', {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        tracking_number: inboundForm.value.tracking_number,
+        date_estimate: inboundForm.value.date_estimate,
+        reference_no: inboundForm.value.reference_no || null,
+        offshore_forwarder: inboundForm.value.offshore_forwarder || null,
+        local_forwarder: 'M&P',
+        palletization: inboundForm.value.palletization || null,
+        carton_count: inboundForm.value.carton_count ? Number(inboundForm.value.carton_count) : null,
+        pallet_count: inboundForm.value.pallet_count ? Number(inboundForm.value.pallet_count) : null,
+        notes: inboundForm.value.notes || null,
+        connection_id: inboundForm.value.connection_id || null,
+        lines,
+      },
+    })
+    showOk('ASN draft created (not sent to Loft yet)')
+    showInboundForm.value = false
+    inboundForm.value = {
+      tracking_number: '',
+      date_estimate: '',
+      reference_no: '',
+      offshore_forwarder: '',
+      palletization: 'mixed',
+      carton_count: '',
+      pallet_count: '',
+      notes: '',
+      connection_id: '',
+    }
+    inboundLines.value = [{ sku: '', quantity: 1, product_name: '' }]
+    await loadInbound()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Create ASN failed')
+  } finally {
+    inboundSaving.value = false
+  }
+}
+
+async function confirmInbound(shipment: any) {
+  if (!currentWorkspace.value?.id) return
+  try {
+    const res = await $fetch<{ message?: string }>(`/api/store-ops/inbound/${shipment.id}/confirm`, {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        force: true,
+        line_updates: (shipment.lines || []).map((l: any) => ({
+          line_id: l.id,
+          quantity_received: l.quantity_received > 0 ? l.quantity_received : l.quantity,
+        })),
+      },
+    })
+    showOk(res.message || 'Confirmed and promoted to LOFT-SG')
+    await loadInbound()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Confirm failed')
+  }
+}
 
 const toast = ref('')
 const toastError = ref('')
@@ -84,6 +187,7 @@ async function refreshAll() {
     loadLocations(),
     loadPosLocations(),
     loadStoreOperations(),
+    loadInbound(),
   ])
 }
 
@@ -748,6 +852,114 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             <button class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10" @click="setOrderStatus(order, 'exception')">
               Exception
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-show="activeTab === 'inbound'" class="space-y-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-sm text-gray-400">
+          KR/HK → M&amp;P → Loft ASN. Draft locally, send to OFS, confirm to promote LOFT-SG stock. POS does not see this.
+        </p>
+        <button class="btn-primary" @click="showInboundForm = !showInboundForm">
+          {{ showInboundForm ? 'Close' : 'New ASN' }}
+        </button>
+      </div>
+
+      <form v-if="showInboundForm" class="card space-y-4 p-5" @submit.prevent="createInboundAsn">
+        <h2 class="text-base font-semibold text-white">Inbound ASN (draft)</h2>
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="text-xs text-gray-400">
+            Tracking number
+            <input v-model="inboundForm.tracking_number" required class="input mt-1 w-full" />
+          </label>
+          <label class="text-xs text-gray-400">
+            ETA
+            <input v-model="inboundForm.date_estimate" type="date" required class="input mt-1 w-full" />
+          </label>
+          <label class="text-xs text-gray-400">
+            Reference
+            <input v-model="inboundForm.reference_no" class="input mt-1 w-full" placeholder="PO / booking" />
+          </label>
+          <label class="text-xs text-gray-400">
+            Offshore forwarder
+            <input v-model="inboundForm.offshore_forwarder" class="input mt-1 w-full" />
+          </label>
+          <label class="text-xs text-gray-400">
+            Palletization
+            <select v-model="inboundForm.palletization" class="input mt-1 w-full">
+              <option value="full_pallet">Full pallet</option>
+              <option value="partial_pallet">Partial pallet</option>
+              <option value="loose">Loose</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </label>
+          <label class="text-xs text-gray-400">
+            Carton / pallet count
+            <div class="mt-1 flex gap-2">
+              <input v-model="inboundForm.carton_count" type="number" min="0" class="input w-full" placeholder="Cartons" />
+              <input v-model="inboundForm.pallet_count" type="number" min="0" class="input w-full" placeholder="Pallets" />
+            </div>
+          </label>
+        </div>
+        <div class="space-y-2">
+          <p class="text-xs font-medium text-gray-400">Lines</p>
+          <div v-for="(line, idx) in inboundLines" :key="idx" class="flex flex-wrap gap-2">
+            <input v-model="line.sku" class="input flex-1" placeholder="SKU" required />
+            <input v-model.number="line.quantity" type="number" min="1" class="input w-24" />
+            <input v-model="line.product_name" class="input flex-1" placeholder="Name (optional)" />
+          </div>
+          <button type="button" class="text-xs text-cyan-400" @click="inboundLines.push({ sku: '', quantity: 1, product_name: '' })">
+            + Add line
+          </button>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="btn-primary" :disabled="inboundSaving">
+            {{ inboundSaving ? 'Saving…' : 'Create draft ASN' }}
+          </button>
+        </div>
+      </form>
+
+      <div class="card overflow-hidden">
+        <div class="border-b border-gray-800 px-5 py-4">
+          <h2 class="text-base font-semibold text-white">Inbound shipments</h2>
+        </div>
+        <div v-if="inboundLoading" class="px-5 py-8 text-sm text-gray-500">Loading…</div>
+        <div v-else-if="inboundShipments.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+          No inbound ASNs yet.
+        </div>
+        <div v-else class="divide-y divide-gray-800">
+          <div
+            v-for="ship in inboundShipments"
+            :key="ship.id"
+            class="grid gap-3 px-5 py-4 xl:grid-cols-[1.4fr_1fr_1fr_auto] xl:items-center"
+          >
+            <div>
+              <p class="font-medium text-white">{{ ship.shipment_number }}</p>
+              <p class="text-xs text-gray-500">
+                {{ ship.tracking_number }} · {{ ship.status }}
+                <span v-if="ship.palletization"> · {{ ship.palletization }}</span>
+              </p>
+              <p class="text-xs text-gray-500">M&amp;P · {{ ship.offshore_forwarder || 'offshore TBD' }}</p>
+            </div>
+            <div class="text-sm text-gray-300">
+              ETA {{ formatDate(ship.date_estimate) }}
+              <p class="text-xs text-gray-500">{{ (ship.lines || []).length }} line(s)</p>
+            </div>
+            <div class="text-xs text-gray-500">
+              <span v-if="ship.external_stock_incoming_main_id">OFS main {{ ship.external_stock_incoming_main_id }}</span>
+              <span v-else>Not sent to Loft</span>
+            </div>
+            <div class="flex flex-wrap gap-2 xl:justify-end">
+              <button
+                v-if="['partial_received', 'fully_received', 'loft_receiving', 'asn_sent', 'in_transit', 'draft'].includes(ship.status)"
+                class="btn-primary !px-3 !py-1.5 text-xs"
+                @click="confirmInbound(ship)"
+              >
+                LISE confirm → LOFT-SG
+              </button>
+            </div>
           </div>
         </div>
       </div>
