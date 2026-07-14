@@ -1,48 +1,49 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-13  
-**Shipped on `main`:** **M0–M6**, Help Center, **Phase R1** remote MCP (`/mcp` + API-key cloud-safe)  
-**DB:** migrations **001–054** on shared Supabase (053 help, 054 connect-claude).  
+**Date:** 2026-07-14  
+**Shipped on `main`:** **M0–M6**, Help Center, **Phase R1** remote MCP, **Loft/3PL Phases P–D** (see `TODO-LOFT.md`)  
+**DB:** migrations **001–057** on shared Supabase (055–057 Loft permissions/waves/inbound; apply pending with `node scripts/migrate.mjs --from 055` if a host lags).  
 **Held:** **R2 OAuth** (remote MCP stays API-key until org permissioning is solid)  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
-**Plans:** This file · `docs/ORG_PERMISSION_SCOPES.md` · `mcp/README.md` · `Major Update.md`
+**Plans:** This file · **`TODO-LOFT.md`** · `docs/ORG_PERMISSION_SCOPES.md` · `docs/LOFT_OPS_DICTIONARY.md` · `mcp/README.md`
 
 ---
 
 ## Start here next
 
-**R1 remote MCP is implemented** (HTTPS `/mcp`, Claude connector key, cloud-safe allowlist).  
-**R2 OAuth: hold.**  
-**Next strategic track:** **Phase P — org/workspace permission scopes** so multi-workspace organizations can be rolled out safely (humans, API keys, MCP, and integrations-as-apps share one vocabulary).
+**Loft logistics MVP (P→D) is implemented and pushed** — KR/HK ASN → Loft stock → Mon/Thu waves / lift → store receive + exception verify.  
+**R1 remote MCP** remains available; **R2 OAuth held**.
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A (recommended)** | **Phase P — Org permission scopes** | Freeze catalog in `docs/ORG_PERMISSION_SCOPES.md` → expand `permission_schemas` → `resolveScopes` helper → gate UI/API/apps |
-| **B** | **Phase R** (remote MCP) | R1 ✅; pilot with API keys; **R2 OAuth held** until Phase P |
-| **C** | **Phase N** — stakeholder notifications | After P0/P1 or parallel if staffed |
-| **D** | **M6.5** — audit explorer | After cloud MCP pilot (filter mcp channel) |
-| **E (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
+| **A (recommended)** | **Loft Phase E–F** | Floor hygiene (adjustments/counts); store delivery calendars / wave polish — see `TODO-LOFT.md` |
+| **B** | **Phase N** — stakeholder notifications | Wire store-ops inbox + email; N1 schema if not using `store_ops_notifications` alone |
+| **C** | **Phase P remaining** | Enforce `requireScope` on all legacy routes; empty API keys ≠ full; app install grants UI |
+| **D** | **Phase R** | R1 pilot with Claude keys; **R2 OAuth held** |
+| **E** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
+| **F (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
 
 ### Quick smoke
 
 ```bash
-npm run db:migrate:status    # expect 054 applied
-npm run dev                  # Settings → Claude/MCP key; /help/connect-claude
+npm run db:migrate:status    # expect 055–057 applied (use --from 055 if needed)
+npm run dev                  # /store-ops · Settings → Claude/MCP
 # Remote: POST https://fran-skums.vercel.app/mcp  Authorization: Bearer sk_live_…
-npm run mcp                  # local stdio still for engineers
-node --test tests/remote-mcp.test.mjs tests/help-resolve.test.mjs
+node --test tests/scopes-loft.test.mjs tests/store-ops-phase-b.test.mjs tests/store-ops-phase-c.test.mjs tests/inbound-phase-d.test.mjs
 ```
 
 ### Ops leftovers (5–15 min)
 
 - [x] Help **053/054** on shared Supabase project
 - [x] Production **XAI_API_KEY**
-- [ ] Confirm Vercel deploy includes **R1** (`/mcp` discovery GET)
+- [x] Loft **055–057** applied (shared project via `--from 055` / `--from 057`)
+- [x] **Pushed** Loft P–D + POS request/receive to origin (Vercel deploy from git)
+- [ ] Confirm Vercel production deploy green for latest `main`
 - [ ] Fill Vercel **`SUPABASE_DB_URL`** (empty in prod env pull)
 - [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` for local MCP attribution
 - [ ] Secret rotation / Vercel env audit
-- [ ] Note: **015_organizations.sql** checksum-mismatch (historical)
+- [ ] Note: **015_organizations.sql** checksum-mismatch (historical; use `--from N` for new migrations)
 
 ---
 
@@ -52,8 +53,11 @@ node --test tests/remote-mcp.test.mjs tests/help-resolve.test.mjs
 
 **Goal (v2 — cloud MCP):** Non-technical employees connect **Claude (or other remote-MCP clients)** to Fran SKUMS over **HTTPS**, ask catalog/analysis questions and create **drafts**, without local install. Service role never leaves the server. Privileged execute stays in Actions (or admin-only keys).
 
+**Goal (v3 — Loft retail ops):** POS signals only; HQ decides with MCP baseline/lift; Loft executes warehouse; store receive + exception verify in SKUMS.
+
 **Success (v1):** Clone → draft + deep link → Actions UI → role-gated approve.  
-**Success (v2 pilot):** Employee pastes connector URL + safe API key (or OAuth later) → `catalog_stats` works in Claude → draft PO deep-links to Actions.
+**Success (v2 pilot):** Employee pastes connector URL + safe API key (or OAuth later) → `catalog_stats` works in Claude → draft PO deep-links to Actions.  
+**Success (v3 MVP):** ASN → LOFT-SG promote → Mon/Thu or lift order → store receive with short/damaged reported to HQ.
 
 ---
 
@@ -61,10 +65,10 @@ node --test tests/remote-mcp.test.mjs tests/help-resolve.test.mjs
 
 | Status | Notes |
 |--------|--------|
-| **052 applied** | `audit_source_channels` — ui/mcp/api/… on `audit_events` |
-| **No pending** | `npm run db:migrate` reports only 015 checksum-mismatch (historical file drift) |
-| **053 applied** | `help_articles` — Help Center + assistant resolve_help |
-| **Next SQL** | Phase **R** may need none for key-auth MVP; OAuth may add token tables; **N1** adds notification tables |
+| **052–054 applied** | audit channels, help, connect-claude |
+| **055–057 applied** | Loft permissions/topology; waves/inbox; inbound ASN |
+| **015 checksum-mismatch** | Historical; do not re-apply blindly — use `node scripts/migrate.mjs --from 055` |
+| **Next SQL** | Phase E cycle counts / N1 email deliveries if email bus lands |
 
 ---
 

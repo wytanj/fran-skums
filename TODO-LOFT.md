@@ -1,9 +1,11 @@
 # TODO — Loft Logistics / WorldSyntech OFS (phased PR plan)
 
-**Status:** finalized (ready for execution)  
+**Status:** Phases **P–D implemented and pushed** (2026-07-14); E–H remaining  
 **Date:** 2026-07-14  
 **Assumption:** Loft is the production 3PL.  
 **Permission foundation:** `docs/ORG_PERMISSION_SCOPES.md` (2026-07-13 design — Phase P catalog freeze).  
+**Commits (skums):** `38d4383` P/A/B/C core · `a861eec` C.4 · `17d8665` Phase D · (todos update follows)  
+**Commits (pos):** `4148095` bind + request/receive · `e7d811f` fran receive route  
 **Boundary (locked):**
 
 ```text
@@ -1005,6 +1007,31 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 
 ---
 
+## Implementation status (checkboxes)
+
+### Done on `main` (pushed)
+
+| Phase | Status | Evidence |
+|-------|--------|----------|
+| **P** Permissions | ✅ | `055`, `scopes.ts`, `scopeAuth.ts`, schemas store_associate/inventory_ops |
+| **0** Dictionary | ✅ skeleton | `docs/LOFT_OPS_DICTIONARY.md` (OFS IDs still TBD from Loft) |
+| **A** Topology / catalog | ✅ | LOFT-SG seed, pull-products, catalog `pos_location_code` |
+| **B** Waves / decide / send | ✅ | `056`, storeReplenishment, decide/send/poll, MCP tools, POS request-stock |
+| **C** Receive / exceptions | ✅ core + C.4 | expected-deliveries, receive, verify, ready-for-collect, POS receive |
+| **D** Inbound ASN | ✅ | `057`, inbound APIs, poll-inbound, confirm→LOFT-SG, store-ops Inbound tab |
+| **E–H** | ⏳ pending | Floor hygiene, calendars polish, connector polish, ecommerce |
+
+### Still open (do not treat as done)
+
+- [ ] Live Loft credential + delivery_method_id dictionary fill-in (Phase 0 email)
+- [ ] Full `requireScope` on every legacy integration route (P.3 completeness)
+- [ ] Empty API key scopes → deny/package (breaking change when ready)
+- [ ] Phase E adjustments/counts; Phase F wave cutoffs polish
+- [ ] Phase N email on top of `store_ops_notifications`
+- [ ] POS never owns ASN (D.3 remains non-goal)
+
+---
+
 ## Progress log
 
 | Date | Note |
@@ -1017,6 +1044,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | 2026-07-14 | **Migrations 055+056 applied** (via `--from 055`; 015 checksum drift pre-existing). **B.4** near-expiry gate; **Phase C start:** expected-deliveries, receive apply, exception verify APIs; POS Receive page; HQ Lift now / Defer / Confirm claim UI |
 | 2026-07-14 | **Committed** skums `38d4383` + pos `4148095` (no deploy). **C.4:** ready-for-collect queue, pickup_ready_at on poll, fran receive alias, inbox mark-read |
 | 2026-07-14 | **Pushed** skums + pos to origin (deploy). **Phase D:** migration 057 ASN; create/send/poll/confirm+promote LOFT-SG; store-ops Inbound ASN tab |
+| 2026-07-14 | **Todos updated** (`TODO.md` + this file): P–D marked shipped; next E/F or Phase N; push deploy for todo commit |
 
 ---
 
@@ -1042,10 +1070,13 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 
 ## Final ship rule (definition of done for “Loft live”)
 
-1. Phase **P.0 + P.1** merged and new keys least-privileged.  
-2. Phase **0** dictionary filled enough to map delivery methods + order statuses.  
-3. Path **A → B → C** live for at least one store.  
-4. Store request → **HQ notification** works; Mon/Thu wave is the default path; MCP can inform baseline/lift.  
-5. POS can report bad/missing receipt; SKUMS can verify with audit.  
-6. No production path where POS or a POS API key can approve waves, call OFS, or resolve HQ exceptions.  
-7. No production path where MCP auto-approves or auto-sends to Loft.
+1. ~~Phase **P.0 + P.1** merged and new keys least-privileged.~~ ✅ code shipped (enforce empty-key package still open)  
+2. Phase **0** dictionary filled enough to map delivery methods + order statuses — ⏳ skeleton only until Loft answers  
+3. ~~Path **A → B → C** live for at least one store.~~ ✅ APIs + UI; live Loft credential pilot remaining  
+4. ~~Store request → **HQ notification** works; Mon/Thu wave is the default path; MCP can inform baseline/lift.~~ ✅  
+5. ~~POS can report bad/missing receipt; SKUMS can verify with audit.~~ ✅  
+6. ~~No production path where POS or a POS API key can approve waves, call OFS, or resolve HQ exceptions.~~ ✅ by design/scopes  
+7. ~~No production path where MCP auto-approves or auto-sends to Loft.~~ ✅  
+8. ~~Inbound ASN → LISE confirm → LOFT-SG promote (Phase D).~~ ✅ code + migration 057  
+
+**Production pilot checklist:** Loft prod URL + delivery_method_ids · Vercel green · 055–057 on prod DB · one store dry-run.
