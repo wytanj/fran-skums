@@ -10,9 +10,9 @@ const { currentWorkspace } = useWorkspace()
 const catalogPrompts = [
   'How many products are in this catalog?',
   'Where should I go to edit products?',
-  'Break down products by status (draft vs active)',
-  'Which brands have the most products?',
-  'How do I import a catalog?',
+  'How do I approve a store replenishment request?',
+  'How do POS receive exceptions get verified?',
+  'How do floor damage reports update stock?',
   'What is in my Actions queue?',
 ]
 

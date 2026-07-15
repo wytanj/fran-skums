@@ -1,8 +1,10 @@
 # POS to SKUMS Store Operations Handoff
 
-Date: 2026-06-24
+Date: 2026-06-24 · **Ops guide:** 2026-07-15 — `docs/SKUMS_OPERATOR_RUNBOOK.md` + in-app `/help`
 
 Audience: POS engineers implementing store-floor workflows that feed SKUMS and, downstream, a 3PL/WMS such as Loft Logistics using WorldSyntech OFS.
+
+**Operators (non-engineers):** use the [operator runbook](./SKUMS_OPERATOR_RUNBOOK.md) and Help Center articles under Store Ops — not this engineering contract.
 
 ## Boundary
 

@@ -252,6 +252,7 @@ export function useAssistant() {
   function formatToolLabel(toolName: string): string {
     const labels: Record<string, string> = {
       resolve_help: 'Looking up Help…',
+      get_help_article: 'Loading Help article…',
       list_help_articles: 'Browsing Help…',
       get_catalog_stats: 'Counting catalog...',
       search_products: 'Searching catalog...',

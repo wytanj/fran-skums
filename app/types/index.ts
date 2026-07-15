@@ -275,7 +275,11 @@ export interface Listing {
 export type PosSaleType = 'sale' | 'return' | 'exchange' | 'sample_issue' | 'tester_conversion' | 'writeoff'
 export type PosSaleStatus = 'draft' | 'completed' | 'voided' | 'refunded' | 'failed'
 export type PosLineType = 'sale' | 'return' | 'exchange_in' | 'sample' | 'tester' | 'bundle_component' | 'writeoff'
-export type PosInventoryEventType = 'inventory.damage.reported' | 'inventory.found_stock.reported' | 'inventory.transfer_receive.reported'
+export type PosInventoryEventType =
+  | 'inventory.damage.reported'
+  | 'inventory.found_stock.reported'
+  | 'inventory.transfer_receive.reported'
+  | 'inventory.cycle_count.reported'
 export type PosInventoryEventStatus = 'received' | 'pending_approval' | 'applied' | 'rejected' | 'failed'
 export type ProductAttentionItemStatus = 'open' | 'in_review' | 'proposed' | 'resolved' | 'dismissed' | 'cancelled'
 export type ProductAttentionSourceType = 'app' | 'connector' | 'agent' | 'api' | 'import' | 'sync' | 'system' | 'pos'

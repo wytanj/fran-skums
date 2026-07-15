@@ -289,7 +289,8 @@ export async function submitStoreReceive(
         p_location_id: storeLocationId,
         p_quantity_type: 'on_hand',
         p_delta: goodQty,
-        p_movement_type: 'transfer_in',
+        // Canonical ledger type from 016_inventory
+        p_movement_type: 'transfer_received',
         p_reference_type: 'receiving_session',
         p_reference_id: session.id,
         p_notes: `Store receive ${order.order_number} ${sku}`,
@@ -302,7 +303,7 @@ export async function submitStoreReceive(
           p_location_id: transitLoc.id,
           p_quantity_type: 'in_transit',
           p_delta: -goodQty,
-          p_movement_type: 'transfer_out',
+          p_movement_type: 'transfer_received',
           p_reference_type: 'receiving_session',
           p_reference_id: session.id,
           p_notes: `Clear transit for ${order.order_number} ${sku}`,

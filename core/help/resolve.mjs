@@ -55,6 +55,15 @@ export function scoreHelpArticle(article, tokens, rawQuery = '') {
   if (/\bpos\b/.test(q) && /pos/.test(slug + tags.join(' '))) score += 4
   if (/\bmcp\b/.test(q) && /mcp/.test(slug + tags.join(' '))) score += 5
 
+  // Store ops / Loft / floor (operator runbook topics)
+  const blob = `${slug} ${title} ${tags.join(' ')} ${summary}`
+  if (/\b(store.?ops|replenish|wave|lift|defer|monday|thursday)\b/.test(q) && /store|replenish|wave|lift/.test(blob)) score += 5
+  if (/\b(receive|receiving|exception|short|damaged|wrong.?sku|self.?collect)\b/.test(q) && /receive|exception|floor|store/.test(blob)) score += 5
+  if (/\b(damage|found|cycle.?count|stocktake|floor|adjustment|shrink)\b/.test(q) && /floor|damage|found|cycle|adjust|stock/.test(blob)) score += 5
+  if (/\b(loft|worldsyntech|ofs|3pl|asn|inbound|pre.?alert|loft-sg)\b/.test(q) && /loft|worldsyntech|inbound|3pl|ofs|asn/.test(blob)) score += 6
+  if (/\b(ledger|stock truth|who owns|points|crm)\b/.test(q) && /inventory|pos|crm|ledger|truth|operator/.test(blob)) score += 4
+  if (/\b(operator|runbook|how do we|operate)\b/.test(q) && /operator|runbook|store-ops|getting-started/.test(blob)) score += 5
+
   return score
 }
 
@@ -149,13 +158,18 @@ export async function resolveHelp(db, query, opts = {}) {
     result.message =
       'No strong help match. Browse /help or pick a suggestion. Do not invent app paths.'
   } else {
-    // Include body excerpt for top match so the model can summarize accurately
-    const top = (data || []).find((a) => a.slug === result.matches[0]?.slug)
-    if (top) {
-      result.matches[0].body_excerpt = String(top.body_md || '').slice(0, 2500)
-      result.matches[0].steps_preview = extractStepsPreview(top.body_md)
+    // Include body excerpts for top matches so the assistant can answer without a second hop
+    const bySlug = new Map((data || []).map((a) => [a.slug, a]))
+    for (let i = 0; i < Math.min(3, result.matches.length); i++) {
+      const full = bySlug.get(result.matches[i].slug)
+      if (!full) continue
+      result.matches[i].body_excerpt = String(full.body_md || '').slice(0, 4000)
+      result.matches[i].steps_preview = extractStepsPreview(full.body_md)
     }
   }
+
+  result.hint =
+    'Prefer summarizing body_excerpt / steps_preview. For the full article call get_help_article (assistant) or help_get (MCP) with the slug. Always link /help/{slug}.'
 
   return result
 }
@@ -191,4 +205,43 @@ export async function getHelpArticleBySlug(db, slug) {
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data
+}
+
+/**
+ * Full article payload for assistant / MCP (body included for accurate how-to answers).
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {string} slug
+ * @param {{ max_body_chars?: number }} [opts]
+ */
+export async function getHelpArticleForAgent(db, slug, opts = {}) {
+  const maxBody = Math.min(Math.max(Number(opts.max_body_chars) || 12000, 500), 20000)
+  const raw = String(slug || '').trim().replace(/^\/?help\//, '')
+  if (!raw) {
+    return { found: false, message: 'slug is required', help_index_path: '/help' }
+  }
+  const article = await getHelpArticleBySlug(db, raw)
+  if (!article) {
+    return {
+      found: false,
+      slug: raw,
+      message: `No published help article for slug "${raw}". Use resolve_help or list_help_articles.`,
+      help_index_path: '/help',
+    }
+  }
+  const body = String(article.body_md || '')
+  return {
+    found: true,
+    slug: article.slug,
+    title: article.title,
+    summary: article.summary || null,
+    category: article.category,
+    primary_path: article.primary_path || null,
+    related_paths: article.related_paths || [],
+    intent_tags: article.intent_tags || [],
+    help_path: `/help/${article.slug}`,
+    steps_preview: extractStepsPreview(body),
+    body_md: body.length > maxBody ? `${body.slice(0, maxBody)}\n\n…(truncated)` : body,
+    body_truncated: body.length > maxBody,
+    updated_at: article.updated_at || null,
+  }
 }

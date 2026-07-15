@@ -2,6 +2,7 @@ const POS_INVENTORY_EVENT_TYPES = [
   'inventory.damage.reported',
   'inventory.found_stock.reported',
   'inventory.transfer_receive.reported',
+  'inventory.cycle_count.reported',
 ] as const
 
 type PosInventoryEventType = (typeof POS_INVENTORY_EVENT_TYPES)[number]
@@ -96,7 +97,11 @@ export default defineEventHandler(async (event) => {
   let errorMessage: string | null = null
 
   try {
-    if (eventType === 'inventory.damage.reported' || eventType === 'inventory.found_stock.reported') {
+    if (
+      eventType === 'inventory.damage.reported'
+      || eventType === 'inventory.found_stock.reported'
+      || eventType === 'inventory.cycle_count.reported'
+    ) {
       status = 'pending_approval'
 
       if (!productId || !inventoryLocationId || quantity <= 0) {
@@ -113,11 +118,26 @@ export default defineEventHandler(async (event) => {
         if (levelError) throw levelError
 
         const systemQty = Number(level?.on_hand || 0)
-        const countedQty = eventType === 'inventory.found_stock.reported'
-          ? systemQty + quantity
-          : Math.max(0, systemQty - quantity)
-        const adjustmentType = eventType === 'inventory.found_stock.reported' ? 'found' : 'damage'
-        const adjustmentNumber = newAdjustmentNumber(adjustmentType === 'found' ? 'POS-FOUND' : 'POS-DMG')
+        let countedQty: number
+        let adjustmentType: 'damage' | 'found' | 'stocktake'
+        let numberPrefix: string
+
+        if (eventType === 'inventory.cycle_count.reported') {
+          // quantity = physical counted on-hand (absolute), not a delta
+          countedQty = quantity
+          adjustmentType = 'stocktake'
+          numberPrefix = 'POS-COUNT'
+        } else if (eventType === 'inventory.found_stock.reported') {
+          countedQty = systemQty + quantity
+          adjustmentType = 'found'
+          numberPrefix = 'POS-FOUND'
+        } else {
+          countedQty = Math.max(0, systemQty - quantity)
+          adjustmentType = 'damage'
+          numberPrefix = 'POS-DMG'
+        }
+
+        const adjustmentNumber = newAdjustmentNumber(numberPrefix)
 
         const { data: adjustment, error: adjustmentError } = await client
           .from('inventory_adjustments')
@@ -148,7 +168,13 @@ export default defineEventHandler(async (event) => {
         if (lineError) throw lineError
 
         adjustmentId = adjustment.id
-        result = { adjustment }
+        result = {
+          adjustment,
+          variance: countedQty - systemQty,
+          system_qty: systemQty,
+          counted_qty: countedQty,
+          ledger_pending: true,
+        }
       }
     }
 
@@ -333,6 +359,36 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: attentionError.message })
     }
     attentionItem = insertedAttention || null
+  }
+
+  // Provenance: intake is logged even before ledger apply (Phase E logging plan)
+  try {
+    const { recordApiAudit } = await import('../../../utils/audit')
+    await recordApiAudit(client, {
+      workspace_id: ctx.workspaceId,
+      entity_type: 'pos_inventory_event',
+      entity_id: saved.id,
+      event_type: `pos.${eventType}`,
+      operation: 'INSERT',
+      api_key_id: ctx.keyId || null,
+      before_data: null,
+      after_data: {
+        status,
+        event_type: eventType,
+        adjustment_id: adjustmentId,
+        sku: sku || null,
+        quantity: quantity || null,
+      },
+      metadata: {
+        ledger_pending: status === 'pending_approval',
+        inventory_location_id: inventoryLocationId,
+      },
+      idempotency_key: idempotencyKey
+        ? `pos_inventory_event:${idempotencyKey}:audit`
+        : `pos_inventory_event:${saved.id}:audit`,
+    })
+  } catch {
+    // non-blocking audit
   }
 
   setResponseStatus(event, status === 'applied' ? 201 : 202)

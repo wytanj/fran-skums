@@ -12,7 +12,7 @@ import {
   requireWorkspaceId,
 } from './context.mjs'
 import { auditMcpMutation } from '../../core/audit/record.mjs'
-import { listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
+import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 import * as bi from './lib/bi.mjs'
 import * as catalog from './lib/catalog.mjs'
 import * as pipeline from './lib/pipeline.mjs'
@@ -249,19 +249,31 @@ export const toolDefinitions = [
   {
     name: 'help_resolve',
     description:
-      'Resolve "where do I…" / how-to questions to Fran Help Center articles with deterministic paths (/help/{slug}). Never invent routes. intel:read / safe / cloud.',
+      'Resolve "where do I…" / how-to / store-ops / Loft questions to Help Center articles with body_excerpt and /help/{slug}. Never invent routes. intel:read / safe / cloud.',
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'User question e.g. where do I edit products' },
+        query: { type: 'string', description: 'User question e.g. how do I approve replenishment or receive delivery' },
         limit: { type: 'number' },
       },
       required: ['query'],
     },
   },
   {
+    name: 'help_get',
+    description:
+      'Load full Help article by slug (body_md). Use after help_resolve for complete operator steps (store-ops, floor adjustments, Loft, operator-runbook). intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        slug: { type: 'string', description: 'e.g. store-ops-replenishment, operator-runbook' },
+      },
+      required: ['slug'],
+    },
+  },
+  {
     name: 'help_list',
-    description: 'List published Help Center articles (titles, summaries, paths). intel:read / safe / cloud.',
+    description: 'List published Help Center articles (titles, summaries, paths). Filter category e.g. operations. intel:read / safe / cloud.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -840,6 +852,13 @@ export async function handleTool(name, args = {}) {
         requireScope('intel:read')
         const result = await resolveHelp(getDb(), String(a.query || ''), {
           limit: a.limit,
+        })
+        return jsonResult(result)
+      }
+      case 'help_get': {
+        requireScope('intel:read')
+        const result = await getHelpArticleForAgent(getDb(), String(a.slug || ''), {
+          max_body_chars: 12000,
         })
         return jsonResult(result)
       }

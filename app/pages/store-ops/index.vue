@@ -19,6 +19,7 @@ import type {
 const client = useSupabaseClient()
 const { currentWorkspace } = useWorkspace()
 const { locations, loadLocations } = useInventory()
+const { setContext, clearContext } = useAssistant()
 
 const {
   requests,
@@ -41,14 +42,77 @@ const {
   exceptionStatusBadge,
 } = useStoreOperations()
 
-const activeTab = ref<'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions'>('queue')
+const activeTab = ref<'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions' | 'floor'>('queue')
 const tabs = [
   { key: 'queue', label: 'Queue' },
   { key: 'orders', label: 'Orders' },
   { key: 'inbound', label: 'Inbound ASN' },
   { key: 'receiving', label: 'Receiving' },
   { key: 'exceptions', label: 'Exceptions' },
+  { key: 'floor', label: 'Floor adjustments' },
 ] as const
+
+const pendingAdjustments = ref<any[]>([])
+const floorLoading = ref(false)
+const floorActing = ref<string | null>(null)
+
+async function loadFloorAdjustments() {
+  if (!currentWorkspace.value?.id) return
+  floorLoading.value = true
+  try {
+    const res = await $fetch<{ data: any[] }>('/api/store-ops/adjustments', {
+      query: { workspace_id: currentWorkspace.value.id, status: 'pending,approved', limit: 50 },
+    })
+    pendingAdjustments.value = res.data || []
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Failed to load floor adjustments')
+  } finally {
+    floorLoading.value = false
+  }
+}
+
+async function applyAdjustment(adj: any) {
+  if (!currentWorkspace.value?.id) return
+  floorActing.value = adj.id
+  try {
+    await $fetch(`/api/store-ops/adjustments/${adj.id}/apply`, {
+      method: 'POST',
+      body: { workspace_id: currentWorkspace.value.id },
+    })
+    showOk(`Applied ${adj.adjustment_number} → inventory ledger`)
+    await loadFloorAdjustments()
+    await loadStoreOperations()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Apply failed')
+  } finally {
+    floorActing.value = null
+  }
+}
+
+async function rejectAdjustment(adj: any) {
+  if (!currentWorkspace.value?.id) return
+  floorActing.value = adj.id
+  try {
+    await $fetch(`/api/store-ops/adjustments/${adj.id}/reject`, {
+      method: 'POST',
+      body: { workspace_id: currentWorkspace.value.id, note: 'Rejected from Store Ops floor queue' },
+    })
+    showOk(`Rejected ${adj.adjustment_number}`)
+    await loadFloorAdjustments()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Reject failed')
+  } finally {
+    floorActing.value = null
+  }
+}
+
+function adjustmentVariance(adj: any) {
+  const lines = Array.isArray(adj.lines) ? adj.lines : []
+  return lines.reduce((sum: number, line: any) => {
+    const sys = line.system_qty == null ? 0 : Number(line.system_qty)
+    return sum + (Number(line.counted_qty || 0) - sys)
+  }, 0)
+}
 
 const inboundShipments = ref<any[]>([])
 const inboundLoading = ref(false)
@@ -188,7 +252,19 @@ async function refreshAll() {
     loadPosLocations(),
     loadStoreOperations(),
     loadInbound(),
+    loadFloorAdjustments(),
   ])
+  setContext(
+    'store_ops',
+    currentWorkspace.value?.id || 'store-ops',
+    {
+      openRequests: queueRequests.value.length,
+      activeOrders: activeOrders.value.length,
+      openExceptions: openExceptions.value.length,
+      pendingAdjustments: pendingAdjustments.value.length,
+    },
+    'Store Ops',
+  )
 }
 
 const sourceLocations = computed(() =>
@@ -296,7 +372,11 @@ const stats = computed(() => [
     value: orders.value.filter(order => ['shipped', 'partially_received'].includes(order.status)).length,
     sub: 'Needs store confirmation',
   },
-  { label: 'Open exceptions', value: openExceptions.value.length, sub: 'Needs SKUMS review' },
+  {
+    label: 'Floor adjustments',
+    value: pendingAdjustments.value.length,
+    sub: 'Damage / found / count → ledger',
+  },
 ])
 
 function formatDate(value: string | null | undefined) {
@@ -603,6 +683,7 @@ async function setExceptionStatus(exception: InventoryException, status: Invento
 }
 
 onMounted(refreshAll)
+onUnmounted(() => clearContext())
 
 watch(() => currentWorkspace.value?.id, refreshAll)
 </script>
@@ -1221,6 +1302,84 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 @click="verifyException(exception, 'reject')"
               >
                 Reject claim
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-show="activeTab === 'floor'" class="space-y-5">
+      <div class="card p-5">
+        <h2 class="text-base font-semibold text-white">Floor adjustments → inventory ledger</h2>
+        <p class="mt-1 text-sm text-gray-400">
+          POS damage, found stock, and cycle counts land here as pending adjustments.
+          Apply writes <span class="font-mono text-gray-300">inventory_ledger</span> (quantity truth);
+          reject leaves stock unchanged. Requires <span class="font-mono text-gray-300">inventory:write</span>.
+        </p>
+      </div>
+
+      <div class="card overflow-hidden">
+        <div class="flex items-center justify-between border-b border-gray-800 px-5 py-4">
+          <h2 class="text-base font-semibold text-white">Pending queue</h2>
+          <button class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="floorLoading" @click="loadFloorAdjustments">
+            Refresh
+          </button>
+        </div>
+        <div v-if="floorLoading" class="px-5 py-10 text-center text-sm text-gray-500">
+          Loading adjustments…
+        </div>
+        <div v-else-if="pendingAdjustments.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+          No pending floor adjustments.
+        </div>
+        <div v-else class="divide-y divide-gray-800">
+          <div
+            v-for="adj in pendingAdjustments"
+            :key="adj.id"
+            class="grid gap-4 px-5 py-4 xl:grid-cols-[1.4fr_1fr_1fr_auto] xl:items-center"
+          >
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-medium text-white">{{ adj.adjustment_number }}</p>
+                <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300">
+                  {{ adj.adjustment_type }}
+                </span>
+                <span class="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
+                  {{ adj.status }}
+                </span>
+              </div>
+              <p class="mt-1 text-sm text-gray-400">
+                {{ adj.location?.name || adj.location_id }}
+                <span v-if="adj.location?.code" class="font-mono text-gray-500">({{ adj.location.code }})</span>
+              </p>
+              <p v-if="adj.notes" class="mt-1 text-xs text-gray-500">{{ adj.notes }}</p>
+            </div>
+            <div class="text-sm space-y-1">
+              <div v-for="line in (adj.lines || [])" :key="line.id" class="text-gray-300">
+                <span class="font-mono">{{ line.product?.sku || line.product_id?.slice?.(0, 8) }}</span>
+                <span class="text-gray-500"> · sys {{ line.system_qty ?? '—' }} → count {{ line.counted_qty }}</span>
+              </div>
+            </div>
+            <div class="text-sm">
+              <p :class="adjustmentVariance(adj) < 0 ? 'text-red-300' : adjustmentVariance(adj) > 0 ? 'text-emerald-300' : 'text-gray-300'">
+                Variance {{ adjustmentVariance(adj) > 0 ? '+' : '' }}{{ adjustmentVariance(adj) }}
+              </p>
+              <p class="text-xs text-gray-500">Ledger on apply only</p>
+            </div>
+            <div class="flex flex-wrap gap-2 xl:justify-end">
+              <button
+                class="btn-primary !px-3 !py-1.5 text-xs"
+                :disabled="floorActing === adj.id"
+                @click="applyAdjustment(adj)"
+              >
+                Apply to ledger
+              </button>
+              <button
+                class="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+                :disabled="floorActing === adj.id"
+                @click="rejectAdjustment(adj)"
+              >
+                Reject
               </button>
             </div>
           </div>

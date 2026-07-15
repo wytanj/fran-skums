@@ -1,11 +1,12 @@
 # TODO — Loft Logistics / WorldSyntech OFS (phased PR plan)
 
-**Status:** Phases **P–D implemented and pushed** (2026-07-14); E–H remaining  
-**Date:** 2026-07-14  
+**Status:** Phases **P–E** + operator docs + assistant Help shipped (2026-07-15); **Phase F in progress**; Phase 0 live OFS IDs still pending Loft  
+**Date:** 2026-07-15  
 **Assumption:** Loft is the production 3PL.  
 **Permission foundation:** `docs/ORG_PERMISSION_SCOPES.md` (2026-07-13 design — Phase P catalog freeze).  
-**Commits (skums):** `38d4383` P/A/B/C core · `a861eec` C.4 · `17d8665` Phase D · (todos update follows)  
-**Commits (pos):** `4148095` bind + request/receive · `e7d811f` fran receive route  
+**Summary:** `docs/Commit Summary 15072026.md` · Operator: `docs/SKUMS_OPERATOR_RUNBOOK.md`  
+**Commits (skums):** `38d4383` P/A/B/C · `a861eec` C.4 · `17d8665` D · (15072026 E + docs + Help AI)  
+**Commits (pos):** `4148095` bind + request/receive · `e7d811f` fran receive · (15072026 cycle count + free-form receive gate)  
 **Boundary (locked):**
 
 ```text
@@ -331,28 +332,29 @@ Align with org scopes §6.
 
 **Goal:** stop guessing OFS enums before coding orchestration.  
 **Code:** none required (docs only).  
-**Scopes:** n/a
+**Scopes:** n/a  
+**Note:** P–D code already shipped against **provisional** status heuristics. Phase 0 remains the gate for **live Loft pilot** (real URLs + delivery_method_ids + official enums).
 
 ### PR-0.1 — Loft ops dictionary `[ops]` `[skums-docs]`
 
-- [ ] Create `docs/LOFT_OPS_DICTIONARY.md` with:
-  - [ ] Production + sandbox base URLs
-  - [ ] Auth model (Basic token ownership, user/password rotation)
-  - [ ] Rate limits / concurrency guidance (or “unknown — use conservative poll”)
-  - [ ] `delivery_method_id` map: `delivery` vs `self_collect`
-  - [ ] Shipping address rules for self-collect orders
-  - [ ] Order status enum → SKUMS status map
-  - [ ] Inbound (`ship_to_warehouse`) status enum + partial/spoil fields
-  - [ ] SKU-only vs required `product_id`
-  - [ ] ASN field parity vs SOW (UPC, expiry, carton/pallet counts)
-  - [ ] Confirm FEFO at Loft + LISE short-date rule (e.g. 9 months)
-  - [ ] M&P tracking: what goes in ASN metadata
-- [ ] Structured email to Loft (and WorldSyntech if needed)
-- [ ] Update `docs/LOFT_SOW_KIV.md` “Locked-in” once answers land
+- [x] Create `docs/LOFT_OPS_DICTIONARY.md` with:
+  - [ ] Production + sandbox base URLs _(structure + demo URL; LISE sandbox/prod **TBD Loft**)_
+  - [x] Auth model (Basic token ownership, user/password rotation)
+  - [x] Rate limits / concurrency guidance (or “unknown — use conservative poll”)
+  - [ ] `delivery_method_id` map: `delivery` vs `self_collect` _(slots + credential defaults; IDs **TBD Loft**)_
+  - [ ] Shipping address rules for self-collect orders _(SOW Krislite door unit noted; OFS field rule **TBD**)_
+  - [x] Order status enum → SKUMS status map _(provisional heuristics aligned to `poll-orders`; official table **TBD**)_
+  - [x] Inbound (`ship_to_warehouse`) status enum + partial/spoil fields _(provisional + identity fields; official ids **TBD**)_
+  - [x] SKU-only vs required `product_id` _(target: require mapped product_id; confirm with Loft)_
+  - [x] ASN field parity vs SOW (UPC, expiry, carton/pallet counts)
+  - [x] Confirm FEFO at Loft + LISE short-date rule (e.g. 9 months) _(SOW + SKUMS 9‑mo gate; reconfirm WMS with Loft)_
+  - [x] M&P tracking: what goes in ASN metadata
+- [x] Structured email to Loft (and WorldSyntech if needed) — draft in dictionary; **send pending human**
+- [x] Update `docs/LOFT_SOW_KIV.md` “Locked-in” with product locks _(full OFS ID tables still after Loft reply)_
 
 **Depends on:** nothing  
-**Unblocks:** Phases A–D  
-**Parallel with:** Phase P
+**Unblocks:** live pilot + replacing poll heuristics; originally unblocked A–D (now shipped on placeholders)  
+**Parallel with:** Phase P / E–F
 
 ---
 
@@ -746,8 +748,10 @@ Workspace flag may force hold-all-until-verify later.
 
 **Work:**
 
-- [ ] Pending adjustments → approve/reject → ledger
-- [ ] Align UX with exception verification (C.2)
+- [x] Pending adjustments → approve/reject → ledger (`058` + Store Ops **Floor adjustments** tab)
+- [x] Align UX with exception verification (C.2)
+- [x] `recordAudit` on apply/reject; intake audit on POS inventory-events
+- [x] Fix store receive ledger types → `transfer_received` (logging hygiene)
 
 ---
 
@@ -757,8 +761,8 @@ Workspace flag may force hold-all-until-verify later.
 
 **Work:**
 
-- [ ] POS counts vs SKUMS expected; submit variance only
-- [ ] SKUMS approve before ledger write
+- [x] POS counts vs SKUMS expected; submit variance only (`inventory.cycle_count.reported` → stocktake adjustment)
+- [x] SKUMS approve before ledger write (same apply path as E.1)
 
 ---
 
@@ -766,8 +770,8 @@ Workspace flag may force hold-all-until-verify later.
 
 **Work:**
 
-- [ ] Loft deliveries only via Phase C
-- [ ] Stop treating local `inventory_count` as authority
+- [x] Loft deliveries only via Phase C (Receive delivery)
+- [x] Stop treating local `inventory_count` as authority (live free-form receive disabled; display cache copy)
 
 ---
 
@@ -1014,19 +1018,21 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | Phase | Status | Evidence |
 |-------|--------|----------|
 | **P** Permissions | ✅ | `055`, `scopes.ts`, `scopeAuth.ts`, schemas store_associate/inventory_ops |
-| **0** Dictionary | ✅ skeleton | `docs/LOFT_OPS_DICTIONARY.md` (OFS IDs still TBD from Loft) |
+| **0** Dictionary | ✅ expanded draft | `docs/LOFT_OPS_DICTIONARY.md` + Loft email; live URLs/IDs still TBD |
 | **A** Topology / catalog | ✅ | LOFT-SG seed, pull-products, catalog `pos_location_code` |
 | **B** Waves / decide / send | ✅ | `056`, storeReplenishment, decide/send/poll, MCP tools, POS request-stock |
 | **C** Receive / exceptions | ✅ core + C.4 | expected-deliveries, receive, verify, ready-for-collect, POS receive |
 | **D** Inbound ASN | ✅ | `057`, inbound APIs, poll-inbound, confirm→LOFT-SG, store-ops Inbound tab |
-| **E–H** | ⏳ pending | Floor hygiene, calendars polish, connector polish, ecommerce |
+| **E** Floor hygiene | ✅ core | `058` apply/reject, floor UI, cycle count, POS receive gate; logging + operator docs + Help AI |
+| **F** Calendars / waves | 🔄 in progress | F.1 delivery windows + cutoffs; F.2 multi-store allocation; F.3 POS next-wave |
+| **G–H** | ⏳ pending | Connector polish, ecommerce |
 
 ### Still open (do not treat as done)
 
-- [ ] Live Loft credential + delivery_method_id dictionary fill-in (Phase 0 email)
+- [ ] **Send** Phase 0 email (`docs/LOFT_OPS_DICTIONARY.md`); paste Loft answers; set live credential + delivery_method_ids
 - [ ] Full `requireScope` on every legacy integration route (P.3 completeness)
 - [ ] Empty API key scopes → deny/package (breaking change when ready)
-- [ ] Phase E adjustments/counts; Phase F wave cutoffs polish
+- [ ] Phase F wave cutoffs + allocation polish (in progress)
 - [ ] Phase N email on top of `store_ops_notifications`
 - [ ] POS never owns ASN (D.3 remains non-goal)
 
@@ -1045,6 +1051,11 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | 2026-07-14 | **Committed** skums `38d4383` + pos `4148095` (no deploy). **C.4:** ready-for-collect queue, pickup_ready_at on poll, fran receive alias, inbox mark-read |
 | 2026-07-14 | **Pushed** skums + pos to origin (deploy). **Phase D:** migration 057 ASN; create/send/poll/confirm+promote LOFT-SG; store-ops Inbound ASN tab |
 | 2026-07-14 | **Todos updated** (`TODO.md` + this file): P–D marked shipped; next E/F or Phase N; push deploy for todo commit |
+| 2026-07-15 | **Phase 0 expand:** full ops dictionary (auth, rate guidance, provisional status maps, ASN/SOW parity, FEFO/M&P, structured Loft email); SOW KIV product locks + checklist refresh |
+| 2026-07-15 | **Phase E + logging:** `docs/INVENTORY_AND_PURCHASE_LOGGING.md`; migration `058` apply/reject adjustments; Store Ops floor tab; cycle count; POS free-form receive gated; receive ledger types fixed |
+| 2026-07-15 | **Operator docs:** `docs/SKUMS_OPERATOR_RUNBOOK.md`; Help `059` (store-ops, replenishment, receive, floor, inbound, Loft, POS vs CRM); README + related doc links |
+| 2026-07-15 | **Assistant Help:** resolve_help excerpts + store-ops scoring; `get_help_article` / MCP `help_get`; migration `060` operator-runbook; Store Ops page context |
+| 2026-07-15 | **Commit + deploy** `docs/Commit Summary 15072026.md`; Phase F started |
 
 ---
 
@@ -1071,7 +1082,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 ## Final ship rule (definition of done for “Loft live”)
 
 1. ~~Phase **P.0 + P.1** merged and new keys least-privileged.~~ ✅ code shipped (enforce empty-key package still open)  
-2. Phase **0** dictionary filled enough to map delivery methods + order statuses — ⏳ skeleton only until Loft answers  
+2. Phase **0** dictionary filled enough to map delivery methods + order statuses — ✅ draft + provisional maps; ⏳ official IDs until Loft answers  
 3. ~~Path **A → B → C** live for at least one store.~~ ✅ APIs + UI; live Loft credential pilot remaining  
 4. ~~Store request → **HQ notification** works; Mon/Thu wave is the default path; MCP can inform baseline/lift.~~ ✅  
 5. ~~POS can report bad/missing receipt; SKUMS can verify with audit.~~ ✅  
@@ -1079,4 +1090,4 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 7. ~~No production path where MCP auto-approves or auto-sends to Loft.~~ ✅  
 8. ~~Inbound ASN → LISE confirm → LOFT-SG promote (Phase D).~~ ✅ code + migration 057  
 
-**Production pilot checklist:** Loft prod URL + delivery_method_ids · Vercel green · 055–057 on prod DB · one store dry-run.
+**Production pilot checklist:** Loft prod URL + delivery_method_ids · Vercel green · **055–060** on prod DB · Floor apply smoke · one store dry-run.

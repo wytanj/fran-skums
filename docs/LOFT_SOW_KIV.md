@@ -5,11 +5,13 @@
 **SOW date:** 24 June 2026 (header still Version 1.0; treat as working draft)  
 **Related product docs:**
 
+- `docs/LOFT_OPS_DICTIONARY.md` — **Phase 0** env/auth/status/delivery-method dictionary + Loft email draft
 - `docs/WORLDSYNTECH_3PL_INTEGRATION_PLAN.md`
 - `docs/POS_SKUMS_3PL_STORE_OPS_HANDOFF.md`
+- `TODO-LOFT.md` — phased PR plan (P–D code shipped; Phase 0 live IDs open)
 - `fulfillment/worldsyntech-ofs/README.md`
 
-**Last reviewed:** 2026-07-10
+**Last reviewed:** 2026-07-15
 
 ---
 
@@ -68,6 +70,25 @@ Korea / Hong Kong suppliers → Loft Logistics warehouse (OFS) → LISE physical
 
 ## Locked-in operational facts (once SOW agrees)
 
+> **Product locks (2026-07-15):** independent of commercial SOW final PDF.  
+> Live OFS **IDs/URLs** remain open in `docs/LOFT_OPS_DICTIONARY.md` until Loft replies to the Phase 0 email.
+
+### Product / architecture (locked for implementation)
+
+| Fact | Decision |
+|------|----------|
+| Connector boundary | Loft/OFS = fulfillment 3PL app (`worldsyntech-ofs`), not marketplace channel |
+| Call path | POS → SKUMS only; never POS → Loft credentials |
+| Store request | Signal to HQ (`store_ops:approve`); not auto OFS order |
+| Baseline cadence | **Monday + Thursday** replenishment waves (workspace-configurable later) |
+| Approve vs send | `store_ops:approve` ≠ `store_ops:execute_3pl` |
+| Store sellable stock | Increases only on receive apply / verified path — not on send-to-Loft |
+| Inbound promote | `LOFT-SG` only after LISE confirm; never write store on_hand from ASN |
+| FEFO pick | Loft WMS; SKUMS does not choose pick batch |
+| Short-date gate | SKUMS default **9 months** remaining shelf life before send; override needs `inventory:override_expiry` + reason |
+| In-transit post (D2 default) | On OFS shipped **or** ready_for_collect |
+| Status maps until Loft answers | Provisional string heuristics in poll code — see ops dictionary |
+
 ### Inbound / receiving
 
 - Pre-alert **≥ 48 hours** before arrival via Loft inbound template.
@@ -81,6 +102,7 @@ Korea / Hong Kong suppliers → Loft Logistics warehouse (OFS) → LISE physical
 - Receiving window: Mon–Sat 08:30–18:00.
 - Delivery to door unit **04-1A, 4th floor, Krislite Building**; unloading/loading at bay not Loft’s responsibility unless agreed.
 - Pallets disposed end of month (misc. charges if applicable).
+- Multi-leg visibility in SKUMS: offshore forwarder + local **M&P** + palletization on ASN metadata; OFS gets tracking Loft expects (confirm which leg).
 
 ### Receiving SLAs (as drafted — push for tiers if still open)
 
@@ -219,13 +241,13 @@ Use when closing SOW; then update this doc’s “Locked-in” section.
 ## Engineering resume checklist (when SOW is done)
 
 1. Diff final SOW PDF/DOCX against this KIV note; update “Locked-in” facts.
-2. Confirm production OFS base URL, auth, order/inbound status enums (Phase 0 in WorldSyntech plan).
-3. Map SOW template fields → `create-inbound-shipment` + product master requirements.
-4. Map store replenishment + transfer/ITR ref → `create-store-replenishment` payload.
-5. Implement near-expiry policy hook before outbound submit.
-6. Wire store receive / discrepancy events for scenario 1 (if selected).
+2. **Phase 0:** send structured email in `docs/LOFT_OPS_DICTIONARY.md`; paste Loft answers (URLs, delivery_method_ids, status enums); replace poll heuristics with explicit maps.
+3. Map SOW template fields → inbound create + product master (UPC/expiry once API confirms).
+4. Map store replenishment + transfer/ITR ref → order create payload (done for core fields; complete label fields if SOW requires).
+5. ~~Near-expiry policy hook before outbound submit~~ ✅ default 9 months + override scope.
+6. ~~Store receive / discrepancy for scenario 1~~ ✅ Phase C receive + `store_ops:verify` exceptions.
 7. Add attention-item types for SOW exception classes still missing.
-8. Do **not** expand to marketplace ecom fulfillment unless SOW + product roadmap both say so.
+8. Do **not** expand to marketplace ecom fulfillment unless SOW + product roadmap both say so (Phase H deferred).
 
 ---
 
@@ -244,3 +266,4 @@ Use when closing SOW; then update this doc’s “Locked-in” section.
 | Date | Note |
 |------|------|
 | 2026-07-10 | Initial KIV from draft SOW with Lise comments + Daryl (Loft) replies; aligned to WorldSyntech OFS + POS store-ops handoff. |
+| 2026-07-15 | Phase 0: product locks table; link `LOFT_OPS_DICTIONARY.md` + Loft email; engineering checklist reflects P–D shipped / live OFS IDs open. |

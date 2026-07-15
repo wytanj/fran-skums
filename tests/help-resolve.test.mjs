@@ -61,6 +61,30 @@ const seedArticles = [
     intent_tags: ['inventory', 'stock', 'ats'],
     sort_order: 50,
   },
+  {
+    id: '5',
+    slug: 'store-ops-replenishment',
+    title: 'Approve store replenishment',
+    summary: 'HQ approve or defer to Mon/Thu wave',
+    body_md: '1. Open Store Ops Queue\n2. Approve or defer\n3. Send to Loft separately',
+    category: 'operations',
+    primary_path: '/store-ops',
+    related_paths: [],
+    intent_tags: ['approve', 'replenishment', 'request', 'wave', 'lift', 'defer', 'monday', 'thursday'],
+    sort_order: 71,
+  },
+  {
+    id: '6',
+    slug: 'operator-runbook',
+    title: 'Operator runbook',
+    summary: 'How to operate SKUMS day to day',
+    body_md: '1. Use Store Ops for waves and receive\n2. Floor apply for damage',
+    category: 'operations',
+    primary_path: '/store-ops',
+    related_paths: [],
+    intent_tags: ['operator', 'runbook', 'operate', 'store ops', 'loft', 'floor'],
+    sort_order: 12,
+  },
 ]
 
 describe('help resolve matcher', () => {
@@ -90,6 +114,17 @@ describe('help resolve matcher', () => {
     assert.equal(r.matches[0].slug, 'actions-inbox')
   })
 
+  test('store replenishment ranks store-ops-replenishment', () => {
+    const r = rankHelpArticles(seedArticles, 'how do I approve a store replenishment request')
+    assert.ok(r.matches.length >= 1)
+    assert.equal(r.matches[0].slug, 'store-ops-replenishment')
+  })
+
+  test('operator runbook ranks for operate query', () => {
+    const r = rankHelpArticles(seedArticles, 'how do we operate store ops loft waves')
+    assert.ok(r.matches.some((m) => m.slug === 'operator-runbook' || m.slug === 'store-ops-replenishment'))
+  })
+
   test('weak query needs clarification', () => {
     const r = rankHelpArticles(seedArticles, 'zzz qq xx', { min_score: 2 })
     assert.equal(r.needs_clarification, true)
@@ -104,11 +139,13 @@ describe('help wiring', () => {
     assert.match(migration, /on conflict \(slug\) do update/)
   })
 
-  test('assistant exposes resolve_help', () => {
+  test('assistant exposes resolve_help and get_help_article', () => {
     assert.match(tools, /name: 'resolve_help'/)
+    assert.match(tools, /name: 'get_help_article'/)
     assert.match(tools, /list_help_articles/)
-    assert.match(tools, /resolveHelp/)
-    assert.match(prompt, /always call resolve_help/)
+    assert.match(tools, /resolveHelp|getHelpArticleForAgent/)
+    assert.match(prompt, /always call resolve_help/i)
+    assert.match(prompt, /get_help_article/)
     assert.match(prompt, /Never invent routes/)
   })
 

@@ -18,7 +18,7 @@ Does **not** scrape Shopee on every tool call — it reads/writes the Supabase w
 | **MCP local (stdio)** | Cursor / Claude Desktop / `npm run mcp` | Engineers: study, draft POs, pipeline, BI |
 | **MCP remote (cloud)** | `POST https://<host>/mcp` + API key | **Non-technical staff** via Claude custom integration (Phase R1) |
 | **Actions UI** | `/actions` | Human submit/approve of MCP drafts |
-| **Help** | `/help` | How-to; tools `help_resolve` / `help_list` |
+| **Help** | `/help` | How-to / store ops; tools `help_resolve` / `help_get` / `help_list` |
 
 Both use the same workspace DB and `XAI_API_KEY`. Catalog tools share `core/catalog` — totals are exact counts, not guesses.
 

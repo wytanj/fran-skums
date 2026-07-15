@@ -6,4 +6,5 @@ export {
   resolveHelp,
   listHelpArticles,
   getHelpArticleBySlug,
+  getHelpArticleForAgent,
 } from './resolve.mjs'

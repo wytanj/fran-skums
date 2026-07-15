@@ -121,6 +121,7 @@ describe('http JSON-RPC protocol', () => {
     const names = listed.result.tools.map((t) => t.name)
     assert.ok(names.includes('catalog_stats'))
     assert.ok(names.includes('help_resolve'))
+    assert.ok(names.includes('help_get'))
     for (const p of privilegedToolNames()) {
       assert.ok(!names.includes(p), `cloud list must omit ${p}`)
     }

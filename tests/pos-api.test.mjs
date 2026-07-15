@@ -89,10 +89,11 @@ test('sales API writes sale, graph-aware items, and payments under workspace sco
   assert.match(posSaleIngest, /inventory_commit/)
 })
 
-test('inventory event API accepts POS damage, found stock, and transfer receipts', () => {
+test('inventory event API accepts POS damage, found stock, cycle count, and transfer receipts', () => {
   assert.match(inventoryEventsRoute, /requireApiKey\(event,\s*'pos:write'\)/)
   assert.match(inventoryEventsRoute, /inventory\.damage\.reported/)
   assert.match(inventoryEventsRoute, /inventory\.found_stock\.reported/)
+  assert.match(inventoryEventsRoute, /inventory\.cycle_count\.reported/)
   assert.match(inventoryEventsRoute, /inventory\.transfer_receive\.reported/)
   assert.match(inventoryEventsRoute, /\.from\('pos_inventory_events'\)/)
   assert.match(inventoryEventsRoute, /\.from\('inventory_adjustments'\)/)

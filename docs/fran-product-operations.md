@@ -2,6 +2,8 @@
 
 Fran product operations should use generic SKUMS catalogue, inventory, fulfillment, and store-ops primitives. Fran-only meaning belongs in Fran metadata, Fran route wrappers, and Fran docs.
 
+**How to operate day-to-day (HQ + POS):** see [`docs/SKUMS_OPERATOR_RUNBOOK.md`](./SKUMS_OPERATOR_RUNBOOK.md) and in-app Help (`/help` — store ops, receive, floor adjustments).
+
 ## Product Metadata
 
 Fran metadata is stored in `products.product_data` and normalized by `core/fran/productMetadata.ts`.

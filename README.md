@@ -10,6 +10,20 @@ This repo was initialized from the upstream SKUMS working tree and keeps the gen
 - `docs/fran-skums-contract.md`
 - `docs/fran-product-operations.md`
 
+## Operator documentation
+
+Day-to-day retail / Loft operations (HQ + POS handoff):
+
+| Doc | Audience |
+|-----|----------|
+| **[`docs/SKUMS_OPERATOR_RUNBOOK.md`](docs/SKUMS_OPERATOR_RUNBOOK.md)** | HQ inventory ops, store managers, admins — **start here to operate SKUMS** |
+| In-app **Help** (`/help`) | Click-path guides (store ops, receive, floor adjustments, Loft setup) |
+| [`docs/INVENTORY_AND_PURCHASE_LOGGING.md`](docs/INVENTORY_AND_PURCHASE_LOGGING.md) | Stock ledger + POS / SKUMS / CRM data ownership |
+| [`docs/LOFT_OPS_DICTIONARY.md`](docs/LOFT_OPS_DICTIONARY.md) | OFS status maps, delivery methods, Loft email checklist |
+| [`docs/ORG_PERMISSION_SCOPES.md`](docs/ORG_PERMISSION_SCOPES.md) | Permission scopes & role packages |
+
+After login: **Store Ops** (`/store-ops`) for replenishment waves, receive exceptions, floor ledger apply, and inbound ASN. **Inventory** is levels/warehouse POs; **Actions** is AI decision drafts (not Loft send).
+
 ## Local Setup
 
 ```sh

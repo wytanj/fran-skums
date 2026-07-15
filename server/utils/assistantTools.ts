@@ -4,7 +4,7 @@ import {
   catalogSearch,
   catalogStats,
 } from '../../core/catalog/index.mjs'
-import { listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
+import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 
 export interface ToolContext {
   client: SupabaseClient
@@ -19,13 +19,13 @@ export function buildToolDefinitions() {
       function: {
         name: 'resolve_help',
         description:
-          'REQUIRED for navigation/how-to questions (where do I…, how do I…, which page…). Returns matching Help Center articles from Supabase with deterministic paths (/help/{slug}, primary_path). Never invent app routes — always call this for help/nav intents. Point the user to help_path links.',
+          'REQUIRED for navigation/how-to/ops questions (where do I…, how do I…, store ops, receive, Loft, floor adjustments, replenishment). Returns ranked Help Center articles with body_excerpt so you can answer quickly. Paths: /help/{slug}, primary_path. Never invent app routes.',
         parameters: {
           type: 'object',
           properties: {
             query: {
               type: 'string',
-              description: 'User question, e.g. "where should I go to edit products"',
+              description: 'User question, e.g. "how do I approve a store replenishment request"',
             },
             limit: { type: 'number', description: 'Max articles (default 3, max 10)' },
           },
@@ -36,8 +36,26 @@ export function buildToolDefinitions() {
     {
       type: 'function',
       function: {
+        name: 'get_help_article',
+        description:
+          'Load the full Help Center article by slug (body_md included). Use after resolve_help when you need complete steps (store ops, Loft, floor ledger, inbound ASN, operator runbook). Prefer this over guessing.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: {
+              type: 'string',
+              description: 'Article slug e.g. store-ops-replenishment, operator-runbook, loft-worldsyntech',
+            },
+          },
+          required: ['slug'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'list_help_articles',
-        description: 'List published Help Center articles (titles, summaries, paths). Use when the user wants to browse help topics.',
+        description: 'List published Help Center articles (titles, summaries, paths). Use when the user wants to browse help topics or filter by category (e.g. operations).',
         parameters: {
           type: 'object',
           properties: {
@@ -215,6 +233,12 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
       case 'resolve_help': {
         return await resolveHelp(client, String(args.query || ''), {
           limit: args.limit,
+        })
+      }
+
+      case 'get_help_article': {
+        return await getHelpArticleForAgent(client, String(args.slug || ''), {
+          max_body_chars: 12000,
         })
       }
 

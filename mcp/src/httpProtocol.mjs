@@ -89,7 +89,7 @@ async function dispatchMethod(method, params, opts) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          'Fran SKUMS remote MCP (safe). Use catalog_* for product Q&A, help_resolve for navigation, draft PO tools only. Humans approve in Actions UI.',
+          'Fran SKUMS remote MCP (safe). Use catalog_* for product Q&A; help_resolve + help_get for store-ops/Loft how-to; draft PO tools only. Humans approve in Actions UI.',
       }
 
     case 'ping':
