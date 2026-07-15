@@ -36,6 +36,7 @@
 | **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
 | **H** | HQ schemas from POS reality | Inventory-manager schema + MCP packs (below) |
 | **I** | MCP actions next (POS-driven) | **Next eng:** M1–M3 packs (below) |
+| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — intent ≠ supplier ack ≠ Loft ASN (below) |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
@@ -115,9 +116,87 @@ POS already creates work in SKUMS. HQ Claude should close that loop faster.
 3. MCP M3 exception_verify (scoped store_ops:verify)
 4. P remaining: empty non-MCP keys ≠ full
 5. Loft Phase 0 ops IDs → then M4 send_to_loft tool
-6. Phase S — Workspace MFA policy + optional SKUMS step-up for dangerous actions
-7. Optional: A2.5 bind key to other user; audit explorer; N6 email
+6. Supplier order lifecycle (J) — statuses + supplier ack tally + gate ASN on ack
+7. Phase S — Workspace MFA policy + optional SKUMS step-up for dangerous actions
+8. Optional: A2.5 bind key to other user; audit explorer; N6 email
 ```
+
+---
+
+## Supplier order lifecycle (KR/HK) — planned
+
+**Reality (ops):** Orders to KR/HK suppliers are **not automatic**. Supplier may change qty/price/lines. After we confirm on our side, they usually send a **PDF or email** with the final amount — we **tally** that. Only when goods go out to the **forwarder** do we create **comms to Loft** via the inbound ASN API already built.
+
+### Principle (lock this)
+
+> **Loft is only notified after supplier reality is tallied (or an explicit “ship on our numbers” override) — not when an internal PO is drafted or even internally approved.**
+
+| Phrase | Meaning |
+|--------|---------|
+| Internal PO / buying plan | Decision-layer intent in Fran (`po_*`) |
+| Internal approve | We accept the *plan* (`po_decide`) — **not** a supplier order lock |
+| Supplier ack | PDF/email final amount + lines; **tally** vs our PO |
+| ASN → Loft | Forwarder→warehouse handoff (`inbound_*` / Store Ops) |
+
+**Not invoices/AR.** Supplier confirmation is an **ack / commercial confirmation**, not an AP invoice product.
+
+### Lifecycle (target statuses)
+
+```text
+draft                          MCP/UI: po_create_draft / clone
+  → pending_internal_approval  po_submit
+  → approved_intent            po_decide (owner key may do this in MCP)
+  → negotiating                (optional) supplier proposed changes; revise lines
+  → confirmed_internally       we lock what *we* think we ordered
+  → supplier_ack_received      PDF/email logged; amount + lines tallied
+       ↘ variance_flagged      ack ≠ our lines/amount → human resolve
+  → asn_created / loft_notified   inbound ASN API (goods → forwarder → Loft)
+  → loft_receiving / closed
+```
+
+Physical stock only becomes Loft ATS after Loft receive / LISE confirm (existing inbound path). Store replenishment remains a **later** Store Ops path (request → decide → execute_3pl).
+
+### What exists today vs gap
+
+| Step | Today | Gap |
+|------|--------|-----|
+| Draft / revise plan | `po_*` draft tools + Actions UI | — |
+| Internal submit / approve | MCP if `po:submit` / `po:decide` (owner ops key); else Actions UI | Copy: never say “ordered from supplier” |
+| Supplier may adjust | Manual edits on draft/pending | Explicit `negotiating` / revision history |
+| Fran confirms our side | Approximated by approve | `confirmed_internally` status |
+| Supplier PDF/email + tally | Manual / outside system | Ack attachment or note + **tally** (amount + line compare) |
+| Goods → forwarder → Loft | `inbound_create_draft` + Store Ops send/confirm | Gate: prefer **supplier_ack_received** (or override) before send-to-Loft |
+| Agent language | Partial in instructions | Encode full lifecycle in agent + Help |
+
+### MCP vs human (policy)
+
+| Step | MCP (owner `mcp:ops_safe`) | Human / UI v1 |
+|------|----------------------------|---------------|
+| Draft / revise plan | Yes | Optional |
+| Internal approve intent | Yes if scoped | Optional |
+| Log supplier PDF/email + tally | Later (upload / note tool) | **Required v1** |
+| Create ASN + notify Loft | Draft yes; full send mainly UI | **Required v1** until send tool solid |
+| Override “ship without ack” | No auto | Owner/admin explicit only |
+
+### Agent / copy rules (add when building)
+
+- Draft or approved internal PO ≠ “supplier order placed” ≠ “stock in transit.”
+- After internal approve: “Awaiting supplier confirmation (PDF/email); then tally; then ASN to Loft.”
+- After supplier ack tallied: OK to create inbound ASN / notify Loft.
+- Approve store request still ≠ send to Loft (`execute_3pl` separate).
+
+### Build slices (when scheduled)
+
+| Slice | Work |
+|-------|------|
+| **J1** | Status model + Help/agent copy (no new MCP if statuses only) |
+| **J2** | Supplier ack record (file URL / note, final amount, tallied_at, variance) |
+| **J3** | Gate inbound send-to-Loft on ack (or override flag + audit) |
+| **J4** | Optional MCP: log ack summary, variance digest, link PO ↔ ASN |
+
+**Depends on:** inbound ASN path (shipped) · internal PO tools (shipped) · Loft Phase 0 IDs for reliable send.
+
+---
 
 ### Phase S — login MFA via Google Workspace (planned ops; not in-app TOTP)
 
@@ -327,13 +406,15 @@ Next eng:
   R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
   0.x Loft email / dictionary IDs
   M1–M3 POS→HQ MCP packs (request status, floor queue, exception verify)
+  J   supplier KR/HK lifecycle (intent → supplier ack tally → ASN → Loft)
   P   empty-key legacy, install UI
   S   Workspace MFA policy (ops)
   F   audit explorer filters
 ```
 
-**Recommended next:** MCP **M1–M3** (POS→HQ loop) · inventory-manager schema · Loft Phase 0 ops · **Phase S Workspace MFA** (ops).  
-**Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.
+**Recommended next:** MCP **M1–M3** (POS→HQ) · inventory-manager schema · Loft Phase 0 · **J supplier lifecycle** when buying from KR/HK · Phase S Workspace MFA (ops).  
+**Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
+**Supplier rule:** internal PO approve ≠ supplier order ≠ Loft notify; Loft only after tallied supplier ack (or explicit override).
 
 ---
 
