@@ -101,9 +101,10 @@ export async function runRemoteMcpTool(
 export function remoteMcpCorsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers':
-      'authorization,content-type,x-api-key,x-mcp-client,x-client-name,mcp-session-id',
+      'authorization,content-type,x-api-key,x-mcp-client,x-client-name,mcp-session-id,mcp-protocol-version,last-event-id,accept',
+    'Access-Control-Expose-Headers': 'Mcp-Session-Id, X-Fran-Mcp-Workspace, X-Fran-Mcp-Profile',
     'Access-Control-Max-Age': '86400',
   }
 }

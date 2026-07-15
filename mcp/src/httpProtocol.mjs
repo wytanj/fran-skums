@@ -10,7 +10,13 @@ const SERVER_INFO = {
   version: '0.6.0-cloud',
 }
 
+/** Prefer widely supported version; clients may send 2025-03-26 / 2025-06-18 */
 const PROTOCOL_VERSION = '2024-11-05'
+const SUPPORTED_PROTOCOL_VERSIONS = new Set([
+  '2024-11-05',
+  '2025-03-26',
+  '2025-06-18',
+])
 
 /** Tools that require privileged scopes — never listed on cloud */
 const PRIVILEGED_TOOL_NAMES = new Set([
@@ -83,14 +89,22 @@ export async function handleMcpJsonRpc(body, opts = {}) {
  */
 async function dispatchMethod(method, params, opts) {
   switch (method) {
-    case 'initialize':
+    case 'initialize': {
+      const requested = String(params.protocolVersion || PROTOCOL_VERSION)
+      const protocolVersion = SUPPORTED_PROTOCOL_VERSIONS.has(requested)
+        ? requested
+        : PROTOCOL_VERSION
       return {
-        protocolVersion: PROTOCOL_VERSION,
-        capabilities: { tools: { listChanged: false } },
+        protocolVersion,
+        capabilities: {
+          tools: { listChanged: false },
+          // No resources/prompts required for R1
+        },
         serverInfo: SERVER_INFO,
         instructions:
-          'Fran SKUMS remote MCP (safe). Use catalog_* for product Q&A; help_resolve + help_get for store-ops/Loft how-to; draft PO tools only. Humans approve in Actions UI.',
+          'Fran SKUMS remote MCP (cloud-safe). Auth: Authorization Bearer sk_live_… from SKUMS Settings → API keys (leave OAuth client id/secret empty). Use catalog_* for product Q&A; help_resolve / help_get for store-ops how-to; draft PO tools only. Humans approve in Actions UI. tools/list and tools/call require API key.',
       }
+    }
 
     case 'ping':
       return {}

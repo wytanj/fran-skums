@@ -28,11 +28,19 @@ insert into public.help_articles (
 
 ## Steps (employee — Claude)
 
-1. In Claude, open **Settings → Integrations / Custom MCP** (wording varies by plan).
-2. Add custom integration:
+1. In Claude, open **Settings → Connectors / Integrations / Custom MCP** (wording varies by plan).
+2. Add custom connector / remote MCP:
    - **URL:** `https://fran-skums.vercel.app/mcp`
-   - **Auth / header:** Bearer token = your `sk_live_…` key
-3. Save. Ask: “How many products are in the catalog?” or “Where do I edit products?”
+   - **Transport:** Streamable HTTP (if listed)
+   - **Auth:** API key / Bearer — **not OAuth**
+   - **Authorization header:** `Bearer sk_live_…` (include the word Bearer)
+   - **OAuth Client ID / Client Secret (advanced):** leave **blank** — SKUMS does not use OAuth yet (R2 held)
+3. Save. If Claude says “Couldn’t reach Fran SKUMS”:
+   - Confirm URL has no trailing path typos (`/mcp` only)
+   - Confirm key is live and not revoked
+   - Open https://fran-skums.vercel.app/mcp in a browser — you should see JSON `name: fran-skums`
+   - Personal Claude sometimes **requires OAuth** for custom connectors; if OAuth fields are mandatory, that UI cannot use API-key MCP yet — use curl smoke or Claude Code `claude mcp add --transport http --header "Authorization: Bearer …"`
+4. Ask: “How many products are in the catalog?” or “Where do I edit products?”
 
 ## What the agent can do
 
