@@ -251,6 +251,10 @@ workspace_apps
 | Integration worker key | app’s `granted_scopes` only |
 | Dev local MCP (`FRAN_MCP_PROFILE=full`) | env override; not for staff |
 
+**A2 (2026-07-15):** Web login and MCP must not diverge — see **`docs/MCP_USER_PERMISSION_DESIGN.md`**.  
+Effective key scopes = `key scopes ∩ bound_user (or creator) web scopes ∩ cloud ceiling`.  
+Workspace owner/admin (`api:write`) creates and **revokes** keys. Catalog AI uses the same user scope resolver.
+
 **Unify strings over time:**
 
 | Today MCP | Canonical |

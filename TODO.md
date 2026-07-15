@@ -20,7 +20,7 @@
 | Priority | Track | First tasks |
 |----------|--------|-------------|
 | **A** | **MCP composite tools** | #1–7 ✅ · **#8 action backlog for review** |
-| **A2 (later)** | **MCP user permission + scopes** | Map workspace member scopes ↔ MCP/API keys (deferred) |
+| **A2 (design)** | **MCP ↔ web login permissions** | Design: `docs/MCP_USER_PERMISSION_DESIGN.md` — same scopes web/MCP; owner revokes keys |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
 | **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
@@ -140,8 +140,9 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
        attention queue, POS-enable proposals (no bulk flip)
 ─────────────────
 Next / deferred:
-  · A2 MCP user permission + scopes (workspace members ↔ connector keys)
-  · Fast path already: capabilities → key_permissions.permitted_actions (this key)
+  · A2 MCP ↔ web login permissions — DESIGN READY: docs/MCP_USER_PERMISSION_DESIGN.md
+      (key scopes ∩ bound user web scopes ∩ cloud ceiling; owner/admin revoke keys)
+  · Fast path live: capabilities → key_permissions.permitted_actions (this key)
 ─────────────────
 Parallel / later:
   0.x  Loft email answers → dictionary IDs

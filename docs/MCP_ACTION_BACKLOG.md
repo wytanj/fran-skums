@@ -18,7 +18,7 @@
 | Help | resolve / get / list |
 | Instructions | composite-first (#4) |
 
-**Deferred separately:** MCP user permission + scopes (members ↔ connector keys).
+**A2 (permissions):** Design in `docs/MCP_USER_PERMISSION_DESIGN.md` — MCP roles = web login scopes; owner revokes keys.
 
 ---
 
