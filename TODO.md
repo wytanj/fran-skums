@@ -36,7 +36,7 @@
 | **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
 | **H** | HQ schemas from POS reality | Inventory-manager schema + MCP packs (below) |
 | **I** | MCP actions next (POS-driven) | **Next eng:** M1–M3 packs (below) |
-| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — intent ≠ supplier ack ≠ Loft ASN (below) |
+| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — MCP draft editable · affirm supplier ack · **in transit only on FOB PDF** (below) |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
@@ -116,7 +116,7 @@ POS already creates work in SKUMS. HQ Claude should close that loop faster.
 3. MCP M3 exception_verify (scoped store_ops:verify)
 4. P remaining: empty non-MCP keys ≠ full
 5. Loft Phase 0 ops IDs → then M4 send_to_loft tool
-6. Supplier order lifecycle (J) — statuses + supplier ack tally + gate ASN on ack
+6. Supplier order lifecycle (J) — MCP draft editable; affirm ack; **in transit on FOB PDF**
 7. Phase S — Workspace MFA policy + optional SKUMS step-up for dangerous actions
 8. Optional: A2.5 bind key to other user; audit explorer; N6 email
 ```
@@ -125,74 +125,100 @@ POS already creates work in SKUMS. HQ Claude should close that loop faster.
 
 ## Supplier order lifecycle (KR/HK) — planned
 
-**Reality (ops):** Orders to KR/HK suppliers are **not automatic**. Supplier may change qty/price/lines. After we confirm on our side, they usually send a **PDF or email** with the final amount — we **tally** that. Only when goods go out to the **forwarder** do we create **comms to Loft** via the inbound ASN API already built.
+**Reality (ops):** KR/HK supplier orders are **not automatic**. We plan with a PO; lines stay **editable while draft** (including via MCP). Suppliers may confirm or change amounts via **email / email PDF / (future) API** — we **affirm** that when we know the channel. We do **not** yet have a single “supplier confirmation truth” for every vendor.  
 
-### Principle (lock this)
+**Hard gate for “in transit” / shipping reality:**  
+> **Incoming amounts are committed and goods treated as in transit only when the FOB PDF is sent to us.** That is the signal to put the order **in transit** and drive **comms to Loft** (inbound ASN API we already built).
 
-> **Loft is only notified after supplier reality is tallied (or an explicit “ship on our numbers” override) — not when an internal PO is drafted or even internally approved.**
+### Principles (lock these)
 
-| Phrase | Meaning |
-|--------|---------|
-| Internal PO / buying plan | Decision-layer intent in Fran (`po_*`) |
-| Internal approve | We accept the *plan* (`po_decide`) — **not** a supplier order lock |
-| Supplier ack | PDF/email final amount + lines; **tally** vs our PO |
-| ASN → Loft | Forwarder→warehouse handoff (`inbound_*` / Store Ops) |
+| # | Rule |
+|---|------|
+| 1 | MCP **creates** POs and keeps them **editable in draft** (`po_create_draft`, `po_update_draft`, `po_add_lines`, clone). |
+| 2 | Draft (and pre-FOB) ≠ supplier order locked ≠ stock in transit. |
+| 3 | **Supplier affirm** = we record/accept their confirmation (email / PDF / API) when we understand that vendor’s channel — channels may differ; truth model is still evolving. |
+| 4 | **FOB PDF received** = commercial/shipping lock for “what’s coming” → status **in_transit** → create/update **inbound ASN** → notify Loft. |
+| 5 | Loft path is **ASN / inbound API**, not “PO sent to Loft.” |
+| 6 | Not invoices/AR — FOB/ack docs are **shipping/commercial confirmations**, not AP invoices. |
 
-**Not invoices/AR.** Supplier confirmation is an **ack / commercial confirmation**, not an AP invoice product.
-
-### Lifecycle (target statuses)
+### Lifecycle (target)
 
 ```text
-draft                          MCP/UI: po_create_draft / clone
-  → pending_internal_approval  po_submit
-  → approved_intent            po_decide (owner key may do this in MCP)
-  → negotiating                (optional) supplier proposed changes; revise lines
-  → confirmed_internally       we lock what *we* think we ordered
-  → supplier_ack_received      PDF/email logged; amount + lines tallied
-       ↘ variance_flagged      ack ≠ our lines/amount → human resolve
-  → asn_created / loft_notified   inbound ASN API (goods → forwarder → Loft)
-  → loft_receiving / closed
+draft                    MCP/UI: create + edit freely (lines, qty, supplier notes)
+  │                      po_create_draft · po_update_draft · po_add_lines · clone
+  │                      stays editable until we leave draft intentionally
+  ▼
+(optional) internal submit / approve_intent
+  │                      po_submit / po_decide — plan OK; still NOT in transit
+  │                      lines may still be revised if we return to negotiating
+  ▼
+awaiting_supplier / negotiating
+  │                      supplier may counter via email / PDF / API (format TBD per supplier)
+  ▼
+supplier_affirmed        we accept/tally their confirmation when we have it
+  │                      (channel unknown for all vendors yet — flexible record)
+  │                      still NOT automatically “in transit”
+  ▼
+fob_pdf_received         ★ FOB PDF arrived (email attachment or upload)
+  │                      final shipping amounts for this shipment
+  ▼
+in_transit               ★ only now: treat as goods moving
+  │                      create/confirm inbound ASN → Loft API (forwarder → warehouse)
+  ▼
+loft_receiving / closed  existing inbound receive / LISE confirm → LOFT-SG ATS
 ```
 
-Physical stock only becomes Loft ATS after Loft receive / LISE confirm (existing inbound path). Store replenishment remains a **later** Store Ops path (request → decide → execute_3pl).
+Store replenishment (Loft → store) remains a **later** Store Ops path.
+
+### MCP must support (product intent)
+
+| Capability | Today | Target |
+|------------|--------|--------|
+| Create PO | `po_create_draft` / `po_clone_as_draft` | Keep |
+| Edit while draft | `po_update_draft`, `po_add_lines` | Keep strong; agent must prefer edit over re-create |
+| Editable after minor supplier feedback | Manual / re-draft | Stay on draft or `negotiating` with MCP edit |
+| Affirm supplier confirmation | — | Record affirm (source: email / pdf / api; amount; at) — **flexible**, vendors differ |
+| Mark FOB PDF received | — | Event/status → enables **in_transit** |
+| Put in transit + Loft | `inbound_create_draft` + UI send | Triggered by **FOB PDF**, not by draft create or internal approve |
 
 ### What exists today vs gap
 
 | Step | Today | Gap |
 |------|--------|-----|
-| Draft / revise plan | `po_*` draft tools + Actions UI | — |
-| Internal submit / approve | MCP if `po:submit` / `po:decide` (owner ops key); else Actions UI | Copy: never say “ordered from supplier” |
-| Supplier may adjust | Manual edits on draft/pending | Explicit `negotiating` / revision history |
-| Fran confirms our side | Approximated by approve | `confirmed_internally` status |
-| Supplier PDF/email + tally | Manual / outside system | Ack attachment or note + **tally** (amount + line compare) |
-| Goods → forwarder → Loft | `inbound_create_draft` + Store Ops send/confirm | Gate: prefer **supplier_ack_received** (or override) before send-to-Loft |
-| Agent language | Partial in instructions | Encode full lifecycle in agent + Help |
+| MCP create + edit draft PO | Yes (`po_*` draft tools) | Agent instructions: stay in draft; edit via MCP |
+| Supplier confirm channels | Outside Fran | Pluggable affirm (email/PDF/API) — don’t hardcode one vendor truth |
+| Affirm right amount | Manual | Lightweight affirm + optional variance vs PO lines |
+| **FOB PDF → in transit** | Manual process | Status + doc link; **only then** set in_transit |
+| Comms to Loft | Inbound ASN API + Store Ops | Wire “FOB received” → ASN draft/send path |
+| Agent language | Partial | Never say in transit before FOB PDF |
 
 ### MCP vs human (policy)
 
-| Step | MCP (owner `mcp:ops_safe`) | Human / UI v1 |
-|------|----------------------------|---------------|
-| Draft / revise plan | Yes | Optional |
-| Internal approve intent | Yes if scoped | Optional |
-| Log supplier PDF/email + tally | Later (upload / note tool) | **Required v1** |
-| Create ASN + notify Loft | Draft yes; full send mainly UI | **Required v1** until send tool solid |
-| Override “ship without ack” | No auto | Owner/admin explicit only |
+| Step | MCP | Human / system |
+|------|-----|----------------|
+| Create + edit draft PO | **Yes** (primary for HQ + Claude) | UI optional |
+| Internal plan approve | Optional if scoped | Optional |
+| Affirm supplier email/PDF/API | Later tools; v1 may be UI “mark affirmed” | Flexible until channels known |
+| Attach / log **FOB PDF** | Later upload or email ingest | **v1 human OK** |
+| Set **in_transit** + Loft ASN | Prefer system rule after FOB | UI confirm send-to-Loft until automated |
 
-### Agent / copy rules (add when building)
+### Agent / copy rules
 
-- Draft or approved internal PO ≠ “supplier order placed” ≠ “stock in transit.”
-- After internal approve: “Awaiting supplier confirmation (PDF/email); then tally; then ASN to Loft.”
-- After supplier ack tallied: OK to create inbound ASN / notify Loft.
-- Approve store request still ≠ send to Loft (`execute_3pl` separate).
+- Draft PO is **editable**; prefer `po_update_draft` / `po_add_lines`, not a new PO for every tweak.
+- Never: “order placed with supplier” or “in transit” from draft or internal approve alone.
+- Supplier affirm = we acknowledged their number; **still not in transit**.
+- **In transit only after FOB PDF** (explicit status or event).
+- Then: inbound ASN / Loft — not classic multi-warehouse transfer object.
 
 ### Build slices (when scheduled)
 
 | Slice | Work |
 |-------|------|
-| **J1** | Status model + Help/agent copy (no new MCP if statuses only) |
-| **J2** | Supplier ack record (file URL / note, final amount, tallied_at, variance) |
-| **J3** | Gate inbound send-to-Loft on ack (or override flag + audit) |
-| **J4** | Optional MCP: log ack summary, variance digest, link PO ↔ ASN |
+| **J1** | Statuses + Help/agent copy: draft-editable; affirm ≠ FOB; in_transit only on FOB |
+| **J2** | Keep/strengthen MCP draft edit UX (tools + instructions) |
+| **J3** | Supplier affirm record (source type email\|pdf\|api, flexible payload; optional tally) |
+| **J4** | FOB PDF event → `in_transit` + link/create inbound ASN → Loft |
+| **J5** | Optional: email ingest / API webhook per supplier later (unknown truth sources for now) |
 
 **Depends on:** inbound ASN path (shipped) · internal PO tools (shipped) · Loft Phase 0 IDs for reliable send.
 
@@ -414,7 +440,7 @@ Next eng:
 
 **Recommended next:** MCP **M1–M3** (POS→HQ) · inventory-manager schema · Loft Phase 0 · **J supplier lifecycle** when buying from KR/HK · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
-**Supplier rule:** internal PO approve ≠ supplier order ≠ Loft notify; Loft only after tallied supplier ack (or explicit override).
+**Supplier rule:** MCP creates/edits **draft** POs; supplier affirm (email/PDF/API) when known; **in transit only on FOB PDF** → then inbound ASN → Loft.
 
 ---
 

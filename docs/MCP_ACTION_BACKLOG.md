@@ -69,15 +69,15 @@ Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bou
 | **M3** | `exception_verify` | `store_ops:verify` | Receive exceptions from POS |
 | **M4** | `store_ops_send_to_loft` | `store_ops:execute_3pl` | After Loft Phase 0 IDs |
 | **M5** | POS sync health (if data available) | `pos:read` | Outbox / failed events |
-| **J** | Supplier KR/HK lifecycle | po + inbound | Intent → supplier PDF/email ack + tally → ASN → Loft; see TODO **Supplier order lifecycle** |
+| **J** | Supplier KR/HK lifecycle | po + inbound | MCP draft editable → affirm (email/PDF/API) → **in transit on FOB PDF** → ASN → Loft |
 | **S** | Login MFA | Google Workspace | Not an MCP tool; enforce MFA on IdP (see TODO Phase S) |
 
 **Supplier (KR/HK) — do not conflate with store replenishment**
 
-- Internal `po_*` = buying **plan**; `po_decide` = internal intent only.
-- Supplier may change qty/price; final PDF/email must be **tallied** before treating order as commercial fact.
-- Loft handoff = **inbound ASN** API only after ack (or owner override) — not on PO approve.
-- No invoices/AR product; ack ≠ AP invoice.
+- MCP **creates** POs and **edits while draft** (`po_update_draft` / `po_add_lines`); do not re-create for every tweak.
+- Supplier confirm channels (email / PDF / API) are **not fully standardized yet** — affirm is flexible.
+- **In transit only when FOB PDF is received** — that is when shipping amounts lock and Loft ASN/comms run.
+- Affirm ≠ FOB ≠ Loft stock; no invoices/AR product.
 
 ## Optional leftovers (not blocking)
 
