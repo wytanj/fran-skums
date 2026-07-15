@@ -27,19 +27,19 @@
 ### Quick smoke (post-deploy)
 
 ```bash
-npm run db:migrate:status    # expect 058–060 applied
+npm run db:migrate:status    # expect 058–061 applied
 # Production: https://fran-skums.vercel.app
-#  /store-ops → Floor adjustments
+#  /store-ops → Floor adjustments · Waves & calendar
 #  /help/operator-runbook
 #  Catalog AI: "How do I approve a store replenishment request?"
-node --test tests/inventory-adjustments-phase-e.test.mjs tests/help-resolve.test.mjs
+node --test tests/inventory-adjustments-phase-e.test.mjs tests/help-resolve.test.mjs tests/store-ops-phase-f.test.mjs
 ```
 
 ### Ops leftovers
 
 - [x] Help **053/054** on shared Supabase
 - [x] Loft **055–057** applied
-- [x] **058–060** applied (shared project)
+- [x] **058–061** applied (shared project)
 - [x] Pushed Loft P–E + operator docs + assistant Help (this commit)
 - [ ] Confirm Vercel production deploy green for latest `main`
 - [ ] Confirm prod Supabase has **058–060** if not the same project
