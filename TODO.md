@@ -43,7 +43,7 @@ Canonical detail + optional leftovers: **`docs/MCP_ACTION_BACKLOG.md`**.
 | **7** | Draft store replenishment request | `store_ops_create_draft_request` (+ list/waves/recommend) | *(MCP-first write; use Store Ops UI for HQ)* |
 | **8** | Ops digests + more safe drafts | `expiry_snapshot`, `exceptions_snapshot`, `integrations_health`, `attention_snapshot`, `low_stock_request_pack`, `pos_enable_proposal`, `inbound_create_draft`, `floor_adjustment_create_draft` | `get_expiry_snapshot`, `get_exceptions_snapshot`, `get_integrations_health`, `get_attention_snapshot`, `get_low_stock_request_pack`, `get_pos_enable_proposal` |
 
-**Cloud never:** approve store ops, send Loft (`execute_3pl`), apply floor ledger, bulk POS activate, `po_submit` / pipeline execute.
+**Cloud permission model (A2):** tools allowed when **key ∩ bound web user** has the scope. Owner/admin packages include `store_ops:approve` (and optionally execute_3pl). Member/viewer keys do not. Credentials never on cloud keys. Bulk POS activate still UI-only.
 
 ### Quick smoke (post-deploy)
 
@@ -162,6 +162,8 @@ A2 MCP ↔ web login permissions:
        PUT  /api/v1/workspace/members/:id/role
        DELETE /api/v1/workspace/members/:id
   A2.5 optional: bind key to other member UI · R2 OAuth
+  Cloud MCP: permission-gated approve (not blanket block)   ✅
+       store_ops_decide · floor_adjustment_apply · scopes ∩ web role
 ─────────────────
 Parallel / later:
   0.x  Loft email answers → dictionary IDs

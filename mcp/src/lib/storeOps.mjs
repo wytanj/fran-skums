@@ -1,6 +1,6 @@
 /**
- * MCP store ops helpers (read + draft request write).
- * Never approve or send to Loft (no execute_3pl).
+ * MCP store ops helpers (read + draft + approve when scoped).
+ * Gated by effective scopes (A2): store_ops:approve / inventory:write / execute_3pl as granted.
  */
 import { getDb, getMcpActorUserId, requireWorkspaceId } from '../context.mjs'
 
@@ -620,7 +620,190 @@ export async function createFloorAdjustmentDraft(opts = {}) {
     adjustment: adj,
     lines: lines || [],
     deep_link: '/store-ops',
-    message: `Floor adjustment ${status}. NOT applied to ledger. Human must Apply under Floor adjustments.`,
-    agent_hint: 'Stop. Link /store-ops. Never say inventory levels changed.',
+    message: `Floor adjustment ${status}. Apply with floor_adjustment_apply when you have inventory:write.`,
+    agent_hint: 'Draft/pending only until apply. Levels change only after apply succeeds.',
+  }
+}
+
+/**
+ * HQ decide: approve_now | reject | defer_to_wave.
+ * Requires store_ops:approve on the effective key (owner/admin packages).
+ */
+export async function decideRequest(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const requestId = String(opts.request_id || '').trim()
+  const decision = String(opts.decision || '').trim()
+  if (!requestId) throw new Error('request_id required')
+  if (!['approve_now', 'reject', 'defer_to_wave'].includes(decision)) {
+    throw new Error('decision must be approve_now | reject | defer_to_wave')
+  }
+
+  const { data: request, error } = await db
+    .from('store_replenishment_requests')
+    .select('*, lines:store_replenishment_request_lines(*)')
+    .eq('workspace_id', workspace_id)
+    .eq('id', requestId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!request) throw new Error('Request not found')
+  if (!['submitted', 'in_review', 'deferred_to_wave', 'draft'].includes(request.status)) {
+    throw new Error(`Request cannot be decided in status ${request.status}`)
+  }
+
+  const now = new Date().toISOString()
+  const actor = getMcpActorUserId()
+  let nextStatus = request.status
+  let wave_id = request.wave_id
+  let wave_date = opts.wave_date || request.wave_date
+
+  if (decision === 'reject') nextStatus = 'rejected'
+  else if (decision === 'defer_to_wave') {
+    if (!wave_date) {
+      const { data: dates } = await db.rpc('next_replenishment_wave_dates', {
+        p_workspace_id: workspace_id,
+        p_from: new Date().toISOString().slice(0, 10),
+        p_count: 1,
+      })
+      wave_date = dates?.[0]?.wave_date || null
+    }
+    if (!wave_date) throw new Error('wave_date required for defer_to_wave (none scheduled)')
+    nextStatus = 'deferred_to_wave'
+  } else if (decision === 'approve_now') {
+    nextStatus = 'approved'
+  }
+
+  const { data: updated, error: upErr } = await db
+    .from('store_replenishment_requests')
+    .update({
+      status: nextStatus,
+      decision,
+      decision_reason: opts.decision_reason || null,
+      decided_by: actor,
+      decided_at: now,
+      approved_by: decision === 'approve_now' ? actor : request.approved_by,
+      approved_at: decision === 'approve_now' ? now : request.approved_at,
+      wave_id,
+      wave_date,
+      mcp_context: {
+        ...(request.mcp_context || {}),
+        decided_via: 'mcp_store_ops_decide',
+        decision,
+      },
+      metadata: {
+        ...(request.metadata || {}),
+        last_decision: decision,
+        delivery_mode: opts.delivery_mode || request.metadata?.delivery_mode || null,
+      },
+    })
+    .eq('id', requestId)
+    .select()
+    .single()
+
+  if (upErr) throw new Error(upErr.message)
+
+  let order = null
+  if (decision === 'approve_now') {
+    // Convert to replenishment order (same as UI decide path)
+    const lines = Array.isArray(request.lines) ? request.lines : []
+    const orderNumber = `RO-MCP-${Date.now().toString(36).toUpperCase()}`
+    const { data: ord, error: oErr } = await db
+      .from('store_replenishment_orders')
+      .insert({
+        workspace_id,
+        order_number: orderNumber,
+        request_id: request.id,
+        status: 'approved',
+        priority: request.priority || 'normal',
+        destination_location_id: request.store_location_id,
+        pos_location_id: request.pos_location_id,
+        delivery_mode: opts.delivery_mode || 'delivery',
+        approved_by: actor,
+        approved_at: now,
+        metadata: { from_request: request.request_number, decided_via: 'mcp' },
+      })
+      .select()
+      .single()
+    if (oErr) throw new Error(oErr.message)
+    order = ord
+    if (lines.length) {
+      await db.from('store_replenishment_order_lines').insert(
+        lines.map((line) => ({
+          order_id: ord.id,
+          workspace_id,
+          request_line_id: line.id,
+          product_id: line.product_id,
+          sku: line.sku,
+          ordered_qty:
+            line.approved_qty != null && line.approved_qty > 0
+              ? line.approved_qty
+              : line.requested_qty,
+          status: 'ordered',
+        })),
+      )
+    }
+    await db
+      .from('store_replenishment_requests')
+      .update({ status: 'converted' })
+      .eq('id', request.id)
+  }
+
+  return {
+    request: updated,
+    order,
+    decision,
+    deep_link: '/store-ops',
+    message:
+      decision === 'approve_now'
+        ? 'Approved and converted to replenishment order. Send to Loft still needs store_ops:execute_3pl + connection (Store Ops UI or later MCP tool).'
+        : decision === 'reject'
+          ? 'Request rejected.'
+          : `Deferred to wave ${wave_date || ''}.`,
+    agent_hint:
+      'Confirm decision to user with request_number. Approve ≠ send to Loft. execute_3pl is a separate scope/step.',
+  }
+}
+
+/**
+ * Apply pending floor adjustment via RPC (inventory:write).
+ */
+export async function applyFloorAdjustment(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const adjustmentId = String(opts.adjustment_id || '').trim()
+  if (!adjustmentId) throw new Error('adjustment_id required')
+
+  const { data: before, error } = await db
+    .from('inventory_adjustments')
+    .select('id, status, adjustment_number, workspace_id')
+    .eq('workspace_id', workspace_id)
+    .eq('id', adjustmentId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!before) throw new Error('Adjustment not found')
+  if (!['pending', 'approved', 'draft'].includes(before.status)) {
+    throw new Error(`Cannot apply adjustment in status ${before.status}`)
+  }
+
+  const { data: rpcResult, error: rpcError } = await db.rpc('apply_inventory_adjustment', {
+    p_adjustment_id: adjustmentId,
+    p_created_by: getMcpActorUserId(),
+    p_notes: opts.note || null,
+  })
+  if (rpcError) throw new Error(rpcError.message || 'Apply adjustment failed')
+
+  const { data: after } = await db
+    .from('inventory_adjustments')
+    .select('*')
+    .eq('id', adjustmentId)
+    .maybeSingle()
+
+  return {
+    adjustment: after || before,
+    rpc_result: rpcResult,
+    deep_link: '/store-ops',
+    message: `Adjustment ${before.adjustment_number || adjustmentId} applied to ledger.`,
+    agent_hint: 'Stock levels updated. Confirm counts with user if needed.',
   }
 }

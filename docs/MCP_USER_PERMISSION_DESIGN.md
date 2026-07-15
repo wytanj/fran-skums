@@ -114,14 +114,20 @@ effective_key_scopes =
 - If **bound_user** loses membership or is demoted → next request re-resolves; if empty, **401/403**.
 - Optional hard mode: on role change, auto-`is_active=false` keys bound to that user (settings flag).
 
-### 4.3 Cloud ceiling (unchanged philosophy)
+### 4.3 Cloud ceiling (permission-based — updated)
 
-Even owner-bound keys on **remote** `/mcp`:
+Remote `/mcp` uses the **same effective scopes** as web for the bound user (plus key package cap).
 
-- No `po_submit`, `po_decide`, `pipeline_decide/execute`, `bi_upsert_seed`, `bi_run_seed_now`
-- No `store_ops:approve`, `store_ops:verify`, `store_ops:execute_3pl`
+| Allowed when scoped | Blocked always on cloud keys |
+|---------------------|------------------------------|
+| `store_ops:approve` → `store_ops_decide` | `credentials:read` / `credentials:write` |
+| `inventory:write` → `floor_adjustment_apply` | — |
+| `store_ops:execute_3pl` when present (send still needs connection/shipping) | — |
+| `po:submit` / `po:decide` when present | — |
 
-Privileged ops stay: **UI** or **local full-profile MCP** with explicit env + human.
+**Owner/admin** `mcp:ops_safe` package includes approve/execute scopes; **intersect with web** still drops them for viewers.  
+**Member/viewer** packages never include approve.  
+Approve ≠ send Loft (separate tool/scope).
 
 ### 4.4 Catalog AI (in-app)
 

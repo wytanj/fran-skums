@@ -83,16 +83,18 @@ test('viewer web scopes cannot keep store_ops:write from key', () => {
   assert.ok(!effective.includes('po:draft'))
 })
 
-test('owner web scopes retain draft store request under cloud ceiling', () => {
+test('owner web scopes retain approve under permission-based cloud ceiling', () => {
   const effective = computeEffectiveScopes({
-    keyScopes: ['mcp:safe'],
+    keyScopes: ['mcp:ops_safe'],
     userWebScopes: [
       'products:read',
       'products:write',
       'inventory:read',
+      'inventory:write',
       'store_ops:read',
       'store_ops:write',
       'store_ops:approve',
+      'store_ops:execute_3pl',
       'actions:write',
       'actions:submit',
       'actions:approve',
@@ -103,18 +105,26 @@ test('owner web scopes retain draft store request under cloud ceiling', () => {
     cloud: true,
   })
   assert.ok(effective.includes('store_ops:write'))
+  assert.ok(effective.includes('store_ops:approve'), 'owner may approve on cloud when scoped')
   assert.ok(effective.includes('po:draft'))
-  assert.ok(!effective.includes('store_ops:approve'), 'cloud strips approve')
-  assert.ok(!effective.includes('intel:write'), 'cloud strips intel:write')
-  assert.ok(!effective.includes('po:decide'))
+  assert.ok(effective.includes('po:decide') || effective.includes('actions:approve'))
 })
 
-test('applyCloudMcpCeiling strips privileged', () => {
-  const c = applyCloudMcpCeiling(['intel:read', 'po:submit', 'store_ops:execute_3pl', 'po:draft'])
+test('applyCloudMcpCeiling keeps store ops approve; strips credentials only', () => {
+  const c = applyCloudMcpCeiling([
+    'intel:read',
+    'po:submit',
+    'store_ops:execute_3pl',
+    'store_ops:approve',
+    'po:draft',
+    'credentials:write',
+  ])
   assert.ok(c.includes('intel:read'))
   assert.ok(c.includes('po:draft'))
-  assert.ok(!c.includes('po:submit'))
-  assert.ok(!c.includes('store_ops:execute_3pl'))
+  assert.ok(c.includes('po:submit'))
+  assert.ok(c.includes('store_ops:execute_3pl'))
+  assert.ok(c.includes('store_ops:approve'))
+  assert.ok(!c.includes('credentials:write'))
 })
 
 test('intersectScopes and expandKeyScopes', () => {

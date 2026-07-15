@@ -38,7 +38,15 @@ export const TOOL_SCOPE_CATALOG = {
   store_ops_recommend: { scope: 'store_ops:read', action: 'Recommend approve_now vs defer (label only)' },
   store_ops_create_draft_request: {
     scope: 'store_ops:write',
-    action: 'Create draft/submitted store request (never approve or send Loft)',
+    action: 'Create draft/submitted store request',
+  },
+  store_ops_decide: {
+    scope: 'store_ops:approve',
+    action: 'Approve / reject / defer store replenishment request (HQ)',
+  },
+  floor_adjustment_apply: {
+    scope: 'inventory:write',
+    action: 'Apply pending floor adjustment to ledger',
   },
   expiry_snapshot: { scope: 'intel:read', action: 'Expiry risk snapshot' },
   exceptions_snapshot: { scope: 'store_ops:read', action: 'Open exceptions triage' },
@@ -128,13 +136,10 @@ export function privilegedToolNames() {
 export function isToolPermitted(toolName, opts = {}) {
   const meta = TOOL_SCOPE_CATALOG[toolName]
   if (!meta) {
-    // Unknown tool: allow only if unrestricted (null scopes) and not cloud-privileged name
-    if (opts.cloud && privilegedToolNames().includes(toolName)) return false
+    // Unknown tools: only unrestricted profiles
     return opts.scopes == null
   }
-  if (opts.cloud && (meta.privileged || MCP_PRIVILEGED_SCOPES.includes(meta.scope))) {
-    return false
-  }
+  // A2: permission-based — privileged tools allowed on cloud when scope is granted
   if (opts.scopes == null) return true // unrestricted full profile
   return opts.scopes.includes(meta.scope)
 }
@@ -167,12 +172,10 @@ export function resolvePermittedTools(opts = {}) {
     if (ok) {
       permitted.push({ tool: name, scope: meta.scope, action: meta.action })
     } else {
-      let reason = 'missing_scope'
-      if (cloud && (meta.privileged || MCP_PRIVILEGED_SCOPES.includes(meta.scope))) {
-        reason = 'blocked_on_cloud'
-      } else if (scopes != null && !scopes.includes(meta.scope)) {
-        reason = `requires_scope:${meta.scope}`
-      }
+      const reason =
+        scopes != null && !scopes.includes(meta.scope)
+          ? `requires_scope:${meta.scope}`
+          : 'missing_scope'
       denied.push({
         tool: name,
         scope: meta.scope,

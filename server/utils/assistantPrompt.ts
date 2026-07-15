@@ -74,7 +74,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 - Path: forwarder→Loft (inbound ASN) → LOFT-SG → XFER/in_transit → store. Answer status from lifecycle + path_summary.
 - **No invoices** in Fran. No classic warehouse-transfer object — **Store Ops** replenishment is the path.
 - Empty open queues ≠ “transfers settled”; those objects are empty.
-- You **cannot** approve store requests or send to Loft — humans use \`/store-ops\`. Approve ≠ execute_3pl.
+- Catalog AI is session-scoped: if the logged-in user has store_ops:approve they can be guided to Store Ops; privileged MCP tools are on the MCP connector key path. Approve ≠ send to Loft (execute_3pl).
 - Imports often land **draft + POS off** until **Activate for POS** — often intentional until retail is set (see get_catalog_data_ops).
 - CSV: use **export_catalog_csv** with filters; leave blank retail blank — never invent prices.
 - Market research seeds: data_ops suggestions only; human/full MCP writes seeds. No demand without crawl data.

@@ -108,8 +108,8 @@ Composite-first: catalog_health | catalog_sample | catalog_search_summary | cata
 Answer style: 1–2 tools then short answer; lead with the answer; no invented counts/rankings; no product.stock_quantity as ATS.
 Draft/propose only. Never imply PO is ordered or product is live unless status says so.
 PO clone: po_list/get → po_preview_clone → po_clone_as_draft → return deep_link (/actions/…). Stop for human Actions UI.
-Store request: store_ops_create_draft_request (prefer dry_run) → deep_link /store-ops. Never approve or execute_3pl.
-NO (safe/cloud): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now, store approve, execute_3pl.
+Store request: store_ops_create_draft_request → store_ops_decide (needs store_ops:approve on owner/admin key).
+Approve ≠ send Loft (execute_3pl separate). Cloud is permission-based (key ∩ web user); credentials never on cloud keys.
 No invoices. Store Ops path for warehouse→store (not classic transfer object).
 ```
 

@@ -177,18 +177,12 @@ const posKeySaving = ref(false)
 const newlyCreatedKey = ref('')
 const newlyCreatedKeyUse = ref<'general' | 'pos' | 'mcp'>('general')
 const POS_SCOPES = ['pos:read', 'pos:write']
-/** Cloud MCP safe profile scopes (matches mcp MCP_SCOPE_PROFILES.safe; mcp:safe expands server-side) */
-const MCP_SAFE_SCOPES = [
-  'mcp:safe',
-  'intel:read',
-  'inventory:read',
-  'store_ops:read',
-  'store_ops:write',
-  'study:write',
-  'pipeline:propose',
-  'po:draft',
-  'projection:run',
-]
+/**
+ * Claude / MCP connector key template.
+ * mcp:ops_safe includes approve/execute scopes; A2 still caps by bound user's web role
+ * (viewer-bound keys lose approve; owner/admin keep them).
+ */
+const MCP_CONNECTOR_SCOPES = ['mcp:ops_safe']
 const mcpKeySaving = ref(false)
 const skumsApiUrl = computed(() => {
   if (import.meta.client) return window.location.origin
@@ -276,7 +270,7 @@ async function handleCreateMcpKey() {
         workspace_id: currentWorkspace.value.id,
         name: `Claude / MCP connector - ${currentWorkspace.value.name}`,
         description: 'Remote MCP cloud-safe; power capped by your web login role (A2). No approve/Loft.',
-        scopes: MCP_SAFE_SCOPES,
+        scopes: MCP_CONNECTOR_SCOPES,
         created_by: getUserId(),
         bound_user_id: getUserId(),
         key_kind: 'mcp_connector',
@@ -331,7 +325,9 @@ async function handleToggleKey(id: string, active: boolean) {
 }
 
 const AVAILABLE_SCOPES = [
-  { key: 'mcp:safe', label: 'MCP cloud-safe' },
+  { key: 'mcp:ops_safe', label: 'MCP ops (owner/admin — approve when scoped)' },
+  { key: 'mcp:safe', label: 'MCP draft/read baseline' },
+  { key: 'store_ops:approve', label: 'Store ops approve' },
   { key: 'intel:read', label: 'MCP intel:read' },
   { key: 'products:read', label: 'Read Products' },
   { key: 'products:write', label: 'Write Products' },

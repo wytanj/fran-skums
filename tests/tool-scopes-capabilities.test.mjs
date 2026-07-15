@@ -37,7 +37,22 @@ test('resolvePermittedTools returns human actions for safe cloud', () => {
   assert.ok(r.permitted_tool_names.includes('capabilities'))
   assert.ok(r.permitted_tool_names.includes('catalog_health'))
   assert.ok(!r.permitted_tool_names.includes('po_submit'))
-  assert.ok(r.denied_tools.some((d) => d.tool === 'po_submit' && d.reason === 'blocked_on_cloud'))
+  assert.ok(
+    r.denied_tools.some(
+      (d) => d.tool === 'po_submit' && /requires_scope:po:submit|missing_scope/.test(d.reason),
+    ),
+  )
+})
+
+test('owner scopes permit store_ops_decide on cloud', () => {
+  const scopes = [
+    ...MCP_SCOPE_PROFILES.safe,
+    'store_ops:approve',
+    'inventory:write',
+  ]
+  assert.equal(isToolPermitted('store_ops_decide', { scopes, cloud: true }), true)
+  assert.equal(isToolPermitted('floor_adjustment_apply', { scopes, cloud: true }), true)
+  assert.equal(isToolPermitted('store_ops_decide', { scopes: MCP_SCOPE_PROFILES.safe, cloud: true }), false)
 })
 
 test('mcpCapabilities embeds key_permissions when permitted passed', () => {

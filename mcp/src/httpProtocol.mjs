@@ -33,8 +33,7 @@ const PRIVILEGED_TOOL_NAMES = new Set(listPrivilegedToolNames())
 export function listToolsForTransport(cloud = false, scopes) {
   const resolvedScopes = scopes !== undefined ? scopes : getMcpScopes()
   return toolDefinitions.filter((t) => {
-    if (cloud && PRIVILEGED_TOOL_NAMES.has(t.name)) return false
-    // On cloud (or when scopes are an explicit list), hide tools this key cannot call
+    // A2: list by effective scopes only (owner/admin may see approve/execute tools)
     if (cloud || Array.isArray(resolvedScopes)) {
       return isToolPermitted(t.name, { scopes: resolvedScopes, cloud })
     }
@@ -119,10 +118,14 @@ async function dispatchMethod(method, params, opts) {
     case 'tools/call': {
       const name = String(params.name || '')
       if (!name) throw new Error('tools/call requires params.name')
-      if (opts.cloud && PRIVILEGED_TOOL_NAMES.has(name)) {
-        throw new Error(
-          `Tool "${name}" is not available on cloud MCP. Use SKUMS Actions UI for privileged steps.`,
-        )
+      // A2: permission-based — deny if effective scopes lack tool requirement
+      if (opts.cloud || Array.isArray(getMcpScopes())) {
+        const scopes = getMcpScopes()
+        if (!isToolPermitted(name, { scopes, cloud: opts.cloud === true })) {
+          throw new Error(
+            `Tool "${name}" not permitted for this key (missing scope). Call capabilities for permitted_tool_names.`,
+          )
+        }
       }
       const args =
         params.arguments && typeof params.arguments === 'object' && !Array.isArray(params.arguments)

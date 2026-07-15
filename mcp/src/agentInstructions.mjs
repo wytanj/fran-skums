@@ -21,7 +21,8 @@ Composite-first (prefer ONE tool, then answer):
 | Can I invoice / order / what exists? / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe |
-| Draft store replenishment request | store_ops_create_draft_request (dry_run first) | approve / execute_3pl |
+| Draft store replenishment request | store_ops_create_draft_request (dry_run first) | inventing approve without scope |
+| HQ approve / reject / defer request | store_ops_decide (needs store_ops:approve) | calling without owner/admin key |
 | Expiry / exceptions / Loft health / attention | expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot | inventing fixes |
 | Low stock → request lines | low_stock_request_pack then draft request | auto-approve |
 | Draft ASN / floor adj | inbound_create_draft, floor_adjustment_create_draft (dry_run) | send Loft / apply ledger |
@@ -49,17 +50,17 @@ Answer style:
 export function buildSafetyBlock(opts = {}) {
   const cloud = opts.cloud === true
   const profileLine = cloud
-    ? 'Profile: CLOUD-SAFE always (privileged tools not listed; cannot approve Store Ops or execute_3pl).'
-    : 'Profile: SAFE by default; FULL only when server env allows and user explicitly says APPROVE/SUBMIT/EXECUTE.'
+    ? 'Profile: CLOUD permission-based (A2). Tools allowed only if key ∩ bound web user has the scope. Owner/admin keys may approve store ops; members typically cannot.'
+    : 'Profile: SAFE by default (FRAN_MCP_MODE); FULL for unrestricted local privileged ops.'
 
   return `
 Safety:
 - ${profileLine}
 - No invoices / AR in Fran.
-- No classic warehouse-transfer MCP object — Store Ops replenishment is the path (request → HQ approve → send Loft → receive).
-- Cloud/safe NEVER: po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now, store approve, execute_3pl.
-- Draft PO = decision-layer planning artifact, not supplier order and not Loft order.
-- store_ops_create_draft_request = draft (or submitted signal) only — never claim stock moved or Loft order placed.
+- Store Ops path: request → store_ops_decide (approve/reject/defer) → order → send Loft needs execute_3pl separately.
+- Approve ≠ send to Loft. Use store_ops_decide only with store_ops:approve; never invent approvals.
+- Credentials scopes never on cloud keys. Other privileged tools (PO decide, pipeline execute) only if scopes granted.
+- Draft PO = decision-layer planning artifact, not supplier order.
 - Auth: cloud uses API key in URL (?api_key= / /mcp/c/…) or Bearer; tools/list and tools/call require key.
 `.trim()
 }
@@ -88,8 +89,8 @@ export function buildMcpAgentInstructions(opts = {}) {
     'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
     'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     cloud
-      ? 'NO (cloud): po_submit, po_decide, pipeline_decide/execute, bi seed write/run, store_ops approve/execute_3pl/verify.'
-      : 'NO (safe): po_submit, po_decide, pipeline_decide/execute, bi_upsert_seed, bi_run_seed_now, store_ops approve/execute_3pl unless full profile + explicit user command.',
+      ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'
+      : 'Local safe mode blocks privileged scopes unless FRAN_MCP_MODE=full / full scopes.',
   ].join('\n')
 
   if (!compact) {

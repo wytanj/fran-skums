@@ -6,8 +6,8 @@
 export type ScopeString = string
 
 /**
- * Cloud MCP safe ceiling (must stay aligned with mcp/src/context.mjs MCP_SCOPE_PROFILES.safe).
- * Never includes approve / execute_3pl / po_submit / pipeline_execute / intel:write.
+ * Default MCP connector package baseline (draft/read).
+ * Owner/admin packages add approve/execute; A2 intersects with web login scopes.
  */
 export const MCP_CLOUD_SAFE_SCOPES: string[] = [
   'intel:read',
@@ -20,19 +20,28 @@ export const MCP_CLOUD_SAFE_SCOPES: string[] = [
   'projection:run',
 ]
 
-/** Privileged scopes never granted on remote cloud MCP. */
+/**
+ * Scopes never granted via cloud MCP keys (secrets), regardless of role.
+ * Store-ops approve / execute_3pl / PO decide ARE allowed when the bound user has them on web.
+ */
 export const MCP_CLOUD_FORBIDDEN_SCOPES: string[] = [
-  'intel:write',
-  'pipeline:decide',
-  'pipeline:execute',
-  'po:submit',
-  'po:decide',
+  'credentials:read',
+  'credentials:write',
+]
+
+/** Owner/admin MCP package extras (still capped by bound-user web scopes). */
+export const MCP_OPS_ELEVATED_SCOPES: string[] = [
   'store_ops:approve',
   'store_ops:verify',
   'store_ops:execute_3pl',
   'store_ops:inbound',
-  'credentials:read',
-  'credentials:write',
+  'inventory:write',
+  'inventory:override_expiry',
+  'actions:approve',
+  'po:submit',
+  'po:decide',
+  'pipeline:decide',
+  'intel:write',
 ]
 
 /** App / role packages used for API keys and install grants. */
@@ -85,6 +94,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
   ],
   'mcp:ops_safe': [
     ...MCP_CLOUD_SAFE_SCOPES,
+    ...MCP_OPS_ELEVATED_SCOPES,
     'products:read',
     'products:write',
     'brands:read',
@@ -251,30 +261,29 @@ export function intersectScopes(a: string[], b: string[]): string[] {
 }
 
 /**
- * Apply cloud MCP ceiling (strip privileged).
+ * Cloud MCP ceiling: strip secrets only.
+ * Approve / execute_3pl / PO decide pass through when present (permission-based A2 model).
  */
 export function applyCloudMcpCeiling(scopes: string[]): string[] {
-  const allowed = new Set(MCP_CLOUD_SAFE_SCOPES)
-  // Also allow product/actions read aliases that map to safe tools
-  for (const s of [
-    'products:read',
-    'products:write',
-    'brands:read',
-    'categories:read',
-    'actions:read',
-    'actions:write',
-    'actions:submit',
-    'pos:read',
-    'pos:write',
-    'api:read',
-  ]) {
-    allowed.add(s)
-  }
   const list = normalizeGrantedScopes(scopes)
   if (list.includes('*') || list.includes('full')) {
-    return [...allowed]
+    // Unrestricted key on cloud still never gets raw credentials scopes
+    return [
+      ...MCP_CLOUD_SAFE_SCOPES,
+      ...MCP_OPS_ELEVATED_SCOPES,
+      'products:read',
+      'products:write',
+      'brands:read',
+      'categories:read',
+      'actions:read',
+      'actions:write',
+      'actions:submit',
+      'pos:read',
+      'pos:write',
+      'api:read',
+    ]
   }
-  return list.filter((s) => allowed.has(s) && !MCP_CLOUD_FORBIDDEN_SCOPES.includes(s))
+  return list.filter((s) => !MCP_CLOUD_FORBIDDEN_SCOPES.includes(s))
 }
 
 /**

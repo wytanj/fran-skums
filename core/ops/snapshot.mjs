@@ -332,12 +332,14 @@ export function mcpCapabilities(ctx = {}) {
 
   const cannot = {
     create_or_send_invoices: true,
-    approve_store_replenishment: true,
-    execute_3pl_send_to_loft: true,
-    apply_floor_adjustments: true,
-    submit_or_approve_po_on_cloud_safe: cloud || mode === 'safe' || !has('po:submit'),
-    pipeline_execute_on_cloud_safe: cloud || mode === 'safe' || !has('pipeline:execute'),
+    // Permission-based: false when scope granted (owner/admin keys)
+    approve_store_replenishment: !has('store_ops:approve'),
+    execute_3pl_send_to_loft: !has('store_ops:execute_3pl'),
+    apply_floor_adjustments: !has('inventory:write'),
+    submit_or_approve_po: !has('po:submit') && !has('po:decide'),
+    pipeline_execute: !has('pipeline:execute'),
     invent_sales_rankings_or_stock_from_catalog_field: true,
+    credentials_on_cloud: true,
   }
 
   const domain_objects = {
@@ -406,25 +408,16 @@ export function mcpCapabilities(ctx = {}) {
     domain_objects,
     preferred_tools,
     safety: {
-      cloud_never_privileged: true,
-      privileged_blocked: [
-        'po_submit',
-        'po_decide',
-        'pipeline_decide',
-        'pipeline_execute',
-        'bi_upsert_seed',
-        'bi_run_seed_now',
-        'store_ops approve / execute_3pl',
-      ],
+      cloud_permission_based: true,
+      note: 'Cloud MCP allows any tool whose required scope is in key ∩ bound web user. Owner/admin may approve store ops; member/viewer typically cannot. Credentials never on cloud keys.',
       human_ui: {
-        approve_requests: '/store-ops',
-        apply_floor: '/store-ops',
-        approve_pos: '/actions',
+        store_ops: '/store-ops',
+        actions: '/actions',
         inventory: '/inventory',
       },
     },
     agent_hint: permitted
-      ? 'Answer “what can I do?” from key_permissions.permitted_actions (and tool names). Do not offer denied_tools. For live queues use ops_snapshot. Never claim approve/Loft/invoice.'
-      : 'When user asks invoices / warehouse transfers / “can I order from here”: answer from cannot + domain_objects, then ops_snapshot for live queue. Never imply MCP executed approve or Loft send.',
+      ? 'Answer “what can I do?” from key_permissions.permitted_actions. If store_ops_decide is listed, this key may approve. Approve ≠ send Loft. Never invent permissions.'
+      : 'Use scopes: store_ops:approve for decide, inventory:write for apply floor, execute_3pl for Loft send. capabilities for this key.',
   }
 }

@@ -169,33 +169,61 @@ export function isCloudMcpRequest() {
 
 /**
  * Map workspace API key scopes → MCP scopes for cloud.
- * Cloud never grants privileged scopes.
+ * A2: permission-based — elevated scopes (approve/execute) pass through when present on the key.
+ * Credentials never appear (stripped by effectiveScopes earlier).
  * @param {string[] | null | undefined} apiKeyScopes
  * @returns {string[]}
  */
 export function resolveCloudMcpScopes(apiKeyScopes) {
   const safe = [...MCP_SCOPE_PROFILES.safe]
+  const elevated = [
+    'store_ops:approve',
+    'store_ops:verify',
+    'store_ops:execute_3pl',
+    'store_ops:inbound',
+    'inventory:write',
+    'inventory:override_expiry',
+    'po:submit',
+    'po:decide',
+    'pipeline:decide',
+    'pipeline:execute',
+    'intel:write',
+    'actions:approve',
+  ]
+  const allow = new Set([...safe, ...elevated, 'products:read', 'products:write', 'brands:read', 'categories:read', 'actions:read', 'actions:write', 'actions:submit', 'pos:read', 'pos:write', 'api:read'])
   const list = Array.isArray(apiKeyScopes) ? apiKeyScopes.map(String) : []
 
-  // Empty = historical full API key → still cloud-safe only
+  // Empty = historical full API key → baseline safe (not owner elevate)
   if (list.length === 0) return safe
-  if (list.includes('mcp:safe') || list.includes('mcp:cloud')) return safe
+  if (list.includes('mcp:safe') || list.includes('mcp:cloud')) {
+    // Keep any extra elevated scopes also listed on the key
+    const extra = list.filter((s) => elevated.includes(s) || allow.has(s))
+    return [...new Set([...safe, ...extra.filter((s) => s !== 'mcp:safe' && s !== 'mcp:cloud')])]
+  }
+  if (list.includes('mcp:ops_safe')) {
+    return [...new Set([...safe, ...elevated, ...list.filter((s) => allow.has(s))])]
+  }
 
   /** @type {Set<string>} */
   const mapped = new Set()
   for (const s of list) {
-    if (safe.includes(s)) mapped.add(s)
-    // Map common product API scopes to catalog read
+    if (allow.has(s)) mapped.add(s)
     if (s === 'products:read' || s === 'pos:read') mapped.add('intel:read')
+    if (s === 'mcp:viewer') {
+      mapped.add('intel:read')
+      mapped.add('inventory:read')
+      mapped.add('store_ops:read')
+    }
   }
 
   if (mapped.size === 0) {
     throw new Error(
-      'API key has no MCP-compatible scopes. In SKUMS Settings create a "Claude / MCP connector" key (mcp:safe).',
+      'API key has no MCP-compatible scopes. In SKUMS Settings create a "Claude / MCP connector" key (mcp:safe or mcp:ops_safe for owners/admins).',
     )
   }
 
-  return [...mapped].filter((s) => !MCP_PRIVILEGED_SCOPES.includes(s))
+  // Never pass credentials via cloud mapping
+  return [...mapped].filter((s) => !s.startsWith('credentials:'))
 }
 
 /**
@@ -266,33 +294,26 @@ export function describeMcpScopes() {
 }
 
 export function requireScope(scope) {
-  // R1: cloud HTTP path never allows privileged ops
-  if (isCloudMcpRequest() && MCP_PRIVILEGED_SCOPES.includes(scope)) {
-    throw new Error(
-      `Cloud MCP blocks privileged scope "${scope}". ` +
-        `Submit/decide/execute only in SKUMS Actions UI or local full-profile MCP.`,
-    )
-  }
-
-  // M2: FRAN_MCP_MODE=safe hard-blocks privileged scopes even if SCOPES misconfigured
+  // A2 permission model: cloud is gated by effective scopes (key ∩ bound user web power).
+  // No blanket “cloud never approve” — owner/admin keys with store_ops:approve may approve.
+  // Local FRAN_MCP_MODE=safe still hard-blocks privileged scopes (stdio safety default).
   const mode = (process.env.FRAN_MCP_MODE || process.env.MCP_MODE || '').trim().toLowerCase()
-  if (mode === 'safe' && MCP_PRIVILEGED_SCOPES.includes(scope)) {
+  if (!isCloudMcpRequest() && mode === 'safe' && MCP_PRIVILEGED_SCOPES.includes(scope)) {
     throw new Error(
       `MCP mode=safe blocks privileged scope "${scope}". ` +
-        `Set FRAN_MCP_MODE=full (and full scopes) for submit/decide/execute/seed writes.`,
+        `Set FRAN_MCP_MODE=full (and full scopes) for submit/decide/execute/seed writes, ` +
+        `or use cloud MCP with an owner/admin-bound key that has the scope.`,
     )
   }
 
   const scopes = getMcpScopes()
   if (scopes == null) return
   if (!scopes.includes(scope)) {
-    const profile = isCloudMcpRequest() ? 'cloud-safe' : getMcpProfileName()
+    const profile = isCloudMcpRequest() ? 'cloud-effective' : getMcpProfileName()
     throw new Error(
       `MCP scope denied: need "${scope}" (profile=${profile}). ` +
-        `Safe profile cannot submit/decide/execute or write crawl seeds. ` +
-        (isCloudMcpRequest()
-          ? 'Use SKUMS Actions for privileged steps.'
-          : 'Set FRAN_MCP_PROFILE=full or FRAN_MCP_SCOPES=full for privileged ops.'),
+        `Granted scopes come from API key ∩ bound web user role. ` +
+        `Owner/admin may hold store_ops:approve / execute_3pl; member/viewer typically do not.`,
     )
   }
 }

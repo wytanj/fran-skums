@@ -67,14 +67,24 @@ test('MCP and assistant register ops_snapshot + capabilities', () => {
   assert.match(todo, /ops_snapshot \+ capabilities/)
 })
 
-test('mcpCapabilities states no invoices and blocks approve/execute', () => {
-  const cap = mcpCapabilities({ cloud: true, profile: 'safe', mode: 'safe', surface: 'mcp' })
+test('mcpCapabilities invoices blocked; approve depends on scopes', () => {
+  const cap = mcpCapabilities({
+    cloud: true,
+    profile: 'safe',
+    mode: 'safe',
+    surface: 'mcp',
+    scopes: ['intel:read'],
+  })
   assert.equal(cap.cannot.create_or_send_invoices, true)
   assert.equal(cap.cannot.approve_store_replenishment, true)
-  assert.equal(cap.cannot.execute_3pl_send_to_loft, true)
+  const ownerCap = mcpCapabilities({
+    cloud: true,
+    scopes: ['store_ops:approve', 'store_ops:execute_3pl', 'inventory:write'],
+  })
+  assert.equal(ownerCap.cannot.approve_store_replenishment, false)
+  assert.equal(ownerCap.cannot.execute_3pl_send_to_loft, false)
   assert.ok(cap.domain_objects.does_not_exist.some((x) => /invoice/i.test(x)))
   assert.ok(cap.preferred_tools.whats_outstanding.includes('ops_snapshot'))
-  assert.ok(cap.agent_hint)
   assert.equal(cap.runtime.cloud, true)
 })
 

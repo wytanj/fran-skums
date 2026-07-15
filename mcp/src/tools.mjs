@@ -1010,9 +1010,38 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'store_ops_decide',
+    description:
+      'HQ decide on a store replenishment request: approve_now | reject | defer_to_wave. Requires store_ops:approve (owner/admin web role on bound key). approve_now converts to order; Send to Loft is still a separate execute_3pl step. cloud OK when scoped.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: { type: 'string' },
+        decision: { type: 'string', enum: ['approve_now', 'reject', 'defer_to_wave'] },
+        decision_reason: { type: 'string' },
+        wave_date: { type: 'string' },
+        delivery_mode: { type: 'string', enum: ['delivery', 'self_collect'] },
+      },
+      required: ['request_id', 'decision'],
+    },
+  },
+  {
+    name: 'floor_adjustment_apply',
+    description:
+      'Apply a pending/approved floor inventory adjustment to the ledger (RPC). Requires inventory:write. Prefer after floor_adjustment_create_draft + human/HQ review.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        adjustment_id: { type: 'string' },
+        note: { type: 'string' },
+      },
+      required: ['adjustment_id'],
+    },
+  },
+  {
     name: 'store_ops_create_draft_request',
     description:
-      'Create a store replenishment request as DRAFT (default) or submitted HQ signal (submit=true). Lines: sku + qty. Resolves store location (ST-MAIN). NEVER approves or sends to Loft. Prefer dry_run=true first. store_ops:write / safe / cloud.',
+      'Create a store replenishment request as DRAFT (default) or submitted HQ signal (submit=true). Lines: sku + qty. Approving uses store_ops_decide (store_ops:approve). Prefer dry_run=true first. store_ops:write / cloud when scoped.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1772,6 +1801,47 @@ export async function handleTool(name, args = {}) {
             status: result.adjustment.status,
             is_draft: result.adjustment.status === 'draft',
             operation: 'INSERT',
+            after_data: result,
+          },
+          result,
+        )
+      }
+      case 'store_ops_decide': {
+        requireScope('store_ops:approve')
+        const result = await storeOps.decideRequest({
+          request_id: a.request_id,
+          decision: a.decision,
+          decision_reason: a.decision_reason,
+          wave_date: a.wave_date,
+          delivery_mode: a.delivery_mode,
+        })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'store_replenishment_requests',
+            entity_id: String(a.request_id),
+            status: result.request?.status,
+            operation: 'UPDATE',
+            after_data: result,
+          },
+          result,
+        )
+      }
+      case 'floor_adjustment_apply': {
+        requireScope('inventory:write')
+        const result = await storeOps.applyFloorAdjustment({
+          adjustment_id: a.adjustment_id,
+          note: a.note,
+        })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'inventory_adjustments',
+            entity_id: String(a.adjustment_id),
+            status: result.adjustment?.status,
+            operation: 'UPDATE',
             after_data: result,
           },
           result,
