@@ -284,13 +284,24 @@ export async function opsSnapshot(db, opts) {
 }
 
 /**
- * Static + runtime capabilities: what exists, what MCP/Catalog AI can do.
+ * Static + runtime capabilities: what exists, what THIS key can do.
+ * Pass scopes from the authenticated MCP key for permitted_tools / permitted_actions.
  * @param {{
  *   profile?: string,
  *   mode?: string,
  *   scopes?: string[] | null,
  *   cloud?: boolean,
  *   surface?: 'mcp' | 'catalog_ai' | 'both',
+ *   key_id?: string | null,
+ *   key_name?: string | null,
+ *   permitted?: {
+ *     granted_scopes?: string[] | null,
+ *     unrestricted?: boolean,
+ *     permitted_tools?: Array<{ tool: string, scope: string, action: string }>,
+ *     denied_tools?: Array<{ tool: string, scope: string, action: string, reason: string }>,
+ *     permitted_actions?: string[],
+ *     permitted_tool_names?: string[],
+ *   } | null,
  * }} [ctx]
  */
 export function mcpCapabilities(ctx = {}) {
@@ -299,19 +310,23 @@ export function mcpCapabilities(ctx = {}) {
   const mode = ctx.mode || (cloud ? 'safe' : profile)
   const scopes = ctx.scopes === undefined ? null : ctx.scopes
   const surface = ctx.surface || 'both'
+  const permitted = ctx.permitted || null
+
+  const scopeList = Array.isArray(scopes) ? scopes : scopes === null ? null : []
+  const has = (s) => scopeList == null || scopeList.includes(s)
 
   const can = {
-    read_catalog: true,
-    catalog_health_sample_search: true,
-    inventory_ats_and_product_status: true,
-    ops_snapshot: true,
-    help_center: true,
-    list_store_requests_and_waves: true,
-    recommend_store_request_decision_label_only: true,
-    draft_internal_po: !cloud || mode !== 'blocked',
-    draft_store_replenishment_request: true,
-    propose_pipeline_candidate: true,
-    market_bi_read: true,
+    read_catalog: has('intel:read'),
+    catalog_health_sample_search: has('intel:read'),
+    inventory_ats_and_product_status: has('intel:read') || has('inventory:read'),
+    ops_snapshot: has('intel:read'),
+    help_center: has('intel:read'),
+    list_store_requests_and_waves: has('store_ops:read'),
+    recommend_store_request_decision_label_only: has('store_ops:read'),
+    draft_internal_po: has('po:draft'),
+    draft_store_replenishment_request: has('store_ops:write'),
+    propose_pipeline_candidate: has('pipeline:propose'),
+    market_bi_read: has('intel:read'),
   }
 
   const cannot = {
@@ -319,8 +334,8 @@ export function mcpCapabilities(ctx = {}) {
     approve_store_replenishment: true,
     execute_3pl_send_to_loft: true,
     apply_floor_adjustments: true,
-    submit_or_approve_po_on_cloud_safe: cloud || mode === 'safe',
-    pipeline_execute_on_cloud_safe: cloud || mode === 'safe',
+    submit_or_approve_po_on_cloud_safe: cloud || mode === 'safe' || !has('po:submit'),
+    pipeline_execute_on_cloud_safe: cloud || mode === 'safe' || !has('pipeline:execute'),
     invent_sales_rankings_or_stock_from_catalog_field: true,
   }
 
@@ -365,8 +380,23 @@ export function mcpCapabilities(ctx = {}) {
       cloud,
       profile,
       mode,
-      scopes: scopes == null ? (cloud ? 'cloud-safe-list' : 'unrestricted_or_env') : scopes,
+      scopes: scopes == null ? (cloud ? 'unrestricted_but_cloud_safe_strip' : 'unrestricted_or_env') : scopes,
+      key_id: ctx.key_id || null,
+      key_name: ctx.key_name || null,
     },
+    /** Fast path: what THIS authenticated key may call right now */
+    key_permissions: permitted
+      ? {
+          granted_scopes: permitted.granted_scopes,
+          unrestricted: permitted.unrestricted === true,
+          permitted_tool_count: (permitted.permitted_tools || []).length,
+          denied_tool_count: (permitted.denied_tools || []).length,
+          permitted_actions: permitted.permitted_actions || [],
+          permitted_tool_names: permitted.permitted_tool_names || [],
+          permitted_tools: permitted.permitted_tools || [],
+          denied_tools_sample: (permitted.denied_tools || []).slice(0, 25),
+        }
+      : null,
     can,
     cannot,
     domain_objects,
@@ -389,7 +419,8 @@ export function mcpCapabilities(ctx = {}) {
         inventory: '/inventory',
       },
     },
-    agent_hint:
-      'When user asks invoices / warehouse transfers / “can I order from here”: answer from cannot + domain_objects, then ops_snapshot for live queue. Never imply MCP executed approve or Loft send.',
+    agent_hint: permitted
+      ? 'Answer “what can I do?” from key_permissions.permitted_actions (and tool names). Do not offer denied_tools. For live queues use ops_snapshot. Never claim approve/Loft/invoice.'
+      : 'When user asks invoices / warehouse transfers / “can I order from here”: answer from cannot + domain_objects, then ops_snapshot for live queue. Never imply MCP executed approve or Loft send.',
   }
 }

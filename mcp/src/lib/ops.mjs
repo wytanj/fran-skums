@@ -5,10 +5,12 @@ import {
   describeMcpScopes,
   getMcpProfileName,
   getMcpScopes,
+  getMcpRequestContext,
   isCloudMcpRequest,
   getDb,
 } from '../context.mjs'
 import { opsSnapshot, mcpCapabilities } from '../../../core/ops/index.mjs'
+import { resolvePermittedTools } from '../toolScopes.mjs'
 
 /**
  * @param {string} workspaceId
@@ -22,15 +24,24 @@ export async function snapshotOps(workspaceId, args = {}) {
 }
 
 /**
+ * What THIS key can do — one-shot for “what am I allowed to do?”
  * @param {Record<string, any>} [args]
  */
 export function capabilitiesOps(args = {}) {
   const desc = describeMcpScopes()
+  const cloud = isCloudMcpRequest()
+  const scopes = getMcpScopes()
+  const req = getMcpRequestContext()
+  const permitted = resolvePermittedTools({ scopes, cloud })
+
   return mcpCapabilities({
-    cloud: isCloudMcpRequest(),
+    cloud,
     profile: getMcpProfileName(),
     mode: desc.mode,
-    scopes: getMcpScopes(),
+    scopes,
     surface: args.surface || 'mcp',
+    key_id: req?.keyId || null,
+    key_name: req?.keyName || null,
+    permitted,
   })
 }

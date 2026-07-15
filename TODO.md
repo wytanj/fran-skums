@@ -139,8 +139,9 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
        floor-adj draft only, low-stock→request pack, integrations health,
        attention queue, POS-enable proposals (no bulk flip)
 ─────────────────
-Deferred (user asked later):
-  · MCP user permission + scopes (workspace members ↔ connector keys)
+Next / deferred:
+  · A2 MCP user permission + scopes (workspace members ↔ connector keys)
+  · Fast path already: capabilities → key_permissions.permitted_actions (this key)
 ─────────────────
 Parallel / later:
   0.x  Loft email answers → dictionary IDs

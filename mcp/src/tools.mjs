@@ -302,7 +302,7 @@ export const toolDefinitions = [
   {
     name: 'capabilities',
     description:
-      'What Fran MCP can and cannot do: no invoices, no approve/execute_3pl on cloud, domain objects that exist vs not, preferred tools for stock/ops/catalog. Use when user asks “can I create an invoice / order from warehouse / what tools exist?”. intel:read / safe / cloud.',
+      'FAST PATH for “what can I do with this key?”: returns key_permissions.permitted_actions + permitted_tool_names from the authenticated API key scopes, plus domain cannot (no invoices, no approve/execute_3pl on cloud). Call this first for permission questions. intel:read / safe / cloud.',
     inputSchema: {
       type: 'object',
       properties: {

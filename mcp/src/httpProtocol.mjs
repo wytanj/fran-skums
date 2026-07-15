@@ -3,8 +3,9 @@
  * Supports initialize, tools/list, tools/call, ping — enough for remote clients.
  */
 import { toolDefinitions, handleTool } from './tools.mjs'
-import { MCP_PRIVILEGED_SCOPES, MCP_SCOPE_PROFILES } from './context.mjs'
+import { getMcpScopes, MCP_PRIVILEGED_SCOPES, MCP_SCOPE_PROFILES } from './context.mjs'
 import { getCloudMcpInstructions } from './agentInstructions.mjs'
+import { isToolPermitted, privilegedToolNames as listPrivilegedToolNames } from './toolScopes.mjs'
 
 const SERVER_INFO = {
   name: 'fran-skums',
@@ -20,22 +21,25 @@ const SUPPORTED_PROTOCOL_VERSIONS = new Set([
 ])
 
 /** Tools that require privileged scopes — never listed on cloud */
-const PRIVILEGED_TOOL_NAMES = new Set([
-  'pipeline_decide',
-  'pipeline_execute',
-  'po_submit',
-  'po_decide',
-  'bi_upsert_seed',
-  'bi_set_cadence',
-  'bi_run_seed_now',
-])
+const PRIVILEGED_TOOL_NAMES = new Set(listPrivilegedToolNames())
 
 /**
+ * List tools visible to the client.
+ * Cloud: drop privileged always.
+ * When request scopes are set (API key), also drop tools the key cannot call.
  * @param {boolean} cloud
+ * @param {string[] | null} [scopes] optional override; default getMcpScopes() in request
  */
-export function listToolsForTransport(cloud = false) {
-  if (!cloud) return toolDefinitions
-  return toolDefinitions.filter((t) => !PRIVILEGED_TOOL_NAMES.has(t.name))
+export function listToolsForTransport(cloud = false, scopes) {
+  const resolvedScopes = scopes !== undefined ? scopes : getMcpScopes()
+  return toolDefinitions.filter((t) => {
+    if (cloud && PRIVILEGED_TOOL_NAMES.has(t.name)) return false
+    // On cloud (or when scopes are an explicit list), hide tools this key cannot call
+    if (cloud || Array.isArray(resolvedScopes)) {
+      return isToolPermitted(t.name, { scopes: resolvedScopes, cloud })
+    }
+    return true
+  })
 }
 
 /**

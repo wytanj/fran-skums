@@ -177,10 +177,13 @@ const posKeySaving = ref(false)
 const newlyCreatedKey = ref('')
 const newlyCreatedKeyUse = ref<'general' | 'pos' | 'mcp'>('general')
 const POS_SCOPES = ['pos:read', 'pos:write']
-/** Cloud MCP safe profile scopes (matches mcp MCP_SCOPE_PROFILES.safe) */
+/** Cloud MCP safe profile scopes (matches mcp MCP_SCOPE_PROFILES.safe; mcp:safe expands server-side) */
 const MCP_SAFE_SCOPES = [
   'mcp:safe',
   'intel:read',
+  'inventory:read',
+  'store_ops:read',
+  'store_ops:write',
   'study:write',
   'pipeline:propose',
   'po:draft',

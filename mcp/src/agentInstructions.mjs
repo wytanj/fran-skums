@@ -18,7 +18,7 @@ Composite-first (prefer ONE tool, then answer):
 | Stock / “status of product X” / in transit / at Loft | product_inventory_status | product.stock_quantity; multi help+search |
 | ATS by location only | inventory_ats | catalog stock fields |
 | What’s outstanding / transfers / queues | ops_snapshot | inventing empty as “settled” |
-| Can I invoice / order / what exists? | capabilities (+ ops_snapshot if live) | assuming ERP features |
+| Can I invoice / order / what exists? / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe |
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | approve / execute_3pl |
@@ -81,7 +81,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: catalog_health, catalog_sample, catalog_search_summary, catalog_export_csv, catalog_data_ops, inventory_ats, product_inventory_status, ops_snapshot, capabilities, help_resolve/help_get.',
+    'OK composites: capabilities (key-scoped permitted_actions), catalog_health, catalog_sample, catalog_search_summary, catalog_export_csv, catalog_data_ops, inventory_ats, product_inventory_status, ops_snapshot, help_resolve/help_get.',
     'OK other read/draft: catalog_*, study_*, market_*, bi_list_*/export_*, pipeline_propose, po_create_draft/update/clone, store_ops_list_*, store_ops_recommend, store_ops_create_draft_request.',
     cloud
       ? 'NO (cloud): po_submit, po_decide, pipeline_decide/execute, bi seed write/run, store_ops approve/execute_3pl/verify.'
