@@ -504,6 +504,10 @@ async function deleteField(id: string) {
 
 async function handleSendInvite() {
   if (!inviteEmail.value.trim()) return
+  if (inviteRole.value === 'admin' && !isOwner.value) {
+    showError('Only the workspace owner can invite Admins')
+    return
+  }
   inviteSending.value = true
   try {
     await sendInvite(inviteEmail.value, inviteRole.value)
@@ -529,6 +533,13 @@ async function handleRevokeInvite(id: string) {
 }
 
 async function handleRoleChange(userId: string, newRole: string) {
+  const target = members.value.find((m) => m.user_id === userId)
+  // Owner (CEO/CTO/CFO seat): only workspace owner may appoint or demote admins
+  if ((newRole === 'admin' || target?.role === 'admin') && !isOwner.value) {
+    showError('Only the workspace owner can appoint or change admins. Admins manage members/viewers and permissions within their role.')
+    await fetchMembers()
+    return
+  }
   try {
     await updateMemberRole(userId, newRole as any)
     showSuccess('Role updated')
@@ -558,9 +569,20 @@ function getRoleColor(role: string) {
   return map[role] || map.viewer
 }
 
+/** Workspace owner seat (typically CEO / founder / technical principal — Jeremy). Can appoint admins. */
 const isOwner = computed(() => {
   const uid = getUserId()
-  return currentWorkspace.value?.owner_id === uid
+  if (!uid) return false
+  if (currentWorkspace.value?.owner_id === uid) return true
+  return members.value.some((m) => m.user_id === uid && m.role === 'owner')
+})
+
+/** Multiple admins OK for day-to-day permissions; they cannot appoint other admins. */
+const isWorkspaceAdminRole = computed(() => {
+  const uid = getUserId()
+  if (!uid) return false
+  if (isOwner.value) return true
+  return members.value.some((m) => m.user_id === uid && (m.role === 'admin' || m.role === 'owner'))
 })
 
 const tabs = [
@@ -924,7 +946,10 @@ onMounted(async () => {
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-lg font-semibold text-white">Team Members</h2>
-            <p class="mt-0.5 text-sm text-gray-400">{{ members.length }} member{{ members.length !== 1 ? 's' : '' }}</p>
+            <p class="mt-0.5 text-sm text-gray-400">
+              {{ members.length }} member{{ members.length !== 1 ? 's' : '' }}
+              · Owner appoints Admins · Admins manage ops & keys within their scopes
+            </p>
           </div>
           <button v-if="isOwner || can('team', 'invite')" class="btn-primary" @click="showInviteForm = !showInviteForm">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -946,7 +971,7 @@ onMounted(async () => {
               class="input-field flex-1"
             />
             <select v-model="inviteRole" class="input-field w-32">
-              <option value="admin">Admin</option>
+              <option v-if="isOwner" value="admin">Admin</option>
               <option value="member">Member</option>
               <option value="viewer">Viewer</option>
             </select>
@@ -955,7 +980,8 @@ onMounted(async () => {
             </button>
           </form>
           <p class="mt-2 text-xs text-gray-500">
-            The invite link will be valid for 7 days. The user must sign up or log in with this email to accept.
+            Invite valid 7 days. <span v-if="isOwner">As owner you can appoint Admins (ops leads). </span>
+            <span v-else>Only the workspace owner can invite Admins.</span>
           </p>
         </div>
 
@@ -979,12 +1005,12 @@ onMounted(async () => {
                 {{ m.role }}
               </span>
               <select
-                v-else-if="(isOwner || can('team', 'change_role')) && m.user_id !== getUserId()"
+                v-else-if="(isOwner || can('team', 'change_role')) && m.user_id !== getUserId() && m.role !== 'owner'"
                 :value="m.role"
                 class="input-field !py-1 text-xs w-28"
                 @change="handleRoleChange(m.user_id, ($event.target as HTMLSelectElement).value)"
               >
-                <option value="admin">Admin</option>
+                <option v-if="isOwner" value="admin">Admin</option>
                 <option value="member">Member</option>
                 <option value="viewer">Viewer</option>
               </select>

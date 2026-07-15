@@ -37,6 +37,19 @@ export function useTeam() {
 
   async function updateMemberRole(userId: string, role: 'admin' | 'member' | 'viewer') {
     if (!currentWorkspace.value) return
+    const uid = getUid()
+    const isWsOwner = currentWorkspace.value.owner_id === uid
+    // Only workspace owner may appoint or demote admins (multiple admins OK once appointed)
+    if (role === 'admin' && !isWsOwner) {
+      throw new Error('Only the workspace owner can appoint admins')
+    }
+    const target = members.value.find((m) => m.user_id === userId)
+    if (target?.role === 'admin' && role !== 'admin' && !isWsOwner) {
+      throw new Error('Only the workspace owner can change an admin’s role')
+    }
+    if (target?.role === 'owner') {
+      throw new Error('Cannot change the workspace owner role here')
+    }
     const { error } = await client
       .from('workspace_members')
       .update({ role })

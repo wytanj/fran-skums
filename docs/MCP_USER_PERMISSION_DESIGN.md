@@ -66,7 +66,8 @@ One package per **workspace login role** (and optional schemas). Creating an MCP
 
 | Web role / schema | MCP key template | Cloud tools (examples) | Explicitly never on cloud |
 |-------------------|------------------|------------------------|---------------------------|
-| **Owner / Admin** (superadmin of workspace) | `mcp:ops_safe` (default connector) | Full cloud-safe set: catalog composites, inventory status, ops_snapshot, draft PO, draft store request, study propose, capabilities | approve, execute_3pl, po_submit, pipeline_execute, seed write |
+| **Owner** (single seat: CEO / founder / CTO principal — e.g. Jeremy via `workspaces.owner_id`) | `mcp:ops_safe` | Full cloud-safe + **appoint admins**, revoke any keys | Cloud still no approve/Loft execute |
+| **Admin** (multiple OK — ops leads appointed by owner) | `mcp:ops_safe` | Same cloud-safe ops as owner; manage members/viewers & keys; **cannot** appoint admins | same cloud ceiling |
 | **Member** | `mcp:member` | Catalog read/export/data_ops, inventory ATS/status, help, ops_snapshot **read**, draft store request if schema has `store_ops:write`, draft PO if `actions` write/submit | approve, execute_3pl, api key admin, credentials |
 | **Viewer** | `mcp:viewer` | Read-only: catalog health/sample/search, inventory_ats **read**, ops_snapshot read, help, capabilities | All writes, drafts, study write |
 | **Store associate** schema | `mcp:store` | product search, inventory_ats, store_ops list + **create draft request**, help | catalog bulk, PO, pipeline, approve |
@@ -77,11 +78,12 @@ One package per **workspace login role** (and optional schemas). Creating an MCP
 
 | Action | Scope | Who |
 |--------|-------|-----|
-| List / create / **revoke** API keys | `api:read` / `api:write` | owner, admin (and `api:write` in schema) |
-| Assign permission schemas / roles | `team:roles` | owner, admin |
+| List / create / **revoke** API keys | `api:read` / `api:write` | owner **and** admins (multiple admins OK) |
+| Appoint / demote **admins** | owner seat only | **Owner only** (`workspaces.owner_id` — CEO/CTO/CFO principal, e.g. Jeremy) |
+| Change member/viewer roles | `team:change_role` | owner + admins (admins cannot set role=admin) |
 | Bind key to a user | `api:write` | owner, admin |
 
-Jeremy as **workspace owner** → full `api:write` → can revoke any workspace key (RLS already: `get_my_admin_workspace_ids()`).
+**Model:** one **owner** seat; **many admins** for day-to-day permissions and keys. Owner appoints admins.
 
 ---
 
