@@ -42,6 +42,7 @@ export function capabilitiesOps(args = {}) {
     surface: args.surface || 'mcp',
     key_id: req?.keyId || null,
     key_name: req?.keyName || null,
+    actor_user_id: req?.actorUserId || null,
     permitted,
   })
 }

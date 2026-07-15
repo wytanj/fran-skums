@@ -5,6 +5,36 @@
 
 export type ScopeString = string
 
+/**
+ * Cloud MCP safe ceiling (must stay aligned with mcp/src/context.mjs MCP_SCOPE_PROFILES.safe).
+ * Never includes approve / execute_3pl / po_submit / pipeline_execute / intel:write.
+ */
+export const MCP_CLOUD_SAFE_SCOPES: string[] = [
+  'intel:read',
+  'inventory:read',
+  'store_ops:read',
+  'store_ops:write',
+  'study:write',
+  'pipeline:propose',
+  'po:draft',
+  'projection:run',
+]
+
+/** Privileged scopes never granted on remote cloud MCP. */
+export const MCP_CLOUD_FORBIDDEN_SCOPES: string[] = [
+  'intel:write',
+  'pipeline:decide',
+  'pipeline:execute',
+  'po:submit',
+  'po:decide',
+  'store_ops:approve',
+  'store_ops:verify',
+  'store_ops:execute_3pl',
+  'store_ops:inbound',
+  'credentials:read',
+  'credentials:write',
+]
+
 /** App / role packages used for API keys and install grants. */
 export const SCOPE_PACKAGES: Record<string, string[]> = {
   pos_connector: [
@@ -33,6 +63,68 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'store_ops:write',
     'products:read',
   ],
+  /** MCP templates (A2) — role-aligned connector packages */
+  'mcp:viewer': [
+    'intel:read',
+    'inventory:read',
+    'store_ops:read',
+    'products:read',
+    'brands:read',
+    'categories:read',
+    'actions:read',
+  ],
+  'mcp:member': [
+    ...MCP_CLOUD_SAFE_SCOPES,
+    'products:read',
+    'products:write',
+    'brands:read',
+    'categories:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+  ],
+  'mcp:ops_safe': [
+    ...MCP_CLOUD_SAFE_SCOPES,
+    'products:read',
+    'products:write',
+    'brands:read',
+    'categories:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'api:read',
+  ],
+  'mcp:store': [
+    'products:read',
+    'inventory:read',
+    'store_ops:read',
+    'store_ops:write',
+    'pos:read',
+    'pos:write',
+    'intel:read',
+  ],
+  'mcp:buyer': [
+    'products:read',
+    'intel:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'pipeline:propose',
+    'po:draft',
+    'projection:run',
+    'study:write',
+  ],
+  'mcp:finance': [
+    'products:read',
+    'inventory:read',
+    'actions:read',
+    'actions:approve',
+    'projection:run',
+    'intel:read',
+  ],
+  /** Alias used by Settings Claude key button */
+  'mcp:safe': [...MCP_CLOUD_SAFE_SCOPES, 'products:read', 'actions:read', 'actions:write', 'actions:submit'],
+  mcp_safe: [...MCP_CLOUD_SAFE_SCOPES, 'products:read', 'actions:read', 'actions:write', 'actions:submit'],
   inventory_ops: [
     'products:read',
     'products:write',
@@ -100,6 +192,139 @@ export function expandScopePackage(nameOrList: string | string[]): string[] {
     return expandScopePackage(key.split(',').map(s => s.trim()).filter(Boolean))
   }
   return [key]
+}
+
+/**
+ * Expand key.scopes array (packages + raw scopes) into a flat unique list.
+ * Empty array → [] (does NOT mean full — call sites apply defaults for legacy keys).
+ */
+export function expandKeyScopes(scopes: string[] | null | undefined): string[] {
+  const list = normalizeGrantedScopes(scopes)
+  if (!list.length) return []
+  if (list.includes('*') || list.includes('full')) return ['*']
+  return [...new Set(list.flatMap((s) => expandScopePackage(s)))]
+}
+
+/**
+ * Bridge web/permission_schema scopes → MCP tool scopes so keys can be capped by login power.
+ */
+export function bridgeWebScopesToMcp(webScopes: string[]): string[] {
+  const out = new Set<string>()
+  for (const s of normalizeGrantedScopes(webScopes)) {
+    out.add(s)
+    if (s === 'products:read' || s === 'brands:read' || s === 'categories:read' || s === 'products:export') {
+      out.add('intel:read')
+    }
+    if (s === 'inventory:read') {
+      out.add('inventory:read')
+      out.add('intel:read')
+    }
+    if (s === 'actions:write' || s === 'actions:submit') {
+      out.add('po:draft')
+      out.add('pipeline:propose')
+      out.add('study:write')
+    }
+    if (s === 'actions:approve') {
+      out.add('po:submit')
+      out.add('po:decide')
+      out.add('pipeline:decide')
+    }
+    if (s === 'forecasting:read' || s === 'forecasting:write') {
+      out.add('projection:run')
+    }
+    if (s === 'intel:read') out.add('intel:read')
+    if (s === 'intel:write') out.add('intel:write')
+  }
+  return [...out]
+}
+
+/**
+ * Intersect two scope lists. '*' in either side means that side is unrestricted.
+ */
+export function intersectScopes(a: string[], b: string[]): string[] {
+  const aa = normalizeGrantedScopes(a)
+  const bb = normalizeGrantedScopes(b)
+  if (aa.includes('*') || aa.includes('full')) return bb.filter((s) => s !== '*' && s !== 'full')
+  if (bb.includes('*') || bb.includes('full')) return aa.filter((s) => s !== '*' && s !== 'full')
+  const setB = new Set(bb)
+  return aa.filter((s) => setB.has(s))
+}
+
+/**
+ * Apply cloud MCP ceiling (strip privileged).
+ */
+export function applyCloudMcpCeiling(scopes: string[]): string[] {
+  const allowed = new Set(MCP_CLOUD_SAFE_SCOPES)
+  // Also allow product/actions read aliases that map to safe tools
+  for (const s of [
+    'products:read',
+    'products:write',
+    'brands:read',
+    'categories:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'pos:read',
+    'pos:write',
+    'api:read',
+  ]) {
+    allowed.add(s)
+  }
+  const list = normalizeGrantedScopes(scopes)
+  if (list.includes('*') || list.includes('full')) {
+    return [...allowed]
+  }
+  return list.filter((s) => allowed.has(s) && !MCP_CLOUD_FORBIDDEN_SCOPES.includes(s))
+}
+
+/**
+ * Pure effective-scope computation (A2).
+ * effective = expand(key) ∩ bridge(user) ∩ optional cloud ceiling
+ */
+export function computeEffectiveScopes(opts: {
+  keyScopes: string[]
+  maxPackage?: string | null
+  userWebScopes: string[]
+  cloud?: boolean
+  /** If key scopes empty: use maxPackage, else mcp:safe for mcp keys, else [] */
+  keyKind?: string | null
+}): string[] {
+  let keyExpanded = expandKeyScopes(opts.keyScopes)
+  if (!keyExpanded.length) {
+    const fallback =
+      opts.maxPackage ||
+      (opts.keyKind === 'mcp_connector' || opts.keyKind === 'mcp' ? 'mcp:safe' : null)
+    keyExpanded = fallback ? expandScopePackage(fallback) : []
+  }
+  if (opts.maxPackage) {
+    const pkg = expandScopePackage(opts.maxPackage)
+    keyExpanded = intersectScopes(keyExpanded, pkg.length ? pkg : keyExpanded)
+  }
+
+  const userMcp = bridgeWebScopesToMcp(opts.userWebScopes)
+  // If user has no scopes resolved (empty membership), deny everything
+  if (!opts.userWebScopes?.length && !userMcp.length) {
+    return []
+  }
+  // Unrestricted user (owner elevated often has many scopes) — if user list empty after bridge only
+  let effective = userMcp.length
+    ? intersectScopes(keyExpanded, userMcp)
+    : keyExpanded
+
+  // Owner/admin often have elevated scopes that include store_ops:approve — keep key power only if key had it
+  if (opts.cloud) {
+    effective = applyCloudMcpCeiling(effective)
+  }
+  return effective
+}
+
+/** Default MCP package by workspace role */
+export function defaultMcpPackageForRole(role: string | null | undefined): string {
+  const r = String(role || 'member').toLowerCase()
+  if (r === 'owner' || r === 'admin') return 'mcp:ops_safe'
+  if (r === 'viewer') return 'mcp:viewer'
+  if (r === 'store_associate' || r === 'store') return 'mcp:store'
+  return 'mcp:member'
 }
 
 /**

@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildToolDefinitions, executeTool, type ToolContext } from './assistantTools'
+import {
+  buildToolDefinitions,
+  executeTool,
+  filterToolDefinitionsByScopes,
+  type ToolContext,
+} from './assistantTools'
+import { resolveEffectiveScopesForSession } from './effectiveScopes'
 
 export interface StreamParams {
   client: SupabaseClient
@@ -100,7 +106,16 @@ export function createAssistantStream(params: StreamParams): ReadableStream {
 
         const toolCtx: ToolContext = { client, workspaceId, slackWebhookUrl }
 
-        console.log('[assistant] Calling xAI API with model:', model, 'messages:', messages.length)
+        // A2: Catalog AI tools ≤ session web login power
+        let assistantTools = buildToolDefinitions()
+        try {
+          const sessionScopes = await resolveEffectiveScopesForSession(client, workspaceId, userId)
+          assistantTools = filterToolDefinitionsByScopes(assistantTools, sessionScopes.scopes)
+        } catch (e) {
+          console.warn('[assistant] scope filter skipped', (e as Error)?.message)
+        }
+
+        console.log('[assistant] Calling xAI API with model:', model, 'messages:', messages.length, 'tools:', assistantTools.length)
 
         // Tool-call loop (max 5 rounds)
         for (let round = 0; round < 5; round++) {
@@ -114,7 +129,7 @@ export function createAssistantStream(params: StreamParams): ReadableStream {
             body: JSON.stringify({
               model,
               messages,
-              tools: buildToolDefinitions(),
+              tools: assistantTools,
               tool_choice: 'auto',
               stream: true,
             }),

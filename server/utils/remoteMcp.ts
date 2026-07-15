@@ -17,10 +17,13 @@ export type RemoteMcpAuth = {
   keyName: string
   scopes: string[]
   clientName: string
+  boundUserId?: string | null
+  boundUserRole?: string | null
 }
 
 /**
  * Authenticate API key for cloud MCP and resolve safe scopes.
+ * A2: scopes already capped by bound user; then cloud ceiling applied.
  */
 export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> {
   const ctx = await authenticateApiKey(event)
@@ -32,13 +35,48 @@ export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> 
     })
   }
 
+  // Re-resolve with cloud=true so ceiling is applied on effective web∩key scopes
+  const client = getAdminClient()
+  const { resolveEffectiveScopesForApiKey } = await import('./effectiveScopes')
+  const { data: keyRow } = await client
+    .from('api_keys')
+    .select(
+      'id, workspace_id, name, scopes, is_active, created_by, bound_user_id, key_kind, max_package, revoked_at',
+    )
+    .eq('id', ctx.keyId)
+    .maybeSingle()
+
   let scopes: string[]
+  let boundUserId = ctx.boundUserId
+  let boundUserRole = ctx.boundUserRole
   try {
-    scopes = resolveCloudMcpScopes(ctx.scopes)
+    if (keyRow) {
+      const effective = await resolveEffectiveScopesForApiKey(client, keyRow as any, { cloud: true })
+      if (effective.deniedReason) {
+        throw createError({
+          statusCode: 403,
+          statusMessage: `MCP key denied: ${effective.deniedReason}`,
+        })
+      }
+      scopes = resolveCloudMcpScopes(effective.scopes)
+      boundUserId = effective.boundUserId
+      boundUserRole = effective.boundUserRole
+    } else {
+      scopes = resolveCloudMcpScopes(ctx.scopes)
+    }
   } catch (e: any) {
+    if (e?.statusCode) throw e
     throw createError({
       statusCode: 403,
       statusMessage: e?.message || 'API key not allowed for MCP',
+    })
+  }
+
+  if (!scopes.length) {
+    throw createError({
+      statusCode: 403,
+      statusMessage:
+        'This API key has no MCP-compatible scopes after applying your web login permissions. Ask a workspace owner to issue a key bound to a role with catalog/store access.',
     })
   }
 
@@ -55,6 +93,8 @@ export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> 
     keyName: ctx.keyName,
     scopes,
     clientName: String(clientHint).slice(0, 80),
+    boundUserId,
+    boundUserRole,
   }
 }
 
@@ -67,7 +107,7 @@ export async function runRemoteMcpJsonRpc(auth: RemoteMcpAuth, body: unknown) {
       workspaceId: auth.workspaceId,
       scopes: auth.scopes,
       clientName: auth.clientName,
-      actorUserId: null,
+      actorUserId: auth.boundUserId || null,
       cloud: true,
       keyId: auth.keyId,
       keyName: auth.keyName,
@@ -89,7 +129,7 @@ export async function runRemoteMcpTool(
       workspaceId: auth.workspaceId,
       scopes: auth.scopes,
       clientName: auth.clientName,
-      actorUserId: null,
+      actorUserId: auth.boundUserId || null,
       cloud: true,
       keyId: auth.keyId,
       keyName: auth.keyName,

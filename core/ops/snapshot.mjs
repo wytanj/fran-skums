@@ -294,6 +294,7 @@ export async function opsSnapshot(db, opts) {
  *   surface?: 'mcp' | 'catalog_ai' | 'both',
  *   key_id?: string | null,
  *   key_name?: string | null,
+ *   actor_user_id?: string | null,
  *   permitted?: {
  *     granted_scopes?: string[] | null,
  *     unrestricted?: boolean,
@@ -383,6 +384,7 @@ export function mcpCapabilities(ctx = {}) {
       scopes: scopes == null ? (cloud ? 'unrestricted_but_cloud_safe_strip' : 'unrestricted_or_env') : scopes,
       key_id: ctx.key_id || null,
       key_name: ctx.key_name || null,
+      actor_user_id: ctx.actor_user_id || null,
     },
     /** Fast path: what THIS authenticated key may call right now */
     key_permissions: permitted
@@ -395,6 +397,8 @@ export function mcpCapabilities(ctx = {}) {
           permitted_tool_names: permitted.permitted_tool_names || [],
           permitted_tools: permitted.permitted_tools || [],
           denied_tools_sample: (permitted.denied_tools || []).slice(0, 25),
+          web_aligned: true,
+          note: 'Scopes are capped by bound web user power ∩ cloud ceiling (A2).',
         }
       : null,
     can,

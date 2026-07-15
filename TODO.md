@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15  
 **Shipped on `main`:** **M0–M6**, Help Center, **Phase R1** remote MCP, **Loft P–E** + operator docs + assistant Help tools (see `TODO-LOFT.md` · `docs/Commit Summary 15072026.md`)  
-**DB:** migrations **001–061** on shared Supabase (058 floor; 059–060 Help; 061 calendars; apply `--from 058` if a host lags).  
+**DB:** migrations **001–063** (063 = API key bound_user / soft revoke for A2).  
 **Held:** **R2 OAuth** (remote MCP stays API-key until org permissioning is solid)  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
@@ -20,7 +20,7 @@
 | Priority | Track | First tasks |
 |----------|--------|-------------|
 | **A** | **MCP composite tools** | #1–7 ✅ · **#8 action backlog for review** |
-| **A2 (design)** | **MCP ↔ web login permissions** | Design: `docs/MCP_USER_PERMISSION_DESIGN.md` — same scopes web/MCP; owner revokes keys |
+| **A2 (in progress)** | **MCP ↔ web login permissions** | Resolver + key bind/revoke + MCP/Catalog AI gate — `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
 | **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
@@ -140,9 +140,10 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
        attention queue, POS-enable proposals (no bulk flip)
 ─────────────────
 Next / deferred:
-  · A2 MCP ↔ web login permissions — DESIGN READY: docs/MCP_USER_PERMISSION_DESIGN.md
-      (key scopes ∩ bound user web scopes ∩ cloud ceiling; owner/admin revoke keys)
-  · Fast path live: capabilities → key_permissions.permitted_actions (this key)
+  · A2 MCP ↔ web login — IMPLEMENTED core (A2.1–A2.3):
+      resolveEffectiveScopes · mig 063 · keys create/revoke · MCP auth · Catalog AI filter
+      Apply 063 on prod: npm run db:migrate (or --from 063)
+  · Fast path: capabilities → key_permissions (web-aligned)
 ─────────────────
 Parallel / later:
   0.x  Loft email answers → dictionary IDs

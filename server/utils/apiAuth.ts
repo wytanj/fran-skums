@@ -5,7 +5,14 @@ export interface ApiKeyContext {
   workspaceId: string
   keyId: string
   keyName: string
+  /** Effective scopes (key ∩ bound user ∩ ceilings) */
   scopes: string[]
+  boundUserId?: string | null
+  boundUserRole?: string | null
+  keyKind?: string | null
+  maxPackage?: string | null
+  /** Raw scopes stored on the key row before effective resolution */
+  rawScopes?: string[]
 }
 
 export function generateApiKey(): { raw: string; hash: string; prefix: string } {
@@ -60,13 +67,22 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
 
   const { data, error } = await client
     .from('api_keys')
-    .select('id, workspace_id, name, scopes, is_active, expires_at, total_requests')
+    .select(
+      'id, workspace_id, name, scopes, is_active, expires_at, total_requests, created_by, bound_user_id, key_kind, max_package, revoked_at',
+    )
     .eq('key_hash', hash)
     .single()
 
   if (error || !data) return null
   if (!data.is_active) return null
+  if (data.revoked_at) return null
   if (data.expires_at && new Date(data.expires_at) < new Date()) return null
+
+  // A2: effective scopes = key ∩ bound user web power (cloud ceiling applied in MCP layer)
+  const { resolveEffectiveScopesForApiKey } = await import('./effectiveScopes')
+  const effective = await resolveEffectiveScopesForApiKey(client, data as any, { cloud: false })
+  if (effective.deniedReason === 'bound_user_not_a_member') return null
+  if (effective.deniedReason === 'key_revoked_or_inactive') return null
 
   // Update usage stats (fire and forget)
   client
@@ -79,7 +95,12 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
     workspaceId: data.workspace_id,
     keyId: data.id,
     keyName: data.name,
-    scopes: data.scopes || [],
+    scopes: effective.scopes,
+    rawScopes: data.scopes || [],
+    boundUserId: effective.boundUserId,
+    boundUserRole: effective.boundUserRole,
+    keyKind: data.key_kind || 'general',
+    maxPackage: data.max_package || null,
   }
 }
 

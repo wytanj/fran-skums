@@ -19,6 +19,52 @@ export interface ToolContext {
   slackWebhookUrl?: string | null
 }
 
+/** Map Catalog AI tool names → required web/MCP-ish scopes (A2 parity). */
+export const ASSISTANT_TOOL_SCOPES: Record<string, string[]> = {
+  resolve_help: ['intel:read', 'products:read'],
+  get_help_article: ['intel:read', 'products:read'],
+  list_help_articles: ['intel:read', 'products:read'],
+  get_catalog_health: ['intel:read', 'products:read'],
+  sample_products: ['intel:read', 'products:read'],
+  search_products_summary: ['intel:read', 'products:read'],
+  export_catalog_csv: ['intel:read', 'products:read', 'products:export'],
+  get_catalog_data_ops: ['intel:read', 'products:read'],
+  get_catalog_stats: ['intel:read', 'products:read'],
+  search_products: ['intel:read', 'products:read'],
+  get_product: ['intel:read', 'products:read'],
+  get_ops_snapshot: ['intel:read', 'store_ops:read'],
+  get_capabilities: ['intel:read', 'products:read'],
+  get_inventory_ats: ['inventory:read', 'intel:read'],
+  get_product_inventory_status: ['inventory:read', 'intel:read'],
+  get_inventory_summary: ['inventory:read'],
+  get_low_stock_alerts: ['inventory:read'],
+  get_expiry_summary: ['expiry:read', 'inventory:read'],
+  get_top_products_by_value: ['inventory:read', 'products:read'],
+  get_recent_activity: ['activity:read', 'intel:read'],
+  get_actions_queue: ['actions:read'],
+  send_slack_notification: ['assistant:use', 'actions:write'],
+}
+
+/**
+ * Filter assistant tools by session scopes (web login power).
+ * Empty/null scopes → all tools (legacy until A2 session always resolves).
+ */
+export function filterToolDefinitionsByScopes(
+  tools: ReturnType<typeof buildToolDefinitions>,
+  scopes: string[] | null | undefined,
+) {
+  if (!scopes || !scopes.length) return tools
+  if (scopes.includes('*') || scopes.includes('full')) return tools
+  const set = new Set(scopes)
+  return tools.filter((t) => {
+    const name = t.function?.name
+    if (!name) return true
+    const needed = ASSISTANT_TOOL_SCOPES[name]
+    if (!needed?.length) return true
+    return needed.some((s) => set.has(s))
+  })
+}
+
 export function buildToolDefinitions() {
   return [
     {

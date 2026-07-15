@@ -214,29 +214,29 @@ No MCP tool to revoke keys (would be recursive/abusable); revoke stays **web Set
 
 ### A2.0 — Design sign-off (this doc)
 
-- [ ] Agree role ↔ MCP template matrix  
-- [ ] Agree cap rule: `key ∩ bound_user ∩ cloud_ceiling`  
-- [ ] Agree revoke = soft + `api:write`  
+- [x] Agree role ↔ MCP template matrix  
+- [x] Agree cap rule: `key ∩ bound_user ∩ cloud_ceiling`  
+- [x] Agree revoke = soft + `api:write`  
 
 ### A2.1 — Single resolver for “effective scopes”
 
-- [ ] `resolveEffectiveScopes({ kind: 'user'|'key', ... })` in `server/utils/scopeAuth.ts`  
-- [ ] Expand packages via `SCOPE_PACKAGES` + `mcp:*` templates  
-- [ ] Map permission_schemas JSON → scopes (already `permissionsMapToScopes`)  
-- [ ] Unit tests: viewer cannot get store_ops:write on key even if key row says so  
+- [x] `computeEffectiveScopes` + `resolveEffectiveScopesForApiKey` (`server/utils/scopes.ts`, `effectiveScopes.ts`)  
+- [x] Expand packages via `SCOPE_PACKAGES` + `mcp:*` templates  
+- [x] Map permission_schemas JSON → scopes (already `permissionsMapToScopes`)  
+- [x] Unit tests: viewer cannot get store_ops:write on key even if key row says so  
 
 ### A2.2 — API keys UX + schema
 
-- [ ] Migration: `bound_user_id`, `key_kind`, `max_package`, `revoked_at/by`  
-- [ ] Settings: create key wizard (template + bind user); revoke button  
-- [ ] Enforce creator must have `api:write`; scopes requested ⊆ creator scopes  
+- [x] Migration **063**: `bound_user_id`, `key_kind`, `max_package`, `revoked_at/by`  
+- [x] Settings: MCP key binds to self + soft **Revoke** via `/api/v1/keys/:id/revoke`  
+- [x] Create key caps scopes by creator (and bound user) web power  
 
 ### A2.3 — MCP + Catalog AI gate
 
-- [ ] `authenticateRemoteMcp` uses `resolveEffectiveScopes` (not raw key array only)  
-- [ ] `capabilities` returns actor + web_equivalent  
-- [ ] Catalog AI tool list filtered by session scopes  
-- [ ] Align Settings `MCP_SAFE_SCOPES` with server `MCP_SCOPE_PROFILES.safe`  
+- [x] `authenticateRemoteMcp` uses effective scopes + cloud ceiling  
+- [x] `capabilities` notes web-aligned key_permissions + actor_user_id  
+- [x] Catalog AI tool list filtered by session scopes  
+- [x] Settings MCP_SAFE_SCOPES includes store_ops / inventory  
 
 ### A2.4 — Member lifecycle
 
@@ -247,7 +247,8 @@ No MCP tool to revoke keys (would be recursive/abusable); revoke stays **web Set
 
 - [ ] R2 OAuth: consent screen lists scopes = same packages  
 - [ ] Per-user personal access tokens (same cap rules)  
-- [ ] Empty key scopes **≠ full** (breaking change; migrate existing keys)  
+- [ ] Empty key scopes **≠ full** for non-MCP legacy keys (partially: MCP empty → mcp:safe)  
+- [ ] Bind key to *other* member picker in Settings UI (API supports `bound_user_id`)  
 
 ---
 

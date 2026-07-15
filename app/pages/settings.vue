@@ -212,7 +212,7 @@ async function loadApiKeys() {
   const supaClient = useSupabaseClient()
   const { data } = await supaClient
     .from('api_keys')
-    .select('id, name, description, key_prefix, scopes, rate_limit_rpm, is_active, last_used_at, total_requests, created_at, expires_at')
+    .select('id, name, description, key_prefix, scopes, rate_limit_rpm, is_active, last_used_at, total_requests, created_at, expires_at, bound_user_id, key_kind, max_package, revoked_at, created_by')
     .eq('workspace_id', currentWorkspace.value.id)
     .order('created_at', { ascending: false })
   apiKeys.value = data || []
@@ -275,9 +275,12 @@ async function handleCreateMcpKey() {
       body: {
         workspace_id: currentWorkspace.value.id,
         name: `Claude / MCP connector - ${currentWorkspace.value.name}`,
-        description: 'Remote MCP cloud-safe (catalog, drafts, help). No submit/execute.',
+        description: 'Remote MCP cloud-safe; power capped by your web login role (A2). No approve/Loft.',
         scopes: MCP_SAFE_SCOPES,
         created_by: getUserId(),
+        bound_user_id: getUserId(),
+        key_kind: 'mcp_connector',
+        max_package: 'mcp:ops_safe',
       },
     })
     newlyCreatedKey.value = (result as any).key
@@ -291,18 +294,39 @@ async function handleCreateMcpKey() {
 }
 
 async function handleDeleteKey(id: string) {
-  if (!confirm('Revoke this API key? Any systems using it will lose access.')) return
-  const supaClient = useSupabaseClient()
-  const { error } = await supaClient.from('api_keys').delete().eq('id', id)
-  if (error) showError(error.message)
-  else showSuccess('API key revoked')
+  if (!confirm('Revoke this API key? Any systems using it will lose access immediately.')) return
+  try {
+    await $fetch(`/api/v1/keys/${id}/revoke`, {
+      method: 'POST',
+      body: { workspace_id: currentWorkspace.value?.id },
+    })
+    showSuccess('API key revoked')
+  } catch (e: any) {
+    // Fallback: hard delete if revoke route/migration missing
+    const supaClient = useSupabaseClient()
+    const { error } = await supaClient.from('api_keys').delete().eq('id', id)
+    if (error) showError(e.data?.statusMessage || error.message)
+    else showSuccess('API key deleted')
+  }
   await loadApiKeys()
 }
 
 async function handleToggleKey(id: string, active: boolean) {
   const supaClient = useSupabaseClient()
-  const { error } = await supaClient.from('api_keys').update({ is_active: !active }).eq('id', id)
-  if (error) showError(error.message)
+  const patch: Record<string, unknown> = { is_active: !active }
+  if (active) {
+    // disabling → soft revoke markers when columns exist
+    patch.revoked_at = new Date().toISOString()
+  } else {
+    patch.revoked_at = null
+  }
+  const { error } = await supaClient.from('api_keys').update(patch).eq('id', id)
+  if (error && /revoked_at|column/i.test(error.message)) {
+    const retry = await supaClient.from('api_keys').update({ is_active: !active }).eq('id', id)
+    if (retry.error) showError(retry.error.message)
+  } else if (error) {
+    showError(error.message)
+  }
   await loadApiKeys()
 }
 
@@ -1196,6 +1220,7 @@ onMounted(async () => {
             <thead>
               <tr class="border-b border-gray-700 text-left text-gray-400">
                 <th class="pb-2 pr-4">Name</th>
+                <th class="pb-2 pr-4">Kind</th>
                 <th class="pb-2 pr-4">Prefix</th>
                 <th class="pb-2 pr-4">Scopes</th>
                 <th class="pb-2 pr-4">Last Used</th>
@@ -1206,10 +1231,14 @@ onMounted(async () => {
             </thead>
             <tbody class="text-gray-300">
               <tr v-for="key in apiKeys" :key="key.id" class="border-b border-gray-800">
-                <td class="py-2.5 pr-4 font-medium text-white">{{ key.name }}</td>
+                <td class="py-2.5 pr-4 font-medium text-white">
+                  {{ key.name }}
+                  <span v-if="key.max_package" class="mt-0.5 block text-[10px] font-normal text-gray-500">{{ key.max_package }}</span>
+                </td>
+                <td class="py-2.5 pr-4 text-xs text-gray-400">{{ key.key_kind || 'general' }}</td>
                 <td class="py-2.5 pr-4 font-mono text-xs text-gray-400">{{ key.key_prefix }}…</td>
                 <td class="py-2.5 pr-4">
-                  <span v-if="!key.scopes || key.scopes.length === 0" class="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">Full access</span>
+                  <span v-if="!key.scopes || key.scopes.length === 0" class="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">Legacy empty</span>
                   <span v-else class="text-xs text-gray-400">{{ key.scopes.length }} scopes</span>
                 </td>
                 <td class="py-2.5 pr-4 text-xs text-gray-500">
@@ -1221,16 +1250,25 @@ onMounted(async () => {
                     class="rounded-full px-2 py-0.5 text-xs"
                     :class="key.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'"
                   >
-                    {{ key.is_active ? 'Active' : 'Disabled' }}
+                    {{ key.revoked_at ? 'Revoked' : key.is_active ? 'Active' : 'Disabled' }}
                   </span>
                 </td>
                 <td class="py-2.5 text-right space-x-2">
-                  <button class="text-xs text-gray-400 hover:text-white" @click="handleToggleKey(key.id, key.is_active)">
+                  <button
+                    v-if="!key.revoked_at"
+                    class="text-xs text-gray-400 hover:text-white"
+                    @click="handleToggleKey(key.id, key.is_active)"
+                  >
                     {{ key.is_active ? 'Disable' : 'Enable' }}
                   </button>
-                  <button class="text-xs text-red-400 hover:text-red-300" @click="handleDeleteKey(key.id)">
+                  <button
+                    v-if="!key.revoked_at"
+                    class="text-xs text-red-400 hover:text-red-300"
+                    @click="handleDeleteKey(key.id)"
+                  >
                     Revoke
                   </button>
+                  <span v-else class="text-xs text-gray-600">—</span>
                 </td>
               </tr>
             </tbody>
