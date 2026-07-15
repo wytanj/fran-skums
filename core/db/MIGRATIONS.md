@@ -61,9 +61,9 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 059 | help_store_ops_operator.sql | Help Center store-ops / inventory / Loft operator articles | Operator docs |
 | 060 | help_operator_runbook_assistant.sql | operator-runbook article for Catalog AI / MCP help_get | Assistant docs |
 | 061 | store_delivery_calendars.sql | Per-store receive windows, wave cutoffs, wave allocations | TODO-LOFT Phase F |
-| 062 | ensure_default_store_location.sql | Store ST-MAIN seed |
-| 063 | api_keys_bound_user.sql | A2: bound_user_id, key_kind, max_package, soft revoke |
-| 063 | api_keys_bound_user.sql | A2: bound_user_id, key_kind, max_package, soft revoke | Seed ST-MAIN store + FRAN01 POS bind when missing | Store ops request UX |
+| 062 | ensure_default_store_location.sql | Store ST-MAIN seed | Seed ST-MAIN store + FRAN01 POS bind when missing |
+| 063 | api_keys_bound_user.sql | A2: bound_user_id, key_kind, max_package, soft revoke | API key lifecycle for MCP bind |
+| 064 | notification_bus.sql | Phase N: policies, deliveries, workspace notification settings | Store-ops + PO lifecycle defaults |
 
 ## Planned Phase C Spine
 

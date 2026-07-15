@@ -42,16 +42,81 @@ const {
   exceptionStatusBadge,
 } = useStoreOperations()
 
-const activeTab = ref<'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions' | 'floor' | 'waves'>('queue')
-const tabs = [
-  { key: 'queue', label: 'Queue' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'waves', label: 'Waves & calendar' },
-  { key: 'inbound', label: 'Inbound ASN' },
-  { key: 'receiving', label: 'Receiving' },
-  { key: 'exceptions', label: 'Exceptions' },
-  { key: 'floor', label: 'Floor adjustments' },
-] as const
+const route = useRoute()
+
+const activeTab = ref<'inbox' | 'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions' | 'floor' | 'waves'>('queue')
+const tabs = computed(() => [
+  { key: 'inbox' as const, label: inboxUnread.value > 0 ? `Inbox (${inboxUnread.value})` : 'Inbox' },
+  { key: 'queue' as const, label: 'Queue' },
+  { key: 'orders' as const, label: 'Orders' },
+  { key: 'waves' as const, label: 'Waves & calendar' },
+  { key: 'inbound' as const, label: 'Inbound ASN' },
+  { key: 'receiving' as const, label: 'Receiving' },
+  { key: 'exceptions' as const, label: 'Exceptions' },
+  { key: 'floor' as const, label: 'Floor adjustments' },
+])
+
+const inboxItems = ref<any[]>([])
+const inboxLoading = ref(false)
+const inboxUnread = ref(0)
+const inboxMarking = ref<string | null>(null)
+
+async function loadInbox() {
+  if (!currentWorkspace.value?.id) return
+  inboxLoading.value = true
+  try {
+    const res = await $fetch<{ data: any[]; unread_count?: number }>('/api/store-ops/inbox', {
+      query: { workspace_id: currentWorkspace.value.id, status: 'unread', limit: 50 },
+    })
+    inboxItems.value = res.data || []
+    inboxUnread.value = res.unread_count ?? inboxItems.value.length
+  } catch (e: any) {
+    // Soft-fail: members without store_ops:read may not load inbox
+    console.warn('[store-ops] inbox load failed', e?.data || e?.message || e)
+    inboxItems.value = []
+    inboxUnread.value = 0
+  } finally {
+    inboxLoading.value = false
+  }
+}
+
+async function markInboxRead(item: any) {
+  if (!currentWorkspace.value?.id || !item?.id) return
+  inboxMarking.value = item.id
+  try {
+    await $fetch(`/api/store-ops/inbox/${item.id}/read`, {
+      method: 'POST',
+      body: { workspace_id: currentWorkspace.value.id },
+    })
+    inboxItems.value = inboxItems.value.filter((n) => n.id !== item.id)
+    inboxUnread.value = Math.max(0, inboxUnread.value - 1)
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Failed to mark read')
+  } finally {
+    inboxMarking.value = null
+  }
+}
+
+function openInboxItem(item: any) {
+  const link = String(item.deep_link || '')
+  if (link.includes('tab=exceptions') || item.entity_type === 'inventory_exception') {
+    activeTab.value = 'exceptions'
+  } else {
+    activeTab.value = 'queue'
+  }
+  markInboxRead(item)
+}
+
+function applyDeepLinkFromQuery() {
+  const tab = String(route.query.tab || '').trim()
+  const valid = new Set(['inbox', 'queue', 'orders', 'inbound', 'receiving', 'exceptions', 'floor', 'waves'])
+  if (tab && valid.has(tab)) {
+    activeTab.value = tab as typeof activeTab.value
+  }
+  // Highlight request/exception via query is handled by list presence; open inbox if deep link lands without tab
+  if (route.query.request && !tab) activeTab.value = 'queue'
+  if (route.query.exception && !tab) activeTab.value = 'exceptions'
+}
 
 const waveBundle = ref<{ upcoming: any[]; waves: any[]; cadence_note?: string } | null>(null)
 const storeSettings = ref<any>(null)
@@ -380,7 +445,9 @@ async function refreshAll() {
     loadInbound(),
     loadFloorAdjustments(),
     loadWavesAndCalendar(),
+    loadInbox(),
   ])
+  applyDeepLinkFromQuery()
   setContext(
     'store_ops',
     currentWorkspace.value?.id || 'store-ops',
@@ -389,6 +456,7 @@ async function refreshAll() {
       activeOrders: activeOrders.value.length,
       openExceptions: openExceptions.value.length,
       pendingAdjustments: pendingAdjustments.value.length,
+      inboxUnread: inboxUnread.value,
     },
     'Store Ops',
   )
@@ -492,17 +560,13 @@ const openExceptions = computed(() =>
 )
 
 const stats = computed(() => [
+  { label: 'HQ inbox', value: inboxUnread.value, sub: 'Unread notifications' },
   { label: 'Open requests', value: queueRequests.value.length, sub: 'Store replenishment asks' },
   { label: 'Active orders', value: activeOrders.value.length, sub: 'Awaiting 3PL or receipt' },
   {
-    label: 'Pending receipts',
-    value: orders.value.filter(order => ['shipped', 'partially_received'].includes(order.status)).length,
-    sub: 'Needs store confirmation',
-  },
-  {
-    label: 'Floor adjustments',
-    value: pendingAdjustments.value.length,
-    sub: 'Damage / found / count → ledger',
+    label: 'Open exceptions',
+    value: openExceptions.value.length,
+    sub: 'POS receive claims to verify',
   },
 ])
 
@@ -849,6 +913,19 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     <div v-if="toast" class="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{{ toast }}</div>
     <div v-if="toastError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ toastError }}</div>
 
+    <div
+      v-if="inboxUnread > 0 && activeTab !== 'inbox'"
+      class="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p class="text-sm text-amber-100">
+        {{ inboxUnread }} unread HQ notification{{ inboxUnread === 1 ? '' : 's' }}
+        (store requests / receive exceptions).
+      </p>
+      <button class="btn-secondary !px-3 !py-1.5 text-xs" @click="activeTab = 'inbox'">
+        Open inbox
+      </button>
+    </div>
+
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div v-for="item in stats" :key="item.label" class="card p-4">
         <p class="text-xs font-medium uppercase text-gray-500">{{ item.label }}</p>
@@ -869,6 +946,64 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       >
         {{ tab.label }}
       </button>
+    </div>
+
+    <div v-show="activeTab === 'inbox'" class="card overflow-hidden">
+      <div class="border-b border-gray-800 px-5 py-4">
+        <h2 class="text-base font-semibold text-white">HQ notification inbox</h2>
+        <p class="mt-1 text-sm text-gray-400">
+          Lifecycle alerts for store requests and receive exceptions (Phase N). Deep links open the right tab.
+        </p>
+      </div>
+      <div v-if="inboxLoading" class="px-5 py-10 text-center text-sm text-gray-500">
+        Loading inbox…
+      </div>
+      <div v-else-if="inboxItems.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+        No unread notifications.
+      </div>
+      <div v-else class="divide-y divide-gray-800">
+        <div
+          v-for="item in inboxItems"
+          :key="item.id"
+          class="grid gap-3 px-5 py-4 xl:grid-cols-[1.6fr_1fr_auto] xl:items-center"
+        >
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="font-medium text-white">{{ item.title }}</p>
+              <span
+                v-if="item.priority && item.priority !== 'normal'"
+                class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300"
+              >
+                {{ item.priority }}
+              </span>
+            </div>
+            <p class="mt-1 text-sm text-gray-400">{{ item.body || item.notification_type }}</p>
+            <p class="mt-1 text-xs text-gray-500">
+              {{ item.target_scope }} · {{ formatDate(item.created_at) }}
+            </p>
+          </div>
+          <div class="text-sm text-gray-400">
+            <p>{{ item.entity_type || '—' }}</p>
+            <p class="text-xs text-gray-500 font-mono">{{ String(item.entity_id || '').slice(0, 8) }}…</p>
+          </div>
+          <div class="flex flex-wrap gap-2 xl:justify-end">
+            <button
+              class="btn-primary !px-3 !py-1.5 text-xs"
+              :disabled="inboxMarking === item.id"
+              @click="openInboxItem(item)"
+            >
+              Open
+            </button>
+            <button
+              class="btn-secondary !px-3 !py-1.5 text-xs"
+              :disabled="inboxMarking === item.id"
+              @click="markInboxRead(item)"
+            >
+              Mark read
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <form v-if="showRequestForm" class="card space-y-4 p-5" @submit.prevent="handleCreateRequest">

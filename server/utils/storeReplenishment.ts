@@ -12,6 +12,7 @@ import {
 } from '../../fulfillment/worldsyntech-ofs/client'
 import { mapWorldsyntechOrderCreateResult } from '../../fulfillment/worldsyntech-ofs/mapping'
 import { upsertIntegrationEntityMapping } from './integrationActions'
+import { emitLifecycleNotification } from './notifications'
 
 export type ReplenishmentDecision = 'approve_now' | 'reject' | 'defer_to_wave'
 
@@ -24,7 +25,7 @@ export function orderNumber(prefix = 'RO'): string {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`
 }
 
-/** Notify HQ inbox when a store submits a replenishment request. */
+/** Notify HQ inbox when a store submits a replenishment request (Phase N bus). */
 export async function notifyReplenishmentRequestSubmitted(
   client: SupabaseClient,
   params: {
@@ -35,9 +36,11 @@ export async function notifyReplenishmentRequestSubmitted(
     reason?: string | null
     lineCount: number
     storeLabel?: string | null
+    requestedBy?: string | null
+    actorUserId?: string | null
   },
 ) {
-  const priority = params.priority || 'normal'
+  const priority = (params.priority || 'normal') as 'low' | 'normal' | 'urgent' | 'critical'
   const title = `Store replenishment request ${params.requestNumber}`
   const body = [
     params.storeLabel ? `Store: ${params.storeLabel}` : null,
@@ -46,29 +49,30 @@ export async function notifyReplenishmentRequestSubmitted(
     'Review with baseline/lift (MCP) — approve now, defer to Mon/Thu wave, or reject.',
   ].filter(Boolean).join(' · ')
 
-  const { data: notification, error } = await client
-    .from('store_ops_notifications')
-    .insert({
-      workspace_id: params.workspaceId,
-      notification_type: 'replenishment_request_submitted',
-      title,
-      body,
-      priority,
-      status: 'unread',
-      target_scope: 'store_ops:approve',
-      entity_type: 'store_replenishment_request',
-      entity_id: params.requestId,
-      deep_link: `/store-ops?request=${params.requestId}`,
-      payload: {
-        request_id: params.requestId,
-        request_number: params.requestNumber,
-        line_count: params.lineCount,
-      },
-    })
-    .select()
-    .single()
+  const deepLink = `/store-ops?tab=queue&request=${params.requestId}`
+  const result = await emitLifecycleNotification(client, {
+    workspaceId: params.workspaceId,
+    eventType: 'store_ops.request.submitted',
+    entityType: 'store_replenishment_request',
+    entityId: params.requestId,
+    title,
+    body,
+    priority: ['low', 'normal', 'urgent', 'critical'].includes(priority) ? priority : 'normal',
+    deepLink,
+    actorUserId: params.actorUserId || params.requestedBy || null,
+    payload: {
+      request_id: params.requestId,
+      request_number: params.requestNumber,
+      line_count: params.lineCount,
+      requested_by: params.requestedBy || null,
+      store_label: params.storeLabel || null,
+    },
+    idempotencyRoot: `store_ops.request.submitted:${params.requestId}`,
+  })
 
-  if (error) throw error
+  const inAppId =
+    result.deliveries.find((d) => d.channel === 'in_app' && d.in_app_notification_id)
+      ?.in_app_notification_id || null
 
   // Durable work queue for HQ (optional product link)
   await client.from('product_attention_items').insert({
@@ -86,13 +90,71 @@ export async function notifyReplenishmentRequestSubmitted(
       request_number: params.requestNumber,
     },
     metadata: {
-      notification_id: notification.id,
+      notification_id: inAppId,
       target_scope: 'store_ops:approve',
+      phase_n: true,
     },
     idempotency_key: `store_ops.req.${params.requestId}`,
   }).then(() => {}, () => {})
 
-  return notification
+  // Shape compatible with older callers expecting a notification row
+  return {
+    id: inAppId,
+    event_type: result.event_type,
+    deliveries: result.deliveries,
+    ok: result.ok,
+  }
+}
+
+/** Notify requester (and Slack) when HQ decides on a request. */
+export async function notifyReplenishmentRequestDecided(
+  client: SupabaseClient,
+  params: {
+    workspaceId: string
+    requestId: string
+    requestNumber: string
+    decision: ReplenishmentDecision
+    decisionReason?: string | null
+    requestedBy?: string | null
+    decidedBy?: string | null
+    waveDate?: string | null
+  },
+) {
+  const decisionLabel =
+    params.decision === 'approve_now'
+      ? 'approved for lift now'
+      : params.decision === 'defer_to_wave'
+        ? `deferred to wave${params.waveDate ? ` ${params.waveDate}` : ''}`
+        : 'rejected'
+
+  const title = `Request ${params.requestNumber} ${decisionLabel}`
+  const body = [
+    params.decisionReason ? `Note: ${params.decisionReason}` : null,
+    params.decision === 'approve_now'
+      ? 'Order created — send to Loft is a separate step.'
+      : null,
+  ].filter(Boolean).join(' · ') || `HQ decision: ${params.decision}`
+
+  return emitLifecycleNotification(client, {
+    workspaceId: params.workspaceId,
+    eventType: 'store_ops.request.decided',
+    entityType: 'store_replenishment_request',
+    entityId: params.requestId,
+    title,
+    body,
+    priority: 'normal',
+    deepLink: `/store-ops?tab=queue&request=${params.requestId}`,
+    actorUserId: params.decidedBy || null,
+    payload: {
+      request_id: params.requestId,
+      request_number: params.requestNumber,
+      decision: params.decision,
+      requested_by: params.requestedBy || null,
+      decided_by: params.decidedBy || null,
+      wave_date: params.waveDate || null,
+    },
+    idempotencyRoot: `store_ops.request.decided:${params.requestId}:${params.decision}`,
+  })
 }
 
 export async function ensureWave(
@@ -254,7 +316,7 @@ export async function decideReplenishmentRequest(
 
   if (updateError) throw updateError
 
-  // Archive related notifications
+  // Archive related HQ inbox notifications for this request
   await client
     .from('store_ops_notifications')
     .update({ status: 'archived' })
@@ -262,6 +324,15 @@ export async function decideReplenishmentRequest(
     .eq('entity_type', 'store_replenishment_request')
     .eq('entity_id', params.requestId)
     .eq('status', 'unread')
+
+  // Close related attention item
+  await client
+    .from('product_attention_items')
+    .update({ status: 'resolved', resolved_at: now })
+    .eq('workspace_id', params.workspaceId)
+    .eq('idempotency_key', `store_ops.req.${params.requestId}`)
+    .eq('status', 'open')
+    .then(() => {}, () => {})
 
   let order: any = null
   if (decision === 'approve_now') {
@@ -272,6 +343,22 @@ export async function decideReplenishmentRequest(
       deliveryMode: params.deliveryMode || 'delivery',
       waveId: null,
     })
+  }
+
+  // Phase N: notify requester of decision (best-effort)
+  try {
+    await notifyReplenishmentRequestDecided(client, {
+      workspaceId: params.workspaceId,
+      requestId: params.requestId,
+      requestNumber: updated.request_number || request.request_number,
+      decision,
+      decisionReason: params.decisionReason || null,
+      requestedBy: request.requested_by || null,
+      decidedBy: params.decidedBy || null,
+      waveDate: wave?.wave_date || params.waveDate || null,
+    })
+  } catch (notifyErr: any) {
+    console.error('[store-ops] decide notify failed', notifyErr?.message || notifyErr)
   }
 
   return { request: updated, wave, order }

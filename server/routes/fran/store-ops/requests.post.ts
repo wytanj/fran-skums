@@ -113,6 +113,8 @@ export default defineEventHandler(async (event) => {
       reason: request.reason,
       lineCount: (requestLines || []).length,
       storeLabel: trimString(body.pos_location_code || body.store_code) || null,
+      requestedBy: (request as any).requested_by || null,
+      actorUserId: (request as any).requested_by || null,
     })
   } catch (notifyError: any) {
     console.error('[store-ops] notify failed', notifyError?.message || notifyError)

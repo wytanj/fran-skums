@@ -1,8 +1,10 @@
 /**
  * Store receive + exception verification (TODO-LOFT Phase C).
  * Policy: auto-apply uncontested good qty; exception lines → inventory_exceptions for HQ verify.
+ * Phase N: open exceptions emit lifecycle notifications for store_ops:verify.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { emitLifecycleNotification } from './notifications'
 
 export type ReceiveExceptionType = 'short' | 'damaged' | 'over' | 'wrong_sku' | 'unexpected_item' | 'unmapped_sku'
 
@@ -377,6 +379,34 @@ export async function submitStoreReceive(
       .select()
     if (exErr) throw exErr
     exceptions = exData || []
+
+    // Phase N: notify HQ verifiers (one event per exception; best-effort)
+    for (const ex of exceptions) {
+      try {
+        await emitLifecycleNotification(client, {
+          workspaceId: params.workspaceId,
+          eventType: 'store_ops.exception.opened',
+          entityType: 'inventory_exception',
+          entityId: ex.id,
+          title: ex.title || `Receive exception on ${order.order_number}`,
+          body: ex.summary || null,
+          priority: ex.severity === 'high' || ex.severity === 'critical' ? 'urgent' : 'normal',
+          deepLink: `/store-ops?tab=exceptions&exception=${ex.id}`,
+          payload: {
+            exception_id: ex.id,
+            order_id: order.id,
+            order_number: order.order_number,
+            session_id: session.id,
+            sku: ex.sku,
+            exception_type: ex.exception_type,
+            requested_by: null,
+          },
+          idempotencyRoot: `store_ops.exception.opened:${ex.id}`,
+        })
+      } catch (notifyErr: any) {
+        console.error('[store-ops] exception notify failed', notifyErr?.message || notifyErr)
+      }
+    }
   }
 
   // Order status
@@ -494,5 +524,42 @@ export async function verifyInventoryException(
     .single()
 
   if (upErr) throw upErr
+
+  // Phase N: close-the-loop notify (best-effort; in_app only by default policy)
+  if (['resolved', 'dismissed', 'escalated'].includes(status)) {
+    try {
+      await emitLifecycleNotification(client, {
+        workspaceId: params.workspaceId,
+        eventType: 'store_ops.exception.verified',
+        entityType: 'inventory_exception',
+        entityId: ex.id,
+        title: `Exception ${params.action}: ${ex.sku || ex.title || ex.id}`,
+        body: params.note || `HQ ${params.action} on receive exception`,
+        priority: 'normal',
+        deepLink: `/store-ops?tab=exceptions&exception=${ex.id}`,
+        actorUserId: params.verifiedBy || null,
+        payload: {
+          exception_id: ex.id,
+          action: params.action,
+          actor: params.verifiedBy || null,
+          requested_by: (ex.evidence as any)?.received_by_ref || null,
+        },
+        idempotencyRoot: `store_ops.exception.verified:${ex.id}:${params.action}`,
+      })
+    } catch (notifyErr: any) {
+      console.error('[store-ops] exception verify notify failed', notifyErr?.message || notifyErr)
+    }
+
+    // Archive open inbox items for this exception
+    await client
+      .from('store_ops_notifications')
+      .update({ status: 'archived' })
+      .eq('workspace_id', params.workspaceId)
+      .eq('entity_type', 'inventory_exception')
+      .eq('entity_id', ex.id)
+      .eq('status', 'unread')
+      .then(() => {}, () => {})
+  }
+
   return updated
 }

@@ -309,7 +309,7 @@ po_list / po_get
 
 - Reconciliation packs (Phase 6)
 - Browser collect inside MCP (use worker `process-jobs`)
-- Email stakeholder notifs (Phase N — hooks via lifecycle events)
+- Stakeholder notifs (Phase N): lifecycle bus for store request/exception; in_app + Slack; email provider later
 
 ## Tests
 

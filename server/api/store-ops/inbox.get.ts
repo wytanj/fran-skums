@@ -1,5 +1,6 @@
 /**
- * HQ inbox: unread/read notifications for store_ops:approve holders.
+ * HQ inbox: unread/read notifications for store_ops holders.
+ * Phase N: includes scope-targeted + user-targeted rows.
  */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -9,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const client = getServiceClient()
-  await requireScope(event, 'store_ops:read', {
+  const actor = await requireScope(event, 'store_ops:read', {
     workspaceId,
     client,
     accessLevel: 'member',
@@ -32,5 +33,36 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await q
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  return { data: data || [], total: (data || []).length }
+  const rows = data || []
+  const scopes = actor.scopes || []
+  const userId = actor.userId || null
+  const isElevated = Boolean(
+    actor.isWorkspaceAdmin
+    || scopes.includes('*')
+    || scopes.includes('full')
+    || scopes.includes('store_ops:approve')
+    || scopes.includes('store_ops:verify'),
+  )
+
+  // Filter to items the actor should see:
+  // - target_scope matches a granted scope (or role-level approve/verify)
+  // - target_scope = user:{actor}
+  // - elevated actors see all HQ scope targets
+  const visible = rows.filter((row: any) => {
+    const target = String(row.target_scope || '')
+    if (userId && target === `user:${userId}`) return true
+    if (target.startsWith('user:') && target !== `user:${userId}`) return false
+    if (isElevated) return true
+    if (target && scopes.includes(target)) return true
+    // Members without approve still see personal decision notifs only
+    return false
+  })
+
+  const unreadCount = visible.filter((r: any) => r.status === 'unread').length
+
+  return {
+    data: visible,
+    total: visible.length,
+    unread_count: unreadCount,
+  }
 })

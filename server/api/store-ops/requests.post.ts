@@ -150,6 +150,8 @@ export default defineEventHandler(async (event) => {
       priority: request.priority,
       reason: request.reason,
       lineCount: lines.length,
+      requestedBy: actor.userId || null,
+      actorUserId: actor.userId || null,
     })
     notificationId = notif?.id || null
   } catch {

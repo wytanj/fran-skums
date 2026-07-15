@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–063** applied on shared project (063 = API key `bound_user` / soft revoke).  
+**DB:** migrations **001–064** (064 = Phase N notification bus; apply if host lags).  
 **Held / parked:** R2 OAuth · live scrape / Browserbase / brand radar · Phase H ecommerce  
 
 **Plans (do not lose track):**
@@ -29,7 +29,7 @@
 | **A** | MCP composites #1–8 | **Done** — see index below · backlog file for leftovers |
 | **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other-user UI |
 | **B** | Loft Phase 0 close-out | **Ops:** send Loft email; paste dictionary / delivery_method_ids |
-| **C** | Phase N notifications | Store request / exception notify (design exists) |
+| **C** | Phase N notifications | **N1–N3 core done** — bus + request/exception/decide; email provider later |
 | **D** | Phase P remaining | Empty API key ≠ full on non-MCP keys; legacy route gates |
 | **E** | Phase R pilot | Humans use Claude connector; R2 OAuth held |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key events |
@@ -101,6 +101,7 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 ### Ops / env leftovers
 
 - [x] Migrations **058–063** on shared project (063 A2 keys)
+- [x] Migration **064** notification bus on shared project
 - [ ] Confirm prod deploy green after each push
 - [ ] Confirm prod DB has **063** if not same project as local migrate
 - [ ] Fill Vercel **`SUPABASE_DB_URL`** if empty
@@ -122,9 +123,19 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 - M0–M6 · Help · R1 remote MCP · Loft P–E · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve  
 - Detail in git history / `TODO-LOFT.md` / commit summaries  
 
-### Phase N — notifications (still planned)
+### Phase N — stakeholder notifications
 
-N1–N6 design exists; build after store-ops inbox is stable.
+| Step | Status |
+|------|--------|
+| **N0** Principles (lifecycle, deep link, idempotent, no MCP draft email) | Locked |
+| **N1** Schema: `notification_policies`, `notification_deliveries`, `workspace_notification_settings` | **Done** (mig **064**) |
+| **N2** Events: `store_ops.request.submitted/decided`, `store_ops.exception.opened/verified` (+ PO stubs) | **Done** |
+| **N3** Delivery: in_app + Slack; email skipped until provider | **Done** (in_app/Slack) |
+| **N4** Store Ops Inbox tab + deep links | **Done** |
+| **N5** Digests / mute / invoice events | Later |
+| **N6** Email provider (Resend/SES) + templates polish | Later |
+
+Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeReceive`.
 
 ### Phase P — remaining
 
@@ -183,14 +194,14 @@ A2 permissions (docs/MCP_USER_PERMISSION_DESIGN.md):
   A2.5 optional bind key to other member UI
 ─────────────────
 Next eng:
-  N   notifications
+  N   notifications N1–N4 ✅ · N5 digests / N6 email provider later
   0.x Loft email / dictionary IDs
   P   empty-key legacy, install UI
   R   human pilot
   F   audit explorer filters
 ```
 
-**Recommended next:** Phase N notifications · Loft Phase 0 email · Claude pilot with **new** `mcp:ops_safe` key.  
+**Recommended next:** Loft Phase 0 email · Claude pilot with **new** `mcp:ops_safe` key · optional N6 email provider.  
 **Owner model:** one owner appoints admins; many admins for ops/keys.
 
 ---

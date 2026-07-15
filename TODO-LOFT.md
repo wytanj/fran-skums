@@ -1033,7 +1033,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 - [ ] Full `requireScope` on every legacy integration route (P.3 completeness)
 - [ ] Empty API key scopes → deny/package (breaking change when ready)
 - [ ] Phase F wave cutoffs + allocation polish (in progress)
-- [ ] Phase N email on top of `store_ops_notifications`
+- [x] Phase N bus on top of `store_ops_notifications` (in_app + Slack; email provider later)
 - [ ] POS never owns ASN (D.3 remains non-goal)
 
 ---
