@@ -7,6 +7,7 @@ import {
   catalogSample,
   catalogSearchSummary,
 } from '../../core/catalog/index.mjs'
+import { inventoryAts, productInventoryStatus } from '../../core/inventory/index.mjs'
 import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 
 export interface ToolContext {
@@ -181,8 +182,49 @@ export function buildToolDefinitions() {
     {
       type: 'function',
       function: {
+        name: 'get_inventory_ats',
+        description:
+          'Ledger available-to-sell by location (LOFT-SG, store, in-transit XFER). ATS = on_hand − reserved from inventory_levels. Use for “how much stock / ATS for SKU”. Prefer over get_inventory_summary when you need location breakdown. Never use product.stock_quantity.',
+        parameters: {
+          type: 'object',
+          properties: {
+            sku: { type: 'string', description: 'Product SKU' },
+            skus: { type: 'array', items: { type: 'string' }, description: 'Multiple SKUs' },
+            product_id: { type: 'string' },
+            query: { type: 'string', description: 'Title/SKU search when SKU unknown' },
+            location_codes: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Optional e.g. LOFT-SG, ST-MAIN',
+            },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_product_inventory_status',
+        description:
+          'Answer “what’s the status of product X?” — lifecycle (in stock at loft/store, in transit loft→store, inbound forwarder→Loft, replenish in flight), path_summary, open ASN/replenish/requests/floor adjustments + per-location ATS. Prefer for single product logistics status.',
+        parameters: {
+          type: 'object',
+          properties: {
+            sku: { type: 'string', description: 'Exact SKU (preferred)' },
+            product_id: { type: 'string' },
+            query: { type: 'string', description: 'Title/SKU search if SKU unknown' },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'get_inventory_summary',
-        description: 'Get inventory summary across all locations — on_hand, reserved, available, in_transit, on_order quantities per product.',
+        description:
+          'Broad inventory list view (totals per product). Prefer get_inventory_ats for location-level ATS or get_product_inventory_status for “where is this SKU” logistics.',
         parameters: {
           type: 'object',
           properties: {
@@ -363,6 +405,29 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           ean: args.ean || null,
           upc: args.upc || null,
           gtin: args.gtin || null,
+        })
+      }
+
+      case 'get_inventory_ats': {
+        return await inventoryAts(client, {
+          workspace_id: workspaceId,
+          skus: args.sku ? [String(args.sku)] : Array.isArray(args.skus) ? args.skus.map(String) : undefined,
+          product_ids: args.product_id
+            ? [String(args.product_id)]
+            : Array.isArray(args.product_ids)
+              ? args.product_ids.map(String)
+              : undefined,
+          q: args.query || args.q || null,
+          location_codes: args.location_codes || null,
+        })
+      }
+
+      case 'get_product_inventory_status': {
+        return await productInventoryStatus(client, {
+          workspace_id: workspaceId,
+          sku: args.sku || null,
+          product_id: args.product_id || args.id || null,
+          q: args.query || args.q || null,
         })
       }
 

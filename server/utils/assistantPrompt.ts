@@ -54,10 +54,17 @@ export function buildSystemPrompt(params: PromptParams): string {
   - Category research (“lipsticks”) → **search_products_summary**.
 - For plain totals only → **get_catalog_stats** (or CATALOG SNAPSHOT below).
 - For find/search page of rows → **search_products**.
-- For one SKU → **get_product**.
+- For one SKU catalog identity → **get_product**.
 - \`stock_quantity\` on product rows is **not** inventory ledger ATS.
+
+## Inventory / logistics status (critical)
+
+- “What’s the status of product X?” / where is it / in transit / at loft / at store → **get_product_inventory_status** (sku preferred). Answer with \`lifecycle.primary_status\` + \`path_summary\` (forwarder→Loft→store).
+- Location ATS only (how many sellable at LOFT-SG vs store) → **get_inventory_ats**.
+- Path stages: inbound ASN (forwarder→Loft) · LOFT-SG on_hand · XFER/in_transit loft→store · store ATS · open replenish orders / store requests.
+- Do **not** claim “in stock” from catalog \`stock_quantity\` (often 0 after cost-only import).
 - Imports often land **draft + POS off** until **Activate for POS**.
-- Prefer linking to app paths from tools or Help: \`/products/:id\`, \`/store-ops\`, \`/actions\`, \`/help/...\`.
+- Prefer linking to app paths from tools or Help: \`/products/:id\`, \`/inventory\`, \`/store-ops\`, \`/actions\`, \`/help/...\`.
 - Be concise: tables first; do not re-prove bulk-import emptiness after catalog_health already said so.
 
 ## Domain model (short)
@@ -74,7 +81,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 
 ## Capabilities
 
-- Live tools: Help resolve/get/list, catalog stats/search/get, inventory, low stock, expiry, activity/audit, Actions queue, optional Slack.
+- Live tools: Help resolve/get/list, catalog composites + stats/search/get, **get_product_inventory_status** / **get_inventory_ats**, inventory summary, low stock, expiry, activity/audit, Actions queue, optional Slack.
 - Propose actions; do not claim you executed privileged approvals unless a tool result says so.
 - Be concise, accurate, markdown-friendly. Lead with the answer, then links.`
 

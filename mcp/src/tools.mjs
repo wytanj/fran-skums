@@ -15,6 +15,7 @@ import { auditMcpMutation } from '../../core/audit/record.mjs'
 import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 import * as bi from './lib/bi.mjs'
 import * as catalog from './lib/catalog.mjs'
+import * as inventory from './lib/inventory.mjs'
 import * as pipeline from './lib/pipeline.mjs'
 import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
@@ -278,6 +279,44 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         category: { type: 'string' },
+      },
+    },
+  },
+
+  // ── Inventory ATS + product logistics status ──
+  {
+    name: 'inventory_ats',
+    description:
+      'Ledger available-to-sell by location for one or more products (SKU / product_id / search). ATS = on_hand − reserved from inventory_levels. Locations: LOFT-SG (3pl warehouse), XFER-* / in_transit (loft→store), store. Prefer this over product.stock_quantity. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sku: { type: 'string', description: 'Single product SKU' },
+        skus: { type: 'array', items: { type: 'string' }, description: 'Multiple SKUs (max 50)' },
+        product_id: { type: 'string' },
+        product_ids: { type: 'array', items: { type: 'string' } },
+        q: { type: 'string', description: 'Title/SKU search when SKU unknown' },
+        query: { type: 'string' },
+        location_codes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional filter e.g. ["LOFT-SG","ST-MAIN"]',
+        },
+      },
+    },
+  },
+  {
+    name: 'product_inventory_status',
+    description:
+      'Answer “what’s the status of product X?”: lifecycle (in stock at loft/store, in transit loft→store, inbound from forwarder→Loft, replenish in flight), path_summary, open ASN/replenish/requests/floor adj, plus per-location ATS. Prefer for single-SKU logistics status. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sku: { type: 'string', description: 'Exact SKU (preferred)' },
+        product_id: { type: 'string' },
+        id: { type: 'string', description: 'Alias of product_id' },
+        q: { type: 'string', description: 'Title/SKU search if SKU unknown' },
+        query: { type: 'string' },
       },
     },
   },
@@ -913,6 +952,16 @@ export async function handleTool(name, args = {}) {
           category: a.category || null,
         })
         return jsonResult({ articles, help_index_path: '/help', count: articles.length })
+      }
+      case 'inventory_ats': {
+        requireScope('intel:read')
+        const result = await inventory.atsInventory(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'product_inventory_status': {
+        requireScope('intel:read')
+        const result = await inventory.productStatus(requireWorkspaceId(), a)
+        return jsonResult(result)
       }
       case 'catalog_health': {
         requireScope('intel:read')
