@@ -6,7 +6,7 @@
 **Held:** **R2 OAuth** (remote MCP stays API-key until org permissioning is solid)  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
-**Plans:** This file · **`TODO-LOFT.md`** · `docs/SKUMS_OPERATOR_RUNBOOK.md` · `docs/ORG_PERMISSION_SCOPES.md` · `docs/LOFT_OPS_DICTIONARY.md` · `mcp/README.md`
+**Plans:** This file · **`TODO-LOFT.md`** · **`docs/MCP_ACTION_BACKLOG.md`** (MCP composites #1–8 + leftovers) · `docs/MCP_USER_PERMISSION_DESIGN.md` · `docs/SKUMS_OPERATOR_RUNBOOK.md` · `docs/ORG_PERMISSION_SCOPES.md` · `docs/LOFT_OPS_DICTIONARY.md` · `mcp/README.md`
 
 ---
 
@@ -19,14 +19,31 @@
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A** | **MCP composite tools** | #1–8 ✅ (expiry/exceptions/integrations/attention/low-stock/POS/inbound/floor drafts) |
-| **A2** | **MCP ↔ web login permissions** | **A2.1–A2.4 ✅** — design `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** · key recap on role change / revoke on remove |
+| **A** | **MCP composite tools** | **#1–8 ✅** — full list below · living backlog **`docs/MCP_ACTION_BACKLOG.md`** |
+| **A2** | **MCP ↔ web login permissions** | **A2.1–A2.4 ✅** — `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** · key recap on role change / revoke on remove |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
 | **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
 | **E** | **Phase R** | R1 pilot (Claude works with URL key); **R2 OAuth held** |
 | **F** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
 | **G (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
+
+### MCP composites #1–8 (shipped) — index
+
+Canonical detail + optional leftovers: **`docs/MCP_ACTION_BACKLOG.md`**.
+
+| # | What | MCP tools (main) | Catalog AI twins (where applicable) |
+|---|------|------------------|-------------------------------------|
+| **1** | Catalog research speed | `catalog_health`, `catalog_sample`, `catalog_search_summary` | `get_catalog_health`, `sample_products`, `search_products_summary` |
+| **2** | Stock / logistics status | `inventory_ats`, `product_inventory_status` | `get_inventory_ats`, `get_product_inventory_status` |
+| **3** | Ops queues + “what can I do?” | `ops_snapshot`, `capabilities` | `get_ops_snapshot`, `get_capabilities` |
+| **4** | Instructions (composite-first) | `mcp/src/agentInstructions.mjs` (cloud `initialize` + stdio) | `assistantPrompt.ts` routing table |
+| **5** | Bounded CSV export | `catalog_export_csv` | `export_catalog_csv` |
+| **6** | Retail/POS intent + market seed plan | `catalog_data_ops` | `get_catalog_data_ops` |
+| **7** | Draft store replenishment request | `store_ops_create_draft_request` (+ list/waves/recommend) | *(MCP-first write; use Store Ops UI for HQ)* |
+| **8** | Ops digests + more safe drafts | `expiry_snapshot`, `exceptions_snapshot`, `integrations_health`, `attention_snapshot`, `low_stock_request_pack`, `pos_enable_proposal`, `inbound_create_draft`, `floor_adjustment_create_draft` | `get_expiry_snapshot`, `get_exceptions_snapshot`, `get_integrations_health`, `get_attention_snapshot`, `get_low_stock_request_pack`, `get_pos_enable_proposal` |
+
+**Cloud never:** approve store ops, send Loft (`execute_3pl`), apply floor ledger, bulk POS activate, `po_submit` / pipeline execute.
 
 ### Quick smoke (post-deploy)
 
@@ -134,10 +151,8 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
   6  catalog_data_ops (retail/POS intentional + seed plan)   ✅
   7  store_ops_create_draft_request (write draft/submit signal; no execute_3pl)   ✅
   8  Further MCP actions (read composites + safe drafts)   ✅
-       expiry_snapshot · exceptions_snapshot · integrations_health
-       attention_snapshot · low_stock_request_pack · pos_enable_proposal
-       inbound_create_draft · floor_adjustment_create_draft
-       → docs/MCP_ACTION_BACKLOG.md
+       See table “MCP composites #1–8” above
+       Living backlog / leftovers: docs/MCP_ACTION_BACKLOG.md
 ─────────────────
 A2 MCP ↔ web login permissions:
   A2.1 resolveEffectiveScopes + mcp:* packages     ✅
@@ -166,7 +181,10 @@ Parallel / later:
 - Production: https://fran-skums.vercel.app  
 - Remote MCP: `https://fran-skums.vercel.app/mcp` · Help: `/help/operator-runbook`  
 - Operator runbook: `docs/SKUMS_OPERATOR_RUNBOOK.md`  
+- **MCP composites backlog (#1–8 + optional later):** `docs/MCP_ACTION_BACKLOG.md`  
+- **MCP ↔ web permissions (A2):** `docs/MCP_USER_PERMISSION_DESIGN.md`  
 - Commit summary: `docs/Commit Summary 15072026.md`  
 - Org scopes: `docs/ORG_PERMISSION_SCOPES.md`  
 - Loft plan: `TODO-LOFT.md`  
-- MCP: `mcp/README.md`  
+- MCP setup: `mcp/README.md`  
+

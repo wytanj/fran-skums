@@ -1,7 +1,7 @@
 # MCP action backlog (#8)
 
 **Date:** 2026-07-15  
-**Status:** **Shipped (priority pack)**  
+**Status:** **Shipped (priority pack)** · **Tracked from root `TODO.md`** (composites #1–8 index + this file in Plans/Links)  
 **Principle:** Agents draft / propose / read composites; humans approve and execute privileged steps in UI.
 
 ## Shipped tools (#8)
