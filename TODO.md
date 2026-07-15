@@ -12,15 +12,15 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · operator docs · Claude URL-key MCP · assistant history · MCP composites **#1–4**.  
+**Shipped:** Loft P–F · Claude URL-key MCP · assistant history · MCP composites **#1–6**.  
 **POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
-**Focus now:** #5 catalog_export_csv (optional) / #6 data ops.  
+**Focus now:** optional #7 draft store_ops request; or deferred MCP user permission/scopes.  
 **Later:** MCP user permission + scopes (members ↔ connector keys).
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A** | **MCP composite tools** | #1–4 ✅ · next #5 export / #6 data ops |
-| **A2 (later)** | **MCP user permission + scopes** | Map workspace member scopes ↔ MCP/API keys (deferred from earlier today) |
+| **A** | **MCP composite tools** | #1–6 ✅ · optional #7 draft store_ops request |
+| **A2 (later)** | **MCP user permission + scopes** | Map workspace member scopes ↔ MCP/API keys (deferred) |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
 | **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
@@ -36,7 +36,7 @@ npm run db:migrate:status    # expect 058–061 applied
 #  /store-ops → Floor adjustments · Waves & calendar
 #  /help/operator-runbook
 #  Catalog AI: "How do I approve a store replenishment request?"
-node --test tests/inventory-adjustments-phase-e.test.mjs tests/help-resolve.test.mjs tests/store-ops-phase-f.test.mjs tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs tests/ops-snapshot.test.mjs tests/mcp-instructions.test.mjs
+node --test tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs tests/ops-snapshot.test.mjs tests/mcp-instructions.test.mjs tests/catalog-export-data-ops.test.mjs
 ```
 
 ### Ops leftovers
@@ -130,8 +130,8 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
   2  inventory_ats + product_inventory_status (lifecycle / path)   ✅
   3  ops_snapshot + capabilities (queues + what can/cannot)   ✅
   4  Tighten cloud MCP + Catalog AI instructions (composite-first)   ✅
-  5  catalog_export_csv (bounded filter export)
-  6  Data ops: retail/POS flags intentional; market seeds for research
+  5  catalog_export_csv (bounded filter export)   ✅
+  6  catalog_data_ops (retail/POS intentional + seed plan)   ✅
   7  Optional: draft store_ops request from MCP (write; still no execute_3pl)
 ─────────────────
 Deferred (user asked later):
@@ -144,7 +144,7 @@ Parallel / later:
   G    connector cancel/hold / recon
 ```
 
-**Recommended next (eng):** **#5** `catalog_export_csv` or **#6** data ops.  
+**Recommended next (eng):** optional **#7** draft store_ops request (write, no execute_3pl), or **A2** MCP user scopes.  
 **Later:** MCP user permission + scopes (members relative to connector).  
 **Ops:** send Phase 0 Loft email when ready.
 

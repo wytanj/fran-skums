@@ -352,6 +352,44 @@ export const toolDefinitions = [
   // ── Catalog Q&A (Fran products table — not marketplace BI) ──
   // Prefer composite tools first (catalog_health / sample / search_summary) for speed.
   {
+    name: 'catalog_export_csv',
+    description:
+      'Bounded CSV export of catalog rows (default 50, max 200). Filter by q/brand/status/sku. Columns include retail_price, cost, pos_enabled for offline retail fill / re-import. Never dumps full 10k catalog. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', description: 'Search title/sku/ean' },
+        query: { type: 'string' },
+        brand: { type: 'string' },
+        status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+        sku: { type: 'string' },
+        limit: { type: 'number', description: 'Rows (default 50, max 200)' },
+        offset: { type: 'number' },
+        columns: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional subset of export columns',
+        },
+      },
+    },
+  },
+  {
+    name: 'catalog_data_ops',
+    description:
+      'ONE-SHOT data ops: intentional read of retail/POS flags after cost import + recommended actions + read-only market seed suggestions for research. Does not write seeds or activate POS. Prefer when user asks why retail empty, should we POS-enable, or seed market watches. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand: { type: 'string' },
+        q: { type: 'string', description: 'Optional keyword to bias sample/seeds' },
+        query: { type: 'string' },
+        seed_suggestions: { type: 'number', description: 'How many seed ideas (default 5, max 12)' },
+        marketplace: { type: 'string', description: 'Default shopee' },
+        country: { type: 'string', description: 'Default sg' },
+      },
+    },
+  },
+  {
     name: 'catalog_health',
     description:
       'ONE-SHOT catalog structure check for large imports: totals, missing retail/SKU/EAN, POS flags, cost spread, import_source, catalog_mode_guess + agent_hint. Prefer this before multi-step sampling when user asks best products, research readiness, or why data looks empty. Does NOT invent performance rankings. intel:read / safe / cloud.',
@@ -999,6 +1037,16 @@ export async function handleTool(name, args = {}) {
       case 'product_inventory_status': {
         requireScope('intel:read')
         const result = await inventory.productStatus(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'catalog_export_csv': {
+        requireScope('intel:read')
+        const result = await catalog.exportCsvCatalog(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'catalog_data_ops': {
+        requireScope('intel:read')
+        const result = await catalog.dataOpsCatalog(requireWorkspaceId(), a)
         return jsonResult(result)
       }
       case 'catalog_health': {

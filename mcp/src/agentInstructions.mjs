@@ -13,6 +13,8 @@ Composite-first (prefer ONE tool, then answer):
 | Catalog structure / “best products” / import readiness | catalog_health | multi-offset catalog_search |
 | Sample N products | catalog_sample | many sequential searches |
 | Category research (e.g. lipsticks) | catalog_search_summary | search + separate facet calls |
+| CSV / spreadsheet of filtered products | catalog_export_csv (max 200) | unbounded full-catalog dump |
+| Retail/POS empty intentional? + market seed ideas | catalog_data_ops | inventing demand; bi_upsert_seed on cloud |
 | Stock / “status of product X” / in transit / at Loft | product_inventory_status | product.stock_quantity; multi help+search |
 | ATS by location only | inventory_ats | catalog stock fields |
 | What’s outstanding / transfers / queues | ops_snapshot | inventing empty as “settled” |
@@ -77,7 +79,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: catalog_health, catalog_sample, catalog_search_summary, inventory_ats, product_inventory_status, ops_snapshot, capabilities, help_resolve/help_get.',
+    'OK composites: catalog_health, catalog_sample, catalog_search_summary, catalog_export_csv, catalog_data_ops, inventory_ats, product_inventory_status, ops_snapshot, capabilities, help_resolve/help_get.',
     'OK other read/draft: catalog_*, study_*, market_*, bi_list_*/export_*, pipeline_propose, po_create_draft/update/clone, store_ops_list_*, store_ops_recommend.',
     cloud
       ? 'NO (cloud): po_submit, po_decide, pipeline_decide/execute, bi seed write/run, store_ops approve/execute.'

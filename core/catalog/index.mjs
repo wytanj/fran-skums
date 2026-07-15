@@ -9,4 +9,8 @@ export {
   catalogHealth,
   catalogSample,
   catalogSearchSummary,
+  escapeCsvCell,
+  rowsToCsv,
+  catalogExportCsv,
+  catalogDataOps,
 } from './query.mjs'

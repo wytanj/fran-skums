@@ -301,6 +301,8 @@ export function useAssistant() {
       get_catalog_health: 'Checking catalog health...',
       sample_products: 'Sampling products...',
       search_products_summary: 'Summarizing search...',
+      export_catalog_csv: 'Exporting catalog CSV...',
+      get_catalog_data_ops: 'Checking data ops / retail-POS readiness...',
       get_catalog_stats: 'Counting catalog...',
       search_products: 'Searching catalog...',
       get_product: 'Loading product...',

@@ -348,6 +348,8 @@ export function mcpCapabilities(ctx = {}) {
     structure_import_questions: ['catalog_health', 'get_catalog_health'],
     sample_products: ['catalog_sample', 'sample_products'],
     category_research: ['catalog_search_summary', 'search_products_summary'],
+    csv_export: ['catalog_export_csv', 'export_catalog_csv'],
+    retail_pos_data_ops: ['catalog_data_ops', 'get_catalog_data_ops'],
     product_stock_or_status: ['product_inventory_status', 'get_product_inventory_status', 'inventory_ats'],
     whats_outstanding: ['ops_snapshot', 'get_ops_snapshot'],
     what_can_i_do: ['capabilities', 'get_capabilities'],

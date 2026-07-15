@@ -840,3 +840,381 @@ export async function catalogSearchSummary(db, opts) {
   }
 }
 
+/**
+ * Escape one CSV cell (RFC-style quotes).
+ * @param {unknown} value
+ */
+export function escapeCsvCell(value) {
+  if (value == null || value === '') return ''
+  const s = String(value)
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+  return s
+}
+
+/**
+ * @param {string[]} headers
+ * @param {Array<Record<string, unknown>>} rows
+ */
+export function rowsToCsv(headers, rows) {
+  const lines = [headers.join(',')]
+  for (const row of rows) {
+    lines.push(headers.map((h) => escapeCsvCell(row[h])).join(','))
+  }
+  return lines.join('\n') + '\n'
+}
+
+const EXPORT_HEADERS = [
+  'id',
+  'title',
+  'sku',
+  'ean',
+  'upc',
+  'gtin',
+  'brand',
+  'category',
+  'status',
+  'retail_price',
+  'cost_price',
+  'currency',
+  'pos_enabled',
+  'import_source',
+]
+
+/**
+ * Bounded catalog CSV export (never full 10k dump into the agent).
+ * Default 50 rows, hard max 200. Prefer filters (q/brand/status).
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {{
+ *   workspace_id: string,
+ *   q?: string | null,
+ *   brand?: string | null,
+ *   status?: string | null,
+ *   sku?: string | null,
+ *   limit?: number,
+ *   offset?: number,
+ *   columns?: string[] | null,
+ * }} opts
+ */
+export async function catalogExportCsv(db, opts) {
+  const workspace_id = opts.workspace_id
+  if (!workspace_id) throw new Error('workspace_id required')
+
+  const limit = clampLimit(opts.limit, 50, 200)
+  const offset = Math.max(0, Math.floor(Number(opts.offset) || 0))
+  const qText = sanitizeIlike(opts.q || '')
+  const status = opts.status ? String(opts.status).toLowerCase() : null
+
+  /** @type {string[] | null} */
+  let brandIds = null
+  if (opts.brand) {
+    const brandQ = sanitizeIlike(opts.brand)
+    const { data: brands, error: bErr } = await db
+      .from('brands')
+      .select('id')
+      .eq('workspace_id', workspace_id)
+      .ilike('name', `%${brandQ}%`)
+      .limit(40)
+    if (bErr) throw new Error(bErr.message)
+    brandIds = (brands || []).map((b) => b.id)
+    if (!brandIds.length) {
+      return {
+        csv: rowsToCsv(EXPORT_HEADERS, []),
+        row_count: 0,
+        total_matching: 0,
+        truncated: false,
+        limit,
+        offset,
+        columns: EXPORT_HEADERS,
+        filters: { q: qText || null, brand: opts.brand, status, sku: opts.sku || null },
+        note: 'No brands matched filter.',
+        agent_hint: 'Widen brand filter or drop it. CSV is empty.',
+      }
+    }
+  }
+
+  let query = db
+    .from('products')
+    .select(
+      'id, title, sku, ean, upc, gtin, status, retail_price, cost_price, currency, product_data, updated_at, brand:brand_id(name), category:category_id(name)',
+      { count: 'exact' },
+    )
+    .eq('workspace_id', workspace_id)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (status && ['draft', 'active', 'archived'].includes(status)) {
+    query = query.eq('status', status)
+  }
+  if (brandIds) query = query.in('brand_id', brandIds)
+  if (opts.sku) query = query.ilike('sku', `%${sanitizeIlike(opts.sku)}%`)
+  if (qText) {
+    query = query.or(
+      `title.ilike.%${qText}%,sku.ilike.%${qText}%,ean.eq.${qText},upc.eq.${qText},gtin.eq.${qText}`,
+    )
+  }
+
+  const { data, count, error } = await query
+  if (error) throw new Error(error.message)
+
+  const total_matching = count ?? (data || []).length
+  const rows = (data || []).map((p) => {
+    const pd = p.product_data && typeof p.product_data === 'object' ? p.product_data : {}
+    return {
+      id: p.id,
+      title: p.title,
+      sku: p.sku || '',
+      ean: p.ean || '',
+      upc: p.upc || '',
+      gtin: p.gtin || '',
+      brand: p.brand?.name || '',
+      category: p.category?.name || '',
+      status: p.status || '',
+      retail_price: p.retail_price ?? '',
+      cost_price: p.cost_price ?? '',
+      currency: p.currency || '',
+      pos_enabled: pd.pos_enabled ?? pd.sellable_in_pos ?? '',
+      import_source: pd.import_source || pd.source || '',
+    }
+  })
+
+  let headers = EXPORT_HEADERS
+  if (Array.isArray(opts.columns) && opts.columns.length) {
+    const allowed = new Set(EXPORT_HEADERS)
+    const picked = opts.columns.map(String).filter((c) => allowed.has(c))
+    if (picked.length) headers = picked
+  }
+
+  const csv = rowsToCsv(headers, rows)
+  const truncated = offset + rows.length < total_matching
+
+  return {
+    csv,
+    row_count: rows.length,
+    total_matching,
+    truncated,
+    limit,
+    offset,
+    columns: headers,
+    filters: {
+      q: qText || null,
+      brand: opts.brand || null,
+      status,
+      sku: opts.sku || null,
+    },
+    note: truncated
+      ? `Exported ${rows.length} of ${total_matching} matches (max ${limit} per call). Raise offset or tighten filters for the rest.`
+      : `Exported ${rows.length} row(s).`,
+    agent_hint:
+      'Return CSV as a fenced code block or downloadable text. retail_price/pos_enabled may be blank on cost-only imports — do not invent values. For full catalog use /import-export in the app, not unbounded MCP export.',
+    deep_links: { import_export: '/import-export', products: '/products' },
+  }
+}
+
+/**
+ * Data ops composite: intentional retail/POS flags + market seed plan (read-only suggestions).
+ * Does not write seeds or activate POS.
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {{
+ *   workspace_id: string,
+ *   brand?: string | null,
+ *   q?: string | null,
+ *   seed_suggestions?: number,
+ *   marketplace?: string | null,
+ *   country?: string | null,
+ * }} opts
+ */
+export async function catalogDataOps(db, opts) {
+  const workspace_id = opts.workspace_id
+  if (!workspace_id) throw new Error('workspace_id required')
+
+  const health = await catalogHealth(db, {
+    workspace_id,
+    brand: opts.brand || null,
+  })
+
+  const sampleN = Math.min(Math.max(Number(opts.seed_suggestions) || 5, 1), 12)
+  const sample = await catalogSample(db, {
+    workspace_id,
+    n: sampleN,
+    q: opts.q || null,
+    brand: opts.brand || null,
+    strategy: opts.q ? 'keyword' : 'spread',
+  })
+
+  // Existing crawl seeds (read)
+  let existing_seeds = []
+  let seeds_error = null
+  try {
+    const { data, error } = await db
+      .from('marketplace_crawl_seeds')
+      .select('id, marketplace, country, mode, target, enabled, schedule_kind, priority, next_run_at')
+      .eq('workspace_id', workspace_id)
+      .order('priority', { ascending: false })
+      .limit(30)
+    if (error) seeds_error = error.message
+    else existing_seeds = data || []
+  } catch (e) {
+    seeds_error = e instanceof Error ? e.message : String(e)
+  }
+
+  const mode = health.catalog_mode_guess
+  const retailHeavy = health.signals?.retail_null_heavy
+  const posHeavy = health.signals?.pos_off_heavy
+
+  /** @type {string} */
+  let intentional_read =
+    'Mixed or unknown — inspect sample retail_price and pos_enabled before bulk changes.'
+  if (mode === 'cost_import_not_operationalized') {
+    intentional_read =
+      'Likely bulk cost import: retail mostly null, POS mostly off, stock_quantity field zero. That is often intentional for a supplier cost list — not yet a live sellable catalog. Do not treat as “all OOS.”'
+  } else if (mode === 'cost_list_missing_retail') {
+    intentional_read =
+      'Costs present but retail missing — set retail deliberately before margin or POS activation.'
+  } else if (mode === 'active_but_pos_disabled') {
+    intentional_read =
+      'Products active but POS sellable flag off — activation is a deliberate HQ step (Activate for POS), not automatic from status=active.'
+  } else if (mode === 'empty') {
+    intentional_read = 'Catalog empty — import or create products before data ops.'
+  } else if (mode === 'live_ops') {
+    intentional_read =
+      'Looks closer to operational catalog (retail/POS not bulk-empty). Still verify per SKU before mass edits.'
+  }
+
+  /** @type {Array<{ action: string, why: string, path?: string, mcp_note?: string }>} */
+  const recommended_actions = []
+  if (mode === 'empty') {
+    recommended_actions.push({
+      action: 'import_catalog',
+      why: 'No products to operate on',
+      path: '/import-export',
+    })
+  } else {
+    if (retailHeavy) {
+      recommended_actions.push({
+        action: 'set_retail_prices_intentionally',
+        why: `${health.missing_retail_price_pct ?? '?'}% missing retail in census — fill retail before margin/POS claims`,
+        path: '/import-export',
+        mcp_note: 'Use catalog_export_csv filtered subset, edit retail_price offline, re-import upsert by SKU',
+      })
+    }
+    if (posHeavy) {
+      recommended_actions.push({
+        action: 'activate_for_pos_when_ready',
+        why: 'POS flags mostly off — only enable products you intend to sell on register',
+        path: '/help/activate-for-pos',
+        mcp_note: 'MCP cannot bulk-activate POS; humans use product UI / future bulk tools',
+      })
+    }
+    recommended_actions.push({
+      action: 'seed_market_research_for_priority_skus',
+      why: 'Market warehouse is often empty until crawl seeds exist — pick extremes or top brands first',
+      path: '/actions',
+      mcp_note:
+        'Safe: pipeline_propose kind=watchlist_seed. Full profile only: bi_upsert_seed. Never invent demand without snapshots.',
+    })
+    recommended_actions.push({
+      action: 'use_inventory_ats_for_stock',
+      why: 'product.stock_quantity is not ledger ATS',
+      path: '/inventory',
+      mcp_note: 'product_inventory_status / inventory_ats',
+    })
+  }
+
+  const marketplace = String(opts.marketplace || 'shopee').toLowerCase()
+  const country = String(opts.country || 'sg').toLowerCase()
+
+  /** @type {Array<Record<string, any>>} */
+  const seed_suggestions = []
+  const seenTargets = new Set(existing_seeds.map((s) => String(s.target || '').toLowerCase()))
+
+  // Prefer brand-level seeds + a few product titles from sample
+  for (const b of (health.top_brands || []).slice(0, 4)) {
+    const target = String(b.name || '').trim()
+    if (!target || seenTargets.has(target.toLowerCase())) continue
+    seenTargets.add(target.toLowerCase())
+    seed_suggestions.push({
+      target,
+      mode: 'keyword',
+      marketplace,
+      country,
+      reason: `top brand (${b.count} products)`,
+      pipeline_propose_sketch: {
+        kind: 'watchlist_seed',
+        title: `Watch ${target} on ${marketplace} ${country}`,
+        payload: { target, marketplace, country, mode: 'keyword' },
+      },
+    })
+  }
+
+  for (const p of sample.products || []) {
+    if (seed_suggestions.length >= sampleN) break
+    const brand = p.brand
+    const title = p.title
+    const target = (brand && String(brand).trim()) || significantTokens(title, 3).slice(0, 2).join(' ')
+    if (!target || seenTargets.has(target.toLowerCase())) continue
+    seenTargets.add(target.toLowerCase())
+    seed_suggestions.push({
+      target,
+      mode: 'keyword',
+      marketplace,
+      country,
+      product_id: p.id,
+      sku: p.sku,
+      product_title: title,
+      reason: opts.q ? `from keyword sample (${opts.q})` : 'spread sample for research seed',
+      pipeline_propose_sketch: {
+        kind: 'watchlist_seed',
+        title: `Watch ${target}`,
+        payload: { target, marketplace, country, mode: 'keyword', product_id: p.id },
+      },
+    })
+  }
+
+  return {
+    intentional_read,
+    catalog_mode_guess: mode,
+    signals: health.signals,
+    census: {
+      total: health.total,
+      missing_retail_price: health.missing_retail_price,
+      missing_retail_price_pct: health.missing_retail_price_pct,
+      with_cost_price: health.with_cost_price,
+      sample_pos: health.sample
+        ? {
+            pos_enabled_true: health.sample.pos_enabled_true,
+            pos_enabled_false: health.sample.pos_enabled_false,
+            pos_enabled_false_pct: health.sample.pos_enabled_false_pct,
+            import_source_top: health.sample.import_source_top,
+          }
+        : null,
+    },
+    recommended_actions,
+    market_seeds: {
+      existing_count: existing_seeds.length,
+      existing_sample: existing_seeds.slice(0, 8),
+      suggestions: seed_suggestions,
+      write_policy:
+        'Suggestions are read-only. Cloud/safe: pipeline_propose(watchlist_seed) only. bi_upsert_seed / bi_run_seed_now require full profile + explicit user request.',
+      seeds_error,
+    },
+    sample_products: (sample.products || []).map((p) => ({
+      id: p.id,
+      title: p.title,
+      sku: p.sku,
+      brand: p.brand,
+      retail_price: p.retail_price,
+      cost_price: p.cost_price,
+      pos_enabled: p.pos_enabled,
+    })),
+    agent_hint:
+      'Lead with intentional_read. Retail null + POS off after cost import is usually intentional-not-yet-operationalized — not a bug. Suggest catalog_export_csv for retail fill; pipeline_propose for research seeds; never claim market demand without crawl data.',
+    deep_links: {
+      import_export: '/import-export',
+      products: '/products',
+      activate_for_pos: '/help/activate-for-pos',
+      actions: '/actions',
+      inventory: '/inventory',
+    },
+  }
+}
+

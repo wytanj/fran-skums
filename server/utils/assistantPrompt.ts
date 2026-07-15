@@ -51,6 +51,8 @@ export function buildSystemPrompt(params: PromptParams): string {
 | Structure / “best products” / import readiness | **get_catalog_health** | multi-offset search |
 | Sample N products | **sample_products** | many searches |
 | Category research (lipsticks) | **search_products_summary** | search + separate facets |
+| CSV export / “give me a spreadsheet” | **export_catalog_csv** (max 200) | dumping full catalog |
+| Retail empty / POS off / seed market research | **get_catalog_data_ops** | guessing intent; writing seeds |
 | Plain totals only | **get_catalog_stats** or CATALOG SNAPSHOT | inventing counts |
 | Find rows | **search_products** | — |
 | One SKU identity | **get_product** | — |
@@ -73,7 +75,9 @@ export function buildSystemPrompt(params: PromptParams): string {
 - **No invoices** in Fran. No classic warehouse-transfer object — **Store Ops** replenishment is the path.
 - Empty open queues ≠ “transfers settled”; those objects are empty.
 - You **cannot** approve store requests or send to Loft — humans use \`/store-ops\`. Approve ≠ execute_3pl.
-- Imports often land **draft + POS off** until **Activate for POS**.
+- Imports often land **draft + POS off** until **Activate for POS** — often intentional until retail is set (see get_catalog_data_ops).
+- CSV: use **export_catalog_csv** with filters; leave blank retail blank — never invent prices.
+- Market research seeds: data_ops suggestions only; human/full MCP writes seeds. No demand without crawl data.
 - Internal/decision POs (Actions) ≠ inventory POs ≠ Loft store orders.
 - POS stock request is a **signal only** — never auto-sends to Loft.
 - Floor damage/found: POS reports → HQ **Apply to ledger** under Floor adjustments.
@@ -88,7 +92,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 
 ## Capabilities
 
-- Tools: Help, catalog composites, get_ops_snapshot, get_capabilities, get_product_inventory_status, get_inventory_ats, inventory summary, low stock, expiry, activity/audit, Actions queue, optional Slack.
+- Tools: Help, catalog composites, export_catalog_csv, get_catalog_data_ops, get_ops_snapshot, get_capabilities, get_product_inventory_status, get_inventory_ats, inventory summary, low stock, expiry, activity/audit, Actions queue, optional Slack.
 - Propose only; never claim privileged approve/execute unless a tool result says so.`
 
   const workspaceContext = `

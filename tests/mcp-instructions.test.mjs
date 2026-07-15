@@ -52,6 +52,8 @@ test('routing table lists all composites', () => {
     'catalog_health',
     'catalog_sample',
     'catalog_search_summary',
+    'catalog_export_csv',
+    'catalog_data_ops',
     'product_inventory_status',
     'inventory_ats',
     'ops_snapshot',

@@ -8,6 +8,8 @@ import {
   catalogHealth,
   catalogSample,
   catalogSearchSummary,
+  catalogExportCsv,
+  catalogDataOps,
   fetchCatalogMatchPool,
 } from '../../../core/catalog/index.mjs'
 import { getDb } from '../context.mjs'
@@ -110,5 +112,37 @@ export async function matchPool(workspaceId, args = {}) {
     query: args.query,
     listing_titles: args.listing_titles,
     limit: args.limit,
+  })
+}
+
+/**
+ * @param {string} workspaceId
+ * @param {Record<string, any>} [args]
+ */
+export async function exportCsvCatalog(workspaceId, args = {}) {
+  return catalogExportCsv(getDb(), {
+    workspace_id: workspaceId,
+    q: args.q || args.query || null,
+    brand: args.brand || null,
+    status: args.status || null,
+    sku: args.sku || null,
+    limit: args.limit,
+    offset: args.offset,
+    columns: args.columns || null,
+  })
+}
+
+/**
+ * @param {string} workspaceId
+ * @param {Record<string, any>} [args]
+ */
+export async function dataOpsCatalog(workspaceId, args = {}) {
+  return catalogDataOps(getDb(), {
+    workspace_id: workspaceId,
+    brand: args.brand || null,
+    q: args.q || args.query || null,
+    seed_suggestions: args.seed_suggestions || args.n,
+    marketplace: args.marketplace || null,
+    country: args.country || null,
   })
 }

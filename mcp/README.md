@@ -88,6 +88,8 @@ Source of truth: `mcp/src/agentInstructions.mjs` (also returned on cloud `initia
 | Catalog structure / “best products” / import readiness | `catalog_health` |
 | Sample N products | `catalog_sample` |
 | Category research | `catalog_search_summary` |
+| CSV of filtered products | `catalog_export_csv` (max 200) |
+| Retail/POS intent + market seed ideas | `catalog_data_ops` |
 | Stock / status of product X | `product_inventory_status` |
 | ATS by location | `inventory_ats` |
 | What’s outstanding / transfers | `ops_snapshot` |
@@ -101,7 +103,7 @@ Source of truth: `mcp/src/agentInstructions.mjs` (also returned on cloud `initia
 
 ```text
 You are operating Fran SKUMS via MCP in SAFE mode unless told otherwise.
-Composite-first: catalog_health | catalog_sample | catalog_search_summary | product_inventory_status | inventory_ats | ops_snapshot | capabilities | help_resolve.
+Composite-first: catalog_health | catalog_sample | catalog_search_summary | catalog_export_csv | catalog_data_ops | product_inventory_status | inventory_ats | ops_snapshot | capabilities | help_resolve.
 Answer style: 1–2 tools then short answer; lead with the answer; no invented counts/rankings; no product.stock_quantity as ATS.
 Draft/propose only. Never imply PO is ordered or product is live unless status says so.
 PO clone: po_list/get → po_preview_clone → po_clone_as_draft → return deep_link (/actions/…). Stop for human Actions UI.

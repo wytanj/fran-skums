@@ -6,6 +6,8 @@ import {
   catalogHealth,
   catalogSample,
   catalogSearchSummary,
+  catalogExportCsv,
+  catalogDataOps,
 } from '../../core/catalog/index.mjs'
 import { inventoryAts, productInventoryStatus } from '../../core/inventory/index.mjs'
 import { opsSnapshot, mcpCapabilities } from '../../core/ops/index.mjs'
@@ -120,6 +122,43 @@ export function buildToolDefinitions() {
             brand: { type: 'string' },
             status: { type: 'string', enum: ['draft', 'active', 'archived'] },
             limit: { type: 'number' },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'export_catalog_csv',
+        description:
+          'Bounded CSV export of catalog products (default 50, max 200). Use for “CSV of lipsticks / sample for retail fill”. Never dump entire catalog.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Filter title/sku' },
+            brand: { type: 'string' },
+            status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+            sku: { type: 'string' },
+            limit: { type: 'number', description: 'Default 50, max 200' },
+            offset: { type: 'number' },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_catalog_data_ops',
+        description:
+          'Data ops: intentional retail/POS flag read after cost import + recommended actions + market seed suggestions (read-only). Use for “why is retail empty / should we enable POS / seed market research?”.',
+        parameters: {
+          type: 'object',
+          properties: {
+            brand: { type: 'string' },
+            query: { type: 'string' },
+            seed_suggestions: { type: 'number' },
           },
           required: [],
         },
@@ -403,6 +442,27 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           brand: args.brand || null,
           status: args.status || null,
           limit: args.limit,
+        })
+      }
+
+      case 'export_catalog_csv': {
+        return await catalogExportCsv(client, {
+          workspace_id: workspaceId,
+          q: args.query || args.q || null,
+          brand: args.brand || null,
+          status: args.status || null,
+          sku: args.sku || null,
+          limit: args.limit,
+          offset: args.offset,
+        })
+      }
+
+      case 'get_catalog_data_ops': {
+        return await catalogDataOps(client, {
+          workspace_id: workspaceId,
+          brand: args.brand || null,
+          q: args.query || args.q || null,
+          seed_suggestions: args.seed_suggestions || args.n,
         })
       }
 
