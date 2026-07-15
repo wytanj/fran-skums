@@ -41,8 +41,16 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
     rawKey = typeof headerKey === 'string' ? headerKey.trim() : undefined
   }
 
-  if (!rawKey && query.api_key) {
-    rawKey = String(query.api_key).trim()
+  // Query / URL-embedded keys (Claude personal connector has no Bearer field —
+  // users paste https://…/mcp?api_key=sk_live_… or /mcp/c/sk_live_…)
+  if (!rawKey) {
+    const q =
+      query.api_key
+      || query.key
+      || query.access_token
+      || query.token
+      || query.authorization
+    if (q) rawKey = String(q).replace(/^Bearer\s+/i, '').trim()
   }
 
   if (!rawKey) return null

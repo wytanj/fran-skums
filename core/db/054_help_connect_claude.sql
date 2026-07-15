@@ -26,21 +26,38 @@ insert into public.help_articles (
 3. Copy the key once (it is not shown again).
 4. Share the MCP URL + key with staff securely (password manager).
 
-## Steps (employee — Claude)
+## Steps (employee — Claude personal / custom connector)
 
-1. In Claude, open **Settings → Connectors / Integrations / Custom MCP** (wording varies by plan).
-2. Add custom connector / remote MCP:
-   - **URL:** `https://fran-skums.vercel.app/mcp`
-   - **Transport:** Streamable HTTP (if listed)
-   - **Auth:** API key / Bearer — **not OAuth**
-   - **Authorization header:** `Bearer sk_live_…` (include the word Bearer)
-   - **OAuth Client ID / Client Secret (advanced):** leave **blank** — SKUMS does not use OAuth yet (R2 held)
-3. Save. If Claude says “Couldn’t reach Fran SKUMS”:
-   - Confirm URL has no trailing path typos (`/mcp` only)
-   - Confirm key is live and not revoked
-   - Open https://fran-skums.vercel.app/mcp in a browser — you should see JSON `name: fran-skums`
-   - Personal Claude sometimes **requires OAuth** for custom connectors; if OAuth fields are mandatory, that UI cannot use API-key MCP yet — use curl smoke or Claude Code `claude mcp add --transport http --header "Authorization: Bearer …"`
-4. Ask: “How many products are in the catalog?” or “Where do I edit products?”
+Claude’s custom connector form often only has:
+
+- **Name**
+- **Remote MCP server URL**
+- **OAuth Client ID / Secret (optional)**
+
+There is **no Bearer field**. Leave OAuth **empty**. Put the API key **in the URL**:
+
+1. SKUMS **Settings → API keys → Create Claude / MCP key** → copy `sk_live_…`
+2. Claude → **Settings → Connectors → Add custom connector**
+3. **Name:** `Fran SKUMS`
+4. **URL (pick one):**
+   - Query form: `https://fran-skums.vercel.app/mcp?api_key=sk_live_YOUR_KEY`
+   - Path form: `https://fran-skums.vercel.app/mcp/c/sk_live_YOUR_KEY`
+5. **OAuth Client ID:** leave blank  
+6. **OAuth Client Secret:** leave blank  
+7. Save / enable → ask: “How many products are in the catalog?”
+
+**Security:** the key is in the URL (Claude may store it). Treat it like a password; rotate if shared. Prefer a dedicated “Claude MCP” key you can revoke.
+
+**If “Couldn’t reach Fran SKUMS”:**
+- Open the same URL in a browser — you should see JSON `name: fran-skums`
+- Confirm the key is complete (no spaces/newlines)
+- Wait 1–2 minutes after a deploy and retry
+
+**Claude Code (CLI) alternative** (header auth, better):
+
+```bash
+claude mcp add fran-skums --transport http --header "Authorization: Bearer sk_live_…" https://fran-skums.vercel.app/mcp
+```
 
 ## What the agent can do
 
