@@ -163,7 +163,7 @@ describe('wiring', () => {
     assert.match(util, /resolveCloudMcpScopes|runRemoteMcpJsonRpc|mcpHttpHandler/)
     assert.match(ui, /Create Claude \/ MCP key/)
     assert.match(ui, /mcpEndpointUrl/)
-    assert.match(ui, /MCP_SAFE_SCOPES/)
+    assert.match(ui, /MCP_CONNECTOR_SCOPES|mcp:ops_safe/)
   })
 
   test('help seed for connect-claude exists', () => {

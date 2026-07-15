@@ -197,7 +197,7 @@ const mcpConnectorSnippet = computed(() => [
   `Fran SKUMS remote MCP (Claude / custom integration)`,
   `URL: ${mcpEndpointUrl.value}`,
   `Auth header: Authorization: Bearer ${newlyCreatedKey.value || 'sk_live_...'}`,
-  `Profile: cloud-safe (catalog Q&A, drafts, help — no submit/execute)`,
+  `Profile: permission-based (A2) — owner/admin may approve store ops when scoped`,
   `Help: ${skumsApiUrl.value}/help/connect-claude`,
 ].join('\n'))
 
@@ -269,7 +269,8 @@ async function handleCreateMcpKey() {
       body: {
         workspace_id: currentWorkspace.value.id,
         name: `Claude / MCP connector - ${currentWorkspace.value.name}`,
-        description: 'Remote MCP cloud-safe; power capped by your web login role (A2). No approve/Loft.',
+        description:
+          'Remote MCP; power = key package ∩ your web role (A2). Owner/admin may approve store ops; approve ≠ send Loft.',
         scopes: MCP_CONNECTOR_SCOPES,
         created_by: getUserId(),
         bound_user_id: getUserId(),
