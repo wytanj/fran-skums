@@ -6,6 +6,9 @@ Audience: POS engineers implementing store-floor workflows that feed SKUMS and, 
 
 **Operators (non-engineers):** use the [operator runbook](./SKUMS_OPERATOR_RUNBOOK.md) and Help Center articles under Store Ops — not this engineering contract.
 
+**Fran POS restructure (2026-07-15):** full inventory/structure handoff lives in the POS repo:  
+`fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` (canonical for POS engineers after Phases P–F).
+
 ## Boundary
 
 POS captures store reality. SKUMS decides, approves, reconciles, and executes against the 3PL.
