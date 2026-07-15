@@ -175,6 +175,24 @@ describe('wiring', () => {
     assert.match(handler, /formatJsonRpcAsSse|text\/event-stream/)
   })
 
+  test('package scopes mcp:ops_safe expand so tools/list is non-empty', async () => {
+    const { listToolsForTransport, normalizeScopesForToolList } = await import(httpPath.href)
+    const { resolveCloudMcpScopes } = await import(contextPath.href)
+    // Regression: unexpanded package token used to yield 0 tools → Claude "no tools available"
+    const rawPkg = ['mcp:ops_safe']
+    const normalized = normalizeScopesForToolList(rawPkg, true)
+    assert.ok(normalized.includes('intel:read'), 'normalize must expand to intel:read')
+    assert.ok(normalized.includes('store_ops:approve'), 'ops_safe must include approve')
+    const tools = listToolsForTransport(true, rawPkg)
+    assert.ok(tools.length > 20, `listToolsForTransport must expand mcp:ops_safe, got ${tools.length}`)
+    assert.ok(tools.some((t) => t.name === 'capabilities'))
+    assert.ok(tools.some((t) => t.name === 'catalog_health'))
+    assert.deepEqual(
+      resolveCloudMcpScopes(['mcp:ops_safe']).sort(),
+      normalizeScopesForToolList(['mcp:ops_safe'], true).sort(),
+    )
+  })
+
   test('help seed for connect-claude exists', () => {
     const sql = readFileSync(migration, 'utf8')
     assert.match(sql, /connect-claude/)

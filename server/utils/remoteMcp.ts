@@ -63,11 +63,15 @@ export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> 
           statusMessage: `MCP key denied: ${effective.deniedReason}`,
         })
       }
-      scopes = resolveCloudMcpScopes(effective.scopes)
+      // Always re-map through resolveCloudMcpScopes so package tokens (mcp:ops_safe)
+      // never reach tools/list unexpanded (would yield zero tools).
+      scopes = resolveCloudMcpScopes(
+        effective.scopes?.length ? effective.scopes : ['mcp:ops_safe'],
+      )
       boundUserId = effective.boundUserId
       boundUserRole = effective.boundUserRole
     } else {
-      scopes = resolveCloudMcpScopes(ctx.scopes)
+      scopes = resolveCloudMcpScopes(ctx.scopes?.length ? ctx.scopes : ['mcp:safe'])
     }
   } catch (e: any) {
     if (e?.statusCode) throw e

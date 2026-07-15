@@ -3,9 +3,50 @@
  * Supports initialize, tools/list, tools/call, ping — enough for remote clients.
  */
 import { toolDefinitions, handleTool } from './tools.mjs'
-import { getMcpScopes, MCP_PRIVILEGED_SCOPES, MCP_SCOPE_PROFILES } from './context.mjs'
+import {
+  getMcpScopes,
+  MCP_PRIVILEGED_SCOPES,
+  MCP_SCOPE_PROFILES,
+  resolveCloudMcpScopes,
+} from './context.mjs'
 import { getCloudMcpInstructions } from './agentInstructions.mjs'
 import { isToolPermitted, privilegedToolNames as listPrivilegedToolNames } from './toolScopes.mjs'
+
+/**
+ * Ensure scopes are concrete MCP scopes (not package tokens like mcp:ops_safe).
+ * Unexpanded packages make isToolPermitted fail every tool → Claude "no tools available".
+ * @param {string[] | null | undefined} scopes
+ * @param {boolean} cloud
+ * @returns {string[] | null}
+ */
+export function normalizeScopesForToolList(scopes, cloud = false) {
+  if (scopes == null) return null
+  if (!Array.isArray(scopes)) return [...MCP_SCOPE_PROFILES.safe]
+  if (scopes.length === 0) {
+    return cloud ? resolveCloudMcpScopes([]) : [...MCP_SCOPE_PROFILES.safe]
+  }
+  // Package tokens or mixed lists → expand via cloud mapper (also used for stdio packages)
+  const hasPackageToken = scopes.some(
+    (s) =>
+      s === 'mcp:ops_safe'
+      || s === 'mcp:safe'
+      || s === 'mcp:cloud'
+      || s === 'mcp:viewer'
+      || s === 'mcp:member'
+      || s === 'mcp:store'
+      || s === 'mcp:buyer'
+      || s === 'mcp:finance'
+      || String(s).startsWith('mcp:'),
+  )
+  if (cloud || hasPackageToken) {
+    try {
+      return resolveCloudMcpScopes(scopes)
+    } catch {
+      return [...MCP_SCOPE_PROFILES.safe]
+    }
+  }
+  return scopes
+}
 
 const SERVER_INFO = {
   name: 'fran-skums',
@@ -31,7 +72,8 @@ const PRIVILEGED_TOOL_NAMES = new Set(listPrivilegedToolNames())
  * @param {string[] | null} [scopes] optional override; default getMcpScopes() in request
  */
 export function listToolsForTransport(cloud = false, scopes) {
-  const resolvedScopes = scopes !== undefined ? scopes : getMcpScopes()
+  const raw = scopes !== undefined ? scopes : getMcpScopes()
+  const resolvedScopes = normalizeScopesForToolList(raw, cloud)
   return toolDefinitions.filter((t) => {
     // A2: list by effective scopes only (owner/admin may see approve/execute tools)
     if (cloud || Array.isArray(resolvedScopes)) {
@@ -112,15 +154,23 @@ async function dispatchMethod(method, params, opts) {
     case 'ping':
       return {}
 
-    case 'tools/list':
-      return { tools: listToolsForTransport(opts.cloud === true) }
+    case 'tools/list': {
+      const tools = listToolsForTransport(opts.cloud === true)
+      // Never hand Claude an empty list without explanation (shows as "no tools available")
+      if (!tools.length) {
+        throw new Error(
+          'No MCP tools permitted for this API key after scope expansion. Create a Claude/MCP key (mcp:ops_safe or mcp:safe) in Settings → API keys, bind it to your user, and paste the full sk_live_… in the connector URL.',
+        )
+      }
+      return { tools }
+    }
 
     case 'tools/call': {
       const name = String(params.name || '')
       if (!name) throw new Error('tools/call requires params.name')
       // A2: permission-based — deny if effective scopes lack tool requirement
       if (opts.cloud || Array.isArray(getMcpScopes())) {
-        const scopes = getMcpScopes()
+        const scopes = normalizeScopesForToolList(getMcpScopes(), opts.cloud === true)
         if (!isToolPermitted(name, { scopes, cloud: opts.cloud === true })) {
           throw new Error(
             `Tool "${name}" not permitted for this key (missing scope). Call capabilities for permitted_tool_names.`,
