@@ -1,131 +1,156 @@
 # Fran SKUMS — TODO (implementation queue)
 
 **Date:** 2026-07-15  
-**Shipped on `main`:** **M0–M6**, Help Center, **Phase R1** remote MCP, **Loft P–E** + operator docs + assistant Help tools (see `TODO-LOFT.md` · `docs/Commit Summary 15072026.md`)  
-**DB:** migrations **001–063** (063 = API key bound_user / soft revoke for A2).  
-**Held:** **R2 OAuth** (remote MCP stays API-key until org permissioning is solid)  
-**Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
-**Plans:** This file · **`TODO-LOFT.md`** · **`docs/MCP_ACTION_BACKLOG.md`** (MCP composites #1–8 + leftovers) · `docs/MCP_USER_PERMISSION_DESIGN.md` · `docs/SKUMS_OPERATOR_RUNBOOK.md` · `docs/ORG_PERMISSION_SCOPES.md` · `docs/LOFT_OPS_DICTIONARY.md` · `mcp/README.md`
+**DB:** migrations **001–063** applied on shared project (063 = API key `bound_user` / soft revoke).  
+**Held / parked:** R2 OAuth · live scrape / Browserbase / brand radar · Phase H ecommerce  
+
+**Plans (do not lose track):**
+
+| Doc | Role |
+|-----|------|
+| **This file** | Implementation queue + MCP #1–8 index |
+| **`docs/MCP_ACTION_BACKLOG.md`** | MCP tools detail, leftovers after #8 |
+| **`docs/MCP_USER_PERMISSION_DESIGN.md`** | Web ↔ MCP permission model (A2) |
+| **`docs/ORG_PERMISSION_SCOPES.md`** | Canonical scope catalog |
+| **`TODO-LOFT.md`** | Loft / store-ops / 3PL plan |
+| **`docs/SKUMS_OPERATOR_RUNBOOK.md`** | Operator how-to |
+| **`mcp/README.md`** | MCP setup (stdio + cloud) |
 
 ---
 
 ## Start here next
 
-**Shipped:** Loft P–F · Claude MCP · composites **#1–8** · **A2.1–A2.4**.  
-**POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
-**Focus now:** ops polish / Phase N notifications / Loft Phase 0 email.  
-**A2 remaining:** optional bind-other-user UI; R2 OAuth later.
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · **permission-gated cloud approve**.  
+**POS:** restructure against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` (other team).  
 
-| Priority | Track | First tasks |
-|----------|--------|-------------|
-| **A** | **MCP composite tools** | **#1–8 ✅** — full list below · living backlog **`docs/MCP_ACTION_BACKLOG.md`** |
-| **A2** | **MCP ↔ web login permissions** | **A2.1–A2.4 ✅** — `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** · key recap on role change / revoke on remove |
-| **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
-| **C** | **Phase N** | Notifications on store requests / exceptions |
-| **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
-| **E** | **Phase R** | R1 pilot (Claude works with URL key); **R2 OAuth held** |
-| **F** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
-| **G (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
+| Priority | Track | Status / next |
+|----------|--------|----------------|
+| **A** | MCP composites #1–8 | **Done** — see index below · backlog file for leftovers |
+| **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other-user UI |
+| **B** | Loft Phase 0 close-out | **Ops:** send Loft email; paste dictionary / delivery_method_ids |
+| **C** | Phase N notifications | Store request / exception notify (design exists) |
+| **D** | Phase P remaining | Empty API key ≠ full on non-MCP keys; legacy route gates |
+| **E** | Phase R pilot | Humans use Claude connector; R2 OAuth held |
+| **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key events |
+| **G** | Scrape / brand radar | Parked |
 
-### MCP composites #1–8 (shipped) — index
+---
 
-Canonical detail + optional leftovers: **`docs/MCP_ACTION_BACKLOG.md`**.
+## Permission model (current understanding)
 
-| # | What | MCP tools (main) | Catalog AI twins (where applicable) |
-|---|------|------------------|-------------------------------------|
-| **1** | Catalog research speed | `catalog_health`, `catalog_sample`, `catalog_search_summary` | `get_catalog_health`, `sample_products`, `search_products_summary` |
-| **2** | Stock / logistics status | `inventory_ats`, `product_inventory_status` | `get_inventory_ats`, `get_product_inventory_status` |
-| **3** | Ops queues + “what can I do?” | `ops_snapshot`, `capabilities` | `get_ops_snapshot`, `get_capabilities` |
-| **4** | Instructions (composite-first) | `mcp/src/agentInstructions.mjs` (cloud `initialize` + stdio) | `assistantPrompt.ts` routing table |
-| **5** | Bounded CSV export | `catalog_export_csv` | `export_catalog_csv` |
-| **6** | Retail/POS intent + market seed plan | `catalog_data_ops` | `get_catalog_data_ops` |
-| **7** | Draft store replenishment request | `store_ops_create_draft_request` (+ list/waves/recommend) | *(MCP-first write; use Store Ops UI for HQ)* |
-| **8** | Ops digests + more safe drafts | `expiry_snapshot`, `exceptions_snapshot`, `integrations_health`, `attention_snapshot`, `low_stock_request_pack`, `pos_enable_proposal`, `inbound_create_draft`, `floor_adjustment_create_draft` | `get_expiry_snapshot`, `get_exceptions_snapshot`, `get_integrations_health`, `get_attention_snapshot`, `get_low_stock_request_pack`, `get_pos_enable_proposal` |
+**One rule for UI and cloud MCP:**
 
-**Cloud permission model (A2):** tools allowed when **key ∩ bound web user** has the scope. Owner/admin packages include `store_ops:approve` (and optionally execute_3pl). Member/viewer keys do not. Credentials never on cloud keys. Bulk POS activate still UI-only.
-
-### Quick smoke (post-deploy)
-
-```bash
-npm run db:migrate:status    # expect 063 applied (api key bound_user / soft revoke)
-# Production: https://fran-skums.vercel.app
-#  Settings → Team: demote/remove member → bound MCP keys recapped/revoked
-#  Settings → API Keys: soft revoke
-#  Catalog AI / MCP: capabilities → key_permissions (web-aligned)
-node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs
+```text
+effective power = key package  ∩  bound user’s web role/scopes  ∩  (no credentials on cloud keys)
 ```
 
-### Ops leftovers
+| Role | Who | Web | Cloud MCP (bound key) |
+|------|-----|-----|------------------------|
+| **Owner** | Single seat (`workspaces.owner_id`) — e.g. CEO/CTO (Jeremy) | Appoint **admins**, all ops, keys | `mcp:ops_safe` → approve + drafts if web has scopes |
+| **Admin** | **Many** (appointed by owner) | Ops, keys, members/viewers; **not** appoint admins | Same as owner for MCP tools when scoped |
+| **Member** | Staff | Schema-based write | Drafts/reads; **no** `store_ops:approve` |
+| **Viewer** | Read-only | Reads | Reads only |
 
-- [x] Help **053/054** on shared Supabase
-- [x] Loft **055–057** applied
-- [x] **058–061** applied (shared project)
-- [x] Pushed Loft P–E + operator docs + assistant Help (this commit)
-- [ ] Confirm Vercel production deploy green for latest `main`
-- [ ] Confirm prod Supabase has **058–060** if not the same project
-- [ ] Fill Vercel **`SUPABASE_DB_URL`** if empty in prod
-- [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` for local MCP attribution
+| Action | Scope | MCP tool (if any) |
+|--------|--------|-------------------|
+| Create store request | `store_ops:write` | `store_ops_create_draft_request` |
+| **Approve / reject / defer** | `store_ops:approve` | **`store_ops_decide`** (cloud OK when scoped) |
+| Apply floor adj to ledger | `inventory:write` | **`floor_adjustment_apply`** |
+| Send order to Loft | `store_ops:execute_3pl` (+ connection) | Scope may exist; full send still mainly **Store Ops UI** |
+| Revoke API keys | `api:write` (owner/admin) | Settings only (not an MCP tool) |
+| Credentials | never on cloud keys | — |
+
+**Onus on owner/admin:** design permission schemas + who is admin so web and Claude stay aligned. Recreate Claude keys after role changes if needed (`mcp:ops_safe` + bind self). Member remove → keys revoked (A2.4).
+
+Detail: **`docs/MCP_USER_PERMISSION_DESIGN.md`**.
+
+---
+
+## MCP composites #1–8 (shipped)
+
+Living detail + optional later work: **`docs/MCP_ACTION_BACKLOG.md`**.
+
+| # | Purpose | MCP tools | Catalog AI |
+|---|---------|-----------|------------|
+| **1** | Catalog research | `catalog_health`, `catalog_sample`, `catalog_search_summary` | `get_catalog_health`, `sample_products`, `search_products_summary` |
+| **2** | Stock / path (Loft→store) | `inventory_ats`, `product_inventory_status` | `get_inventory_ats`, `get_product_inventory_status` |
+| **3** | Queues + permissions | `ops_snapshot`, `capabilities` | `get_ops_snapshot`, `get_capabilities` |
+| **4** | Composite-first instructions | `mcp/src/agentInstructions.mjs` | `assistantPrompt.ts` |
+| **5** | Bounded CSV | `catalog_export_csv` | `export_catalog_csv` |
+| **6** | Retail/POS intent + seeds | `catalog_data_ops` | `get_catalog_data_ops` |
+| **7** | Store request draft + **HQ decide** | `store_ops_create_draft_request`, list/waves/recommend, **`store_ops_decide`** | reads via ops tools; writes MCP-first |
+| **8** | Digests + more drafts + apply floor | `expiry_snapshot`, `exceptions_snapshot`, `integrations_health`, `attention_snapshot`, `low_stock_request_pack`, `pos_enable_proposal`, `inbound_create_draft`, `floor_adjustment_create_draft`, **`floor_adjustment_apply`** | `get_expiry_*`, `get_exceptions_*`, `get_integrations_*`, `get_attention_*`, `get_low_stock_request_pack`, `get_pos_enable_proposal` |
+
+**Not in scope for cloud MCP (by product choice):** bulk POS activate, invoices/AR, live scrape every call, credential management.
+
+**Optional leftovers** (see backlog file): forecast summary, import job status, bind key to *other* user UI, full `execute_3pl` send-to-Loft tool with shipping payload.
+
+---
+
+## Quick smoke
+
+```bash
+npm run db:migrate:status    # 063 applied
+# https://fran-skums.vercel.app
+# Settings → Claude MCP key (mcp:ops_safe, bound to you) → capabilities
+# Owner: store_ops_decide in permitted tools; viewer key: not present
+node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs tests/mcp-backlog-8.test.mjs
+```
+
+### Ops / env leftovers
+
+- [x] Migrations **058–063** on shared project (063 A2 keys)
+- [ ] Confirm prod deploy green after each push
+- [ ] Confirm prod DB has **063** if not same project as local migrate
+- [ ] Fill Vercel **`SUPABASE_DB_URL`** if empty
+- [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` local attribution
 - [ ] Secret rotation / Vercel env audit
-- [ ] Note: **015** checksum-mismatch (historical; use `--from N`)
+- [ ] **015** checksum-mismatch historical (use `--from N` / `--only`)
 
 ---
 
-## North star (current product)
+## North star
 
-**v1–v2:** Agents draft; humans approve in Actions; remote MCP safe keys.  
-**v3 Loft retail:** POS signals only; HQ decides (MCP advice); Loft warehouse; store receive + exception verify; floor apply via ledger.
-
-**Success (v3 MVP + E):** ASN → LOFT-SG → Mon/Thu or lift → receive with exceptions → floor damage/found/count apply to ledger · operators use Help + Catalog AI for how-to.
+**Agents draft and, when scoped, HQ-approve; humans still own Loft send and credentials.**  
+**v3 Loft retail:** POS = signal · HQ decide (UI or MCP with `store_ops:approve`) · Loft warehouse · receive + exception · floor apply (UI or MCP with `inventory:write`).
 
 ---
 
-## Migrations (local / shared)
+## Completed tracks (do not redo)
 
-| Status | Notes |
-|--------|--------|
-| **052–054** | audit, help, connect-claude |
-| **055–057** | Loft permissions/topology; waves; inbound ASN |
-| **058–060** | Floor adjustment apply; Help store-ops; operator-runbook |
-| **015 checksum-mismatch** | Historical; `--from N` for new migrations |
-| **Next SQL** | Phase F delivery calendars / wave cutoffs if schema needed |
+- M0–M6 · Help · R1 remote MCP · Loft P–E · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve  
+- Detail in git history / `TODO-LOFT.md` / commit summaries  
 
----
+### Phase N — notifications (still planned)
 
-## Completed (do not redo) — pointer
+N1–N6 design exists; build after store-ops inbox is stable.
 
-See historical sections in git history for M0–M6, R1, N design, P design.  
-**Loft:** P–E code + docs in `TODO-LOFT.md`.  
-**Operator:** `docs/SKUMS_OPERATOR_RUNBOOK.md` · `/help/*`.
+### Phase P — remaining
 
-### Phase N — Stakeholder notifications (still planned)
-
-Principles and N1–N6 model remain in prior revisions / design notes; build after Store Ops inbox is stable. Do not block Phase F on email.
-
-### Phase P — Org scopes (remaining)
-
-- [x] Catalog design + Loft fine-grained scopes seeded (055)
-- [x] `resolveScopes` / `requireScope` for store-ops surfaces
-- [ ] Sign-off empty key ≠ full; gate all legacy integration routes
-- [ ] App install grants UI polish
-- [ ] R2 OAuth after packages solid
+- [x] Scope catalog + Loft packages + store-ops requireScope surfaces  
+- [x] MCP effective scopes = web ∩ key  
+- [ ] Empty non-MCP keys ≠ full (legacy)  
+- [ ] App install grants UI polish  
+- [ ] R2 OAuth after packages solid  
 
 ### Phase R
 
-- [x] R1 remote MCP
-- [ ] R1 human pilot
-- [ ] R2 OAuth held
+- [x] R1 remote MCP + URL key + permission-based tools  
+- [ ] R1 human pilot (Claude connector)  
+- [ ] R2 OAuth held  
 
 ---
 
-## Definition of done (quick)
+## Definition of done (smoke)
 
 | Check | Pass |
 |-------|------|
-| Floor apply | Pending adjustment → Apply → ledger |
-| Help AI | resolve_help + get_help_article for store ops |
-| POS live receive free-form | Disabled; Receive delivery for Loft |
-| Deploy | Vercel green; migrations 058–060 on DB used by prod |
+| Floor apply | Pending → apply (UI or MCP `floor_adjustment_apply` if scoped) |
+| Store approve | Owner/admin MCP: `store_ops_decide`; member cannot |
+| Help AI | resolve_help for store ops how-to |
+| Keys | Owner/admin revoke; remove member revokes bound keys |
+| Deploy | Vercel green; mig **063** on prod DB |
 
 ---
 
@@ -133,60 +158,51 @@ Principles and N1–N6 model remain in prior revisions / design notes; build aft
 
 - Live scrape / Browserbase / brand radar  
 - Phase H ecommerce  
-- R2 OAuth until Phase P packages on consent screen  
+- R2 OAuth until packages + pilot solid  
 
 ---
 
-## Suggested build order
+## Suggested build order (status)
 
 ```text
-M0–M6 + R1 + Loft P–F + ops docs + Claude URL-key MCP   ✅
+M0–M6 + R1 + Loft P–F + MCP composites #1–8 + A2.1–A2.4   ✅
 ─────────────────
-MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
-  1  catalog_health + catalog_sample + catalog_search_summary   ✅
-  2  inventory_ats + product_inventory_status (lifecycle / path)   ✅
-  3  ops_snapshot + capabilities (queues + what can/cannot)   ✅
-  4  Tighten cloud MCP + Catalog AI instructions (composite-first)   ✅
-  5  catalog_export_csv (bounded filter export)   ✅
-  6  catalog_data_ops (retail/POS intentional + seed plan)   ✅
-  7  store_ops_create_draft_request (write draft/submit signal; no execute_3pl)   ✅
-  8  Further MCP actions (read composites + safe drafts)   ✅
-       See table “MCP composites #1–8” above
-       Living backlog / leftovers: docs/MCP_ACTION_BACKLOG.md
+MCP composites (docs/MCP_ACTION_BACKLOG.md):
+  1 catalog_health / sample / search_summary     ✅
+  2 inventory_ats / product_inventory_status     ✅
+  3 ops_snapshot / capabilities                  ✅
+  4 agent instructions composite-first           ✅
+  5 catalog_export_csv                           ✅
+  6 catalog_data_ops                             ✅
+  7 store_ops draft + decide (scoped approve)    ✅
+  8 digests + inbound/floor drafts + apply floor ✅
+  leftovers: forecast, import jobs, bind-other UI, full Loft send tool
 ─────────────────
-A2 MCP ↔ web login permissions:
-  A2.1 resolveEffectiveScopes + mcp:* packages     ✅
-  A2.2 mig 063 bound_user / soft revoke + Settings  ✅
-  A2.3 MCP auth + Catalog AI tool filter           ✅
-  A2.4 member lifecycle recap/revoke + audit       ✅
-       PUT  /api/v1/workspace/members/:id/role
-       DELETE /api/v1/workspace/members/:id
-  A2.5 optional: bind key to other member UI · R2 OAuth
-  Cloud MCP: permission-gated approve (not blanket block)   ✅
-       store_ops_decide · floor_adjustment_apply · scopes ∩ web role
+A2 permissions (docs/MCP_USER_PERMISSION_DESIGN.md):
+  A2.1–A2.4 + cloud permission-gated approve     ✅
+  A2.5 optional bind key to other member UI
 ─────────────────
-Parallel / later:
-  0.x  Loft email answers → dictionary IDs
-  N    notifications
-  P remaining · R1 pilot polish
-  G    connector cancel/hold / recon
+Next eng:
+  N   notifications
+  0.x Loft email / dictionary IDs
+  P   empty-key legacy, install UI
+  R   human pilot
+  F   audit explorer filters
 ```
 
-**Recommended next (eng):** Phase N notifications · Loft Phase 0 email · optional A2.5 bind-other-user UI.  
-**Owner model:** one owner seat (appoints admins); multiple admins for ops/keys.  
-**Ops:** send Phase 0 Loft email when ready.
+**Recommended next:** Phase N notifications · Loft Phase 0 email · Claude pilot with **new** `mcp:ops_safe` key.  
+**Owner model:** one owner appoints admins; many admins for ops/keys.
 
 ---
 
 ## Links
 
 - Production: https://fran-skums.vercel.app  
-- Remote MCP: `https://fran-skums.vercel.app/mcp` · Help: `/help/operator-runbook`  
-- Operator runbook: `docs/SKUMS_OPERATOR_RUNBOOK.md`  
-- **MCP composites backlog (#1–8 + optional later):** `docs/MCP_ACTION_BACKLOG.md`  
-- **MCP ↔ web permissions (A2):** `docs/MCP_USER_PERMISSION_DESIGN.md`  
-- Commit summary: `docs/Commit Summary 15072026.md`  
+- Remote MCP: `https://fran-skums.vercel.app/mcp`  
+- Help: `/help/operator-runbook`  
+- **MCP composites #1–8 + leftovers:** `docs/MCP_ACTION_BACKLOG.md`  
+- **MCP ↔ web permissions:** `docs/MCP_USER_PERMISSION_DESIGN.md`  
 - Org scopes: `docs/ORG_PERMISSION_SCOPES.md`  
+- Operator runbook: `docs/SKUMS_OPERATOR_RUNBOOK.md`  
 - Loft plan: `TODO-LOFT.md`  
 - MCP setup: `mcp/README.md`  
-

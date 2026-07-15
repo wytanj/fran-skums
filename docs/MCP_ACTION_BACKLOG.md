@@ -1,10 +1,27 @@
-# MCP action backlog (#8)
+# MCP action backlog
 
 **Date:** 2026-07-15  
-**Status:** **Shipped (priority pack)** · **Tracked from root `TODO.md`** (composites #1–8 index + this file in Plans/Links)  
-**Principle:** Agents draft / propose / read composites; humans approve and execute privileged steps in UI.
+**Tracked from:** root **`TODO.md`** (Plans, composites index, Links)  
+**Permissions:** **`docs/MCP_USER_PERMISSION_DESIGN.md`** — cloud MCP is **permission-based** (key ∩ bound web user).
 
-## Shipped tools (#8)
+**Principle:** Same scopes as web. Owner/admin may approve when scoped. Member/viewer cannot. Credentials never on cloud keys. Approve ≠ send to Loft.
+
+---
+
+## Composites #1–8 (all shipped)
+
+| # | Purpose | Tools |
+|---|---------|--------|
+| **1** | Catalog research | `catalog_health`, `catalog_sample`, `catalog_search_summary` |
+| **2** | Stock / logistics path | `inventory_ats`, `product_inventory_status` |
+| **3** | Queues + what can I do | `ops_snapshot`, `capabilities` |
+| **4** | Composite-first instructions | `agentInstructions.mjs` + Catalog AI prompt |
+| **5** | Bounded CSV | `catalog_export_csv` |
+| **6** | Retail/POS intent + seed plan | `catalog_data_ops` |
+| **7** | Store request draft + HQ decide | `store_ops_create_draft_request`, list/waves/recommend, **`store_ops_decide`** (`store_ops:approve`) |
+| **8** | Digests + drafts + floor apply | See table below |
+
+### #8 tools
 
 | Tool | Mode | Scope |
 |------|------|--------|
@@ -16,25 +33,53 @@
 | `pos_enable_proposal` | Suggest | intel:read |
 | `inbound_create_draft` | Write draft | store_ops:write |
 | `floor_adjustment_create_draft` | Write draft/pending | store_ops:write |
+| `floor_adjustment_apply` | Apply ledger | inventory:write |
 
-**Catalog AI twins:** `get_expiry_snapshot`, `get_exceptions_snapshot`, `get_integrations_health`, `get_attention_snapshot`, `get_low_stock_request_pack`, `get_pos_enable_proposal`.
+**Catalog AI twins (reads):** `get_expiry_snapshot`, `get_exceptions_snapshot`, `get_integrations_health`, `get_attention_snapshot`, `get_low_stock_request_pack`, `get_pos_enable_proposal`, plus earlier catalog/ops twins.
 
-**Never on cloud:** approve requests, send Loft, apply floor ledger, bulk POS activate.
+**Also live:** help_*, catalog_*, bi_*/market_*, po_* (draft always; submit/decide when scoped), pipeline_*, study_*, projection_*.
 
-## Earlier composites (still live)
+---
 
-catalog_*, inventory_ats, product_inventory_status, ops_snapshot, capabilities, store_ops_*, catalog_export/data_ops, help_*.
+## Permission snapshot
 
-## Still optional / later
+| Scope | Example tools |
+|-------|----------------|
+| intel:read | catalog_*, capabilities, ops_snapshot, expiry, integrations, attention, pos_enable_proposal |
+| inventory:read | inventory_ats, product_inventory_status, low_stock_request_pack |
+| inventory:write | floor_adjustment_apply |
+| store_ops:read | list requests/waves, recommend, exceptions_snapshot |
+| store_ops:write | create draft request, inbound draft, floor adj draft |
+| store_ops:approve | **store_ops_decide** |
+| store_ops:execute_3pl | send-to-Loft (UI primary; scope may be on key) |
+| po:draft / po:decide | draft PO / approve PO when scoped |
+| credentials:* | **never** on cloud keys |
 
-- Bind MCP key to other member UI (A2.5)  
-- Forecast summary composite  
-- Import job status composite  
-- Draft product create beyond pipeline  
+Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bound key → approve stripped.
+
+---
+
+## Optional leftovers (not blocking)
+
+- [ ] A2.5 Settings UI: bind MCP key to **another** member  
+- [ ] Full `store_ops_send_to_loft` MCP tool (shipping address + connection_id)  
+- [ ] Forecast summary composite  
+- [ ] Import job status composite  
+- [ ] Brand/category cleanup suggestions  
+- [ ] Empty **non-MCP** API keys ≠ full (legacy cleanup)  
+
+## Explicit non-goals
+
+- Invoices / AR  
+- Bulk POS activate of 10k SKUs from MCP  
+- Live marketplace scrape on every tool call  
+- Credentials management via MCP  
 
 ## Safety checklist
 
-- [x] Writes audit + deep_link + stop-for-human  
-- [x] store_ops:write for drafts only  
-- [x] Catalog AI read twins  
-- [x] A2 scopes apply via toolScopes + effective key  
+- [x] Effective scopes = key ∩ web user  
+- [x] Cloud approve when `store_ops:approve`  
+- [x] Writes audit + deep_link where applicable  
+- [x] Catalog AI filtered by session scopes  
+- [x] Member remove revokes bound keys  
+- [x] Tracked from `TODO.md`  
