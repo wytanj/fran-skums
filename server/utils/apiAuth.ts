@@ -37,10 +37,18 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
 
   let rawKey: string | undefined
 
-  const authHeader = headers.authorization || headers.Authorization
-  const bearerMatch = typeof authHeader === 'string' ? authHeader.match(/^Bearer\s+(.+)$/i) : null
-  if (bearerMatch) {
-    rawKey = bearerMatch[1].trim()
+  // Path/query inject from MCP handler (most reliable for Claude URL keys)
+  const ctxKey = (event.context as any)?.mcpApiKey
+  if (typeof ctxKey === 'string' && ctxKey.trim()) {
+    rawKey = ctxKey.trim()
+  }
+
+  if (!rawKey) {
+    const authHeader = headers.authorization || headers.Authorization
+    const bearerMatch = typeof authHeader === 'string' ? authHeader.match(/^Bearer\s+(.+)$/i) : null
+    if (bearerMatch) {
+      rawKey = bearerMatch[1].trim()
+    }
   }
 
   if (!rawKey) {
@@ -63,8 +71,8 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
 
   if (!rawKey) return null
 
-  // Strip accidental brackets from pasted keys: [sk_live_…]
-  rawKey = rawKey.replace(/^\[|\]$/g, '').trim()
+  // Strip accidental brackets / whitespace from pasted keys: [sk_live_…]
+  rawKey = rawKey.replace(/^\[|\]$/g, '').replace(/\s+/g, '').trim()
   if (!rawKey) return null
 
   const hash = hashKey(rawKey)

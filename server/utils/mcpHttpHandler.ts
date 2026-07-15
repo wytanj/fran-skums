@@ -64,11 +64,41 @@ export function injectMcpApiKeyFromUrl(event: H3Event, pathToken?: string | null
     .trim()
   if (!key) return
 
-  // Prefer Authorization so authenticateApiKey finds it
-  const headers = event.node?.req?.headers
-  if (headers && !headers.authorization && !headers.Authorization) {
-    headers.authorization = `Bearer ${key}`
+  // Stash on event context (headers may be immutable on some runtimes)
+  ;(event.context as any).mcpApiKey = key
+
+  // Prefer Authorization so authenticateApiKey finds it when headers are mutable
+  try {
+    const headers = event.node?.req?.headers
+    if (headers && !headers.authorization && !headers.Authorization) {
+      headers.authorization = `Bearer ${key}`
+    }
+  } catch {
+    /* ignore immutable headers */
   }
+}
+
+/**
+ * Streamable HTTP: when client Accept is only/primarily SSE on GET, do not return
+ * discovery JSON — that makes Claude report "Couldn't reach". Return 405 (no server
+ * push) or a short-lived empty SSE stream.
+ */
+function clientWantsGetSseStream(event: H3Event): boolean {
+  const accept = String(getHeader(event, 'accept') || '').toLowerCase()
+  if (!accept.includes('text/event-stream')) return false
+  // Browser navigation / health checks usually send text/html or */* without MCP headers
+  const mcpSession = getHeader(event, 'mcp-session-id')
+  const mcpProtocol = getHeader(event, 'mcp-protocol-version')
+  const hasMcpHint = Boolean(mcpSession || mcpProtocol)
+  // Pure SSE accept (no json) always = stream open attempt
+  if (!accept.includes('application/json')) return true
+  // Claude often sends both; if MCP headers present, treat as stream open
+  return hasMcpHint
+}
+
+function formatJsonRpcAsSse(payload: unknown): string {
+  const data = typeof payload === 'string' ? payload : JSON.stringify(payload)
+  return `event: message\ndata: ${data}\n\n`
 }
 
 export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: string | null }) {
@@ -90,13 +120,27 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
   }
 
   if (method === 'GET') {
+    // MCP Streamable HTTP: GET opens optional server→client SSE.
+    // We do not push notifications — return 405 so clients fall back to POST-only.
+    if (clientWantsGetSseStream(event)) {
+      setResponseStatus(event, 405)
+      setHeader(event, 'Allow', 'POST, OPTIONS, DELETE')
+      setHeader(event, 'Content-Type', 'application/json')
+      return {
+        error: 'sse_stream_not_offered',
+        message:
+          'Fran SKUMS MCP is POST-only Streamable HTTP (JSON-RPC). Open tools via POST; server-push SSE is not required.',
+        docs: 'https://fran-skums.vercel.app/help/connect-claude',
+      }
+    }
+
     const q = getQuery(event)
     const hasKeyHint = Boolean(
       opts?.pathToken || q.api_key || q.api || q.key || q.access_token || q.token,
     )
     return {
       name: 'fran-skums',
-      version: '0.6.3-cloud',
+      version: '0.6.4-cloud',
       transport: 'streamable-http-jsonrpc',
       protocolVersion: '2024-11-05',
       auth: hasKeyHint
@@ -110,6 +154,7 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
         url_with_key_path: 'https://fran-skums.vercel.app/mcp/c/sk_live_YOUR_KEY',
         also_accepts: '?api=sk_live_… (alias for api_key)',
         oauth: 'not_required — leave client id/secret empty; put key in the URL',
+        note: 'Use the FULL sk_live_… secret once (Settings → Create Claude key). Path form often works better if the client strips query strings.',
       },
     }
   }
@@ -134,6 +179,11 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
     return ''
   }
 
+  const accept = String(getHeader(event, 'accept') || '').toLowerCase()
+  const preferSse =
+    accept.includes('text/event-stream')
+    && !accept.includes('application/json')
+
   const requireAuth = needsAuth(body)
   let auth: Awaited<ReturnType<typeof authenticateRemoteMcp>> | null = null
 
@@ -141,16 +191,16 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
     try {
       auth = await authenticateRemoteMcp(event)
     } catch (e: any) {
-      const status = e?.statusCode || 401
       const msg =
         e?.statusMessage
         || e?.message
         || 'API key required'
-      setResponseStatus(event, status)
-      setHeader(event, 'Content-Type', 'application/json')
-      setHeader(event, 'WWW-Authenticate', 'Bearer realm="fran-skums-mcp"')
+      // MCP clients often treat HTTP 401 as "couldn't reach". Keep JSON-RPC on 200.
+      setResponseStatus(event, 200)
+      setHeader(event, 'Content-Type', preferSse ? 'text/event-stream' : 'application/json')
+      setHeader(event, 'Cache-Control', 'no-cache')
       const id = !Array.isArray(body) && body && typeof body === 'object' ? (body as any).id ?? null : null
-      return {
+      const errBody = {
         jsonrpc: '2.0',
         id,
         error: {
@@ -159,21 +209,34 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
           data: {
             docs: 'https://fran-skums.vercel.app/help/connect-claude',
             claude_personal:
-              'Claude only has Name + URL + optional OAuth. Leave OAuth blank. Put key in URL: https://fran-skums.vercel.app/mcp?api_key=sk_live_…',
+              'Leave OAuth blank. URL must include the full secret: https://fran-skums.vercel.app/mcp?api_key=sk_live_… or https://fran-skums.vercel.app/mcp/c/sk_live_…',
+            tip: 'Create key via Settings → Create Claude / MCP key, copy once, paste entire sk_live_… (base64url, may contain - and _).',
           },
         },
       }
+      return preferSse ? formatJsonRpcAsSse(errBody) : errBody
     }
   }
 
-  setHeader(event, 'Content-Type', 'application/json')
-  setHeader(event, 'Mcp-Session-Id', randomUUID())
+  const sessionId = getHeader(event, 'mcp-session-id') || randomUUID()
+  setHeader(event, 'Mcp-Session-Id', sessionId)
 
+  let result: unknown
   if (auth) {
     setHeader(event, 'X-Fran-Mcp-Workspace', auth.workspaceId)
     setHeader(event, 'X-Fran-Mcp-Profile', 'cloud-safe')
-    return runRemoteMcpJsonRpc(auth, body)
+    result = await runRemoteMcpJsonRpc(auth, body)
+  } else {
+    result = await handleMcpJsonRpc(body, { cloud: true })
   }
 
-  return handleMcpJsonRpc(body, { cloud: true })
+  if (preferSse) {
+    setHeader(event, 'Content-Type', 'text/event-stream')
+    setHeader(event, 'Cache-Control', 'no-cache')
+    setHeader(event, 'Connection', 'keep-alive')
+    return formatJsonRpcAsSse(result)
+  }
+
+  setHeader(event, 'Content-Type', 'application/json')
+  return result
 }

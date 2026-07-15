@@ -166,6 +166,15 @@ describe('wiring', () => {
     assert.match(ui, /MCP_CONNECTOR_SCOPES|mcp:ops_safe/)
   })
 
+  test('streamable HTTP: auth errors stay HTTP 200 JSON-RPC; GET SSE not offered as JSON', () => {
+    const handler = readFileSync(new URL('../server/utils/mcpHttpHandler.ts', import.meta.url), 'utf8')
+    assert.match(handler, /clientWantsGetSseStream/)
+    assert.match(handler, /sse_stream_not_offered|405/)
+    assert.match(handler, /setResponseStatus\(event, 200\)/)
+    assert.match(handler, /mcpApiKey/)
+    assert.match(handler, /formatJsonRpcAsSse|text\/event-stream/)
+  })
+
   test('help seed for connect-claude exists', () => {
     const sql = readFileSync(migration, 'utf8')
     assert.match(sql, /connect-claude/)
