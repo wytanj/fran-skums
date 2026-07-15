@@ -414,3 +414,213 @@ export async function createDraftRequest(opts = {}) {
       'Stop after create. Give request_number + /store-ops link. Never claim stock moved or Loft order placed.',
   }
 }
+
+function asnNumber() {
+  return `ASN-MCP-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 999)
+    .toString()
+    .padStart(3, '0')}`
+}
+
+function adjNumber() {
+  return `ADJ-MCP-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 999)
+    .toString()
+    .padStart(3, '0')}`
+}
+
+/**
+ * Draft inbound ASN only — never send-to-loft / confirm.
+ * @param {{
+ *   tracking_number: string,
+ *   date_estimate?: string|null,
+ *   local_forwarder?: string|null,
+ *   offshore_forwarder?: string|null,
+ *   notes?: string|null,
+ *   lines: Array<{ sku: string, quantity: number, product_id?: string }>,
+ *   dry_run?: boolean,
+ * }} opts
+ */
+export async function createInboundDraft(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const tracking = trimString(opts.tracking_number)
+  if (!tracking) throw new Error('tracking_number required')
+
+  const linesIn = Array.isArray(opts.lines) ? opts.lines : []
+  const lines = linesIn
+    .map((l) => ({
+      sku: trimString(l.sku),
+      quantity: positiveInt(l.quantity ?? l.requested_qty),
+      product_id: l.product_id || null,
+    }))
+    .filter((l) => l.sku && l.quantity > 0)
+  if (!lines.length) throw new Error('lines with sku + quantity required')
+
+  const { data: loft } = await db
+    .from('inventory_locations')
+    .select('id, code')
+    .eq('workspace_id', workspace_id)
+    .eq('code', 'LOFT-SG')
+    .maybeSingle()
+
+  const header = {
+    workspace_id,
+    shipment_number: asnNumber(),
+    status: 'draft',
+    tracking_number: tracking,
+    date_estimate: opts.date_estimate || null,
+    local_forwarder: opts.local_forwarder || 'M&P',
+    offshore_forwarder: opts.offshore_forwarder || null,
+    notes: opts.notes || null,
+    destination_location_id: loft?.id || null,
+    metadata: { source: 'mcp', created_via: 'inbound_create_draft' },
+    created_by: getMcpActorUserId(),
+  }
+
+  if (opts.dry_run === true) {
+    return {
+      dry_run: true,
+      would_create: { shipment: header, lines },
+      message: 'Dry run — no write. Call without dry_run to create draft ASN.',
+      deep_link: '/store-ops',
+      agent_hint: 'Human must send ASN to Loft and confirm receive. MCP never send-to-loft.',
+    }
+  }
+
+  const { data: shipment, error } = await db
+    .from('inbound_shipments')
+    .insert(header)
+    .select()
+    .single()
+  if (error) throw new Error(error.message)
+
+  const { data: lineRows, error: lineErr } = await db
+    .from('inbound_shipment_lines')
+    .insert(
+      lines.map((l) => ({
+        workspace_id,
+        shipment_id: shipment.id,
+        sku: l.sku,
+        product_id: l.product_id,
+        quantity: l.quantity,
+      })),
+    )
+    .select()
+
+  if (lineErr) {
+    await db.from('inbound_shipments').delete().eq('id', shipment.id)
+    throw new Error(lineErr.message)
+  }
+
+  return {
+    shipment,
+    lines: lineRows || [],
+    deep_link: '/store-ops',
+    message: 'Draft ASN created. Not sent to Loft. Human uses Store Ops → Send to Loft / confirm.',
+    agent_hint: 'Stop. Give shipment_number + tracking. Never claim inventory at LOFT-SG yet.',
+  }
+}
+
+/**
+ * Floor inventory adjustment draft/pending only — never apply to ledger.
+ * @param {{
+ *   location_code?: string|null,
+ *   location_id?: string|null,
+ *   adjustment_type?: string,
+ *   notes?: string|null,
+ *   lines: Array<{ sku?: string, product_id?: string, system_qty?: number, counted_qty: number, reason?: string }>,
+ *   submit?: boolean,
+ *   dry_run?: boolean,
+ * }} opts
+ */
+export async function createFloorAdjustmentDraft(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const linesIn = Array.isArray(opts.lines) ? opts.lines : []
+  if (!linesIn.length) throw new Error('lines required')
+
+  let locationId = opts.location_id || null
+  let locationCode = opts.location_code || 'ST-MAIN'
+  if (!locationId) {
+    const loc = await resolveStoreLocation(db, workspace_id, {
+      store_location_code: locationCode,
+    })
+    locationId = loc.id
+    locationCode = loc.code
+  }
+
+  const adjType = opts.adjustment_type || 'damage'
+  const status = opts.submit === true ? 'pending' : 'draft'
+
+  const resolvedLines = []
+  for (const l of linesIn) {
+    let productId = l.product_id || null
+    const sku = trimString(l.sku)
+    if (!productId && sku) {
+      const { data: p } = await db
+        .from('products')
+        .select('id')
+        .eq('workspace_id', workspace_id)
+        .eq('sku', sku)
+        .maybeSingle()
+      productId = p?.id || null
+    }
+    if (!productId) continue
+    resolvedLines.push({
+      product_id: productId,
+      system_qty: Number(l.system_qty ?? 0),
+      counted_qty: Number(l.counted_qty),
+      reason: l.reason || opts.notes || null,
+    })
+  }
+  if (!resolvedLines.length) throw new Error('No resolvable product lines')
+
+  const header = {
+    workspace_id,
+    adjustment_number: adjNumber(),
+    location_id: locationId,
+    adjustment_type: adjType,
+    status,
+    notes: opts.notes || `MCP floor adj (${locationCode})`,
+    created_by: getMcpActorUserId(),
+  }
+
+  if (opts.dry_run === true) {
+    return {
+      dry_run: true,
+      would_create: { adjustment: header, lines: resolvedLines },
+      message: 'Dry run — no write. Create as draft/pending only; human Applies to ledger in Store Ops.',
+      deep_link: '/store-ops',
+      agent_hint: 'Never claim stock changed until HQ Apply to ledger.',
+    }
+  }
+
+  const { data: adj, error } = await db.from('inventory_adjustments').insert(header).select().single()
+  if (error) throw new Error(error.message)
+
+  const { data: lines, error: lineErr } = await db
+    .from('inventory_adjustment_lines')
+    .insert(
+      resolvedLines.map((l, i) => ({
+        adjustment_id: adj.id,
+        product_id: l.product_id,
+        system_qty: l.system_qty,
+        counted_qty: l.counted_qty,
+        reason: l.reason,
+        sort_order: i,
+      })),
+    )
+    .select()
+
+  if (lineErr) {
+    await db.from('inventory_adjustments').delete().eq('id', adj.id)
+    throw new Error(lineErr.message)
+  }
+
+  return {
+    adjustment: adj,
+    lines: lines || [],
+    deep_link: '/store-ops',
+    message: `Floor adjustment ${status}. NOT applied to ledger. Human must Apply under Floor adjustments.`,
+    agent_hint: 'Stop. Link /store-ops. Never say inventory levels changed.',
+  }
+}

@@ -40,6 +40,23 @@ export const TOOL_SCOPE_CATALOG = {
     scope: 'store_ops:write',
     action: 'Create draft/submitted store request (never approve or send Loft)',
   },
+  expiry_snapshot: { scope: 'intel:read', action: 'Expiry risk snapshot' },
+  exceptions_snapshot: { scope: 'store_ops:read', action: 'Open exceptions triage' },
+  integrations_health: { scope: 'intel:read', action: 'Integration / Loft connection health' },
+  attention_snapshot: { scope: 'intel:read', action: 'Product attention queue snapshot' },
+  low_stock_request_pack: {
+    scope: 'inventory:read',
+    action: 'Build low-stock store request pack (suggest)',
+  },
+  pos_enable_proposal: { scope: 'intel:read', action: 'List POS-off products for activation review' },
+  inbound_create_draft: {
+    scope: 'store_ops:write',
+    action: 'Create draft inbound ASN (never send to Loft)',
+  },
+  floor_adjustment_create_draft: {
+    scope: 'store_ops:write',
+    action: 'Create floor adjustment draft/pending (never apply ledger)',
+  },
 
   // Study
   study_start: { scope: 'study:write', action: 'Start study session' },

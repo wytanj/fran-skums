@@ -22,6 +22,10 @@ Composite-first (prefer ONE tool, then answer):
 | How-to / where do I click | help_resolve → help_get | inventing routes |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe |
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | approve / execute_3pl |
+| Expiry / exceptions / Loft health / attention | expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot | inventing fixes |
+| Low stock → request lines | low_stock_request_pack then draft request | auto-approve |
+| Draft ASN / floor adj | inbound_create_draft, floor_adjustment_create_draft (dry_run) | send Loft / apply ledger |
+| POS-off shortlist | pos_enable_proposal | bulk Activate for POS |
 `.trim()
 
 /**
@@ -81,8 +85,8 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: capabilities (key-scoped permitted_actions), catalog_health, catalog_sample, catalog_search_summary, catalog_export_csv, catalog_data_ops, inventory_ats, product_inventory_status, ops_snapshot, help_resolve/help_get.',
-    'OK other read/draft: catalog_*, study_*, market_*, bi_list_*/export_*, pipeline_propose, po_create_draft/update/clone, store_ops_list_*, store_ops_recommend, store_ops_create_draft_request.',
+    'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
+    'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     cloud
       ? 'NO (cloud): po_submit, po_decide, pipeline_decide/execute, bi seed write/run, store_ops approve/execute_3pl/verify.'
       : 'NO (safe): po_submit, po_decide, pipeline_decide/execute, bi_upsert_seed, bi_run_seed_now, store_ops approve/execute_3pl unless full profile + explicit user command.',

@@ -12,14 +12,14 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · Claude URL-key MCP · MCP composites **#1–7** · **A2.1–A2.4** (web-aligned MCP keys + lifecycle).  
+**Shipped:** Loft P–F · Claude MCP · composites **#1–8** · **A2.1–A2.4**.  
 **POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
-**Focus now:** **#8 review** — further MCP actions (`docs/MCP_ACTION_BACKLOG.md`).  
+**Focus now:** ops polish / Phase N notifications / Loft Phase 0 email.  
 **A2 remaining:** optional bind-other-user UI; R2 OAuth later.
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A** | **MCP composite tools** | #1–7 ✅ · **#8 action backlog for review** |
+| **A** | **MCP composite tools** | #1–8 ✅ (expiry/exceptions/integrations/attention/low-stock/POS/inbound/floor drafts) |
 | **A2** | **MCP ↔ web login permissions** | **A2.1–A2.4 ✅** — design `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** · key recap on role change / revoke on remove |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
@@ -133,11 +133,11 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
   5  catalog_export_csv (bounded filter export)   ✅
   6  catalog_data_ops (retail/POS intentional + seed plan)   ✅
   7  store_ops_create_draft_request (write draft/submit signal; no execute_3pl)   ✅
-  8  Further MCP actions across the app — REVIEW BACKLOG
+  8  Further MCP actions (read composites + safe drafts)   ✅
+       expiry_snapshot · exceptions_snapshot · integrations_health
+       attention_snapshot · low_stock_request_pack · pos_enable_proposal
+       inbound_create_draft · floor_adjustment_create_draft
        → docs/MCP_ACTION_BACKLOG.md
-       candidates: expiry_snapshot, exceptions digests, draft ASN,
-       floor-adj draft only, low-stock→request pack, integrations health,
-       attention queue, POS-enable proposals (no bulk flip)
 ─────────────────
 A2 MCP ↔ web login permissions:
   A2.1 resolveEffectiveScopes + mcp:* packages     ✅
@@ -155,7 +155,7 @@ Parallel / later:
   G    connector cancel/hold / recon
 ```
 
-**Recommended next (eng):** **Review #8** (`docs/MCP_ACTION_BACKLOG.md`) and pick v1 items.  
+**Recommended next (eng):** Phase N notifications · Loft Phase 0 email · optional A2.5 bind-other-user UI.  
 **Owner model:** one owner seat (appoints admins); multiple admins for ops/keys.  
 **Ops:** send Phase 0 Loft email when ready.
 

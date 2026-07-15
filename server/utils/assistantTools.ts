@@ -10,7 +10,16 @@ import {
   catalogDataOps,
 } from '../../core/catalog/index.mjs'
 import { inventoryAts, productInventoryStatus } from '../../core/inventory/index.mjs'
-import { opsSnapshot, mcpCapabilities } from '../../core/ops/index.mjs'
+import {
+  opsSnapshot,
+  mcpCapabilities,
+  expirySnapshot,
+  exceptionsSnapshot,
+  integrationsHealth,
+  attentionSnapshot,
+  lowStockRequestPack,
+  posEnableProposal,
+} from '../../core/ops/index.mjs'
 import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 
 export interface ToolContext {
@@ -34,6 +43,12 @@ export const ASSISTANT_TOOL_SCOPES: Record<string, string[]> = {
   get_product: ['intel:read', 'products:read'],
   get_ops_snapshot: ['intel:read', 'store_ops:read'],
   get_capabilities: ['intel:read', 'products:read'],
+  get_expiry_snapshot: ['intel:read', 'expiry:read', 'inventory:read'],
+  get_exceptions_snapshot: ['store_ops:read', 'inventory:read'],
+  get_integrations_health: ['intel:read', 'integrations:read'],
+  get_attention_snapshot: ['intel:read', 'agents:read'],
+  get_low_stock_request_pack: ['inventory:read'],
+  get_pos_enable_proposal: ['intel:read', 'products:read'],
   get_inventory_ats: ['inventory:read', 'intel:read'],
   get_product_inventory_status: ['inventory:read', 'intel:read'],
   get_inventory_summary: ['inventory:read'],
@@ -292,6 +307,78 @@ export function buildToolDefinitions() {
         parameters: {
           type: 'object',
           properties: {},
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_expiry_snapshot',
+        description: 'Expiry risk snapshot (nearest batches / expired / 30d / 90d).',
+        parameters: {
+          type: 'object',
+          properties: { limit: { type: 'number' } },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_exceptions_snapshot',
+        description: 'Open inventory exceptions by severity/type. HQ verifies in Store Ops UI.',
+        parameters: {
+          type: 'object',
+          properties: { limit: { type: 'number' } },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_integrations_health',
+        description: 'Integration/Loft connection status and dictionary gaps. Read only.',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_attention_snapshot',
+        description: 'Product attention queue open items.',
+        parameters: {
+          type: 'object',
+          properties: { limit: { type: 'number' } },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_low_stock_request_pack',
+        description:
+          'Low-stock SKUs as proposed store-request lines (suggest only — does not create request).',
+        parameters: {
+          type: 'object',
+          properties: { limit: { type: 'number' } },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_pos_enable_proposal',
+        description: 'Products with POS off — candidates for Activate for POS (never bulk-enables).',
+        parameters: {
+          type: 'object',
+          properties: {
+            limit: { type: 'number' },
+            brand: { type: 'string' },
+          },
           required: [],
         },
       },
@@ -559,6 +646,46 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           profile: 'catalog_ai',
           mode: 'assistant',
           surface: 'catalog_ai',
+        })
+      }
+
+      case 'get_expiry_snapshot': {
+        return await expirySnapshot(client, {
+          workspace_id: workspaceId,
+          limit: args.limit,
+        })
+      }
+
+      case 'get_exceptions_snapshot': {
+        return await exceptionsSnapshot(client, {
+          workspace_id: workspaceId,
+          limit: args.limit,
+        })
+      }
+
+      case 'get_integrations_health': {
+        return await integrationsHealth(client, { workspace_id: workspaceId })
+      }
+
+      case 'get_attention_snapshot': {
+        return await attentionSnapshot(client, {
+          workspace_id: workspaceId,
+          limit: args.limit,
+        })
+      }
+
+      case 'get_low_stock_request_pack': {
+        return await lowStockRequestPack(client, {
+          workspace_id: workspaceId,
+          limit: args.limit,
+        })
+      }
+
+      case 'get_pos_enable_proposal': {
+        return await posEnableProposal(client, {
+          workspace_id: workspaceId,
+          limit: args.limit,
+          brand: args.brand || null,
         })
       }
 

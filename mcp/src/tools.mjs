@@ -17,6 +17,7 @@ import * as bi from './lib/bi.mjs'
 import * as catalog from './lib/catalog.mjs'
 import * as inventory from './lib/inventory.mjs'
 import * as ops from './lib/ops.mjs'
+import * as opsComposites from './lib/opsComposites.mjs'
 import * as pipeline from './lib/pipeline.mjs'
 import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
@@ -853,6 +854,127 @@ export const toolDefinitions = [
       required: ['projection_id'],
     },
   },
+  // ── Backlog #8 composites (read + safe drafts) ──
+  {
+    name: 'expiry_snapshot',
+    description:
+      'Expiry risk snapshot: RPC summary + nearest batches (expired / 30d / 90d). intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'number' } },
+    },
+  },
+  {
+    name: 'exceptions_snapshot',
+    description:
+      'Open inventory exceptions triage by severity/type. HQ verifies in UI — MCP cannot resolve. store_ops:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'number' } },
+    },
+  },
+  {
+    name: 'integrations_health',
+    description:
+      'Integration/Loft connection status + Phase 0 dictionary gaps. Read only — no execute. intel:read / safe / cloud.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'attention_snapshot',
+    description:
+      'Product attention queue (open items by type/risk). Suggest only. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number' },
+        status: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'low_stock_request_pack',
+    description:
+      'Build low-stock → store request line pack + dry_run args for store_ops_create_draft_request. Does not create request until you call that tool. inventory:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'number' } },
+    },
+  },
+  {
+    name: 'pos_enable_proposal',
+    description:
+      'List products with POS off (candidates for Activate for POS). Never bulk-flips flags. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number' },
+        brand: { type: 'string' },
+        status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+      },
+    },
+  },
+  {
+    name: 'inbound_create_draft',
+    description:
+      'Create DRAFT inbound ASN (forwarder→Loft) only. Prefer dry_run. NEVER send-to-loft or confirm. store_ops:write / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tracking_number: { type: 'string' },
+        date_estimate: { type: 'string' },
+        local_forwarder: { type: 'string' },
+        offshore_forwarder: { type: 'string' },
+        notes: { type: 'string' },
+        lines: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              sku: { type: 'string' },
+              quantity: { type: 'number' },
+              product_id: { type: 'string' },
+            },
+          },
+        },
+        dry_run: { type: 'boolean' },
+      },
+      required: ['tracking_number', 'lines'],
+    },
+  },
+  {
+    name: 'floor_adjustment_create_draft',
+    description:
+      'Create floor inventory adjustment as draft or pending. NEVER apply to ledger — HQ Applies in Store Ops. Prefer dry_run. store_ops:write / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        location_code: { type: 'string' },
+        location_id: { type: 'string' },
+        adjustment_type: {
+          type: 'string',
+          enum: ['correction', 'stocktake', 'damage', 'theft', 'expiry', 'found', 'return'],
+        },
+        notes: { type: 'string' },
+        lines: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              sku: { type: 'string' },
+              product_id: { type: 'string' },
+              system_qty: { type: 'number' },
+              counted_qty: { type: 'number' },
+              reason: { type: 'string' },
+            },
+          },
+        },
+        submit: { type: 'boolean', description: 'pending vs draft' },
+        dry_run: { type: 'boolean' },
+      },
+      required: ['lines'],
+    },
+  },
+
   // ── Store ops (HQ decision support — draft write OK; never approve/Loft) ──
   {
     name: 'store_ops_list_requests',
@@ -1575,6 +1697,82 @@ export async function handleTool(name, args = {}) {
               line_count: (result.lines || []).length,
               submit: a.submit === true,
             },
+          },
+          result,
+        )
+      }
+      case 'expiry_snapshot': {
+        requireScope('intel:read')
+        return jsonResult(await opsComposites.expiry(requireWorkspaceId(), a))
+      }
+      case 'exceptions_snapshot': {
+        requireScope('store_ops:read')
+        return jsonResult(await opsComposites.exceptions(requireWorkspaceId(), a))
+      }
+      case 'integrations_health': {
+        requireScope('intel:read')
+        return jsonResult(await opsComposites.integrations(requireWorkspaceId(), a))
+      }
+      case 'attention_snapshot': {
+        requireScope('intel:read')
+        return jsonResult(await opsComposites.attention(requireWorkspaceId(), a))
+      }
+      case 'low_stock_request_pack': {
+        requireScope('inventory:read')
+        return jsonResult(await opsComposites.lowStockPack(requireWorkspaceId(), a))
+      }
+      case 'pos_enable_proposal': {
+        requireScope('intel:read')
+        return jsonResult(await opsComposites.posEnable(requireWorkspaceId(), a))
+      }
+      case 'inbound_create_draft': {
+        requireScope('store_ops:write')
+        const result = await storeOps.createInboundDraft({
+          tracking_number: a.tracking_number,
+          date_estimate: a.date_estimate,
+          local_forwarder: a.local_forwarder,
+          offshore_forwarder: a.offshore_forwarder,
+          notes: a.notes,
+          lines: a.lines,
+          dry_run: a.dry_run === true,
+        })
+        if (result.dry_run) return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'inbound_shipments',
+            entity_id: result.shipment.id,
+            status: result.shipment.status,
+            is_draft: true,
+            operation: 'INSERT',
+            after_data: result,
+          },
+          result,
+        )
+      }
+      case 'floor_adjustment_create_draft': {
+        requireScope('store_ops:write')
+        const result = await storeOps.createFloorAdjustmentDraft({
+          location_code: a.location_code,
+          location_id: a.location_id,
+          adjustment_type: a.adjustment_type,
+          notes: a.notes,
+          lines: a.lines,
+          submit: a.submit === true,
+          dry_run: a.dry_run === true,
+        })
+        if (result.dry_run) return jsonResult(result)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'inventory_adjustments',
+            entity_id: result.adjustment.id,
+            status: result.adjustment.status,
+            is_draft: result.adjustment.status === 'draft',
+            operation: 'INSERT',
+            after_data: result,
           },
           result,
         )
