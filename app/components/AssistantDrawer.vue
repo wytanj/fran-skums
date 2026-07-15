@@ -1,8 +1,24 @@
 <script setup lang="ts">
 const {
-  isOpen, conversations, currentConversationId, messages, streaming, streamingContent,
-  thinking, thinkingLabel, showHistory, contextLabel,
-  open, close, newConversation, loadConversations, loadConversation, sendMessage,
+  isOpen,
+  conversations,
+  currentConversationId,
+  messages,
+  streaming,
+  streamingContent,
+  thinking,
+  thinkingLabel,
+  showHistory,
+  contextLabel,
+  open,
+  close,
+  newConversation,
+  loadConversations,
+  loadConversation,
+  sendMessage,
+  backToHistory,
+  backToChat,
+  currentChatTitle,
 } = useAssistant()
 
 const { currentWorkspace } = useWorkspace()
@@ -19,11 +35,34 @@ const catalogPrompts = [
 const input = ref('')
 const messagesEl = ref<HTMLElement>()
 
+/** Chat has been started (messages or in-flight stream) */
+const hasActiveChat = computed(
+  () => messages.value.some(m => m.role === 'user' || m.role === 'assistant')
+    || Boolean(currentConversationId.value)
+    || streaming.value
+    || Boolean(streamingContent.value),
+)
+
+/** Show back control: leave chat → history (or empty home if no history) */
+const showBackButton = computed(() => {
+  if (showHistory.value) return false
+  return hasActiveChat.value
+})
+
 function handleKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') close()
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    submit()
+  if (e.key === 'Escape') {
+    if (showHistory.value) {
+      backToChat()
+      return
+    }
+    if (hasActiveChat.value && !streaming.value) {
+      goBackFromChat()
+      return
+    }
+    close()
+  }
+  if (e.key === 'Enter' && !e.shiftKey && isOpen.value && !showHistory.value) {
+    // handled by textarea
   }
 }
 
@@ -36,11 +75,24 @@ async function submit() {
 
 async function openHistory() {
   await loadConversations()
-  showHistory.value = true
+  backToHistory()
+}
+
+function goBackFromChat() {
+  void loadConversations()
+  if (conversations.value.length > 0) {
+    backToHistory()
+  } else {
+    newConversation()
+  }
 }
 
 async function selectConversation(id: string) {
   await loadConversation(id)
+}
+
+function startNewFromHistory() {
+  newConversation()
 }
 
 function formatTime(iso: string) {
@@ -51,11 +103,11 @@ function formatTime(iso: string) {
 function formatDate(iso: string) {
   const d = new Date(iso)
   const now = new Date()
-  if (d.toDateString() === now.toDateString()) return 'Today'
+  if (d.toDateString() === now.toDateString()) return `Today · ${formatTime(iso)}`
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  return d.toLocaleDateString()
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday · ${formatTime(iso)}`
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 // Simple markdown: bold, inline code, headers
@@ -86,13 +138,18 @@ watch(isOpen, (val) => {
   if (val && currentWorkspace.value) loadConversations()
 })
 
-// Keyboard listener
 onMounted(() => { window.addEventListener('keydown', handleKey) })
 onUnmounted(() => { window.removeEventListener('keydown', handleKey) })
 
 const visibleMessages = computed(() =>
-  messages.value.filter(m => m.role === 'user' || m.role === 'assistant')
+  messages.value.filter(m => m.role === 'user' || m.role === 'assistant'),
 )
+
+const headerSubtitle = computed(() => {
+  if (showHistory.value) return 'Chat history'
+  if (hasActiveChat.value) return currentChatTitle()
+  return `${currentWorkspace.value?.name || 'Workspace'} · in-app Q&A`
+})
 </script>
 
 <template>
@@ -135,23 +192,47 @@ const visibleMessages = computed(() =>
         class="fixed right-0 top-0 z-50 flex h-full w-[420px] flex-col border-l border-gray-800 bg-gray-950 shadow-2xl"
       >
         <!-- Header -->
-        <div class="flex shrink-0 items-center justify-between border-b border-gray-800 px-4 py-3">
-          <div class="flex items-center gap-2">
-            <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600/20 text-indigo-400">
+        <div class="flex shrink-0 items-center justify-between border-b border-gray-800 px-3 py-3">
+          <div class="flex min-w-0 flex-1 items-center gap-2">
+            <!-- Back: from history → chat home; from active chat → history -->
+            <button
+              v-if="showHistory"
+              class="shrink-0 rounded-md p-1.5 text-gray-300 hover:bg-gray-800 hover:text-white"
+              title="Back to chat"
+              @click="backToChat"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+            </button>
+            <button
+              v-else-if="showBackButton"
+              class="shrink-0 rounded-md p-1.5 text-gray-300 hover:bg-gray-800 hover:text-white"
+              title="Back to chat history"
+              @click="goBackFromChat"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+            </button>
+            <div
+              v-else
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600/20 text-indigo-400"
+            >
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
               </svg>
             </div>
-            <div>
+            <div class="min-w-0">
               <p class="text-sm font-semibold text-white">Catalog Assistant</p>
-              <p class="text-xs text-gray-500">{{ currentWorkspace?.name }} · in-app Q&amp;A</p>
+              <p class="truncate text-xs text-gray-500">{{ headerSubtitle }}</p>
             </div>
           </div>
-          <div class="flex items-center gap-1">
+          <div class="flex shrink-0 items-center gap-0.5">
             <button
               class="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"
-              title="New conversation"
-              @click="newConversation"
+              title="New chat"
+              @click="startNewFromHistory"
             >
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -159,7 +240,8 @@ const visibleMessages = computed(() =>
             </button>
             <button
               class="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"
-              title="Conversation history"
+              :class="showHistory ? 'bg-gray-800 text-white' : ''"
+              title="Chat history"
               @click="openHistory"
             >
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -168,6 +250,7 @@ const visibleMessages = computed(() =>
             </button>
             <button
               class="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"
+              title="Close"
               @click="close"
             >
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -178,33 +261,46 @@ const visibleMessages = computed(() =>
         </div>
 
         <!-- Context chip -->
-        <div v-if="contextLabel" class="shrink-0 border-b border-gray-800 px-4 py-2">
+        <div v-if="contextLabel && !showHistory" class="shrink-0 border-b border-gray-800 px-4 py-2">
           <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600/10 px-2.5 py-0.5 text-xs text-indigo-400">
-            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-6-6m0 0l6-6m-6 6h12" />
-            </svg>
             Context: {{ contextLabel }}
           </span>
         </div>
 
         <!-- History panel -->
-        <div v-if="showHistory" class="flex flex-col overflow-hidden flex-1">
-          <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800">
-            <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Recent Conversations</p>
-            <button class="text-xs text-gray-500 hover:text-white" @click="showHistory = false">Back</button>
+        <div v-if="showHistory" class="flex flex-1 flex-col overflow-hidden">
+          <div class="flex items-center justify-between border-b border-gray-800 px-4 py-2.5">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400">Chat history</p>
+              <p class="text-xs text-gray-600">{{ conversations.length }} conversation{{ conversations.length === 1 ? '' : 's' }}</p>
+            </div>
+            <button
+              class="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500"
+              @click="startNewFromHistory"
+            >
+              New chat
+            </button>
           </div>
           <div class="flex-1 overflow-y-auto">
-            <div v-if="conversations.length === 0" class="p-4 text-center text-sm text-gray-500">
-              No conversations yet
+            <div v-if="conversations.length === 0" class="flex flex-col items-center gap-3 p-8 text-center">
+              <p class="text-sm text-gray-400">No past chats yet</p>
+              <p class="text-xs text-gray-600">Start a conversation — it will show up here when you finish.</p>
+              <button
+                class="mt-1 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-indigo-500/50 hover:text-white"
+                @click="startNewFromHistory"
+              >
+                Start a chat
+              </button>
             </div>
             <button
               v-for="conv in conversations"
               :key="conv.id"
-              class="w-full px-4 py-3 text-left hover:bg-gray-900 border-b border-gray-800/50 transition-colors"
+              class="w-full border-b border-gray-800/50 px-4 py-3 text-left transition-colors hover:bg-gray-900"
+              :class="conv.id === currentConversationId ? 'bg-gray-900/80 border-l-2 border-l-indigo-500' : ''"
               @click="selectConversation(conv.id)"
             >
-              <p class="text-sm text-white truncate">{{ conv.title }}</p>
-              <p class="text-xs text-gray-500 mt-0.5">{{ formatDate(conv.updated_at) }}</p>
+              <p class="truncate text-sm text-white">{{ conv.title || 'Untitled chat' }}</p>
+              <p class="mt-0.5 text-xs text-gray-500">{{ formatDate(conv.updated_at) }}</p>
             </button>
           </div>
         </div>
@@ -212,9 +308,9 @@ const visibleMessages = computed(() =>
         <!-- Chat area -->
         <div v-else class="flex flex-1 flex-col overflow-hidden">
           <!-- Messages -->
-          <div ref="messagesEl" class="flex-1 overflow-y-auto p-4 space-y-4">
+          <div ref="messagesEl" class="flex-1 space-y-4 overflow-y-auto p-4">
             <!-- Empty state -->
-            <div v-if="visibleMessages.length === 0 && !streaming" class="flex flex-col items-center justify-center h-full text-center py-8 gap-3 px-2">
+            <div v-if="visibleMessages.length === 0 && !streaming" class="flex h-full flex-col items-center justify-center gap-3 px-2 py-8 text-center">
               <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-400">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
@@ -222,17 +318,24 @@ const visibleMessages = computed(() =>
               </div>
               <div>
                 <p class="text-sm font-medium text-white">Ask about your catalog</p>
-                <p class="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                  Live catalog data (counts, search). For “where do I click?”, we send you to
+                <p class="mt-1 max-w-xs mx-auto text-xs text-gray-500">
+                  Live catalog data (counts, search). For “where do I click?”, we use
                   <NuxtLink to="/help" class="text-indigo-400 hover:underline" @click="close">Help</NuxtLink>.
-                  MCP agents draft work; humans approve in <strong class="text-gray-400">Actions</strong>.
                 </p>
               </div>
-              <div class="mt-1 flex flex-col gap-2 w-full max-w-xs">
+              <div v-if="conversations.length > 0" class="w-full max-w-xs">
+                <button
+                  class="w-full rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:border-indigo-500/50 hover:text-white"
+                  @click="openHistory"
+                >
+                  Open chat history ({{ conversations.length }})
+                </button>
+              </div>
+              <div class="mt-1 flex w-full max-w-xs flex-col gap-2">
                 <button
                   v-for="prompt in catalogPrompts"
                   :key="prompt"
-                  class="rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-400 hover:border-indigo-500/50 hover:text-white text-left transition-colors"
+                  class="rounded-lg border border-gray-800 px-3 py-2 text-left text-xs text-gray-400 transition-colors hover:border-indigo-500/50 hover:text-white"
                   @click="input = prompt; submit()"
                 >
                   {{ prompt }}
@@ -250,8 +353,8 @@ const visibleMessages = computed(() =>
                 :class="[
                   'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm',
                   msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-sm'
-                    : 'bg-gray-800 text-gray-100 rounded-bl-sm',
+                    ? 'rounded-br-sm bg-indigo-600 text-white'
+                    : 'rounded-bl-sm bg-gray-800 text-gray-100',
                 ]"
               >
                 <!-- eslint-disable-next-line vue/no-v-html -->
@@ -264,7 +367,7 @@ const visibleMessages = computed(() =>
             <!-- Streaming bubble -->
             <div v-if="streaming || streamingContent" class="flex justify-start">
               <div class="max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-800 px-3.5 py-2.5 text-sm text-gray-100">
-                <div v-if="thinking" class="flex items-center gap-2 text-amber-400 text-xs">
+                <div v-if="thinking" class="flex items-center gap-2 text-xs text-amber-400">
                   <svg class="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -274,12 +377,37 @@ const visibleMessages = computed(() =>
                 <!-- eslint-disable-next-line vue/no-v-html -->
                 <div v-if="streamingContent" class="prose-sm" v-html="renderMarkdown(streamingContent)" />
                 <span v-if="!streamingContent && !thinking" class="inline-flex gap-0.5">
-                  <span class="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style="animation-delay: 0ms" />
-                  <span class="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style="animation-delay: 150ms" />
-                  <span class="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style="animation-delay: 300ms" />
+                  <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500" style="animation-delay: 0ms" />
+                  <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500" style="animation-delay: 150ms" />
+                  <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500" style="animation-delay: 300ms" />
                 </span>
               </div>
             </div>
+          </div>
+
+          <!-- Post-chat actions (after completed exchange) -->
+          <div
+            v-if="hasActiveChat && !streaming && visibleMessages.length > 0"
+            class="flex shrink-0 items-center justify-between gap-2 border-t border-gray-800/80 bg-gray-900/50 px-3 py-2"
+          >
+            <button
+              class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
+              @click="goBackFromChat"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+              History
+            </button>
+            <button
+              class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-600/20 hover:text-indigo-200"
+              @click="startNewFromHistory"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              New chat
+            </button>
           </div>
 
           <!-- Input -->
@@ -296,7 +424,7 @@ const visibleMessages = computed(() =>
                 @input="($event.target as HTMLTextAreaElement).style.height = 'auto'; ($event.target as HTMLTextAreaElement).style.height = ($event.target as HTMLTextAreaElement).scrollHeight + 'px'"
               />
               <button
-                class="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:opacity-40"
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:opacity-40"
                 :disabled="streaming || !input.trim()"
                 @click="submit"
               >
@@ -306,7 +434,7 @@ const visibleMessages = computed(() =>
               </button>
             </div>
             <p class="mt-1.5 text-center text-xs text-gray-600">
-              Enter to send · In-app only (not MCP)
+              Enter to send · Esc back · History icon for past chats
             </p>
           </div>
         </div>

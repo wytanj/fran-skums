@@ -20,9 +20,37 @@ const contextLabel = ref<string | undefined>()
 export function useAssistant() {
   const { currentWorkspace } = useWorkspace()
 
-  function open() { isOpen.value = true; showHistory.value = false }
+  async function open() {
+    isOpen.value = true
+    if (currentWorkspace.value) await loadConversations()
+    // Prefer history when past chats exist and we're not mid-thread
+    if (
+      conversations.value.length > 0
+      && !currentConversationId.value
+      && messages.value.length === 0
+      && !streaming.value
+    ) {
+      showHistory.value = true
+    } else {
+      showHistory.value = false
+    }
+  }
   function close() { isOpen.value = false }
-  function toggle() { isOpen.value = !isOpen.value }
+  function toggle() {
+    if (isOpen.value) close()
+    else open()
+  }
+
+  /** Leave active chat → history list */
+  function backToHistory() {
+    showHistory.value = true
+    // Keep currentConversationId so history can highlight it; clear messages only when starting new
+  }
+
+  /** Leave history → empty new chat (or stay on current if resuming) */
+  function backToChat() {
+    showHistory.value = false
+  }
 
   function setContext(type: string, id: string, data: any, label?: string) {
     contextType.value = type
@@ -42,10 +70,12 @@ export function useAssistant() {
     if (!currentWorkspace.value) return
     try {
       const { conversations: data } = await $fetch<{ conversations: AssistantConversation[] }>(
-        `/api/assistant/conversations?workspaceId=${currentWorkspace.value.id}`
+        `/api/assistant/conversations?workspaceId=${currentWorkspace.value.id}`,
       )
-      conversations.value = data
-    } catch {}
+      conversations.value = data || []
+    } catch (e) {
+      console.warn('[assistant] loadConversations failed', e)
+    }
   }
 
   async function loadConversation(id: string) {
@@ -55,9 +85,13 @@ export function useAssistant() {
         messages: AssistantMessage[]
       }>(`/api/assistant/conversations/${id}`)
       currentConversationId.value = conversation.id
-      messages.value = msgs
+      messages.value = (msgs || []).filter(
+        (m) => m.role === 'user' || m.role === 'assistant',
+      )
       showHistory.value = false
-    } catch {}
+    } catch (e) {
+      console.warn('[assistant] loadConversation failed', e)
+    }
   }
 
   function newConversation() {
@@ -67,6 +101,16 @@ export function useAssistant() {
     thinking.value = false
     thinkingLabel.value = ''
     showHistory.value = false
+  }
+
+  /** Active chat title for header */
+  function currentChatTitle(): string {
+    if (!currentConversationId.value) return 'New chat'
+    const found = conversations.value.find((c) => c.id === currentConversationId.value)
+    if (found?.title) return found.title
+    const firstUser = messages.value.find((m) => m.role === 'user' && m.content)
+    if (firstUser?.content) return firstUser.content.slice(0, 48)
+    return 'Chat'
   }
 
   async function sendMessage(text: string) {
@@ -284,11 +328,14 @@ export function useAssistant() {
     open,
     close,
     toggle,
+    backToHistory,
+    backToChat,
     setContext,
     clearContext,
     loadConversations,
     loadConversation,
     newConversation,
+    currentChatTitle,
     sendMessage,
   }
 }
