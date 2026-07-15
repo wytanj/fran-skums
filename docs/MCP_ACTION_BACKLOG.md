@@ -59,6 +59,17 @@ Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bou
 
 ---
 
+## Next MCP (POS → HQ loop) — see `TODO.md` Roles & MCP next
+
+| # | Tool / pack | Scope | Notes |
+|---|-------------|-------|-------|
+| **M1** | Request status pack (lines + recommend + wave) | `store_ops:read` | Manager requested stock on POS |
+| **M2** | Floor adjustment queue digest | `inventory:read` | Cashier damage/found/count pending HQ |
+| **M3** | `exception_verify` | `store_ops:verify` | Receive exceptions from POS |
+| **M4** | `store_ops_send_to_loft` | `store_ops:execute_3pl` | After Loft Phase 0 IDs |
+| **M5** | POS sync health (if data available) | `pos:read` | Outbox / failed events |
+| **S** | Login MFA | Google Workspace | Not an MCP tool; enforce MFA on IdP (see TODO Phase S) |
+
 ## Optional leftovers (not blocking)
 
 - [ ] A2.5 Settings UI: bind MCP key to **another** member  
@@ -67,6 +78,7 @@ Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bou
 - [ ] Import job status composite  
 - [ ] Brand/category cleanup suggestions  
 - [ ] Empty **non-MCP** API keys ≠ full (legacy cleanup)  
+- [ ] Phase S: Google Workspace MFA policy for SKUMS users (see TODO.md; no in-app TOTP v1)  
 
 ## Explicit non-goals
 

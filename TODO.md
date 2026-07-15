@@ -21,19 +21,131 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · **permission-gated cloud approve**.  
-**POS:** restructure against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` (other team).  
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4**.  
+**Pilot:** Claude remote MCP human pilot **done** (R1).  
+**POS:** structure handoff `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` — roles/MCP next section below.
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
-| **A** | MCP composites #1–8 | **Done** — see index below · backlog file for leftovers |
-| **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other-user UI |
-| **B** | Loft Phase 0 close-out | **Ops:** send Loft email; paste dictionary / delivery_method_ids |
-| **C** | Phase N notifications | **N1–N3 core done** — bus + request/exception/decide; email provider later |
-| **D** | Phase P remaining | Empty API key ≠ full on non-MCP keys; legacy route gates |
-| **E** | Phase R pilot | Humans use Claude connector; R2 OAuth held |
-| **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key events |
+| **A** | MCP composites #1–8 | **Done** |
+| **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
+| **B** | Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
+| **C** | Phase N | **N1–N4 done** — N6 email later |
+| **D** | Phase P remaining | Empty non-MCP keys ≠ full; legacy gates |
+| **E** | Phase R pilot | **R1 pilot done** · R2 OAuth held |
+| **H** | HQ schemas from POS reality | Inventory-manager schema + MCP packs (below) |
+| **I** | MCP actions next (POS-driven) | Status packs + exception verify + Loft send (below) |
+| **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
+| **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
+
+---
+
+## Roles & MCP next (from fran-pos + SKUMS)
+
+Two permission planes — **do not merge them**:
+
+| Plane | Who | Auth | Powers |
+|-------|-----|------|--------|
+| **POS terminal** | `cashier` · `manager` · `admin` · `owner` (local PIN) | PIN / session on tablet | Sale, receive, floor **report**, request stock (manager+) only |
+| **SKUMS workspace** | `viewer` · `member` · schemas · **admin** · **owner** | Google SSO (**MFA on Workspace**) | HQ decide, verify, floor apply, Loft, keys, MCP |
+| **Machine keys** | `pos_connector` · `mcp:ops_safe` · etc. | API key | Cap = package ∩ bound user ∩ no credentials on cloud |
+
+### POS roles (fran-pos — UI only; key never has HQ scopes)
+
+| POS role | Sale | Floor report | Receive + exception report | Request stock | SKUMS HQ / MCP / Loft |
+|----------|------|--------------|----------------------------|---------------|------------------------|
+| `cashier` | ✓ | ✓ | ✓ | ✗ | ✗ |
+| `manager` | ✓ | ✓ | ✓ | ✓ signal only | ✗ |
+| `admin` / `owner` | ✓ | ✓ | ✓ | ✓ signal only | ✗ (still no SKUMS HQ on POS key) |
+
+POS manager/admin is **store floor leadership**, not SKUMS workspace admin.
+
+### SKUMS roles that should exist clearly next
+
+| SKUMS role / schema | Who | Web | Cloud MCP package |
+|---------------------|-----|-----|-------------------|
+| **Owner** | Single seat | Appoint admins, all ops, keys; Workspace MFA required | `mcp:ops_safe` |
+| **Admin** | Many, appointed | Ops, keys, members; not appoint owner; Workspace MFA required | `mcp:ops_safe` |
+| **Inventory manager** (schema) | HQ buyer/ops | `store_ops:approve` + `verify` + `inventory:write`; optional no `execute_3pl` | `mcp:ops_safe` or subset |
+| **Member / store associate** | Staff in HQ tool | Drafts + reads; no approve | `mcp:member` / `mcp:store` |
+| **Viewer** | Read-only | Reads | `mcp:viewer` |
+
+**Not a SKUMS login role:** POS `cashier` — they only hit APIs via the shared `pos_connector` key.
+
+### MCP actions that make sense **next** (ordered by POS → HQ loop)
+
+POS already creates work in SKUMS. HQ Claude should close that loop faster.
+
+| # | Action | Why (POS trigger) | Scope | Priority |
+|---|--------|-------------------|-------|----------|
+| **M1** | `store_request_status` / request pack (lines + recommend + wave) | Manager requested stock; HQ needs one-shot context | `store_ops:read` | **High** |
+| **M2** | `floor_adjustment_queue` digest (pending damage/found/count) | Cashier floor reports pile up | `store_ops:read` / `inventory:read` | **High** |
+| **M3** | `exception_verify` MCP tool (confirm/reject/escalate) | Receive reported short/damage | `store_ops:verify` | **High** |
+| **M4** | `store_ops_send_to_loft` (shipping payload + connection) | After approve_now, humans still UI-only | `store_ops:execute_3pl` | Medium (after Loft Phase 0 IDs) |
+| **M5** | `pos_sync_health` (sale outbox lag / failed inventory-events if SKUMS sees them) | Phase2 POS manager surface | `pos:read` / intel | Medium |
+| **M6** | Forecast / low-stock → draft request pack polish | Complements POS request | already partial | Low |
+| **M7** | Import job status | Catalog ops, not POS | intel | Low |
+
+**Already good for POS loop (keep using):**  
+`ops_snapshot` · `store_ops_list_requests` · `store_ops_recommend` · `store_ops_decide` · `exceptions_snapshot` · `floor_adjustment_apply` · `inventory_ats` · `product_inventory_status` · Phase N inbox.
+
+**Never on POS key or cashier MCP:** approve · verify · execute_3pl · credentials · appoint admin · key revoke.
+
+### Recommended build order (post-pilot)
+
+```text
+1. Inventory-manager permission schema seed (if missing) + doc who gets it
+2. MCP M1 request status pack + M2 floor queue digest   ← close POS→HQ loop in Claude
+3. MCP M3 exception_verify (scoped store_ops:verify)
+4. P remaining: empty non-MCP keys ≠ full
+5. Loft Phase 0 ops IDs → then M4 send_to_loft tool
+6. Phase S — Workspace MFA policy + optional SKUMS step-up for dangerous actions
+7. Optional: A2.5 bind key to other user; audit explorer; N6 email
+```
+
+### Phase S — login MFA via Google Workspace (planned ops; not in-app TOTP)
+
+**Decision:** Fran staff log in with **Google SSO only**. **Login 2FA lives on Google Workspace**, not a second TOTP product inside SKUMS. App-level MFA would duplicate the IdP and create dual recovery burden.
+
+| Control | Where | Role |
+|---------|--------|------|
+| **2FA / 2-step verification** | **Google Workspace** (admin-enforced) | Proves the human at login |
+| **Who may use this workspace** | SKUMS membership + roles/scopes | Authorization after SSO |
+| **Machine keys / MCP / POS** | SKUMS API keys + packages | Separate from human login MFA |
+| **POS tablet PIN** | fran-pos local | Not Workspace MFA; store floor only |
+
+#### Workspace policy (ops checklist)
+
+- [ ] All SKUMS users are Workspace (or allowed) Google accounts — no staff password-only local accounts
+- [ ] Enforce MFA for the domain **or** a group that includes everyone with SKUMS access
+- [ ] Prefer stronger second factor for **owner** (and ideally **admin**) accounts
+- [ ] Block legacy less-secure sign-in paths; SSO is the only staff path into SKUMS
+- [ ] Document break-glass: Workspace admin recovery if an owner loses their second factor
+
+#### Who must have Workspace MFA
+
+| Who | Login MFA |
+|-----|-----------|
+| **Owner** | Required (Workspace) |
+| **Admin** | Required (Workspace) |
+| **Inventory manager / member / viewer** | Required for any account that can reach SKUMS (simplest: whole domain/group) |
+| **POS PIN roles** | Out of scope for Workspace MFA |
+| **MCP / Claude** | No TOTP in the agent; bound key power still ≤ web user |
+
+#### What SKUMS still owns (not login 2FA)
+
+- Roles, scopes, appoint admin, key bind/revoke
+- Optional **later step-up** on dangerous web actions only: credentials, appoint admin, mint/revoke elevated MCP keys — via Google re-auth or short re-login, **not** a second authenticator app product in v1
+- Audit of privileged actions; API key lifecycle remains the high-risk surface to harden in-app
+
+#### Explicit non-goals (v1)
+
+- Supabase/in-app TOTP for every SKUMS login
+- MFA inside Claude/MCP tools
+- Treating POS PIN as HQ 2FA
+
+**Depends on:** Google Workspace admin access (ops) · owner/admin appoint model (done).
 
 ---
 
@@ -201,8 +313,8 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** Loft Phase 0 email · Claude pilot with **new** `mcp:ops_safe` key · optional N6 email provider.  
-**Owner model:** one owner appoints admins; many admins for ops/keys.
+**Recommended next:** MCP **M1–M3** · inventory-manager schema · Loft Phase 0 ops · **Phase S Workspace MFA policy** (ops).  
+**Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.
 
 ---
 
