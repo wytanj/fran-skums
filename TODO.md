@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15  
 **Shipped on `main`:** **M0–M6**, Help Center, **Phase R1** remote MCP, **Loft P–E** + operator docs + assistant Help tools (see `TODO-LOFT.md` · `docs/Commit Summary 15072026.md`)  
-**DB:** migrations **001–060** on shared Supabase (058 floor apply; 059–060 Help ops; apply `--from 058` if a host lags).  
+**DB:** migrations **001–061** on shared Supabase (058 floor; 059–060 Help; 061 calendars; apply `--from 058` if a host lags).  
 **Held:** **R2 OAuth** (remote MCP stays API-key until org permissioning is solid)  
 **Parked:** Live Shopee scrape / Browserbase / brand radar  
 **Production:** https://fran-skums.vercel.app  
@@ -12,18 +12,17 @@
 
 ## Start here next
 
-**Shipped 2026-07-15:** Phase E floor ledger apply · inventory logging plan · operator runbook · Help 059–060 · Catalog AI `get_help_article` / MCP `help_get` · Phase 0 dictionary expand.  
-**You are testing:** production deploy after this push.
+**Shipped 2026-07-15:** Phase E floor apply · operator docs · Help AI · Phase F calendars/allocation/POS next-wave · Phase 0 dictionary expand.  
+**You are testing:** production deploy (main `ebb757c` + follow-up F commit).
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A (in progress)** | **Loft Phase F** | Store delivery calendars + wave cutoffs; multi-store allocation from Loft ATS; POS next-wave hint — `TODO-LOFT.md` F.1–F.3 |
-| **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / `delivery_method_id`s / status tables |
-| **C** | **Phase N** — stakeholder notifications | Email on store-ops inbox + lifecycle events |
-| **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
-| **E** | **Phase R** | R1 pilot with Claude keys; **R2 OAuth held** |
-| **F** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
-| **G (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
+| **A (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
+| **B (recommended eng)** | **Phase N** or polish | Notifications; MCP allocation suggest; P remaining |
+| **C** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
+| **D** | **Phase R** | R1 pilot with Claude keys; **R2 OAuth held** |
+| **E** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
+| **F (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
 
 ### Quick smoke (post-deploy)
 

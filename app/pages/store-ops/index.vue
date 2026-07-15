@@ -42,15 +42,134 @@ const {
   exceptionStatusBadge,
 } = useStoreOperations()
 
-const activeTab = ref<'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions' | 'floor'>('queue')
+const activeTab = ref<'queue' | 'orders' | 'inbound' | 'receiving' | 'exceptions' | 'floor' | 'waves'>('queue')
 const tabs = [
   { key: 'queue', label: 'Queue' },
   { key: 'orders', label: 'Orders' },
+  { key: 'waves', label: 'Waves & calendar' },
   { key: 'inbound', label: 'Inbound ASN' },
   { key: 'receiving', label: 'Receiving' },
   { key: 'exceptions', label: 'Exceptions' },
   { key: 'floor', label: 'Floor adjustments' },
 ] as const
+
+const waveBundle = ref<{ upcoming: any[]; waves: any[]; cadence_note?: string } | null>(null)
+const storeSettings = ref<any>(null)
+const deliveryCalendars = ref<any[]>([])
+const allocationPreview = ref<any>(null)
+const wavesLoading = ref(false)
+const wavesSaving = ref(false)
+const calendarForm = ref({
+  inventory_location_id: '',
+  pos_location_id: '',
+  preferred_delivery_mode: 'delivery' as 'delivery' | 'self_collect',
+  receive_window_start: '08:00',
+  receive_window_end: '10:00',
+  notes: '',
+})
+
+async function loadWavesAndCalendar() {
+  if (!currentWorkspace.value?.id) return
+  wavesLoading.value = true
+  try {
+    const [wavesRes, settingsRes, calRes] = await Promise.all([
+      $fetch<{ upcoming: any[]; waves: any[]; cadence_note?: string }>('/api/store-ops/waves', {
+        query: { workspace_id: currentWorkspace.value.id, ensure: '1', count: 6 },
+      }),
+      $fetch<{ data: any }>('/api/store-ops/settings', {
+        query: { workspace_id: currentWorkspace.value.id },
+      }),
+      $fetch<{ data: any[] }>('/api/store-ops/delivery-calendars', {
+        query: { workspace_id: currentWorkspace.value.id },
+      }),
+    ])
+    waveBundle.value = wavesRes
+    storeSettings.value = settingsRes.data
+    deliveryCalendars.value = calRes.data || []
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Failed to load waves / calendar')
+  } finally {
+    wavesLoading.value = false
+  }
+}
+
+async function saveSettings() {
+  if (!currentWorkspace.value?.id || !storeSettings.value) return
+  wavesSaving.value = true
+  try {
+    const res = await $fetch<{ data: any }>('/api/store-ops/settings', {
+      method: 'PUT',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        wave_weekdays: storeSettings.value.wave_weekdays,
+        default_delivery_mode: storeSettings.value.default_delivery_mode,
+        wave_cutoff_hour_local: storeSettings.value.wave_cutoff_hour_local,
+        default_receive_by_local: storeSettings.value.default_receive_by_local,
+        wave_include_cutoff_hours: storeSettings.value.wave_include_cutoff_hours,
+      },
+    })
+    storeSettings.value = res.data
+    showOk('Wave / delivery settings saved')
+    await loadWavesAndCalendar()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Save settings failed')
+  } finally {
+    wavesSaving.value = false
+  }
+}
+
+async function saveCalendar() {
+  if (!currentWorkspace.value?.id || !calendarForm.value.inventory_location_id) {
+    return showErr('Pick a store inventory location')
+  }
+  wavesSaving.value = true
+  try {
+    await $fetch('/api/store-ops/delivery-calendars', {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        inventory_location_id: calendarForm.value.inventory_location_id,
+        pos_location_id: calendarForm.value.pos_location_id || null,
+        preferred_delivery_mode: calendarForm.value.preferred_delivery_mode,
+        receive_window_start: calendarForm.value.receive_window_start || null,
+        receive_window_end: calendarForm.value.receive_window_end || null,
+        notes: calendarForm.value.notes || null,
+      },
+    })
+    showOk('Store delivery calendar saved')
+    await loadWavesAndCalendar()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Save calendar failed')
+  } finally {
+    wavesSaving.value = false
+  }
+}
+
+async function runAllocationPreview(waveId: string, persist = false) {
+  if (!currentWorkspace.value?.id) return
+  wavesSaving.value = true
+  try {
+    const res = await $fetch<any>(`/api/store-ops/waves/${waveId}/preview-allocation`, {
+      method: 'POST',
+      body: { workspace_id: currentWorkspace.value.id, persist },
+    })
+    allocationPreview.value = res.preview || res
+    showOk(persist ? 'Allocation draft saved' : 'Allocation preview ready')
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Allocation preview failed')
+  } finally {
+    wavesSaving.value = false
+  }
+}
+
+function onWaveWeekdaysInput(e: Event) {
+  if (!storeSettings.value) return
+  const raw = String((e.target as HTMLInputElement).value || '')
+  storeSettings.value.wave_weekdays = raw
+    .split(/[,\s]+/)
+    .map(Number)
+    .filter((n) => n >= 1 && n <= 7)
+}
 
 const pendingAdjustments = ref<any[]>([])
 const floorLoading = ref(false)
@@ -253,6 +372,7 @@ async function refreshAll() {
     loadStoreOperations(),
     loadInbound(),
     loadFloorAdjustments(),
+    loadWavesAndCalendar(),
   ])
   setContext(
     'store_ops',
@@ -1304,6 +1424,168 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 Reject claim
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-show="activeTab === 'waves'" class="space-y-5">
+      <div class="card p-5 space-y-4">
+        <div>
+          <h2 class="text-base font-semibold text-white">Wave cadence & cutoffs</h2>
+          <p class="mt-1 text-sm text-gray-400">
+            Default Mon + Thu waves. Cutoff hours control when deferrals lock into the next wave.
+            Per-store receive windows sit on top for door delivery vs self-collect.
+          </p>
+        </div>
+        <div v-if="storeSettings" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label>
+            <span class="label-field">Wave weekdays (ISO 1=Mon…7=Sun)</span>
+            <input
+              class="input-field font-mono text-sm"
+              :value="(storeSettings.wave_weekdays || []).join(',')"
+              @change="onWaveWeekdaysInput"
+            >
+            <span class="mt-1 block text-xs text-gray-500">e.g. 1,4 for Monday + Thursday</span>
+          </label>
+          <label>
+            <span class="label-field">Include cutoff (hours before wave day)</span>
+            <input v-model.number="storeSettings.wave_include_cutoff_hours" type="number" min="0" max="168" class="input-field" >
+          </label>
+          <label>
+            <span class="label-field">Default receive-by (local)</span>
+            <input v-model="storeSettings.default_receive_by_local" class="input-field" placeholder="10:00" >
+          </label>
+          <label>
+            <span class="label-field">Default delivery mode</span>
+            <select v-model="storeSettings.default_delivery_mode" class="input-field">
+              <option value="delivery">Loft delivery</option>
+              <option value="self_collect">Self-collect</option>
+            </select>
+          </label>
+        </div>
+        <div class="flex justify-end">
+          <button class="btn-primary" :disabled="wavesSaving" @click="saveSettings">
+            Save settings
+          </button>
+        </div>
+      </div>
+
+      <div class="card overflow-hidden">
+        <div class="border-b border-gray-800 px-5 py-4">
+          <h2 class="text-base font-semibold text-white">Upcoming waves</h2>
+          <p class="text-xs text-gray-500">{{ waveBundle?.cadence_note }}</p>
+        </div>
+        <div v-if="wavesLoading" class="px-5 py-8 text-sm text-gray-500">Loading waves…</div>
+        <div v-else class="divide-y divide-gray-800">
+          <div
+            v-for="w in (waveBundle?.waves || [])"
+            :key="w.id"
+            class="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+          >
+            <div>
+              <p class="font-medium text-white">{{ w.wave_number }} · {{ w.wave_date }}</p>
+              <p class="text-xs text-gray-500">{{ w.status }}</p>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="wavesSaving" @click="runAllocationPreview(w.id, false)">
+                Preview allocation
+              </button>
+              <button class="btn-primary !px-3 !py-1.5 text-xs" :disabled="wavesSaving" @click="runAllocationPreview(w.id, true)">
+                Save allocation draft
+              </button>
+            </div>
+          </div>
+          <div v-if="!(waveBundle?.waves || []).length" class="px-5 py-8 text-sm text-gray-500">
+            No wave rows yet — refresh ensures the next Mon/Thu dates.
+          </div>
+        </div>
+      </div>
+
+      <div v-if="allocationPreview" class="card p-5 space-y-3">
+        <h2 class="text-base font-semibold text-white">Allocation preview (Loft ATS)</h2>
+        <p class="text-xs text-gray-500">
+          {{ allocationPreview.note || allocationPreview.preview?.note }}
+          · Short SKUs: {{ allocationPreview.summary?.short_skus ?? allocationPreview.preview?.summary?.short_skus ?? '—' }}
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="text-xs text-gray-500">
+              <tr>
+                <th class="py-2 pr-3">SKU</th>
+                <th class="py-2 pr-3">Loft ATS</th>
+                <th class="py-2 pr-3">Requested</th>
+                <th class="py-2 pr-3">Allocated</th>
+                <th class="py-2">Shortfall</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in (allocationPreview.allocations || allocationPreview.preview?.allocations || [])"
+                :key="row.sku"
+                class="border-t border-gray-800"
+              >
+                <td class="py-2 pr-3 font-mono text-gray-200">{{ row.sku }}</td>
+                <td class="py-2 pr-3 text-gray-300">{{ row.loft_available_qty }}</td>
+                <td class="py-2 pr-3 text-gray-300">{{ row.total_requested_qty }}</td>
+                <td class="py-2 pr-3 text-emerald-300">{{ row.total_allocated_qty }}</td>
+                <td class="py-2" :class="row.shortfall > 0 ? 'text-red-300' : 'text-gray-500'">{{ row.shortfall }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card p-5 space-y-4">
+        <h2 class="text-base font-semibold text-white">Per-store receive window</h2>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <label>
+            <span class="label-field">Inventory location (store)</span>
+            <select v-model="calendarForm.inventory_location_id" class="input-field">
+              <option value="">Select…</option>
+              <option v-for="loc in storeLocations" :key="loc.id" :value="loc.id">
+                {{ locationLabel(loc) }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span class="label-field">POS location (optional)</span>
+            <select v-model="calendarForm.pos_location_id" class="input-field">
+              <option value="">None</option>
+              <option v-for="loc in posLocations" :key="loc.id" :value="loc.id">
+                {{ posLocationLabel(loc) }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span class="label-field">Preferred mode</span>
+            <select v-model="calendarForm.preferred_delivery_mode" class="input-field">
+              <option value="delivery">Delivery</option>
+              <option value="self_collect">Self-collect</option>
+            </select>
+          </label>
+          <label>
+            <span class="label-field">Window start</span>
+            <input v-model="calendarForm.receive_window_start" class="input-field" placeholder="08:00" >
+          </label>
+          <label>
+            <span class="label-field">Window end (e.g. before 10:00)</span>
+            <input v-model="calendarForm.receive_window_end" class="input-field" placeholder="10:00" >
+          </label>
+          <label>
+            <span class="label-field">Notes</span>
+            <input v-model="calendarForm.notes" class="input-field" placeholder="Prime receive before 10:00" >
+          </label>
+        </div>
+        <div class="flex justify-end">
+          <button class="btn-primary" :disabled="wavesSaving" @click="saveCalendar">
+            Save store calendar
+          </button>
+        </div>
+        <div v-if="deliveryCalendars.length" class="divide-y divide-gray-800 border-t border-gray-800 pt-3">
+          <div v-for="cal in deliveryCalendars" :key="cal.id" class="py-2 text-sm">
+            <span class="text-white">{{ cal.location?.name || cal.inventory_location_id }}</span>
+            <span class="text-gray-500"> · {{ cal.preferred_delivery_mode }} · window {{ cal.receive_window_start || '—' }}–{{ cal.receive_window_end || '—' }}</span>
           </div>
         </div>
       </div>

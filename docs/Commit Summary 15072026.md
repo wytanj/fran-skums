@@ -64,6 +64,12 @@
 
 ---
 
-## Next
+## Phase F core (same day, follow-up commit)
 
-**Phase F** — delivery calendars & multi-store wave polish (`TODO-LOFT.md` PR-F.1–F.3).
+- Migration **061** `store_delivery_calendars`, wave cutoff hours, `store_wave_allocations`
+- Store Ops **Waves & calendar** tab (settings, per-store windows, allocation preview)
+- POS Request stock: next-wave banner via `GET /fran/store-ops/next-wave`
+
+## Next after F
+
+- Send Phase 0 Loft email · Phase N notifications · P remaining · optional MCP allocation suggest

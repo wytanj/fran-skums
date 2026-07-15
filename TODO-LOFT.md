@@ -783,24 +783,24 @@ Workspace flag may force hold-all-until-verify later.
 
 **Scopes:** configure `locations:write` or `store_ops:approve`; read for POS `store_ops:read`
 
-- [ ] Per-store fixed receive windows (e.g. prime before 10:00) on top of Mon/Thu wave days
-- [ ] Cutoff for “include in Thursday wave” vs “next Monday”
-- [ ] Align self-collect vs delivery slots with wave release
+- [x] Per-store fixed receive windows (e.g. prime before 10:00) on top of Mon/Thu wave days (`store_delivery_calendars`, Store Ops **Waves & calendar**)
+- [x] Cutoff for “include in Thursday wave” vs “next Monday” (`wave_include_cutoff_hours` + next-wave resolver)
+- [x] Align self-collect vs delivery slots with wave release (preferred_delivery_mode + defaults)
 
 ### PR-F.2 — Multi-store allocation from Loft ATS `[skums]`
 
 **Scopes:** `store_ops:approve` + `inventory:read`; send still `store_ops:execute_3pl`
 
-- [ ] Allocate one Loft SKU across stores for a wave without overselling Loft available
-- [ ] MCP may suggest allocation; human approves wave
+- [x] Allocate one Loft SKU across stores for a wave without overselling Loft available (preview + optional persist draft)
+- [ ] MCP may suggest allocation; human approves wave _(preview is HQ UI; MCP wire optional follow-up)_
 
 ### PR-F.3 — POS show next wave on request form `[pos]`
 
 **Scopes:** read-only from SKUMS; no calendar edit  
 **POS roles:** same as request (manager+)
 
-- [ ] Display “Next scheduled replenishment: Monday / Thursday …”
-- [ ] Help store staff understand ad-hoc request is for lift/urgent, not the default pipe
+- [x] Display “Next scheduled replenishment: Monday / Thursday …” (`GET /fran/store-ops/next-wave`)
+- [x] Help store staff understand ad-hoc request is for lift/urgent, not the default pipe
 
 ---
 
@@ -1024,7 +1024,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | **C** Receive / exceptions | ✅ core + C.4 | expected-deliveries, receive, verify, ready-for-collect, POS receive |
 | **D** Inbound ASN | ✅ | `057`, inbound APIs, poll-inbound, confirm→LOFT-SG, store-ops Inbound tab |
 | **E** Floor hygiene | ✅ core | `058` apply/reject, floor UI, cycle count, POS receive gate; logging + operator docs + Help AI |
-| **F** Calendars / waves | 🔄 in progress | F.1 delivery windows + cutoffs; F.2 multi-store allocation; F.3 POS next-wave |
+| **F** Calendars / waves | ✅ core | `061` calendars + cutoffs; allocation preview; POS next-wave |
 | **G–H** | ⏳ pending | Connector polish, ecommerce |
 
 ### Still open (do not treat as done)
@@ -1056,6 +1056,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | 2026-07-15 | **Operator docs:** `docs/SKUMS_OPERATOR_RUNBOOK.md`; Help `059` (store-ops, replenishment, receive, floor, inbound, Loft, POS vs CRM); README + related doc links |
 | 2026-07-15 | **Assistant Help:** resolve_help excerpts + store-ops scoring; `get_help_article` / MCP `help_get`; migration `060` operator-runbook; Store Ops page context |
 | 2026-07-15 | **Commit + deploy** `docs/Commit Summary 15072026.md`; Phase F started |
+| 2026-07-15 | **Phase F core:** migration `061` delivery calendars + cutoffs + wave allocations; Store Ops Waves tab; POS next-wave on request form |
 
 ---
 
