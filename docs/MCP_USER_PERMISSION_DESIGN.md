@@ -242,8 +242,10 @@ No MCP tool to revoke keys (would be recursive/abusable); revoke stays **web Set
 
 ### A2.4 — Member lifecycle
 
-- [ ] On role change / remove: re-cap or revoke bound keys  
-- [ ] Audit events: `api_key.created`, `api_key.revoked`, `api_key.recapped`  
+- [x] On role change: `recapBoundApiKeys` via `PUT /api/v1/workspace/members/:id/role`  
+- [x] On remove: `revokeBoundApiKeys` via `DELETE /api/v1/workspace/members/:id`  
+- [x] Audit events: `api_key.created`, `api_key.revoked`, `api_key.recapped`  
+- [x] Settings UX confirms key revoke on member remove  
 
 ### A2.5 — Optional later
 

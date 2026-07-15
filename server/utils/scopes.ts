@@ -318,12 +318,14 @@ export function computeEffectiveScopes(opts: {
   return effective
 }
 
-/** Default MCP package by workspace role */
+/** Default MCP package by workspace role (owner + admin share ops_safe cloud package) */
 export function defaultMcpPackageForRole(role: string | null | undefined): string {
   const r = String(role || 'member').toLowerCase()
   if (r === 'owner' || r === 'admin') return 'mcp:ops_safe'
   if (r === 'viewer') return 'mcp:viewer'
   if (r === 'store_associate' || r === 'store') return 'mcp:store'
+  if (r === 'buyer') return 'mcp:buyer'
+  if (r === 'finance') return 'mcp:finance'
   return 'mcp:member'
 }
 

@@ -534,27 +534,33 @@ async function handleRevokeInvite(id: string) {
 
 async function handleRoleChange(userId: string, newRole: string) {
   const target = members.value.find((m) => m.user_id === userId)
-  // Owner (CEO/CTO/CFO seat): only workspace owner may appoint or demote admins
+  // Owner seat: only workspace owner may appoint or demote admins
   if ((newRole === 'admin' || target?.role === 'admin') && !isOwner.value) {
     showError('Only the workspace owner can appoint or change admins. Admins manage members/viewers and permissions within their role.')
     await fetchMembers()
     return
   }
   try {
-    await updateMemberRole(userId, newRole as any)
-    showSuccess('Role updated')
+    const result = await updateMemberRole(userId, newRole as any)
+    showSuccess((result as any)?.message || 'Role updated')
   } catch (e: any) {
-    showError(e.message)
+    showError(e.data?.statusMessage || e.message)
   }
 }
 
 async function handleRemoveMember(userId: string, name: string) {
-  if (!confirm(`Remove ${name || 'this member'} from the workspace?`)) return
+  if (
+    !confirm(
+      `Remove ${name || 'this member'} from the workspace?\n\nTheir bound API / MCP keys will be revoked immediately.`,
+    )
+  ) {
+    return
+  }
   try {
-    await removeMember(userId)
-    showSuccess('Member removed')
+    const result = await removeMember(userId)
+    showSuccess((result as any)?.message || 'Member removed')
   } catch (e: any) {
-    showError(e.message)
+    showError(e.data?.statusMessage || e.message)
   }
 }
 

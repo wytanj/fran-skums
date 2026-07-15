@@ -1,4 +1,5 @@
 import { serverSupabaseUser } from '#supabase/server'
+import { recordAudit } from '../../../../utils/audit'
 
 /**
  * Soft-revoke an API key (A2). Owner/admin only.
@@ -95,6 +96,23 @@ export default defineEventHandler(async (event) => {
   }
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+
+  try {
+    await recordAudit(client, {
+      workspace_id: key.workspace_id,
+      entity_type: 'api_key',
+      entity_id: keyId,
+      event_type: 'api_key.revoked',
+      operation: 'UPDATE',
+      channel: 'ui',
+      actor_user_id: uid,
+      before_data: { is_active: key.is_active, name: key.name },
+      after_data: { is_active: false, revoked_at: now },
+      metadata: { reason: 'manual_revoke', key_name: key.name },
+    })
+  } catch {
+    /* non-fatal */
+  }
 
   return {
     ok: true,

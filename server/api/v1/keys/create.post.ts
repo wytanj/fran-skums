@@ -5,6 +5,7 @@ import {
   resolveEffectiveScopesForSession,
 } from '../../../utils/effectiveScopes'
 import { expandScopePackage } from '../../../utils/scopes'
+import { auditApiKeyCreated } from '../../../utils/apiKeyLifecycle'
 
 /**
  * UI-facing endpoint for creating API keys.
@@ -183,6 +184,23 @@ export default defineEventHandler(async (event) => {
       return { ...legacy, key: raw, note: 'Apply migration 063 for bound_user / soft revoke columns' }
     }
     throw createError({ statusCode: 500, statusMessage: error.message })
+  }
+
+  try {
+    await auditApiKeyCreated(client, {
+      workspaceId: body.workspace_id,
+      keyId: data.id,
+      actorUserId: uid,
+      after: {
+        name: data.name,
+        key_kind: (data as any).key_kind,
+        scopes: data.scopes,
+        bound_user_id: (data as any).bound_user_id,
+        max_package: (data as any).max_package,
+      },
+    })
+  } catch {
+    /* non-fatal */
   }
 
   setResponseStatus(event, 201)

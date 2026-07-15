@@ -39,7 +39,6 @@ export function useTeam() {
     if (!currentWorkspace.value) return
     const uid = getUid()
     const isWsOwner = currentWorkspace.value.owner_id === uid
-    // Only workspace owner may appoint or demote admins (multiple admins OK once appointed)
     if (role === 'admin' && !isWsOwner) {
       throw new Error('Only the workspace owner can appoint admins')
     }
@@ -50,24 +49,47 @@ export function useTeam() {
     if (target?.role === 'owner') {
       throw new Error('Cannot change the workspace owner role here')
     }
-    const { error } = await client
-      .from('workspace_members')
-      .update({ role })
-      .eq('workspace_id', currentWorkspace.value.id)
-      .eq('user_id', userId)
-    if (error) throw error
-    await fetchMembers()
+
+    // A2.4: server path recaps/revokes bound API keys
+    try {
+      const result = await $fetch(`/api/v1/workspace/members/${userId}/role`, {
+        method: 'PUT',
+        body: { workspace_id: currentWorkspace.value.id, role },
+      })
+      await fetchMembers()
+      return result as { message?: string; keys_recapped?: string[]; keys_revoked?: string[] }
+    } catch (e: any) {
+      // Fallback: direct update if API unavailable
+      const { error } = await client
+        .from('workspace_members')
+        .update({ role })
+        .eq('workspace_id', currentWorkspace.value.id)
+        .eq('user_id', userId)
+      if (error) throw new Error(e?.data?.statusMessage || error.message)
+      await fetchMembers()
+      return { message: 'Role updated (key lifecycle skipped — use server route)' }
+    }
   }
 
   async function removeMember(userId: string) {
     if (!currentWorkspace.value) return
-    const { error } = await client
-      .from('workspace_members')
-      .delete()
-      .eq('workspace_id', currentWorkspace.value.id)
-      .eq('user_id', userId)
-    if (error) throw error
-    await fetchMembers()
+    try {
+      const result = await $fetch(`/api/v1/workspace/members/${userId}`, {
+        method: 'DELETE',
+        body: { workspace_id: currentWorkspace.value.id },
+      })
+      await fetchMembers()
+      return result as { message?: string; keys_revoked_count?: number }
+    } catch (e: any) {
+      const { error } = await client
+        .from('workspace_members')
+        .delete()
+        .eq('workspace_id', currentWorkspace.value.id)
+        .eq('user_id', userId)
+      if (error) throw new Error(e?.data?.statusMessage || error.message)
+      await fetchMembers()
+      return { message: 'Member removed (key lifecycle skipped)' }
+    }
   }
 
   // ── Invites ──

@@ -12,15 +12,15 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · Claude URL-key MCP · MCP composites **#1–7** (incl. draft store request).  
+**Shipped:** Loft P–F · Claude URL-key MCP · MCP composites **#1–7** · **A2.1–A2.4** (web-aligned MCP keys + lifecycle).  
 **POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
-**Focus now:** **#8 review** — further MCP actions across the app (`docs/MCP_ACTION_BACKLOG.md`).  
-**Later:** MCP user permission + scopes (members ↔ connector keys).
+**Focus now:** **#8 review** — further MCP actions (`docs/MCP_ACTION_BACKLOG.md`).  
+**A2 remaining:** optional bind-other-user UI; R2 OAuth later.
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
 | **A** | **MCP composite tools** | #1–7 ✅ · **#8 action backlog for review** |
-| **A2 (in progress)** | **MCP ↔ web login permissions** | Resolver + key bind/revoke + MCP/Catalog AI gate — `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** |
+| **A2** | **MCP ↔ web login permissions** | **A2.1–A2.4 ✅** — design `docs/MCP_USER_PERMISSION_DESIGN.md` · mig **063** · key recap on role change / revoke on remove |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
 | **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
@@ -31,12 +31,12 @@
 ### Quick smoke (post-deploy)
 
 ```bash
-npm run db:migrate:status    # expect 058–061 applied
+npm run db:migrate:status    # expect 063 applied (api key bound_user / soft revoke)
 # Production: https://fran-skums.vercel.app
-#  /store-ops → Floor adjustments · Waves & calendar
-#  /help/operator-runbook
-#  Catalog AI: "How do I approve a store replenishment request?"
-node --test tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs tests/ops-snapshot.test.mjs tests/mcp-instructions.test.mjs tests/catalog-export-data-ops.test.mjs tests/store-ops-draft-request.test.mjs
+#  Settings → Team: demote/remove member → bound MCP keys recapped/revoked
+#  Settings → API Keys: soft revoke
+#  Catalog AI / MCP: capabilities → key_permissions (web-aligned)
+node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs
 ```
 
 ### Ops leftovers
@@ -139,11 +139,14 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
        floor-adj draft only, low-stock→request pack, integrations health,
        attention queue, POS-enable proposals (no bulk flip)
 ─────────────────
-Next / deferred:
-  · A2 MCP ↔ web login — IMPLEMENTED core (A2.1–A2.3):
-      resolveEffectiveScopes · mig 063 · keys create/revoke · MCP auth · Catalog AI filter
-      Apply 063 on prod: npm run db:migrate (or --from 063)
-  · Fast path: capabilities → key_permissions (web-aligned)
+A2 MCP ↔ web login permissions:
+  A2.1 resolveEffectiveScopes + mcp:* packages     ✅
+  A2.2 mig 063 bound_user / soft revoke + Settings  ✅
+  A2.3 MCP auth + Catalog AI tool filter           ✅
+  A2.4 member lifecycle recap/revoke + audit       ✅
+       PUT  /api/v1/workspace/members/:id/role
+       DELETE /api/v1/workspace/members/:id
+  A2.5 optional: bind key to other member UI · R2 OAuth
 ─────────────────
 Parallel / later:
   0.x  Loft email answers → dictionary IDs
@@ -153,7 +156,7 @@ Parallel / later:
 ```
 
 **Recommended next (eng):** **Review #8** (`docs/MCP_ACTION_BACKLOG.md`) and pick v1 items.  
-**Later:** MCP user permission + scopes (members relative to connector).  
+**Owner model:** one owner seat (appoints admins); multiple admins for ops/keys.  
 **Ops:** send Phase 0 Loft email when ready.
 
 ---
