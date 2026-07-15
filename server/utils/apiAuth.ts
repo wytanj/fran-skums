@@ -49,10 +49,11 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
   }
 
   // Query / URL-embedded keys (Claude personal connector has no Bearer field —
-  // users paste https://…/mcp?api_key=sk_live_… or /mcp/c/sk_live_…)
+  // users paste https://…/mcp?api_key=sk_live_… or /mcp/c/sk_live_… or ?api=)
   if (!rawKey) {
     const q =
       query.api_key
+      || query.api
       || query.key
       || query.access_token
       || query.token
@@ -60,6 +61,10 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
     if (q) rawKey = String(q).replace(/^Bearer\s+/i, '').trim()
   }
 
+  if (!rawKey) return null
+
+  // Strip accidental brackets from pasted keys: [sk_live_…]
+  rawKey = rawKey.replace(/^\[|\]$/g, '').trim()
   if (!rawKey) return null
 
   const hash = hashKey(rawKey)

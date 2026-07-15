@@ -28,10 +28,15 @@ export type RemoteMcpAuth = {
 export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> {
   const ctx = await authenticateApiKey(event)
   if (!ctx) {
+    const q = getQuery(event)
+    const hadUrlKey = Boolean(
+      q.api_key || q.api || q.key || q.access_token || q.token || q.authorization,
+    )
     throw createError({
       statusCode: 401,
-      statusMessage:
-        'API key required. Create a Claude/MCP connector key in SKUMS Settings → API keys, then send Authorization: Bearer sk_live_…',
+      statusMessage: hadUrlKey
+        ? 'API key in URL was not recognized (wrong/revoked/incomplete key). Create a fresh Claude/MCP key in Settings → API keys, copy the full sk_live_… value once, and use: https://fran-skums.vercel.app/mcp?api_key=sk_live_… or /mcp/c/sk_live_…'
+        : 'API key required. Claude personal connector: put the key in the URL as https://fran-skums.vercel.app/mcp?api_key=sk_live_… (or /mcp/c/sk_live_…). Leave OAuth blank.',
     })
   }
 

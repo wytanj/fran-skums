@@ -193,13 +193,22 @@ const posConnectorSnippet = computed(() => [
   `SKUMS API URL: ${skumsApiUrl.value}`,
   `SKUMS account key: ${newlyCreatedKey.value || 'sk_live_...'}`,
 ].join('\n'))
-const mcpConnectorSnippet = computed(() => [
-  `Fran SKUMS remote MCP (Claude / custom integration)`,
-  `URL: ${mcpEndpointUrl.value}`,
-  `Auth header: Authorization: Bearer ${newlyCreatedKey.value || 'sk_live_...'}`,
-  `Profile: permission-based (A2) — owner/admin may approve store ops when scoped`,
-  `Help: ${skumsApiUrl.value}/help/connect-claude`,
-].join('\n'))
+const mcpConnectorSnippet = computed(() => {
+  const key = newlyCreatedKey.value || 'sk_live_YOUR_KEY'
+  return [
+    `Fran SKUMS remote MCP (Claude personal connector)`,
+    ``,
+    `Paste this FULL URL into Claude (Name + URL only — leave OAuth blank):`,
+    `${mcpEndpointUrl.value}?api_key=${key}`,
+    ``,
+    `Alternate path form:`,
+    `${skumsApiUrl.value}/mcp/c/${key}`,
+    ``,
+    `Do NOT use ?api= — use ?api_key= (or the /mcp/c/ form).`,
+    `Profile: permission-based (A2) — owner/admin may approve store ops when scoped`,
+    `Help: ${skumsApiUrl.value}/help/connect-claude`,
+  ].join('\n')
+})
 
 async function loadApiKeys() {
   if (!currentWorkspace.value) return

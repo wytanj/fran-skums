@@ -49,6 +49,7 @@ export function injectMcpApiKeyFromUrl(event: H3Event, pathToken?: string | null
   const query = getQuery(event)
   const fromQuery =
     query.api_key
+    || query.api
     || query.key
     || query.access_token
     || query.token
@@ -56,8 +57,11 @@ export function injectMcpApiKeyFromUrl(event: H3Event, pathToken?: string | null
   const raw = (pathToken && String(pathToken).trim()) || (fromQuery ? String(fromQuery).trim() : '')
   if (!raw) return
 
-  // Strip accidental "Bearer " prefix from pasted secrets
-  const key = raw.replace(/^Bearer\s+/i, '').trim()
+  // Strip accidental "Bearer " prefix and surrounding brackets from pasted secrets
+  const key = raw
+    .replace(/^Bearer\s+/i, '')
+    .replace(/^\[|\]$/g, '')
+    .trim()
   if (!key) return
 
   // Prefer Authorization so authenticateApiKey finds it
@@ -86,21 +90,25 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
   }
 
   if (method === 'GET') {
-    const hasKeyHint = Boolean(opts?.pathToken || getQuery(event).api_key || getQuery(event).key)
+    const q = getQuery(event)
+    const hasKeyHint = Boolean(
+      opts?.pathToken || q.api_key || q.api || q.key || q.access_token || q.token,
+    )
     return {
       name: 'fran-skums',
-      version: '0.6.2-cloud',
+      version: '0.6.3-cloud',
       transport: 'streamable-http-jsonrpc',
       protocolVersion: '2024-11-05',
       auth: hasKeyHint
         ? 'API key detected in URL (Claude connector mode)'
-        : 'Embed key in URL for Claude: /mcp?api_key=sk_live_… or /mcp/c/sk_live_…',
+        : 'Embed key in URL for Claude: /mcp?api_key=sk_live_… or /mcp/c/sk_live_… (also accepts ?api=)',
       docs: 'https://fran-skums.vercel.app/help/connect-claude',
       tools_hint: listToolsForTransport(true).map((t: any) => t.name),
       claude_personal_connector: {
         fields_supported: ['name', 'url', 'oauth_client_id (leave blank)', 'oauth_client_secret (leave blank)'],
         url_with_key_query: 'https://fran-skums.vercel.app/mcp?api_key=sk_live_YOUR_KEY',
         url_with_key_path: 'https://fran-skums.vercel.app/mcp/c/sk_live_YOUR_KEY',
+        also_accepts: '?api=sk_live_… (alias for api_key)',
         oauth: 'not_required — leave client id/secret empty; put key in the URL',
       },
     }
