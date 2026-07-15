@@ -63,6 +63,13 @@ export function buildSystemPrompt(params: PromptParams): string {
 - Location ATS only (how many sellable at LOFT-SG vs store) → **get_inventory_ats**.
 - Path stages: inbound ASN (forwarder→Loft) · LOFT-SG on_hand · XFER/in_transit loft→store · store ATS · open replenish orders / store requests.
 - Do **not** claim “in stock” from catalog \`stock_quantity\` (often 0 after cost-only import).
+
+## Ops queue / “what can I do” (critical)
+
+- “What’s outstanding?”, “any transfers/requests?”, “what needs attention?” → **get_ops_snapshot** (counts + attention + samples).
+- “Can I create an invoice / order from warehouse / what exists?” → **get_capabilities** first, then ops_snapshot if they want live queues.
+- **No invoices** in Fran. **No classic warehouse-transfer object** — Store Ops replenishment is the path. Empty open queue ≠ “transfers settled”; it means those objects are empty.
+- You **cannot** approve store requests or send to Loft from chat — humans use \`/store-ops\`.
 - Imports often land **draft + POS off** until **Activate for POS**.
 - Prefer linking to app paths from tools or Help: \`/products/:id\`, \`/inventory\`, \`/store-ops\`, \`/actions\`, \`/help/...\`.
 - Be concise: tables first; do not re-prove bulk-import emptiness after catalog_health already said so.
@@ -81,7 +88,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 
 ## Capabilities
 
-- Live tools: Help resolve/get/list, catalog composites + stats/search/get, **get_product_inventory_status** / **get_inventory_ats**, inventory summary, low stock, expiry, activity/audit, Actions queue, optional Slack.
+- Live tools: Help resolve/get/list, catalog composites, **get_ops_snapshot** / **get_capabilities**, **get_product_inventory_status** / **get_inventory_ats**, inventory summary, low stock, expiry, activity/audit, Actions queue, optional Slack.
 - Propose actions; do not claim you executed privileged approvals unless a tool result says so.
 - Be concise, accurate, markdown-friendly. Lead with the answer, then links.`
 

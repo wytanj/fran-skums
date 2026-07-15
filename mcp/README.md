@@ -95,6 +95,7 @@ Rules:
 
 OK:  catalog_health, catalog_sample, catalog_search_summary,
      inventory_ats, product_inventory_status,
+     ops_snapshot, capabilities,
      catalog_stats, catalog_search, catalog_get,
      study_*, pipeline_propose, po_create_draft, po_update_draft, po_add_lines,
      po_preview_clone, po_clone_as_draft, po_list, po_get, market_*, bi_list_*, bi_export_*
@@ -102,6 +103,7 @@ NO (safe): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_se
 
 For large catalog questions: catalog_health / catalog_search_summary first. Never invent product counts.
 For stock / “where is SKU X”: product_inventory_status (lifecycle + path) or inventory_ats (levels only).
+For “what’s outstanding / any transfers?”: ops_snapshot. For “can I invoice / order from here?”: capabilities.
 Do not use product.stock_quantity as ledger truth.
 ```
 

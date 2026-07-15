@@ -8,6 +8,7 @@ import {
   catalogSearchSummary,
 } from '../../core/catalog/index.mjs'
 import { inventoryAts, productInventoryStatus } from '../../core/inventory/index.mjs'
+import { opsSnapshot, mcpCapabilities } from '../../core/ops/index.mjs'
 import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 
 export interface ToolContext {
@@ -175,6 +176,37 @@ export function buildToolDefinitions() {
             upc: { type: 'string' },
             gtin: { type: 'string' },
           },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_ops_snapshot',
+        description:
+          'ONE-SHOT store-ops / logistics queue: open requests, waves, exceptions, floor adjustments, inbound ASN, Loft orders, draft/pending internal POs. Use for “what’s outstanding”, “any requests/transfers?”, “what needs attention?”.',
+        parameters: {
+          type: 'object',
+          properties: {
+            include_samples: {
+              type: 'boolean',
+              description: 'Include recent samples (default true)',
+            },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_capabilities',
+        description:
+          'What Catalog AI / Fran can and cannot do: no invoices, no approve/send to Loft from chat, domain objects that exist, preferred tools. Use for “can I create an invoice / order from warehouse?”.',
+        parameters: {
+          type: 'object',
+          properties: {},
           required: [],
         },
       },
@@ -405,6 +437,22 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           ean: args.ean || null,
           upc: args.upc || null,
           gtin: args.gtin || null,
+        })
+      }
+
+      case 'get_ops_snapshot': {
+        return await opsSnapshot(client, {
+          workspace_id: workspaceId,
+          include_samples: args.include_samples !== false,
+        })
+      }
+
+      case 'get_capabilities': {
+        return mcpCapabilities({
+          cloud: false,
+          profile: 'catalog_ai',
+          mode: 'assistant',
+          surface: 'catalog_ai',
         })
       }
 

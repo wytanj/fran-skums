@@ -16,6 +16,7 @@ import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../cor
 import * as bi from './lib/bi.mjs'
 import * as catalog from './lib/catalog.mjs'
 import * as inventory from './lib/inventory.mjs'
+import * as ops from './lib/ops.mjs'
 import * as pipeline from './lib/pipeline.mjs'
 import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
@@ -279,6 +280,33 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         category: { type: 'string' },
+      },
+    },
+  },
+
+  // ── Ops snapshot + capabilities (what’s outstanding / what can I do) ──
+  {
+    name: 'ops_snapshot',
+    description:
+      'ONE-SHOT store-ops / logistics queue: open requests, waves (Mon/Thu), exceptions, pending floor adjustments, open inbound ASN, Loft replenish orders, draft/pending internal POs + samples. Use for “what’s outstanding”, “any transfers/requests?”, “what needs attention?”. Does not approve or send to Loft. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        include_samples: {
+          type: 'boolean',
+          description: 'Include recent row samples (default true)',
+        },
+      },
+    },
+  },
+  {
+    name: 'capabilities',
+    description:
+      'What Fran MCP can and cannot do: no invoices, no approve/execute_3pl on cloud, domain objects that exist vs not, preferred tools for stock/ops/catalog. Use when user asks “can I create an invoice / order from warehouse / what tools exist?”. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        surface: { type: 'string', enum: ['mcp', 'catalog_ai', 'both'] },
       },
     },
   },
@@ -952,6 +980,16 @@ export async function handleTool(name, args = {}) {
           category: a.category || null,
         })
         return jsonResult({ articles, help_index_path: '/help', count: articles.length })
+      }
+      case 'ops_snapshot': {
+        requireScope('intel:read')
+        const result = await ops.snapshotOps(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'capabilities': {
+        requireScope('intel:read')
+        const result = ops.capabilitiesOps(a)
+        return jsonResult(result)
       }
       case 'inventory_ats': {
         requireScope('intel:read')

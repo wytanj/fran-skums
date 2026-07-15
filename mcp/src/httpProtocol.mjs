@@ -102,7 +102,7 @@ async function dispatchMethod(method, params, opts) {
         },
         serverInfo: SERVER_INFO,
         instructions:
-          'Fran SKUMS remote MCP (cloud-safe). Auth: put sk_live key in URL (?api_key= or /mcp/c/…) for Claude personal connectors, or Bearer header. Prefer catalog_health / catalog_sample / catalog_search_summary over multi-step catalog_search. For stock / “status of product X” use product_inventory_status or inventory_ats (ledger ATS) — never product.stock_quantity. help_resolve / help_get for how-to. Draft POs only — humans approve in Actions. Do not invent sales rankings. tools/list and tools/call require API key.',
+          'Fran SKUMS remote MCP (cloud-safe). Auth: put sk_live key in URL (?api_key= or /mcp/c/…) for Claude personal connectors, or Bearer header. Prefer composites: catalog_health/sample/search_summary; product_inventory_status/inventory_ats for stock; ops_snapshot for outstanding queues; capabilities for what exists (no invoices; no approve/execute_3pl). help_resolve for how-to. Draft POs only — humans approve in Actions/Store Ops UI. Never invent rankings or stock from product.stock_quantity. tools/list and tools/call require API key.',
       }
     }
 

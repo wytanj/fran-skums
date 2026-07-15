@@ -304,6 +304,8 @@ export function useAssistant() {
       get_catalog_stats: 'Counting catalog...',
       search_products: 'Searching catalog...',
       get_product: 'Loading product...',
+      get_ops_snapshot: 'Checking ops queues...',
+      get_capabilities: 'Checking what Fran can do...',
       get_inventory_ats: 'Checking ATS by location...',
       get_product_inventory_status: 'Checking product logistics status...',
       get_inventory_summary: 'Checking inventory...',

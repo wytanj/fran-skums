@@ -14,11 +14,11 @@
 
 **Shipped:** Loft P–F core · operator docs · Claude URL-key MCP · assistant history · MCP composites #1–2 (catalog + inventory status).  
 **POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
-**Focus now:** MCP composite **#3** `ops_snapshot` + `capabilities`, then instruction tighten.
+**Focus now:** MCP composites #1–3 shipped — next **#4** tighten cloud MCP + Catalog AI instructions, then export/data ops.
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A (in progress)** | **MCP composite tools** | #1 catalog ✅ · #2 inventory_ats + product_inventory_status ✅ · **#3 ops_snapshot + capabilities** |
+| **A (in progress)** | **MCP composite tools** | #1 catalog ✅ · #2 inventory ✅ · #3 ops_snapshot + capabilities ✅ · **#4 instruction tighten** |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
 | **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
@@ -34,7 +34,7 @@ npm run db:migrate:status    # expect 058–061 applied
 #  /store-ops → Floor adjustments · Waves & calendar
 #  /help/operator-runbook
 #  Catalog AI: "How do I approve a store replenishment request?"
-node --test tests/inventory-adjustments-phase-e.test.mjs tests/help-resolve.test.mjs tests/store-ops-phase-f.test.mjs tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs
+node --test tests/inventory-adjustments-phase-e.test.mjs tests/help-resolve.test.mjs tests/store-ops-phase-f.test.mjs tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs tests/ops-snapshot.test.mjs
 ```
 
 ### Ops leftovers
@@ -126,7 +126,7 @@ M0–M6 + R1 + Loft P–F + ops docs + Claude URL-key MCP   ✅
 MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
   1  catalog_health + catalog_sample + catalog_search_summary   ✅
   2  inventory_ats + product_inventory_status (lifecycle / path)   ✅
-  3  ops_snapshot + capabilities (requests, waves, exceptions, what MCP can/cannot do)
+  3  ops_snapshot + capabilities (queues + what can/cannot)   ✅
   4  Tighten cloud MCP + Catalog AI instructions (composite-first, short answers)
   5  catalog_export_csv (bounded filter export)
   6  Data ops: retail/POS flags intentional; market seeds for research
@@ -139,9 +139,9 @@ Parallel / later:
   G    connector cancel/hold / recon
 ```
 
-**Recommended next (eng):** **MCP composite #3** (`ops_snapshot` + `capabilities`).  
+**Recommended next (eng):** **#4** tighten MCP/assistant instructions (composite-first, short answers).  
 **Ops:** send Phase 0 Loft email when ready.  
-**Context:** `docs/sample-mcp-responses.md` — inventory status questions use `product_inventory_status`.
+**Context:** `docs/sample-mcp-responses.md` — ops/invoice/transfer questions use `capabilities` + `ops_snapshot`.
 
 ---
 
