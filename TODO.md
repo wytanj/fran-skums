@@ -1,8 +1,8 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-15  
+**Date:** 2026-07-16  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–064** (064 = Phase N notification bus; apply if host lags).  
+**DB:** migrations **001–064** (064 = Phase N notification bus).  
 **Held / parked:** R2 OAuth · live scrape / Browserbase / brand radar · Phase H ecommerce  
 
 **Plans (do not lose track):**
@@ -21,8 +21,9 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4**.  
-**Pilot:** Claude remote MCP human pilot **done** (R1).  
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector reliability fixes.  
+**Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
+`https://fran-skums.vercel.app/mcp/c/sk_live_…` (OAuth blank; Settings → Create Claude / MCP key).  
 **POS:** structure handoff `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` — roles/MCP next section below.
 
 | Priority | Track | Status / next |
@@ -32,12 +33,26 @@
 | **B** | Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
 | **C** | Phase N | **N1–N4 done** — N6 email later |
 | **D** | Phase P remaining | Empty non-MCP keys ≠ full; legacy gates |
-| **E** | Phase R pilot | **R1 pilot done** · R2 OAuth held |
+| **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
 | **H** | HQ schemas from POS reality | Inventory-manager schema + MCP packs (below) |
-| **I** | MCP actions next (POS-driven) | Status packs + exception verify + Loft send (below) |
+| **I** | MCP actions next (POS-driven) | **Next eng:** M1–M3 packs (below) |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
+
+### Claude / remote MCP (verified)
+
+| Item | Status |
+|------|--------|
+| Remote endpoint | `POST/GET https://fran-skums.vercel.app/mcp` |
+| Personal connector URL | **`/mcp/c/sk_live_…`** preferred (`?api_key=` also OK; `?api=` alias) |
+| Key template | Settings → **Create Claude / MCP key** → `mcp:ops_safe` ∩ bound user |
+| Streamable HTTP | GET SSE → 405 (POST-only JSON-RPC); auth errors stay HTTP 200 JSON-RPC |
+| Package scopes | `mcp:ops_safe` **expanded** before `tools/list` (fix empty-tools bug) |
+| OAuth | Leave blank; key in URL |
+| Human pilot | **Working** — connector shows tools |
+
+**Smoke after key create:** reconnect Claude → tools include `capabilities`, `catalog_health`, `ops_snapshot`.
 
 ---
 
@@ -232,7 +247,7 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 
 ## Completed tracks (do not redo)
 
-- M0–M6 · Help · R1 remote MCP · Loft P–E · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve  
+- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live  
 - Detail in git history / `TODO-LOFT.md` / commit summaries  
 
 ### Phase N — stakeholder notifications
@@ -260,7 +275,8 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 ### Phase R
 
 - [x] R1 remote MCP + URL key + permission-based tools  
-- [ ] R1 human pilot (Claude connector)  
+- [x] R1 human pilot (Claude connector) — tools list working 2026-07-16  
+- [x] Connector fixes: Streamable HTTP GET/SSE, `?api=` alias, package-scope expand for tools/list  
 - [ ] R2 OAuth held  
 
 ---
@@ -273,7 +289,8 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 | Store approve | Owner/admin MCP: `store_ops_decide`; member cannot |
 | Help AI | resolve_help for store ops how-to |
 | Keys | Owner/admin revoke; remove member revokes bound keys |
-| Deploy | Vercel green; mig **063** on prod DB |
+| Deploy | Vercel green; mig **064** on prod DB |
+| Claude MCP | Connector URL `/mcp/c/sk_live_…` shows tools (`capabilities`, etc.) |
 
 ---
 
@@ -307,13 +324,15 @@ A2 permissions (docs/MCP_USER_PERMISSION_DESIGN.md):
 ─────────────────
 Next eng:
   N   notifications N1–N4 ✅ · N5 digests / N6 email provider later
+  R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
   0.x Loft email / dictionary IDs
+  M1–M3 POS→HQ MCP packs (request status, floor queue, exception verify)
   P   empty-key legacy, install UI
-  R   human pilot
+  S   Workspace MFA policy (ops)
   F   audit explorer filters
 ```
 
-**Recommended next:** MCP **M1–M3** · inventory-manager schema · Loft Phase 0 ops · **Phase S Workspace MFA policy** (ops).  
+**Recommended next:** MCP **M1–M3** (POS→HQ loop) · inventory-manager schema · Loft Phase 0 ops · **Phase S Workspace MFA** (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.
 
 ---

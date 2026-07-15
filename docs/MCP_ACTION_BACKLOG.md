@@ -1,8 +1,9 @@
 # MCP action backlog
 
-**Date:** 2026-07-15  
+**Date:** 2026-07-16  
 **Tracked from:** root **`TODO.md`** (Plans, composites index, Links)  
-**Permissions:** **`docs/MCP_USER_PERMISSION_DESIGN.md`** — cloud MCP is **permission-based** (key ∩ bound web user).
+**Permissions:** **`docs/MCP_USER_PERMISSION_DESIGN.md`** — cloud MCP is **permission-based** (key ∩ bound web user).  
+**Claude pilot:** **Working** — URL `https://fran-skums.vercel.app/mcp/c/sk_live_…`; package scopes expanded on tools/list.
 
 **Principle:** Same scopes as web. Owner/admin may approve when scoped. Member/viewer cannot. Credentials never on cloud keys. Approve ≠ send to Loft.
 
