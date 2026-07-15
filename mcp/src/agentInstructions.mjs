@@ -21,6 +21,7 @@ Composite-first (prefer ONE tool, then answer):
 | Can I invoice / order / what exists? | capabilities (+ ops_snapshot if live) | assuming ERP features |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe |
+| Draft store replenishment request | store_ops_create_draft_request (dry_run first) | approve / execute_3pl |
 `.trim()
 
 /**
@@ -54,6 +55,7 @@ Safety:
 - No classic warehouse-transfer MCP object — Store Ops replenishment is the path (request → HQ approve → send Loft → receive).
 - Cloud/safe NEVER: po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now, store approve, execute_3pl.
 - Draft PO = decision-layer planning artifact, not supplier order and not Loft order.
+- store_ops_create_draft_request = draft (or submitted signal) only — never claim stock moved or Loft order placed.
 - Auth: cloud uses API key in URL (?api_key= / /mcp/c/…) or Bearer; tools/list and tools/call require key.
 `.trim()
 }
@@ -80,10 +82,10 @@ export function buildMcpAgentInstructions(opts = {}) {
     buildSafetyBlock({ cloud }),
     '',
     'OK composites: catalog_health, catalog_sample, catalog_search_summary, catalog_export_csv, catalog_data_ops, inventory_ats, product_inventory_status, ops_snapshot, capabilities, help_resolve/help_get.',
-    'OK other read/draft: catalog_*, study_*, market_*, bi_list_*/export_*, pipeline_propose, po_create_draft/update/clone, store_ops_list_*, store_ops_recommend.',
+    'OK other read/draft: catalog_*, study_*, market_*, bi_list_*/export_*, pipeline_propose, po_create_draft/update/clone, store_ops_list_*, store_ops_recommend, store_ops_create_draft_request.',
     cloud
-      ? 'NO (cloud): po_submit, po_decide, pipeline_decide/execute, bi seed write/run, store_ops approve/execute.'
-      : 'NO (safe): po_submit, po_decide, pipeline_decide/execute, bi_upsert_seed, bi_run_seed_now unless full profile + explicit user command.',
+      ? 'NO (cloud): po_submit, po_decide, pipeline_decide/execute, bi seed write/run, store_ops approve/execute_3pl/verify.'
+      : 'NO (safe): po_submit, po_decide, pipeline_decide/execute, bi_upsert_seed, bi_run_seed_now, store_ops approve/execute_3pl unless full profile + explicit user command.',
   ].join('\n')
 
   if (!compact) {

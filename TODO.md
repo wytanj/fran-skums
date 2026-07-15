@@ -12,14 +12,14 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · Claude URL-key MCP · assistant history · MCP composites **#1–6**.  
+**Shipped:** Loft P–F · Claude URL-key MCP · MCP composites **#1–7** (incl. draft store request).  
 **POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
-**Focus now:** optional #7 draft store_ops request; or deferred MCP user permission/scopes.  
+**Focus now:** **#8 review** — further MCP actions across the app (`docs/MCP_ACTION_BACKLOG.md`).  
 **Later:** MCP user permission + scopes (members ↔ connector keys).
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A** | **MCP composite tools** | #1–6 ✅ · optional #7 draft store_ops request |
+| **A** | **MCP composite tools** | #1–7 ✅ · **#8 action backlog for review** |
 | **A2 (later)** | **MCP user permission + scopes** | Map workspace member scopes ↔ MCP/API keys (deferred) |
 | **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
 | **C** | **Phase N** | Notifications on store requests / exceptions |
@@ -36,7 +36,7 @@ npm run db:migrate:status    # expect 058–061 applied
 #  /store-ops → Floor adjustments · Waves & calendar
 #  /help/operator-runbook
 #  Catalog AI: "How do I approve a store replenishment request?"
-node --test tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs tests/ops-snapshot.test.mjs tests/mcp-instructions.test.mjs tests/catalog-export-data-ops.test.mjs
+node --test tests/inventory-ats.test.mjs tests/catalog-composite.test.mjs tests/ops-snapshot.test.mjs tests/mcp-instructions.test.mjs tests/catalog-export-data-ops.test.mjs tests/store-ops-draft-request.test.mjs
 ```
 
 ### Ops leftovers
@@ -132,7 +132,12 @@ MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
   4  Tighten cloud MCP + Catalog AI instructions (composite-first)   ✅
   5  catalog_export_csv (bounded filter export)   ✅
   6  catalog_data_ops (retail/POS intentional + seed plan)   ✅
-  7  Optional: draft store_ops request from MCP (write; still no execute_3pl)
+  7  store_ops_create_draft_request (write draft/submit signal; no execute_3pl)   ✅
+  8  Further MCP actions across the app — REVIEW BACKLOG
+       → docs/MCP_ACTION_BACKLOG.md
+       candidates: expiry_snapshot, exceptions digests, draft ASN,
+       floor-adj draft only, low-stock→request pack, integrations health,
+       attention queue, POS-enable proposals (no bulk flip)
 ─────────────────
 Deferred (user asked later):
   · MCP user permission + scopes (workspace members ↔ connector keys)
@@ -144,7 +149,7 @@ Parallel / later:
   G    connector cancel/hold / recon
 ```
 
-**Recommended next (eng):** optional **#7** draft store_ops request (write, no execute_3pl), or **A2** MCP user scopes.  
+**Recommended next (eng):** **Review #8** (`docs/MCP_ACTION_BACKLOG.md`) and pick v1 items.  
 **Later:** MCP user permission + scopes (members relative to connector).  
 **Ops:** send Phase 0 Loft email when ready.
 

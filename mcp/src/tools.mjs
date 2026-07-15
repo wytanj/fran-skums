@@ -853,7 +853,7 @@ export const toolDefinitions = [
       required: ['projection_id'],
     },
   },
-  // ── Store ops (HQ decision support — read only) ───────────
+  // ── Store ops (HQ decision support — draft write OK; never approve/Loft) ──
   {
     name: 'store_ops_list_requests',
     description:
@@ -885,6 +885,46 @@ export const toolDefinitions = [
         request_id: { type: 'string' },
       },
       required: ['request_id'],
+    },
+  },
+  {
+    name: 'store_ops_create_draft_request',
+    description:
+      'Create a store replenishment request as DRAFT (default) or submitted HQ signal (submit=true). Lines: sku + qty. Resolves store location (ST-MAIN). NEVER approves or sends to Loft. Prefer dry_run=true first. store_ops:write / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        lines: {
+          type: 'array',
+          description: '[{ sku, requested_qty, reason? }]',
+          items: {
+            type: 'object',
+            properties: {
+              sku: { type: 'string' },
+              product_id: { type: 'string' },
+              requested_qty: { type: 'number' },
+              quantity: { type: 'number' },
+              reason: { type: 'string' },
+            },
+          },
+        },
+        priority: { type: 'string', enum: ['low', 'normal', 'urgent', 'critical'] },
+        reason: { type: 'string' },
+        needed_by: { type: 'string', description: 'ISO date if known' },
+        store_location_code: { type: 'string', description: 'Default first store / ST-MAIN' },
+        store_location_id: { type: 'string' },
+        pos_location_id: { type: 'string' },
+        idempotency_key: { type: 'string' },
+        submit: {
+          type: 'boolean',
+          description: 'If true, status=submitted (HQ queue). Default false = draft.',
+        },
+        dry_run: {
+          type: 'boolean',
+          description: 'Preview payload without writing',
+        },
+      },
+      required: ['lines'],
     },
   },
 ]
@@ -1503,6 +1543,41 @@ export async function handleTool(name, args = {}) {
       case 'store_ops_recommend': {
         requireScope('store_ops:read')
         return jsonResult(await storeOps.recommendDecision(String(a.request_id)))
+      }
+      case 'store_ops_create_draft_request': {
+        requireScope('store_ops:write')
+        const result = await storeOps.createDraftRequest({
+          lines: a.lines,
+          priority: a.priority,
+          reason: a.reason,
+          needed_by: a.needed_by,
+          store_location_id: a.store_location_id,
+          store_location_code: a.store_location_code,
+          pos_location_id: a.pos_location_id,
+          idempotency_key: a.idempotency_key,
+          submit: a.submit === true,
+          dry_run: a.dry_run === true,
+        })
+        if (result.dry_run || result.duplicate) {
+          return jsonResult(result)
+        }
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'store_replenishment_requests',
+            entity_id: result.request.id,
+            status: result.request.status,
+            is_draft: result.request.status === 'draft',
+            operation: 'INSERT',
+            after_data: { request: result.request, lines: result.lines },
+            metadata: {
+              line_count: (result.lines || []).length,
+              submit: a.submit === true,
+            },
+          },
+          result,
+        )
       }
       case 'projection_create': {
         requireScope('projection:run')

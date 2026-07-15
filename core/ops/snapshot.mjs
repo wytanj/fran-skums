@@ -309,6 +309,7 @@ export function mcpCapabilities(ctx = {}) {
     list_store_requests_and_waves: true,
     recommend_store_request_decision_label_only: true,
     draft_internal_po: !cloud || mode !== 'blocked',
+    draft_store_replenishment_request: true,
     propose_pipeline_candidate: true,
     market_bi_read: true,
   }
@@ -355,6 +356,7 @@ export function mcpCapabilities(ctx = {}) {
     what_can_i_do: ['capabilities', 'get_capabilities'],
     how_to_operate: ['help_resolve', 'resolve_help'],
     draft_buying_intent: ['po_create_draft', 'po_clone_as_draft'],
+    draft_store_request: ['store_ops_create_draft_request'],
   }
 
   return {

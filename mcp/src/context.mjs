@@ -68,6 +68,7 @@ export const MCP_SCOPE_PROFILES = {
     'intel:read',
     'inventory:read',
     'store_ops:read',
+    'store_ops:write', // draft/submit request signal only — never approve/execute_3pl
     'study:write',
     'pipeline:propose',
     'po:draft',
@@ -79,6 +80,10 @@ export const MCP_SCOPE_PROFILES = {
     'intel:write',
     'inventory:read',
     'store_ops:read',
+    'store_ops:write',
+    'store_ops:approve',
+    'store_ops:execute_3pl',
+    'store_ops:verify',
     'study:write',
     'pipeline:propose',
     'pipeline:decide',

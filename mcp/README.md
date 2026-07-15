@@ -96,6 +96,7 @@ Source of truth: `mcp/src/agentInstructions.mjs` (also returned on cloud `initia
 | Can I invoice / what exists? | `capabilities` |
 | How-to | `help_resolve` → `help_get` |
 | Draft buying intent | `po_*` draft / clone only |
+| Draft store replenishment request | `store_ops_create_draft_request` (dry_run first; no Loft) |
 
 **Answer style:** 1–2 tools max when a composite exists · lead with the answer · short bullets/table · use `agent_hint` · never invent counts/rankings · never use `product.stock_quantity` as stock · empty queues ≠ “transfers settled” · after draft → deep_link + human UI.
 
@@ -103,10 +104,11 @@ Source of truth: `mcp/src/agentInstructions.mjs` (also returned on cloud `initia
 
 ```text
 You are operating Fran SKUMS via MCP in SAFE mode unless told otherwise.
-Composite-first: catalog_health | catalog_sample | catalog_search_summary | catalog_export_csv | catalog_data_ops | product_inventory_status | inventory_ats | ops_snapshot | capabilities | help_resolve.
+Composite-first: catalog_health | catalog_sample | catalog_search_summary | catalog_export_csv | catalog_data_ops | product_inventory_status | inventory_ats | ops_snapshot | capabilities | help_resolve | store_ops_create_draft_request.
 Answer style: 1–2 tools then short answer; lead with the answer; no invented counts/rankings; no product.stock_quantity as ATS.
 Draft/propose only. Never imply PO is ordered or product is live unless status says so.
 PO clone: po_list/get → po_preview_clone → po_clone_as_draft → return deep_link (/actions/…). Stop for human Actions UI.
+Store request: store_ops_create_draft_request (prefer dry_run) → deep_link /store-ops. Never approve or execute_3pl.
 NO (safe/cloud): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now, store approve, execute_3pl.
 No invoices. Store Ops path for warehouse→store (not classic transfer object).
 ```
