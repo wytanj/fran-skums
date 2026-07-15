@@ -93,7 +93,8 @@ Rules:
    unless the user explicitly says APPROVE / SUBMIT / EXECUTE and the server profile is full.
 4. After creating a draft, stop and tell the user to review in Actions UI.
 
-OK:  catalog_stats, catalog_search, catalog_get,
+OK:  catalog_health, catalog_sample, catalog_search_summary,
+     catalog_stats, catalog_search, catalog_get,
      study_*, pipeline_propose, po_create_draft, po_update_draft, po_add_lines,
      po_preview_clone, po_clone_as_draft, po_list, po_get, market_*, bi_list_*, bi_export_*
 NO (safe): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now

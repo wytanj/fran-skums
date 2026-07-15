@@ -12,17 +12,19 @@
 
 ## Start here next
 
-**Shipped 2026-07-15:** Phase E floor apply · operator docs · Help AI · Phase F calendars/allocation/POS next-wave · Phase 0 dictionary expand.  
-**You are testing:** production deploy (main `ebb757c` + follow-up F commit).
+**Shipped:** Loft P–F core · operator docs · Claude URL-key MCP · assistant history.  
+**POS:** restructuring against `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.  
+**Focus now:** MCP composite tools so Claude answers faster and can act safely (see build order below).
 
 | Priority | Track | First tasks |
 |----------|--------|-------------|
-| **A (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
-| **B (recommended eng)** | **Phase N** or polish | Notifications; MCP allocation suggest; P remaining |
-| **C** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
-| **D** | **Phase R** | R1 pilot with Claude keys; **R2 OAuth held** |
-| **E** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
-| **F (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
+| **A (in progress)** | **MCP composite tools** | `catalog_health` · `catalog_sample` · `catalog_search_summary` → then inventory_ats, ops_snapshot, … |
+| **B (ops)** | **Loft Phase 0 close-out** | Send Loft email; paste URLs / delivery_method_ids |
+| **C** | **Phase N** | Notifications on store requests / exceptions |
+| **D** | **Phase P remaining** | `requireScope` on legacy routes; empty API keys ≠ full |
+| **E** | **Phase R** | R1 pilot (Claude works with URL key); **R2 OAuth held** |
+| **F** | **M6.5** — audit explorer | Filter mcp / store_ops channels |
+| **G (parked)** | Scrape / brand radar | Linux + Browserbase smoke |
 
 ### Quick smoke (post-deploy)
 
@@ -119,19 +121,27 @@ Principles and N1–N6 model remain in prior revisions / design notes; build aft
 ## Suggested build order
 
 ```text
-M0–M6 + R1 + Loft P–E + ops docs   ✅ (15072026)
+M0–M6 + R1 + Loft P–F + ops docs + Claude URL-key MCP   ✅
 ─────────────────
-Next:
-  F.1  store delivery calendar + cutoffs
-  F.2  multi-store allocation from Loft ATS
-  F.3  POS next wave on request form
+MCP speed / ability-to-act (from docs/sample-mcp-responses.md):
+  1  catalog_health + catalog_sample + catalog_search_summary   ✅
+  2  inventory_ats (read LOFT-SG / store levels by SKU)
+  3  ops_snapshot + capabilities (requests, waves, exceptions, what MCP can/cannot do)
+  4  Tighten cloud MCP + Catalog AI instructions (composite-first, short answers)
+  5  catalog_export_csv (bounded filter export)
+  6  Data ops: retail/POS flags intentional; market seeds for research
+  7  Optional: draft store_ops request from MCP (write; still no execute_3pl)
+─────────────────
+Parallel / later:
   0.x  Loft email answers → dictionary IDs
   N    notifications
-  P remaining · R1 pilot
+  P remaining · R1 pilot polish
+  G    connector cancel/hold / recon
 ```
 
-**Recommended next (eng):** **Phase F.1**.  
-**Ops:** send Phase 0 Loft email when ready.
+**Recommended next (eng):** **MCP composite #1** (`catalog_health` / sample / search_summary).  
+**Ops:** send Phase 0 Loft email when ready.  
+**Context:** `docs/sample-mcp-responses.md` — long multi-step refuses and empty market; composites fix speed.
 
 ---
 

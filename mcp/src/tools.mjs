@@ -283,10 +283,55 @@ export const toolDefinitions = [
   },
 
   // ── Catalog Q&A (Fran products table — not marketplace BI) ──
+  // Prefer composite tools first (catalog_health / sample / search_summary) for speed.
+  {
+    name: 'catalog_health',
+    description:
+      'ONE-SHOT catalog structure check for large imports: totals, missing retail/SKU/EAN, POS flags, cost spread, import_source, catalog_mode_guess + agent_hint. Prefer this before multi-step sampling when user asks best products, research readiness, or why data looks empty. Does NOT invent performance rankings. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand: { type: 'string', description: 'Optional brand filter' },
+        sample_for_cost: { type: 'number', description: 'Rows to sample for cost/POS/import facets (default 2000)' },
+      },
+    },
+  },
+  {
+    name: 'catalog_sample',
+    description:
+      'Return N real catalog products in one call (spread across catalog or keyword match). Use for “sample 5 products / research these” instead of many offset searches. Not a “best of” ranking. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        n: { type: 'number', description: 'How many products (default 5, max 20)' },
+        q: { type: 'string', description: 'Optional keyword (title/sku)' },
+        query: { type: 'string' },
+        brand: { type: 'string' },
+        status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+        strategy: { type: 'string', enum: ['spread', 'recent', 'keyword'] },
+      },
+    },
+  },
+  {
+    name: 'catalog_search_summary',
+    description:
+      'Search + total count + brand/cost/POS facets in ONE call (e.g. “lipsticks”). Prefer over catalog_search alone when user wants category research or a shortlist with stats. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', description: 'Search text e.g. lipstick' },
+        query: { type: 'string' },
+        brand: { type: 'string' },
+        status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+        limit: { type: 'number', description: 'Example rows to return (default 10, max 25)' },
+        facet_sample: { type: 'number', description: 'Max rows for brand/cost facets (default 400)' },
+      },
+    },
+  },
   {
     name: 'catalog_stats',
     description:
-      'Exact product census for the workspace catalog (total, by status, missing SKU, with EAN, top brands). Use for "how many products" after large imports. Does NOT invent counts. intel:read / safe.',
+      'Exact product census (total, by status, missing SKU, with EAN, top brands). Prefer catalog_health for import/ops structure questions. intel:read / safe.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -298,7 +343,7 @@ export const toolDefinitions = [
   {
     name: 'catalog_search',
     description:
-      'Search Fran catalog products (title/sku/ean, status, brand). Returns paginated rows + exact total. Safe for 10k+ catalogs. intel:read / safe.',
+      'Paginated product search. Prefer catalog_search_summary when user wants counts/facets too. intel:read / safe.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -868,6 +913,21 @@ export async function handleTool(name, args = {}) {
           category: a.category || null,
         })
         return jsonResult({ articles, help_index_path: '/help', count: articles.length })
+      }
+      case 'catalog_health': {
+        requireScope('intel:read')
+        const result = await catalog.healthCatalog(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'catalog_sample': {
+        requireScope('intel:read')
+        const result = await catalog.sampleCatalog(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'catalog_search_summary': {
+        requireScope('intel:read')
+        const result = await catalog.searchSummaryCatalog(requireWorkspaceId(), a)
+        return jsonResult(result)
       }
       case 'catalog_stats': {
         requireScope('intel:read')

@@ -432,3 +432,411 @@ export async function fetchCatalogMatchPool(db, opts) {
     pool_size: Math.min(byId.size, limit),
   }
 }
+
+/**
+ * @param {number[]} nums
+ */
+function costStats(nums) {
+  const vals = nums.filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b)
+  if (!vals.length) {
+    return { count: 0, min: null, max: null, median: null, mean: null }
+  }
+  const min = vals[0]
+  const max = vals[vals.length - 1]
+  const mid = Math.floor(vals.length / 2)
+  const median = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2
+  const mean = vals.reduce((s, n) => s + n, 0) / vals.length
+  return {
+    count: vals.length,
+    min: roundMoney(min),
+    max: roundMoney(max),
+    median: roundMoney(median),
+    mean: roundMoney(mean),
+  }
+}
+
+function roundMoney(n) {
+  return Math.round(n * 100) / 100
+}
+
+/**
+ * One-shot catalog health for large imports (prefer this over multi-step sampling).
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {{ workspace_id: string, brand?: string | null, sample_for_cost?: number }} opts
+ */
+export async function catalogHealth(db, opts) {
+  const workspace_id = opts.workspace_id
+  if (!workspace_id) throw new Error('workspace_id required')
+  const sampleN = Math.min(Math.max(Number(opts.sample_for_cost) || 2000, 100), 5000)
+
+  /** @type {string[] | null} */
+  let brandIds = null
+  if (opts.brand) {
+    const brandQ = sanitizeIlike(opts.brand)
+    const { data: brands } = await db
+      .from('brands')
+      .select('id')
+      .eq('workspace_id', workspace_id)
+      .ilike('name', `%${brandQ}%`)
+      .limit(40)
+    brandIds = (brands || []).map((b) => b.id)
+    if (!brandIds.length) {
+      return {
+        total: 0,
+        catalog_mode_guess: 'empty',
+        agent_hint: 'No products match brand filter. Do not invent rankings.',
+        brand_filter: opts.brand,
+      }
+    }
+  }
+
+  /**
+   * @param {(q: any) => any} apply
+   */
+  async function countWhere(apply) {
+    let q = db
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspace_id)
+    if (brandIds) q = q.in('brand_id', brandIds)
+    q = apply(q)
+    const { count, error } = await q
+    if (error) throw new Error(error.message)
+    return count || 0
+  }
+
+  const baseStats = await catalogStats(db, {
+    workspace_id,
+    brand: opts.brand || null,
+    top_brands: 10,
+  })
+
+  const [
+    missing_retail,
+    with_cost,
+    missing_category,
+    with_upc,
+    with_gtin,
+  ] = await Promise.all([
+    countWhere((q) => q.is('retail_price', null)),
+    countWhere((q) => q.not('cost_price', 'is', null)),
+    countWhere((q) => q.is('category_id', null)),
+    countWhere((q) => q.not('upc', 'is', null)),
+    countWhere((q) => q.not('gtin', 'is', null)),
+  ])
+
+  // Sample product_data + prices for pos_enabled / import_source / cost distribution
+  let sampleQ = db
+    .from('products')
+    .select('cost_price, retail_price, stock_quantity, product_data, currency')
+    .eq('workspace_id', workspace_id)
+    .order('updated_at', { ascending: false })
+    .limit(sampleN)
+  if (brandIds) sampleQ = sampleQ.in('brand_id', brandIds)
+  const { data: sampleRows, error: sampleErr } = await sampleQ
+  if (sampleErr) throw new Error(sampleErr.message)
+
+  let pos_enabled_true = 0
+  let pos_enabled_false = 0
+  let pos_enabled_unknown = 0
+  /** @type {Map<string, number>} */
+  const importSources = new Map()
+  /** @type {number[]} */
+  const costs = []
+  let stock_zero = 0
+  let stock_positive = 0
+  let currencies = new Map()
+
+  for (const row of sampleRows || []) {
+    const pd = row.product_data && typeof row.product_data === 'object' ? row.product_data : {}
+    const pe = pd.pos_enabled ?? pd.sellable_in_pos
+    if (pe === true || pe === 'true' || pe === 1) pos_enabled_true += 1
+    else if (pe === false || pe === 'false' || pe === 0) pos_enabled_false += 1
+    else pos_enabled_unknown += 1
+
+    const src = String(pd.import_source || pd.source || '').trim() || '(none)'
+    importSources.set(src, (importSources.get(src) || 0) + 1)
+
+    if (row.cost_price != null && Number(row.cost_price) > 0) costs.push(Number(row.cost_price))
+    const sq = Number(row.stock_quantity)
+    if (!Number.isFinite(sq) || sq <= 0) stock_zero += 1
+    else stock_positive += 1
+
+    const cur = String(row.currency || 'unknown')
+    currencies.set(cur, (currencies.get(cur) || 0) + 1)
+  }
+
+  const sampleSize = (sampleRows || []).length || 1
+  const pct = (n) => Math.round((n / sampleSize) * 1000) / 10
+
+  const total = baseStats.total || 0
+  const missingRetailPct = total ? Math.round((missing_retail / total) * 1000) / 10 : 0
+  const posOffHeavy = pct(pos_enabled_false) >= 80
+  const retailNullHeavy = missingRetailPct >= 80
+  const stockFieldZeroHeavy = pct(stock_zero) >= 80
+
+  let catalog_mode_guess = 'live_ops'
+  if (total === 0) catalog_mode_guess = 'empty'
+  else if (retailNullHeavy && posOffHeavy) catalog_mode_guess = 'cost_import_not_operationalized'
+  else if (retailNullHeavy) catalog_mode_guess = 'cost_list_missing_retail'
+  else if (posOffHeavy) catalog_mode_guess = 'active_but_pos_disabled'
+
+  const import_source_top = [...importSources.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([source, count]) => ({ source, count, pct_of_sample: pct(count) }))
+
+  const agent_hint =
+    catalog_mode_guess === 'cost_import_not_operationalized'
+      ? 'Do NOT invent “best products” from performance. Catalog has identity + cost only; retail often null; POS mostly off; product.stock_quantity is not inventory ledger ATS. Prefer defining best by cost/brand/category, bulk Activate for POS, or seed market crawls. For physical stock use inventory tools / LOFT-SG levels when available.'
+      : catalog_mode_guess === 'empty'
+        ? 'Catalog empty — cannot rank or research products.'
+        : 'Use catalog_search_summary for category research; inventory_ats for real on-hand (not stock_quantity on product rows).'
+
+  return {
+    total,
+    by_status: baseStats.by_status,
+    missing_sku: baseStats.missing_sku,
+    with_ean: baseStats.with_ean,
+    with_upc,
+    with_gtin,
+    missing_retail_price: missing_retail,
+    missing_retail_price_pct: missingRetailPct,
+    with_cost_price: with_cost,
+    missing_category: missing_category,
+    top_brands: baseStats.top_brands,
+    sample: {
+      size: sampleSize,
+      note: sampleSize >= sampleN ? `cost/pos/import facets from newest ${sampleSize} rows (approx)` : 'full sample within limit',
+      pos_enabled_true,
+      pos_enabled_false,
+      pos_enabled_unknown,
+      pos_enabled_false_pct: pct(pos_enabled_false),
+      product_row_stock_zero: stock_zero,
+      product_row_stock_zero_pct: pct(stock_zero),
+      cost: costStats(costs),
+      currencies: [...currencies.entries()].map(([currency, count]) => ({ currency, count })),
+      import_source_top,
+    },
+    catalog_mode_guess,
+    signals: {
+      retail_null_heavy: retailNullHeavy,
+      pos_off_heavy: posOffHeavy,
+      product_stock_field_zero_heavy: stockFieldZeroHeavy,
+      stock_quantity_is_not_ledger_ats: true,
+    },
+    agent_hint,
+    brand_filter: opts.brand || null,
+    deep_links: {
+      products: '/products',
+      import: '/import-export',
+      activate_for_pos_help: '/help/activate-for-pos',
+      inventory: '/inventory',
+      store_ops: '/store-ops',
+    },
+  }
+}
+
+/**
+ * Stratified / multi-offset sample for research (one call instead of ad-hoc offsets).
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {{
+ *   workspace_id: string,
+ *   n?: number,
+ *   q?: string | null,
+ *   brand?: string | null,
+ *   status?: string | null,
+ *   strategy?: 'spread' | 'recent' | 'keyword',
+ * }} opts
+ */
+export async function catalogSample(db, opts) {
+  const workspace_id = opts.workspace_id
+  if (!workspace_id) throw new Error('workspace_id required')
+  const n = Math.min(Math.max(Number(opts.n) || 5, 1), 20)
+  const strategy = opts.strategy || (opts.q ? 'keyword' : 'spread')
+
+  // Total for spread offsets
+  const base = await catalogSearch(db, {
+    workspace_id,
+    q: opts.q || null,
+    brand: opts.brand || null,
+    status: opts.status || null,
+    limit: 1,
+    offset: 0,
+  })
+  const total = base.total || 0
+  if (!total) {
+    return {
+      products: [],
+      total: 0,
+      n,
+      strategy,
+      filters: { q: opts.q || null, brand: opts.brand || null, status: opts.status || null },
+      note: 'No products matched filters.',
+    }
+  }
+
+  /** @type {Map<string, ReturnType<typeof compactProduct>>} */
+  const byId = new Map()
+
+  async function pullAt(offset, limit) {
+    const page = await catalogSearch(db, {
+      workspace_id,
+      q: opts.q || null,
+      brand: opts.brand || null,
+      status: opts.status || null,
+      limit: Math.min(limit, 25),
+      offset: Math.max(0, Math.min(offset, Math.max(0, total - 1))),
+    })
+    for (const p of page.products || []) {
+      if (p?.id && !byId.has(p.id)) byId.set(p.id, p)
+    }
+  }
+
+  if (strategy === 'recent' || strategy === 'keyword') {
+    await pullAt(0, n)
+  } else {
+    // spread: head, ~20%, ~50%, ~75%, tail
+    const fracs = n <= 5
+      ? [0, 0.2, 0.5, 0.75, 0.95]
+      : Array.from({ length: n }, (_, i) => (n === 1 ? 0 : i / (n - 1)))
+    for (const f of fracs.slice(0, n)) {
+      if (byId.size >= n) break
+      const off = Math.floor(f * Math.max(0, total - 1))
+      await pullAt(off, Math.min(3, n))
+    }
+    // fill if duplicates
+    let fillOff = 0
+    while (byId.size < n && fillOff < total) {
+      await pullAt(fillOff, Math.min(10, n - byId.size + 2))
+      fillOff += 10
+      if (fillOff > total + 10) break
+    }
+  }
+
+  const products = [...byId.values()].slice(0, n)
+  const costs = products.map((p) => Number(p.cost_price)).filter((x) => Number.isFinite(x) && x > 0)
+
+  return {
+    products,
+    total_matching: total,
+    n: products.length,
+    strategy,
+    cost_in_sample: costStats(costs),
+    filters: { q: opts.q || null, brand: opts.brand || null, status: opts.status || null },
+    note:
+      'Sample only — not “best”. product.stock_quantity is not LOFT/store ATS. retail_price may be null on cost imports.',
+    agent_hint:
+      'Do not claim market demand or sell-through from this sample alone. Use catalog_health once for catalog-wide structure.',
+  }
+}
+
+/**
+ * Search + summary stats in one call (e.g. “lipsticks”).
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {{
+ *   workspace_id: string,
+ *   q?: string | null,
+ *   brand?: string | null,
+ *   status?: string | null,
+ *   limit?: number,
+ *   facet_sample?: number,
+ * }} opts
+ */
+export async function catalogSearchSummary(db, opts) {
+  const workspace_id = opts.workspace_id
+  if (!workspace_id) throw new Error('workspace_id required')
+  const limit = clampLimit(opts.limit, 10, 25)
+  const facetN = Math.min(Math.max(Number(opts.facet_sample) || 400, 50), 800)
+
+  const page = await catalogSearch(db, {
+    workspace_id,
+    q: opts.q || null,
+    brand: opts.brand || null,
+    status: opts.status || null,
+    limit,
+    offset: 0,
+  })
+
+  // Facet sample: first facetN matches by updated_at (same filters, larger page)
+  const facetPage = await catalogSearch(db, {
+    workspace_id,
+    q: opts.q || null,
+    brand: opts.brand || null,
+    status: opts.status || null,
+    limit: Math.min(25, facetN),
+    offset: 0,
+  })
+
+  // Pull more pages for facets (bounded)
+  /** @type {typeof facetPage.products} */
+  let facetProducts = [...(facetPage.products || [])]
+  let off = facetPage.products?.length || 0
+  while (facetProducts.length < facetN && off < (page.total || 0) && off < facetN + 50) {
+    const more = await catalogSearch(db, {
+      workspace_id,
+      q: opts.q || null,
+      brand: opts.brand || null,
+      status: opts.status || null,
+      limit: 25,
+      offset: off,
+    })
+    if (!more.products?.length) break
+    facetProducts = facetProducts.concat(more.products)
+    off += more.products.length
+    if (!more.has_more) break
+  }
+  facetProducts = facetProducts.slice(0, facetN)
+
+  /** @type {Map<string, number>} */
+  const brandMap = new Map()
+  /** @type {Map<string, number>} */
+  const statusMap = new Map()
+  const costs = []
+  let missing_retail = 0
+  let pos_on = 0
+  let pos_off = 0
+
+  for (const p of facetProducts) {
+    const b = p.brand || '(no brand)'
+    brandMap.set(b, (brandMap.get(b) || 0) + 1)
+    const st = p.status || 'unknown'
+    statusMap.set(st, (statusMap.get(st) || 0) + 1)
+    if (p.retail_price == null) missing_retail += 1
+    if (p.cost_price != null && Number(p.cost_price) > 0) costs.push(Number(p.cost_price))
+    if (p.pos_enabled === true) pos_on += 1
+    else if (p.pos_enabled === false) pos_off += 1
+  }
+
+  const top_brands = [...brandMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([name, count]) => ({ name, count }))
+
+  return {
+    query: opts.q || null,
+    total_matching: page.total,
+    products: page.products,
+    limit: page.limit,
+    has_more: page.has_more,
+    facets: {
+      sample_size: facetProducts.length,
+      note:
+        facetProducts.length < (page.total || 0)
+          ? `Facets from first ${facetProducts.length} of ${page.total} matches (newest first)`
+          : 'Facets from all matches',
+      top_brands,
+      by_status: Object.fromEntries(statusMap),
+      missing_retail_in_sample: missing_retail,
+      pos_enabled_true_in_sample: pos_on,
+      pos_enabled_false_in_sample: pos_off,
+      cost: costStats(costs),
+    },
+    filters: page.filters,
+    agent_hint:
+      page.total === 0
+        ? 'No matches — try a broader keyword.'
+        : 'This is catalog identity/cost summary, not market demand. For stock use inventory_ats when available; do not invent rankings from cost alone unless user asked for cost-based picks.',
+  }
+}
+

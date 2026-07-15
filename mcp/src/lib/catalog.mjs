@@ -5,6 +5,9 @@ import {
   catalogGet,
   catalogSearch,
   catalogStats,
+  catalogHealth,
+  catalogSample,
+  catalogSearchSummary,
   fetchCatalogMatchPool,
 } from '../../../core/catalog/index.mjs'
 import { getDb } from '../context.mjs'
@@ -52,6 +55,48 @@ export async function getCatalogProduct(workspaceId, args = {}) {
     ean: args.ean || null,
     upc: args.upc || null,
     gtin: args.gtin || null,
+  })
+}
+
+/**
+ * @param {string} workspaceId
+ * @param {Record<string, any>} [args]
+ */
+export async function healthCatalog(workspaceId, args = {}) {
+  return catalogHealth(getDb(), {
+    workspace_id: workspaceId,
+    brand: args.brand || null,
+    sample_for_cost: args.sample_for_cost,
+  })
+}
+
+/**
+ * @param {string} workspaceId
+ * @param {Record<string, any>} [args]
+ */
+export async function sampleCatalog(workspaceId, args = {}) {
+  return catalogSample(getDb(), {
+    workspace_id: workspaceId,
+    n: args.n || args.limit,
+    q: args.q || args.query || null,
+    brand: args.brand || null,
+    status: args.status || null,
+    strategy: args.strategy || null,
+  })
+}
+
+/**
+ * @param {string} workspaceId
+ * @param {Record<string, any>} [args]
+ */
+export async function searchSummaryCatalog(workspaceId, args = {}) {
+  return catalogSearchSummary(getDb(), {
+    workspace_id: workspaceId,
+    q: args.q || args.query || null,
+    brand: args.brand || null,
+    status: args.status || null,
+    limit: args.limit,
+    facet_sample: args.facet_sample,
   })
 }
 

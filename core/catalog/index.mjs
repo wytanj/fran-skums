@@ -6,4 +6,7 @@ export {
   catalogStats,
   catalogGet,
   fetchCatalogMatchPool,
+  catalogHealth,
+  catalogSample,
+  catalogSearchSummary,
 } from './query.mjs'

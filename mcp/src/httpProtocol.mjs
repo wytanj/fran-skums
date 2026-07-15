@@ -102,7 +102,7 @@ async function dispatchMethod(method, params, opts) {
         },
         serverInfo: SERVER_INFO,
         instructions:
-          'Fran SKUMS remote MCP (cloud-safe). Auth: Authorization Bearer sk_live_… from SKUMS Settings → API keys (leave OAuth client id/secret empty). Use catalog_* for product Q&A; help_resolve / help_get for store-ops how-to; draft PO tools only. Humans approve in Actions UI. tools/list and tools/call require API key.',
+          'Fran SKUMS remote MCP (cloud-safe). Auth: put sk_live key in URL (?api_key= or /mcp/c/…) for Claude personal connectors, or Bearer header. Prefer catalog_health / catalog_sample / catalog_search_summary over multi-step catalog_search. help_resolve / help_get for how-to. Draft POs only — humans approve in Actions. Do not invent sales rankings or stock from product.stock_quantity. tools/list and tools/call require API key.',
       }
     }
 

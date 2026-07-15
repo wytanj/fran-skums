@@ -3,6 +3,9 @@ import {
   catalogGet,
   catalogSearch,
   catalogStats,
+  catalogHealth,
+  catalogSample,
+  catalogSearchSummary,
 } from '../../core/catalog/index.mjs'
 import { getHelpArticleForAgent, listHelpArticles, resolveHelp } from '../../core/help/index.mjs'
 
@@ -71,9 +74,61 @@ export function buildToolDefinitions() {
     {
       type: 'function',
       function: {
+        name: 'get_catalog_health',
+        description:
+          'ONE-SHOT catalog structure (import readiness, missing retail, POS flags, cost spread). Prefer for “best products”, research readiness, or bulk-import questions before multi-step sampling.',
+        parameters: {
+          type: 'object',
+          properties: {
+            brand: { type: 'string', description: 'Optional brand filter' },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'sample_products',
+        description:
+          'Return N real catalog products in one call (spread or keyword). Use for “sample 5 products” research — not a best-of ranking.',
+        parameters: {
+          type: 'object',
+          properties: {
+            n: { type: 'number', description: 'How many (default 5, max 20)' },
+            query: { type: 'string', description: 'Optional keyword' },
+            brand: { type: 'string' },
+            status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+            strategy: { type: 'string', enum: ['spread', 'recent', 'keyword'] },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'search_products_summary',
+        description:
+          'Search + total + brand/cost facets in one call (e.g. lipsticks). Prefer over search_products when user wants category research stats.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Search text' },
+            brand: { type: 'string' },
+            status: { type: 'string', enum: ['draft', 'active', 'archived'] },
+            limit: { type: 'number' },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'get_catalog_stats',
         description:
-          'Catalog census for this workspace: exact total product count, counts by status (draft/active/archived), missing SKU, with EAN, and top brands. ALWAYS call this for "how many products" questions — never invent a total.',
+          'Catalog census for this workspace: exact total product count, counts by status (draft/active/archived), missing SKU, with EAN, and top brands. ALWAYS call this for "how many products" questions — never invent a total. Prefer get_catalog_health for structure/import questions.',
         parameters: {
           type: 'object',
           properties: {
@@ -89,7 +144,7 @@ export function buildToolDefinitions() {
       function: {
         name: 'search_products',
         description:
-          'Search the workspace product catalog (supports 10k+ SKUs). Returns paginated matches PLUS exact total matching count. Filter by text (title/sku/ean), status, brand, identifiers.',
+          'Search the workspace product catalog (supports 10k+ SKUs). Returns paginated matches PLUS exact total matching count. Prefer search_products_summary when user also wants brand/cost facets.',
         parameters: {
           type: 'object',
           properties: {
@@ -247,6 +302,34 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           category: args.category || null,
         })
         return { articles, help_index_path: '/help', count: articles.length }
+      }
+
+      case 'get_catalog_health': {
+        return await catalogHealth(client, {
+          workspace_id: workspaceId,
+          brand: args.brand || null,
+        })
+      }
+
+      case 'sample_products': {
+        return await catalogSample(client, {
+          workspace_id: workspaceId,
+          n: args.n || args.limit,
+          q: args.query || args.q || null,
+          brand: args.brand || null,
+          status: args.status || null,
+          strategy: args.strategy || null,
+        })
+      }
+
+      case 'search_products_summary': {
+        return await catalogSearchSummary(client, {
+          workspace_id: workspaceId,
+          q: args.query || args.q || null,
+          brand: args.brand || null,
+          status: args.status || null,
+          limit: args.limit,
+        })
       }
 
       case 'get_catalog_stats': {

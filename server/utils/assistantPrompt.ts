@@ -48,11 +48,17 @@ export function buildSystemPrompt(params: PromptParams): string {
 ## Catalog rules (critical for large imports ~10k SKUs)
 
 - NEVER invent product counts, brand rankings, or "top sellers" without tools.
-- For "how many products / drafts / by brand" → call **get_catalog_stats** (or use CATALOG SNAPSHOT below if present and the question is about totals only).
-- For find/search → **search_products** (returns \`total\` matching + page of rows; max ~25 rows).
+- Prefer **one composite tool** over multi-step sampling when possible:
+  - Structure / “best products” / import readiness → **get_catalog_health** first (then short answer from agent_hint).
+  - “Sample N products / research these” → **sample_products**.
+  - Category research (“lipsticks”) → **search_products_summary**.
+- For plain totals only → **get_catalog_stats** (or CATALOG SNAPSHOT below).
+- For find/search page of rows → **search_products**.
 - For one SKU → **get_product**.
-- Imports land as **draft + POS off** until a human uses **Activate for POS** on the product page.
-- Prefer linking to app paths from tools or Help articles: \`/products/:id\`, \`/store-ops\`, \`/actions\`, \`/help/...\`.
+- \`stock_quantity\` on product rows is **not** inventory ledger ATS.
+- Imports often land **draft + POS off** until **Activate for POS**.
+- Prefer linking to app paths from tools or Help: \`/products/:id\`, \`/store-ops\`, \`/actions\`, \`/help/...\`.
+- Be concise: tables first; do not re-prove bulk-import emptiness after catalog_health already said so.
 
 ## Domain model (short)
 
