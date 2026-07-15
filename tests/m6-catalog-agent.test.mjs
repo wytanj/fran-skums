@@ -218,7 +218,8 @@ describe('wiring: assistant + MCP share catalog surface', () => {
   test('drawer UX labels catalog assistant', () => {
     assert.match(drawer, /Catalog Assistant/)
     assert.match(drawer, /How many products are in this catalog/)
-    assert.match(drawer, /MCP/)
+    // MCP is a separate surface (prompt + mcp/README); drawer stays in-app only
+    assert.match(assistantPrompt, /MCP agents/)
   })
 
   test('study match uses fetchCatalogMatchPool', () => {

@@ -29,6 +29,7 @@ import {
   getWorkspaceId,
   getXaiApiKey,
 } from './context.mjs'
+import { getStdioMcpInstructions } from './agentInstructions.mjs'
 import { handleTool, toolDefinitions } from './tools.mjs'
 
 const server = new Server(
@@ -40,6 +41,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
+    instructions: getStdioMcpInstructions(),
   },
 )
 

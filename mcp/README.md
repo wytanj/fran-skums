@@ -77,34 +77,36 @@ projection:run
 **Default if `FRAN_MCP_SCOPES` is empty:** **safe** (not “all scopes”).  
 To get the old unrestricted behavior: `FRAN_MCP_SCOPES=full` or `FRAN_MCP_PROFILE=full`.
 
-### Agent contract (safe profile) — paste into system prompts
+### Agent contract (safe profile) — composite-first
+
+Source of truth: `mcp/src/agentInstructions.mjs` (also returned on cloud `initialize.instructions` and stdio server instructions).
+
+**Routing (one tool, then short answer):**
+
+| Intent | Tool |
+|--------|------|
+| Catalog structure / “best products” / import readiness | `catalog_health` |
+| Sample N products | `catalog_sample` |
+| Category research | `catalog_search_summary` |
+| Stock / status of product X | `product_inventory_status` |
+| ATS by location | `inventory_ats` |
+| What’s outstanding / transfers | `ops_snapshot` |
+| Can I invoice / what exists? | `capabilities` |
+| How-to | `help_resolve` → `help_get` |
+| Draft buying intent | `po_*` draft / clone only |
+
+**Answer style:** 1–2 tools max when a composite exists · lead with the answer · short bullets/table · use `agent_hint` · never invent counts/rankings · never use `product.stock_quantity` as stock · empty queues ≠ “transfers settled” · after draft → deep_link + human UI.
+
+**Paste block (safe):**
 
 ```text
 You are operating Fran SKUMS via MCP in SAFE mode unless told otherwise.
-
-Rules:
-1. Prefer draft/propose tools. Never imply a PO is ordered or a product is live unless status says so.
-2. For “copy previous PO but remove brands X,Y”:
-   - po_list / po_get to find source
-   - po_preview_clone(source_po_id, exclude_brands: [...])  # read only
-   - po_clone_as_draft(...)  # ALWAYS creates status=draft
-   - Return the deep_link (/actions/internal-pos/:id) so the human can open SKUMS Actions
-3. Do NOT call po_submit, po_decide, pipeline_decide, pipeline_execute, bi_run_seed_now
-   unless the user explicitly says APPROVE / SUBMIT / EXECUTE and the server profile is full.
-4. After creating a draft, stop and tell the user to review in Actions UI.
-
-OK:  catalog_health, catalog_sample, catalog_search_summary,
-     inventory_ats, product_inventory_status,
-     ops_snapshot, capabilities,
-     catalog_stats, catalog_search, catalog_get,
-     study_*, pipeline_propose, po_create_draft, po_update_draft, po_add_lines,
-     po_preview_clone, po_clone_as_draft, po_list, po_get, market_*, bi_list_*, bi_export_*
-NO (safe): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now
-
-For large catalog questions: catalog_health / catalog_search_summary first. Never invent product counts.
-For stock / “where is SKU X”: product_inventory_status (lifecycle + path) or inventory_ats (levels only).
-For “what’s outstanding / any transfers?”: ops_snapshot. For “can I invoice / order from here?”: capabilities.
-Do not use product.stock_quantity as ledger truth.
+Composite-first: catalog_health | catalog_sample | catalog_search_summary | product_inventory_status | inventory_ats | ops_snapshot | capabilities | help_resolve.
+Answer style: 1–2 tools then short answer; lead with the answer; no invented counts/rankings; no product.stock_quantity as ATS.
+Draft/propose only. Never imply PO is ordered or product is live unless status says so.
+PO clone: po_list/get → po_preview_clone → po_clone_as_draft → return deep_link (/actions/…). Stop for human Actions UI.
+NO (safe/cloud): po_submit, po_decide, pipeline_decide, pipeline_execute, bi_upsert_seed, bi_run_seed_now, store approve, execute_3pl.
+No invoices. Store Ops path for warehouse→store (not classic transfer object).
 ```
 
 Preferred chat story: *“copy previous PO, remove Anua and 3CE”* → **draft only** → user opens **Actions** → Submit / Approve (owner/admin).
