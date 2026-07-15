@@ -145,20 +145,39 @@ export async function requireScope(
   const elevated = new Set(scopes)
   if (access.isWorkspaceAdmin) {
     for (const s of [
+      // store ops full surface (read/write required for page loads + create request)
+      'store_ops:read',
+      'store_ops:write',
       'store_ops:approve',
       'store_ops:verify',
       'store_ops:execute_3pl',
       'store_ops:inbound',
+      // inventory / locations
+      'inventory:read',
+      'inventory:write',
+      'inventory:override_expiry',
+      'locations:read',
+      'locations:write',
+      'products:read',
+      // integrations
       'integrations:execute',
       'integrations:read',
       'integrations:write',
       'credentials:write',
-      'inventory:write',
-      'inventory:override_expiry',
-      'locations:write',
       'apps:install',
+      'apps:read',
+      'pos:read',
+      'pos:write',
+      'pos:config',
     ]) {
       elevated.add(s)
+    }
+  }
+  // Members with write access at least get store-ops read when they have any inventory/store write
+  if (access.canWrite && !access.isWorkspaceAdmin) {
+    if (elevated.has('inventory:write') || elevated.has('store_ops:write') || elevated.has('store_ops:approve')) {
+      elevated.add('store_ops:read')
+      elevated.add('inventory:read')
     }
   }
 

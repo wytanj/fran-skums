@@ -72,7 +72,7 @@ async function loadWavesAndCalendar() {
   if (!currentWorkspace.value?.id) return
   wavesLoading.value = true
   try {
-    const [wavesRes, settingsRes, calRes] = await Promise.all([
+    const [wavesRes, settingsRes, calRes] = await Promise.allSettled([
       $fetch<{ upcoming: any[]; waves: any[]; cadence_note?: string }>('/api/store-ops/waves', {
         query: { workspace_id: currentWorkspace.value.id, ensure: '1', count: 6 },
       }),
@@ -83,11 +83,18 @@ async function loadWavesAndCalendar() {
         query: { workspace_id: currentWorkspace.value.id },
       }),
     ])
-    waveBundle.value = wavesRes
-    storeSettings.value = settingsRes.data
-    deliveryCalendars.value = calRes.data || []
+    if (wavesRes.status === 'fulfilled') waveBundle.value = wavesRes.value
+    if (settingsRes.status === 'fulfilled') storeSettings.value = settingsRes.value.data
+    if (calRes.status === 'fulfilled') deliveryCalendars.value = calRes.value.data || []
+
+    const firstFail = [wavesRes, settingsRes, calRes].find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
+    if (firstFail) {
+      const e = firstFail.reason as any
+      // Soft-fail: do not block Queue / New Request if waves APIs error
+      console.warn('[store-ops] waves/calendar load failed', e?.data || e?.message || e)
+    }
   } catch (e: any) {
-    showErr(e?.data?.statusMessage || e?.message || 'Failed to load waves / calendar')
+    console.warn('[store-ops] waves/calendar unexpected', e)
   } finally {
     wavesLoading.value = false
   }
@@ -552,33 +559,47 @@ function resetRequestForm() {
 }
 
 async function handleCreateRequest() {
+  if (!currentWorkspace.value?.id) return showErr('No workspace selected')
   const validLines = requestLines.value.filter(line => line.sku.trim() && Number(line.requested_qty) > 0)
   if (!validLines.length) return showErr('Add at least one SKU line')
 
   requestSaving.value = true
-  const { error } = await createReplenishmentRequest(
-    {
-      request_type: requestForm.value.request_type,
-      priority: requestForm.value.priority,
-      source_type: 'skums',
-      pos_location_id: requestForm.value.pos_location_id || null,
-      store_location_id: requestForm.value.store_location_id || defaultStoreLocation.value?.id || null,
-      needed_by: requestForm.value.needed_by || null,
-      reason: requestForm.value.reason || null,
-      metadata: { entry_surface: 'store_ops' },
-    },
-    validLines.map(line => ({
-      sku: line.sku.trim(),
-      requested_qty: Number(line.requested_qty),
-      reason: line.reason || null,
-    })),
-  )
-  requestSaving.value = false
-
-  if (error) return showErr(error.message)
-  showOk('Replenishment request created')
-  showRequestForm.value = false
-  resetRequestForm()
+  try {
+    // Server API: scope-checked + service-role write (avoids RLS RETURNING failures)
+    await $fetch('/api/store-ops/requests', {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        request_type: requestForm.value.request_type,
+        priority: requestForm.value.priority,
+        source_type: 'skums',
+        pos_location_id: requestForm.value.pos_location_id || null,
+        store_location_id: requestForm.value.store_location_id || defaultStoreLocation.value?.id || null,
+        needed_by: requestForm.value.needed_by || null,
+        reason: requestForm.value.reason || null,
+        metadata: { entry_surface: 'store_ops' },
+        lines: validLines.map(line => ({
+          sku: line.sku.trim(),
+          requested_qty: Number(line.requested_qty),
+          reason: line.reason || null,
+        })),
+      },
+    })
+    showOk('Request submitted to HQ queue (not sent to Loft)')
+    showRequestForm.value = false
+    resetRequestForm()
+    await loadStoreOperations()
+  } catch (e: any) {
+    const msg =
+      e?.data?.statusMessage
+      || e?.data?.message
+      || e?.statusMessage
+      || e?.message
+      || 'Failed to create request'
+    showErr(msg)
+  } finally {
+    requestSaving.value = false
+  }
 }
 
 async function setRequestStatus(request: StoreReplenishmentRequest, status: StoreReplenishmentRequestStatus) {

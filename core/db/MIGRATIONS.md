@@ -61,6 +61,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 059 | help_store_ops_operator.sql | Help Center store-ops / inventory / Loft operator articles | Operator docs |
 | 060 | help_operator_runbook_assistant.sql | operator-runbook article for Catalog AI / MCP help_get | Assistant docs |
 | 061 | store_delivery_calendars.sql | Per-store receive windows, wave cutoffs, wave allocations | TODO-LOFT Phase F |
+| 062 | ensure_default_store_location.sql | Seed ST-MAIN store + FRAN01 POS bind when missing | Store ops request UX |
 
 ## Planned Phase C Spine
 
