@@ -24,6 +24,7 @@
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** (scopes · `/reports` · hourly cron · MCP `reports_*` · `POST /api/v1/reports/run` + n8n webhook).  
 **Next eng:** **K Rpt-6** real section handlers · Loft Phase 0 → **M4** · **J** supplier when buying.  
 **Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
+**Cron cadence:** Vercel Hobby = **daily** (`0 0 * * *` UTC) in `vercel.json` (hourly needs Pro). Due logic still supports hourly/daily/weekly packs when tick runs.  
 **Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
 `https://fran-skums.vercel.app/mcp/c/sk_live_…` (OAuth blank; Settings → Create Claude / MCP key).  
 **POS:** structure handoff `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` — roles/MCP next section below.
@@ -214,7 +215,7 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 | **Rpt-0** | Scopes `reports:*` + `automations:webhook` in catalog + packages | **Done** (`scopes.ts`, mig **066** permission areas) |
 | **Rpt-1** | Schema: templates, subscriptions, runs; UI list + **toggle** + last run | **Done** (`/reports`, APIs under `/api/reports/*`) |
 | **Rpt-2** | Seed 3 packs (marketing weekly, warehouse baseline, finance stock) — stub sections OK | **Done** (platform seeds; Run now = stub sections) |
-| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) | **Done** (`/api/internal/reports/cron-tick`, mig **067**, `vercel.json` hourly) |
+| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) | **Done** (`/api/internal/reports/cron-tick`, mig **067**, `vercel.json` daily UTC; Hobby limit) |
 | **Rpt-4** | MCP `reports_list` / `get` / `run` | **Done** |
 | **Rpt-5** | n8n webhook out + `POST` run API | **Done** (`POST /api/v1/reports/run`, webhook on channel/metadata) |
 | **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs | **Next** |

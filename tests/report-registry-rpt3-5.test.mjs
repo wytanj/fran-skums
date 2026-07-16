@@ -80,10 +80,13 @@ describe('Rpt-3 schedule due', () => {
     assert.match(post, /cron secret/i)
   })
 
-  test('vercel.json hourly cron points at cron-tick', () => {
+  test('vercel.json daily cron points at cron-tick (Hobby-safe)', () => {
     const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
     assert.ok(Array.isArray(v.crons))
-    assert.ok(v.crons.some((c) => c.path === '/api/internal/reports/cron-tick'))
+    const job = v.crons.find((c) => c.path === '/api/internal/reports/cron-tick')
+    assert.ok(job)
+    // Hobby allows at most one run per day
+    assert.equal(job.schedule, '0 0 * * *')
   })
 
   test('registry has deliver + cron helpers', () => {
