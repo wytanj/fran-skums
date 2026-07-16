@@ -37,6 +37,7 @@
 | **H** | HQ schemas from POS reality | Inventory-manager schema + MCP packs (below) |
 | **I** | MCP actions next (POS-driven) | **Next eng:** M1–M3 packs (below) |
 | **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — MCP draft editable · affirm supplier ack · **in transit only on FOB PDF** (below) |
+| **K** | **Agentic report registry** | **Planned** — sectionized packs, toggle on/off, scopes + n8n (below) |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
@@ -117,9 +118,109 @@ POS already creates work in SKUMS. HQ Claude should close that loop faster.
 4. P remaining: empty non-MCP keys ≠ full
 5. Loft Phase 0 ops IDs → then M4 send_to_loft tool
 6. Supplier order lifecycle (J) — MCP draft editable; affirm ack; **in transit on FOB PDF**
-7. Phase S — Workspace MFA policy + optional SKUMS step-up for dangerous actions
-8. Optional: A2.5 bind key to other user; audit explorer; N6 email
+7. Agentic report registry (K) — scopes + toggles + seed packs (marketing / warehouse / finance)
+8. Demand MA nightly + reorder sections inside K (store_fill vs supplier_buy)
+9. Phase S — Workspace MFA policy + optional SKUMS step-up for dangerous actions
+10. Optional: A2.5 bind key to other user; audit explorer; N6 email
 ```
+
+---
+
+## Agentic report registry (track K) — planned
+
+**Product idea:** One place to **register sectionized agentic reports** (daily / weekly packs) for different audiences. Each subscription has an **on/off toggle**. Permission to use reports and n8n-style automations is a **scope plane** (same vocabulary as MCP packages).
+
+### Principles
+
+| # | Rule |
+|---|------|
+| 1 | **Subscribe, don’t spawn** — turn on known packs first; free-form agents later |
+| 2 | **Sections reusable** — packs are ordered lists of section handlers over shared truth |
+| 3 | **Toggle per workspace subscription** — disabled = cron/n8n/MCP skip |
+| 4 | **Suggest ≠ execute** — reports may recommend reorder/PO; never auto-approve, send Loft, or mark FOB |
+| 5 | **Scope-gated** — `reports:*` and `automations:*` like other MCP/web scopes (key ∩ web user) |
+| 6 | Demand MA is a **nightly snapshot section**, not recomputed on every chat |
+
+### Model
+
+```text
+report_templates          platform seeds (+ later workspace custom)
+  slug, title, default_sections[], default_schedule, audience_hint
+
+report_subscriptions      per workspace
+  template_id, enabled (toggle), schedule, timezone, channels[], audience, metadata
+
+report_runs
+  subscription_id, status, started_at, finished_at, payload_json, markdown_summary, error
+
+report_section_handlers   code registry (not free SQL from users v1)
+```
+
+**UI:** one area (`/reports` or Settings → Agentic reports) — cards: toggle · schedule · last run · Run now · audience.
+
+### Scopes (permission plane)
+
+| Scope | Allows |
+|-------|--------|
+| `reports:read` | List packs + past runs |
+| `reports:run` | Run now; receive digests for allowed packs |
+| `reports:write` | Create/edit subscriptions, toggle on/off |
+| `reports:admin` | Install templates, all audiences |
+| `automations:webhook` | Outbound n8n/Zapier on `report.run.completed` |
+| `automations:inbound` | Optional inbound hooks feeding sections |
+
+Map into packages: viewer → read; member → read+run; ops_safe/admin → write; owner → admin + automations.
+
+**MCP tools (later):** `reports_list`, `reports_get`, `reports_run` (scoped; only if subscription enabled).
+
+**n8n:** schedule or webhook out; API key needs `reports:run` + `automations:webhook` as appropriate.
+
+### Section library (examples)
+
+| Section id | Used by |
+|------------|---------|
+| `sales.category_rollup` / `sales.top_movers` | Marketing |
+| `inventory.ats_by_location` / `inventory.cover_days` | Warehouse / Finance |
+| `ops.wave_baseline` / `ops.open_queues` | Warehouse / HQ |
+| `demand.velocity_snapshot` | HQ / warehouse (MA 7/30/90 · EWMA) |
+| `reorder.store_fill` / `reorder.supplier_buy` | HQ / buyer (path A vs B — never merged) |
+| `supply.supplier_pipeline` | Buying (PO / FOB / ASN — track J) |
+| `finance.stock_position` / `loyalty.rewards_liability` | Finance |
+| `data_quality.gaps` | All |
+
+### Seed packs (v1 subscriptions)
+
+| Pack | Cadence | Audience | Core sections |
+|------|---------|----------|---------------|
+| **Marketing daily** | Daily | Marketer | category sales, top movers |
+| **Marketing weekly** | Weekly | Marketer | category WoW, catalog health snapshot |
+| **Warehouse weekly baseline** | Weekly | Warehouse / ops | Loft ATS, wave baseline, open requests, cover |
+| **Warehouse daily ops** | Daily | Ops | exceptions, floor pending, inbound, ready-for-collect |
+| **Finance stock & rewards** | Weekly | Finance | stock position, rewards liability (CRM if available) |
+| **HQ demand daily** | Daily | HQ / buyer | velocity snapshot + store_fill + supplier_buy suggestions |
+
+### Demand MA + path A/B (inside K, not a separate free agent)
+
+| Path | When report suggests | Downstream |
+|------|----------------------|------------|
+| **A store_fill** | Store cover low **and** Loft has stock | Draft store request (MCP/UI) → HQ decide |
+| **B supplier_buy** | Network cover low vs supplier lead time | Draft internal PO (editable) → affirm → **FOB PDF → in_transit** → ASN |
+
+Moving average: recompute **nightly** (or post-sales batch) into snapshot; report sections **read** snapshot. Do not recompute on every MCP chat.
+
+### Build slices
+
+| Slice | Work |
+|-------|------|
+| **Rpt-0** | Scopes `reports:*` + `automations:webhook` in catalog + packages |
+| **Rpt-1** | Schema: templates, subscriptions, runs; UI list + **toggle** + last run |
+| **Rpt-2** | Seed 3 packs (marketing weekly, warehouse baseline, finance stock) — stub sections OK |
+| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) |
+| **Rpt-4** | MCP `reports_list` / `get` / `run` |
+| **Rpt-5** | n8n webhook out + `POST` run API |
+| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs |
+
+**Depends on:** Phase N bus (shipped) · velocity views (`v_demand_velocity` exists) · ATS / store ops (shipped).
 
 ---
 
@@ -432,15 +533,70 @@ Next eng:
   R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
   0.x Loft email / dictionary IDs
   M1–M3 POS→HQ MCP packs (request status, floor queue, exception verify)
-  J   supplier KR/HK lifecycle (intent → supplier ack tally → ASN → Loft)
+  J   supplier KR/HK (draft PO → affirm → FOB PDF → in_transit → ASN)
+  K   agentic report registry (toggle packs · reports:* scopes · n8n)
   P   empty-key legacy, install UI
   S   Workspace MFA policy (ops)
   F   audit explorer filters
 ```
 
-**Recommended next:** MCP **M1–M3** (POS→HQ) · inventory-manager schema · Loft Phase 0 · **J supplier lifecycle** when buying from KR/HK · Phase S Workspace MFA (ops).  
+**Recommended next:** MCP **M1–M3** · inventory-manager schema · Loft Phase 0 · **K report registry** (when multi-audience digests matter) · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
-**Supplier rule:** MCP creates/edits **draft** POs; supplier affirm (email/PDF/API) when known; **in transit only on FOB PDF** → then inbound ASN → Loft.
+**Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
+**Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
+
+---
+
+## Road ahead (snapshot)
+
+### Done (do not re-open without cause)
+
+| Area | State |
+|------|--------|
+| Catalog / identity / Help / M0–M6 | Shipped |
+| Remote MCP + Claude pilot | Working (`/mcp/c/sk_live_…`, tools non-empty) |
+| A2 permissions (web ∩ key, bind, revoke) | Core shipped |
+| Loft store-ops P–F (request → decide → receive → floor → waves) | Shipped |
+| MCP composites #1–8 | Shipped |
+| Phase N N1–N4 (inbox + bus + request/exception hooks) | Shipped |
+
+### Near-term eng (code)
+
+1. **M1–M3** — POS→HQ one-shot packs + exception verify in MCP  
+2. **Inventory-manager schema** — HQ ops without full owner  
+3. **P remaining** — empty non-MCP keys ≠ full  
+4. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
+
+### Product platforms (larger)
+
+| Track | Outcome |
+|-------|---------|
+| **K Agentic reports** | Marketing / warehouse / finance packs; toggle; scopes; cron + MCP + n8n |
+| **J Supplier KR/HK** | Draft PO editable; affirm; **FOB PDF → in transit → Loft ASN** |
+| Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B |
+
+### Ops (non-code or light)
+
+| Item | Owner |
+|------|--------|
+| Loft Phase 0 email / `delivery_method_id`s | Ops |
+| Google Workspace MFA for all SKUMS users | Workspace admin (Phase S) |
+| Claude keys: `mcp:ops_safe` for HQ only; staff get weaker packages | Owner |
+
+### Held / later
+
+R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · live scrape / brand radar · Phase H ecommerce · full supplier email ingest (J5)
+
+### Suggested sequence (next 4–6 eng slices)
+
+```text
+M1 + M2  →  M3  →  Rpt-0 scopes  →  Rpt-1 toggle UI
+  →  (parallel) inventory-manager schema · P empty-key
+  →  Rpt-2 seed packs · Rpt-3 cron
+  →  J1–J2 copy + draft discipline when buying focus
+  →  Rpt-6 velocity + store_fill/supplier_buy sections
+  →  J3–J4 FOB → in_transit → ASN when supplier flow is live
+```
 
 ---
 

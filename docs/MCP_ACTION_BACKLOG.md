@@ -70,6 +70,7 @@ Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bou
 | **M4** | `store_ops_send_to_loft` | `store_ops:execute_3pl` | After Loft Phase 0 IDs |
 | **M5** | POS sync health (if data available) | `pos:read` | Outbox / failed events |
 | **J** | Supplier KR/HK lifecycle | po + inbound | MCP draft editable → affirm (email/PDF/API) → **in transit on FOB PDF** → ASN → Loft |
+| **K** | Agentic report registry | `reports:*` / `automations:*` | Sectionized packs, toggle, cron/MCP/n8n — see TODO track K |
 | **S** | Login MFA | Google Workspace | Not an MCP tool; enforce MFA on IdP (see TODO Phase S) |
 
 **Supplier (KR/HK) — do not conflate with store replenishment**
