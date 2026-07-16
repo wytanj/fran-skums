@@ -28,9 +28,9 @@ describe('Loft / Phase P scopes', () => {
     assert.ok(granted.includes('integrations:execute'))
   })
 
-  test('empty scopes legacy full access; explicit emptyMeansFull false denies', () => {
-    assert.equal(hasScope([], 'pos:write'), true)
-    assert.equal(hasScope([], 'pos:write', { emptyMeansFull: false }), false)
+  test('empty scopes deny by default; emptyMeansFull true restores legacy', () => {
+    assert.equal(hasScope([], 'pos:write'), false)
+    assert.equal(hasScope([], 'pos:write', { emptyMeansFull: true }), true)
   })
 
   test('permissionsMapToScopes maps store_ops approve/verify', () => {

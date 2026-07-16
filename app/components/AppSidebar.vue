@@ -31,6 +31,7 @@ const navigation = [
   { name: 'Store Ops', href: '/store-ops', icon: 'arrows' },
   { name: 'Expiry', href: '/expiry', icon: 'clock' },
   { name: 'Forecasting', href: '/forecasting', icon: 'chart' },
+  { name: 'Reports', href: '/reports', icon: 'chart' },
   { name: 'Product Quality', href: '/product-quality', icon: 'star' },
   { name: 'Brands', href: '/brands', icon: 'tag' },
   { name: 'Categories', href: '/categories', icon: 'folder' },

@@ -182,6 +182,19 @@ Actions: `read` | `write` | `delete` | `import` | `export` | `execute` | `approv
 |-------|---------|
 | `help:read` | Help articles (usually all authenticated users) |
 
+### 4.11 Agentic reports & automations (track K)
+
+| Scope | Meaning |
+|-------|---------|
+| `reports:read` | List report packs + past runs |
+| `reports:run` | Run now; receive digests for allowed packs |
+| `reports:write` | Create/edit subscriptions, toggle on/off |
+| `reports:admin` | Install templates, all audiences |
+| `automations:webhook` | Outbound n8n/Zapier on `report.run.completed` |
+| `automations:inbound` | Optional inbound hooks feeding sections |
+
+**Packages:** viewer → read; member → read+run; ops_safe / inventory_manager → write; owner/admin → admin + automations webhook. Seeded in migration `066`.
+
 ---
 
 ## 5. Scope packages (role defaults)

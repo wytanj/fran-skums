@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-16  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–064** (064 = Phase N notification bus).  
+**DB:** migrations **001–066** (065 = inventory_manager · 066 = report registry).  
 **Held / parked:** R2 OAuth · live scrape / Browserbase / brand radar · Phase H ecommerce  
 
 **Plans (do not lose track):**
@@ -21,7 +21,7 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector reliability fixes.  
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–2** (scopes + toggle UI + 3 seed packs).  
 **Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
 `https://fran-skums.vercel.app/mcp/c/sk_live_…` (OAuth blank; Settings → Create Claude / MCP key).  
 **POS:** structure handoff `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` — roles/MCP next section below.
@@ -32,12 +32,12 @@
 | **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
 | **B** | Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
 | **C** | Phase N | **N1–N4 done** — N6 email later |
-| **D** | Phase P remaining | Empty non-MCP keys ≠ full; legacy gates |
+| **D** | Phase P remaining | **Empty key ≠ full** shipped; install UI / R2 still open |
 | **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
-| **H** | HQ schemas from POS reality | Inventory-manager schema + MCP packs (below) |
-| **I** | MCP actions next (POS-driven) | **Next eng:** M1–M3 packs (below) |
-| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — MCP draft editable · affirm supplier ack · **in transit only on FOB PDF** (below) |
-| **K** | **Agentic report registry** | **Planned** — sectionized packs, toggle on/off, scopes + n8n (below) |
+| **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
+| **I** | MCP M1–M3 packs | **Shipped** — `store_request_status`, `floor_adjustment_queue`, `exception_verify` |
+| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — MCP draft editable · affirm · **FOB PDF → in transit** (below) |
+| **K** | **Agentic report registry** | **Rpt-0–2 done** — scopes · `/reports` toggle UI · 3 seeds; next Rpt-3 cron |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
@@ -96,9 +96,9 @@ POS already creates work in SKUMS. HQ Claude should close that loop faster.
 
 | # | Action | Why (POS trigger) | Scope | Priority |
 |---|--------|-------------------|-------|----------|
-| **M1** | `store_request_status` / request pack (lines + recommend + wave) | Manager requested stock; HQ needs one-shot context | `store_ops:read` | **High** |
-| **M2** | `floor_adjustment_queue` digest (pending damage/found/count) | Cashier floor reports pile up | `store_ops:read` / `inventory:read` | **High** |
-| **M3** | `exception_verify` MCP tool (confirm/reject/escalate) | Receive reported short/damage | `store_ops:verify` | **High** |
+| **M1** | `store_request_status` | Manager requested stock; HQ one-shot context | `store_ops:read` | **Done** |
+| **M2** | `floor_adjustment_queue` | Cashier floor reports pile up | `store_ops:read` | **Done** |
+| **M3** | `exception_verify` | Receive short/damage HQ verify | `store_ops:verify` | **Done** |
 | **M4** | `store_ops_send_to_loft` (shipping payload + connection) | After approve_now, humans still UI-only | `store_ops:execute_3pl` | Medium (after Loft Phase 0 IDs) |
 | **M5** | `pos_sync_health` (sale outbox lag / failed inventory-events if SKUMS sees them) | Phase2 POS manager surface | `pos:read` / intel | Medium |
 | **M6** | Forecast / low-stock → draft request pack polish | Complements POS request | already partial | Low |
@@ -112,10 +112,7 @@ POS already creates work in SKUMS. HQ Claude should close that loop faster.
 ### Recommended build order (post-pilot)
 
 ```text
-1. Inventory-manager permission schema seed (if missing) + doc who gets it
-2. MCP M1 request status pack + M2 floor queue digest   ← close POS→HQ loop in Claude
-3. MCP M3 exception_verify (scoped store_ops:verify)
-4. P remaining: empty non-MCP keys ≠ full
+1–4  M1–M3 + Inventory Manager schema + empty-key ≠ full   ✅
 5. Loft Phase 0 ops IDs → then M4 send_to_loft tool
 6. Supplier order lifecycle (J) — MCP draft editable; affirm ack; **in transit on FOB PDF**
 7. Agentic report registry (K) — scopes + toggles + seed packs (marketing / warehouse / finance)
@@ -210,17 +207,18 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 
 ### Build slices
 
-| Slice | Work |
-|-------|------|
-| **Rpt-0** | Scopes `reports:*` + `automations:webhook` in catalog + packages |
-| **Rpt-1** | Schema: templates, subscriptions, runs; UI list + **toggle** + last run |
-| **Rpt-2** | Seed 3 packs (marketing weekly, warehouse baseline, finance stock) — stub sections OK |
-| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) |
-| **Rpt-4** | MCP `reports_list` / `get` / `run` |
-| **Rpt-5** | n8n webhook out + `POST` run API |
-| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs |
+| Slice | Work | Status |
+|-------|------|--------|
+| **Rpt-0** | Scopes `reports:*` + `automations:webhook` in catalog + packages | **Done** (`scopes.ts`, mig **066** permission areas) |
+| **Rpt-1** | Schema: templates, subscriptions, runs; UI list + **toggle** + last run | **Done** (`/reports`, APIs under `/api/reports/*`) |
+| **Rpt-2** | Seed 3 packs (marketing weekly, warehouse baseline, finance stock) — stub sections OK | **Done** (platform seeds; Run now = stub sections) |
+| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) | **Next** |
+| **Rpt-4** | MCP `reports_list` / `get` / `run` | Later |
+| **Rpt-5** | n8n webhook out + `POST` run API | Later |
+| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs | Later |
 
-**Depends on:** Phase N bus (shipped) · velocity views (`v_demand_velocity` exists) · ATS / store ops (shipped).
+**Depends on:** Phase N bus (shipped) · velocity views (`v_demand_velocity` exists) · ATS / store ops (shipped).  
+**Code:** `server/utils/reportRegistry.ts` · `app/pages/reports/index.vue` · `tests/report-registry-k.test.mjs`.
 
 ---
 
@@ -424,19 +422,21 @@ Living detail + optional later work: **`docs/MCP_ACTION_BACKLOG.md`**.
 ## Quick smoke
 
 ```bash
-npm run db:migrate:status    # 063 applied
+npm run db:migrate:status    # 066 applied (use --only N if 015 checksum blocks full run)
 # https://fran-skums.vercel.app
 # Settings → Claude MCP key (mcp:ops_safe, bound to you) → capabilities
-# Owner: store_ops_decide in permitted tools; viewer key: not present
-node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs tests/mcp-backlog-8.test.mjs
+# /reports — toggle packs; Run now (stub sections until Rpt-6)
+node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs tests/mcp-backlog-8.test.mjs tests/report-registry-k.test.mjs tests/m1-m3-packs.test.mjs
 ```
 
 ### Ops / env leftovers
 
 - [x] Migrations **058–063** on shared project (063 A2 keys)
 - [x] Migration **064** notification bus on shared project
+- [x] Migration **065** inventory_manager schema on shared project
+- [x] Migration **066** report registry on shared project
 - [ ] Confirm prod deploy green after each push
-- [ ] Confirm prod DB has **063** if not same project as local migrate
+- [ ] Confirm prod DB has **063–066** if not same project as local migrate
 - [ ] Fill Vercel **`SUPABASE_DB_URL`** if empty
 - [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` local attribution
 - [ ] Secret rotation / Vercel env audit
@@ -453,7 +453,7 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 
 ## Completed tracks (do not redo)
 
-- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live  
+- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live · **M1–M3** · inv manager **065** · **K Rpt-0–2** (mig **066**)  
 - Detail in git history / `TODO-LOFT.md` / commit summaries  
 
 ### Phase N — stakeholder notifications
@@ -474,7 +474,8 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 
 - [x] Scope catalog + Loft packages + store-ops requireScope surfaces  
 - [x] MCP effective scopes = web ∩ key  
-- [ ] Empty non-MCP keys ≠ full (legacy)  
+- [x] Empty API keys ≠ full (`hasScope` / `apiAuth` default deny empty scopes)  
+- [x] Inventory Manager schema alias (065)  
 - [ ] App install grants UI polish  
 - [ ] R2 OAuth after packages solid  
 
@@ -531,16 +532,16 @@ A2 permissions (docs/MCP_USER_PERMISSION_DESIGN.md):
 Next eng:
   N   notifications N1–N4 ✅ · N5 digests / N6 email provider later
   R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
-  0.x Loft email / dictionary IDs
-  M1–M3 POS→HQ MCP packs (request status, floor queue, exception verify)
+  M1–M3 + inv manager + empty-key ≠ full ✅ (mig 065)
+  K   Rpt-0–2 ✅ · next Rpt-3 cron / Slack deliver
+  0.x Loft email / dictionary IDs → M4 send_to_loft
   J   supplier KR/HK (draft PO → affirm → FOB PDF → in_transit → ASN)
-  K   agentic report registry (toggle packs · reports:* scopes · n8n)
-  P   empty-key legacy, install UI
+  P   install UI
   S   Workspace MFA policy (ops)
   F   audit explorer filters
 ```
 
-**Recommended next:** MCP **M1–M3** · inventory-manager schema · Loft Phase 0 · **K report registry** (when multi-audience digests matter) · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
+**Recommended next:** **K Rpt-3** (cron + Phase N delivery) · Loft Phase 0 → **M4** · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
@@ -562,16 +563,16 @@ Next eng:
 
 ### Near-term eng (code)
 
-1. **M1–M3** — POS→HQ one-shot packs + exception verify in MCP  
-2. **Inventory-manager schema** — HQ ops without full owner  
-3. **P remaining** — empty non-MCP keys ≠ full  
-4. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
+1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**empty-key ≠ full**~~ · ~~**K Rpt-0–2**~~  
+2. **K Rpt-3** — cron runner + in_app / Slack via Phase N  
+3. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
+4. **K Rpt-4–6** — MCP tools, n8n, real section handlers  
 
 ### Product platforms (larger)
 
 | Track | Outcome |
 |-------|---------|
-| **K Agentic reports** | Marketing / warehouse / finance packs; toggle; scopes; cron + MCP + n8n |
+| **K Agentic reports** | Rpt-0–2 shipped (`/reports`); next cron + real sections |
 | **J Supplier KR/HK** | Draft PO editable; affirm; **FOB PDF → in transit → Loft ASN** |
 | Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B |
 
@@ -587,15 +588,15 @@ Next eng:
 
 R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · live scrape / brand radar · Phase H ecommerce · full supplier email ingest (J5)
 
-### Suggested sequence (next 4–6 eng slices)
+### Suggested sequence (next eng slices)
 
 ```text
-M1 + M2  →  M3  →  Rpt-0 scopes  →  Rpt-1 toggle UI
-  →  (parallel) inventory-manager schema · P empty-key
-  →  Rpt-2 seed packs · Rpt-3 cron
-  →  J1–J2 copy + draft discipline when buying focus
-  →  Rpt-6 velocity + store_fill/supplier_buy sections
-  →  J3–J4 FOB → in_transit → ASN when supplier flow is live
+M1–M3 + Inventory Manager + empty-key ≠ full   ✅
+Rpt-0 scopes → Rpt-1 toggle UI → Rpt-2 seed packs   ✅ (mig 066)
+  →  Rpt-3 cron + Phase N deliver
+  →  Loft Phase 0 ops · M4 send-to-loft
+  →  J1–J4 supplier FOB lifecycle when buying focus
+  →  Rpt-4 MCP tools · Rpt-6 velocity + store_fill/supplier_buy
 ```
 
 ---

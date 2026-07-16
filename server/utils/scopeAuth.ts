@@ -169,6 +169,12 @@ export async function requireScope(
       'pos:read',
       'pos:write',
       'pos:config',
+      // agentic reports (track K)
+      'reports:read',
+      'reports:run',
+      'reports:write',
+      'reports:admin',
+      'automations:webhook',
     ]) {
       elevated.add(s)
     }

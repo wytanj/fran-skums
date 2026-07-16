@@ -766,6 +766,290 @@ export async function decideRequest(opts = {}) {
 }
 
 /**
+ * M1 — One-shot store request pack: header + lines + recommend + waves.
+ * @param {{ request_id?: string, request_number?: string }} opts
+ */
+export async function getRequestStatusPack(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const id = trimString(opts.request_id)
+  const number = trimString(opts.request_number)
+
+  let request = null
+  if (id) {
+    const { data, error } = await db
+      .from('store_replenishment_requests')
+      .select('*, lines:store_replenishment_request_lines(*)')
+      .eq('workspace_id', workspace_id)
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    request = data
+  } else if (number) {
+    const { data, error } = await db
+      .from('store_replenishment_requests')
+      .select('*, lines:store_replenishment_request_lines(*)')
+      .eq('workspace_id', workspace_id)
+      .eq('request_number', number)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    request = data
+  } else {
+    // Latest open request if none specified
+    const { data, error } = await db
+      .from('store_replenishment_requests')
+      .select('*, lines:store_replenishment_request_lines(*)')
+      .eq('workspace_id', workspace_id)
+      .in('status', ['submitted', 'in_review', 'deferred_to_wave', 'draft'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    request = data
+  }
+
+  if (!request) {
+    return {
+      found: false,
+      message: 'No matching store replenishment request.',
+      deep_link: '/store-ops?tab=queue',
+      agent_hint: 'List open requests with store_ops_list_requests, then call this pack with request_id.',
+    }
+  }
+
+  const recommend = await recommendDecision(request.id)
+  const waves = await listWaves({ limit: 6 })
+  const lines = Array.isArray(request.lines) ? request.lines : []
+
+  return {
+    found: true,
+    request: {
+      id: request.id,
+      request_number: request.request_number,
+      status: request.status,
+      priority: request.priority,
+      needed_by: request.needed_by,
+      reason: request.reason,
+      decision: request.decision,
+      wave_date: request.wave_date,
+      store_location_id: request.store_location_id,
+      pos_location_id: request.pos_location_id,
+      created_at: request.created_at,
+      decided_at: request.decided_at,
+    },
+    lines: lines.map((l) => ({
+      id: l.id,
+      sku: l.sku,
+      product_id: l.product_id,
+      requested_qty: l.requested_qty,
+      approved_qty: l.approved_qty,
+      status: l.status,
+      reason: l.reason,
+    })),
+    line_count: lines.length,
+    recommend: {
+      recommendation: recommend.recommendation,
+      reasons: recommend.reasons,
+      baseline: recommend.baseline,
+      lift: recommend.lift,
+      advisory_only: true,
+    },
+    waves: {
+      upcoming_dates: waves.upcoming_dates,
+      cadence_note: waves.cadence_note,
+    },
+    next_actions: {
+      if_approve: 'store_ops_decide decision=approve_now (needs store_ops:approve)',
+      if_defer: 'store_ops_decide decision=defer_to_wave (optional wave_date)',
+      if_reject: 'store_ops_decide decision=reject',
+      after_approve: 'Send to Loft is separate (execute_3pl / UI) — not this pack',
+    },
+    deep_link: `/store-ops?tab=queue&request=${request.id}`,
+    agent_hint:
+      'Lead with recommendation + line table. Do not approve unless user asks and key has store_ops:approve. Approve ≠ send Loft.',
+  }
+}
+
+/**
+ * M2 — Pending floor adjustment queue digest.
+ * @param {{ status?: string|string[], limit?: number }} opts
+ */
+export async function floorAdjustmentQueue(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const limit = Math.min(Math.max(Number(opts.limit) || 30, 1), 80)
+  const statuses = opts.status
+    ? Array.isArray(opts.status)
+      ? opts.status
+      : [String(opts.status)]
+    : ['pending', 'draft', 'approved']
+
+  const { data: rows, error } = await db
+    .from('inventory_adjustments')
+    .select(
+      `id, adjustment_number, status, adjustment_type, notes, location_id, created_at, updated_at,
+       location:inventory_locations(id, code, name),
+       lines:inventory_adjustment_lines(id, product_id, system_qty, counted_qty, reason, product:products(id, sku, name))`,
+    )
+    .eq('workspace_id', workspace_id)
+    .in('status', statuses)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+
+  const items = (rows || []).map((r) => {
+    const lines = Array.isArray(r.lines) ? r.lines : []
+    const variance = lines.reduce((sum, line) => {
+      return sum + (Number(line.counted_qty || 0) - Number(line.system_qty || 0))
+    }, 0)
+    return {
+      id: r.id,
+      adjustment_number: r.adjustment_number,
+      status: r.status,
+      adjustment_type: r.adjustment_type,
+      notes: r.notes,
+      location_code: r.location?.code || null,
+      location_name: r.location?.name || null,
+      line_count: lines.length,
+      net_variance_units: variance,
+      created_at: r.created_at,
+      sample_lines: lines.slice(0, 5).map((l) => ({
+        sku: l.product?.sku || null,
+        product_name: l.product?.name || null,
+        system_qty: l.system_qty,
+        counted_qty: l.counted_qty,
+        reason: l.reason,
+      })),
+    }
+  })
+
+  const by_status = {}
+  const by_type = {}
+  for (const i of items) {
+    by_status[i.status] = (by_status[i.status] || 0) + 1
+    by_type[i.adjustment_type || 'unknown'] = (by_type[i.adjustment_type || 'unknown'] || 0) + 1
+  }
+
+  return {
+    total: items.length,
+    by_status,
+    by_type,
+    items,
+    next_actions: {
+      apply: 'floor_adjustment_apply adjustment_id=… (needs inventory:write)',
+      deep_link: '/store-ops?tab=floor',
+    },
+    agent_hint:
+      'Summarize queue counts. Offer apply only when user confirms and key has inventory:write. Empty = no pending floor work.',
+  }
+}
+
+/**
+ * M3 — HQ verify receive exception (store_ops:verify).
+ * @param {{
+ *   exception_id: string,
+ *   action: 'confirm'|'reject'|'adjust'|'escalate',
+ *   note?: string|null,
+ *   adjust_actual_qty?: number|null,
+ * }} opts
+ */
+export async function verifyException(opts = {}) {
+  const workspace_id = requireWorkspaceId()
+  const db = getDb()
+  const exceptionId = trimString(opts.exception_id)
+  const action = trimString(opts.action)
+  if (!exceptionId) throw new Error('exception_id required')
+  if (!['confirm', 'reject', 'adjust', 'escalate'].includes(action)) {
+    throw new Error('action must be confirm|reject|adjust|escalate')
+  }
+
+  const { data: ex, error } = await db
+    .from('inventory_exceptions')
+    .select('*')
+    .eq('workspace_id', workspace_id)
+    .eq('id', exceptionId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!ex) throw new Error('Exception not found')
+
+  const now = new Date().toISOString()
+  let status = ex.status
+  const resolution = {
+    ...(ex.resolution && typeof ex.resolution === 'object' ? ex.resolution : {}),
+    verification: {
+      action,
+      by: getMcpActorUserId() || null,
+      at: now,
+      note: opts.note || null,
+      via: 'mcp_exception_verify',
+    },
+  }
+
+  if (action === 'confirm') status = 'resolved'
+  else if (action === 'reject') status = 'dismissed'
+  else if (action === 'escalate') status = 'escalated'
+  else if (action === 'adjust') {
+    status = 'resolved'
+    if (opts.adjust_actual_qty != null && ex.product_id && ex.inventory_location_id) {
+      const delta = Number(opts.adjust_actual_qty) - Number(ex.actual_qty || 0)
+      if (delta !== 0) {
+        const { error: rpcErr } = await db.rpc('upsert_inventory_level', {
+          p_workspace_id: workspace_id,
+          p_product_id: ex.product_id,
+          p_variant_id: null,
+          p_location_id: ex.inventory_location_id,
+          p_quantity_type: 'on_hand',
+          p_delta: delta,
+          p_movement_type: 'adjustment',
+          p_reference_type: 'inventory_exception',
+          p_reference_id: ex.id,
+          p_notes: opts.note || 'HQ adjust after POS receive exception (MCP)',
+          p_created_by: getMcpActorUserId() || null,
+        })
+        if (rpcErr) throw new Error(rpcErr.message || 'Ledger adjust failed')
+      }
+      resolution.adjusted_actual_qty = opts.adjust_actual_qty
+    }
+  }
+
+  const { data: updated, error: upErr } = await db
+    .from('inventory_exceptions')
+    .update({
+      status,
+      resolution,
+      resolved_by: getMcpActorUserId() || ex.resolved_by,
+      resolved_at: ['resolved', 'dismissed'].includes(status) ? now : ex.resolved_at,
+      actual_qty: opts.adjust_actual_qty != null ? opts.adjust_actual_qty : ex.actual_qty,
+    })
+    .eq('id', ex.id)
+    .select()
+    .single()
+  if (upErr) throw new Error(upErr.message)
+
+  // Archive related HQ notifications (best-effort)
+  await db
+    .from('store_ops_notifications')
+    .update({ status: 'archived' })
+    .eq('workspace_id', workspace_id)
+    .eq('entity_type', 'inventory_exception')
+    .eq('entity_id', ex.id)
+    .eq('status', 'unread')
+    .then(() => {}, () => {})
+
+  return {
+    exception: updated,
+    action,
+    deep_link: `/store-ops?tab=exceptions&exception=${ex.id}`,
+    message: `Exception ${action}: ${ex.sku || ex.title || ex.id}`,
+    agent_hint:
+      action === 'adjust'
+        ? 'Ledger may have changed. Confirm qty with user.'
+        : 'Verification recorded. Empty exception queues ≠ all stock settled.',
+  }
+}
+
+/**
  * Apply pending floor adjustment via RPC (inventory:write).
  */
 export async function applyFloorAdjustment(opts = {}) {

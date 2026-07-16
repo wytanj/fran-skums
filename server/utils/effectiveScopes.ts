@@ -108,6 +108,11 @@ export async function resolveEffectiveScopesForApiKey(
           'forecasting:write',
           'pos:read',
           'pos:write',
+          'reports:read',
+          'reports:run',
+          'reports:write',
+          'reports:admin',
+          'automations:webhook',
         ]
       } else {
         return {
@@ -150,6 +155,11 @@ export async function resolveEffectiveScopesForApiKey(
           'pos:write',
           'forecasting:read',
           'forecasting:write',
+          'reports:read',
+          'reports:run',
+          'reports:write',
+          'reports:admin',
+          'automations:webhook',
         ]) {
           if (!userWebScopes.includes(s)) userWebScopes.push(s)
         }

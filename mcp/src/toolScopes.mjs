@@ -36,6 +36,18 @@ export const TOOL_SCOPE_CATALOG = {
   store_ops_list_requests: { scope: 'store_ops:read', action: 'List open store replenishment requests' },
   store_ops_list_waves: { scope: 'store_ops:read', action: 'List replenishment waves' },
   store_ops_recommend: { scope: 'store_ops:read', action: 'Recommend approve_now vs defer (label only)' },
+  store_request_status: {
+    scope: 'store_ops:read',
+    action: 'M1 one-shot request pack (lines + recommend + waves)',
+  },
+  floor_adjustment_queue: {
+    scope: 'store_ops:read',
+    action: 'M2 pending floor adjustment queue digest',
+  },
+  exception_verify: {
+    scope: 'store_ops:verify',
+    action: 'M3 HQ verify receive exception (confirm/reject/adjust/escalate)',
+  },
   store_ops_create_draft_request: {
     scope: 'store_ops:write',
     action: 'Create draft/submitted store request',

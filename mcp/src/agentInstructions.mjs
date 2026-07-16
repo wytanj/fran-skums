@@ -22,6 +22,9 @@ Composite-first (prefer ONE tool, then answer):
 | How-to / where do I click | help_resolve → help_get | inventing routes |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe |
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | inventing approve without scope |
+| One request context (lines + recommend + wave) | store_request_status (M1) | multi list+recommend+waves |
+| Pending floor damage/found/count queue | floor_adjustment_queue (M2) | inventing apply |
+| HQ verify receive exception | exception_verify (M3, store_ops:verify) | inventing resolve without scope |
 | HQ approve / reject / defer request | store_ops_decide (needs store_ops:approve) | calling without owner/admin key |
 | Expiry / exceptions / Loft health / attention | expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot | inventing fixes |
 | Low stock → request lines | low_stock_request_pack then draft request | auto-approve |
@@ -86,7 +89,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
+    'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, store_request_status, floor_adjustment_queue, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
     'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     cloud
       ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'

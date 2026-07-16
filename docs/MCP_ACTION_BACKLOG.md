@@ -64,13 +64,13 @@ Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bou
 
 | # | Tool / pack | Scope | Notes |
 |---|-------------|-------|-------|
-| **M1** | Request status pack (lines + recommend + wave) | `store_ops:read` | Manager requested stock on POS |
-| **M2** | Floor adjustment queue digest | `inventory:read` | Cashier damage/found/count pending HQ |
-| **M3** | `exception_verify` | `store_ops:verify` | Receive exceptions from POS |
+| **M1** | `store_request_status` | `store_ops:read` | **Shipped** — one-shot request pack |
+| **M2** | `floor_adjustment_queue` | `store_ops:read` | **Shipped** — pending floor digest |
+| **M3** | `exception_verify` | `store_ops:verify` | **Shipped** — confirm/reject/adjust/escalate |
 | **M4** | `store_ops_send_to_loft` | `store_ops:execute_3pl` | After Loft Phase 0 IDs |
 | **M5** | POS sync health (if data available) | `pos:read` | Outbox / failed events |
 | **J** | Supplier KR/HK lifecycle | po + inbound | MCP draft editable → affirm (email/PDF/API) → **in transit on FOB PDF** → ASN → Loft |
-| **K** | Agentic report registry | `reports:*` / `automations:*` | Sectionized packs, toggle, cron/MCP/n8n — see TODO track K |
+| **K** | Agentic report registry | `reports:*` / `automations:*` | **Rpt-0–2 done** (mig 066, `/reports`); Rpt-3 cron next — see TODO track K |
 | **S** | Login MFA | Google Workspace | Not an MCP tool; enforce MFA on IdP (see TODO Phase S) |
 
 **Supplier (KR/HK) — do not conflate with store replenishment**

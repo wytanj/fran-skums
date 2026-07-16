@@ -73,6 +73,8 @@ export const MCP_SCOPE_PROFILES = {
     'pipeline:propose',
     'po:draft',
     'projection:run',
+    'reports:read',
+    'reports:run',
   ],
   /** Explicit list for docs/tests; runtime "full" means unrestricted null */
   full: [
@@ -92,6 +94,11 @@ export const MCP_SCOPE_PROFILES = {
     'po:submit',
     'po:decide',
     'projection:run',
+    'reports:read',
+    'reports:run',
+    'reports:write',
+    'reports:admin',
+    'automations:webhook',
   ],
 }
 
@@ -189,8 +196,26 @@ export function resolveCloudMcpScopes(apiKeyScopes) {
     'pipeline:execute',
     'intel:write',
     'actions:approve',
+    'reports:write',
+    'reports:admin',
+    'automations:webhook',
   ]
-  const allow = new Set([...safe, ...elevated, 'products:read', 'products:write', 'brands:read', 'categories:read', 'actions:read', 'actions:write', 'actions:submit', 'pos:read', 'pos:write', 'api:read'])
+  const allow = new Set([
+    ...safe,
+    ...elevated,
+    'products:read',
+    'products:write',
+    'brands:read',
+    'categories:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'pos:read',
+    'pos:write',
+    'api:read',
+    'reports:read',
+    'reports:run',
+  ])
   const list = Array.isArray(apiKeyScopes) ? apiKeyScopes.map(String) : []
 
   // Empty = historical full API key → baseline safe (not owner elevate)
@@ -202,6 +227,28 @@ export function resolveCloudMcpScopes(apiKeyScopes) {
   }
   if (list.includes('mcp:ops_safe')) {
     return [...new Set([...safe, ...elevated, ...list.filter((s) => allow.has(s))])]
+  }
+  if (list.includes('mcp:inventory_manager') || list.includes('mcp:inventory_ops')) {
+    // HQ inventory manager: approve/verify/apply floor; no Loft send / pipeline execute / seed write
+    const managerElevated = elevated.filter(
+      (s) =>
+        s !== 'store_ops:execute_3pl'
+        && s !== 'pipeline:execute'
+        && s !== 'intel:write',
+    )
+    return [
+      ...new Set([
+        ...safe,
+        ...managerElevated,
+        ...list.filter(
+          (s) =>
+            allow.has(s)
+            && s !== 'store_ops:execute_3pl'
+            && s !== 'pipeline:execute'
+            && s !== 'intel:write',
+        ),
+      ]),
+    ]
   }
 
   /** @type {Set<string>} */

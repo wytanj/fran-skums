@@ -1010,6 +1010,48 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'store_request_status',
+    description:
+      'M1 ONE-SHOT store request pack: request header + lines + recommend (approve_now vs defer) + upcoming waves. Prefer over list+recommend+waves separately. store_ops:read.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request_id: { type: 'string', description: 'UUID of store_replenishment_requests' },
+        request_number: { type: 'string', description: 'e.g. SRR-… or MCP-REQ-…' },
+      },
+    },
+  },
+  {
+    name: 'floor_adjustment_queue',
+    description:
+      'M2 ONE-SHOT pending floor adjustments digest (damage/found/count drafts+pending). Summarize before floor_adjustment_apply. store_ops:read or inventory:read.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          description: 'Optional single status filter; default pending+draft+approved',
+        },
+        limit: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'exception_verify',
+    description:
+      'M3 HQ verify a POS receive exception: confirm|reject|adjust|escalate. Requires store_ops:verify. adjust may need inventory write via ledger RPC. Prefer after exceptions_snapshot.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        exception_id: { type: 'string' },
+        action: { type: 'string', enum: ['confirm', 'reject', 'adjust', 'escalate'] },
+        note: { type: 'string' },
+        adjust_actual_qty: { type: 'number', description: 'Required for meaningful adjust' },
+      },
+      required: ['exception_id', 'action'],
+    },
+  },
+  {
     name: 'store_ops_decide',
     description:
       'HQ decide on a store replenishment request: approve_now | reject | defer_to_wave. Requires store_ops:approve (owner/admin web role on bound key). approve_now converts to order; Send to Loft is still a separate execute_3pl step. cloud OK when scoped.',
@@ -1694,6 +1736,53 @@ export async function handleTool(name, args = {}) {
       case 'store_ops_recommend': {
         requireScope('store_ops:read')
         return jsonResult(await storeOps.recommendDecision(String(a.request_id)))
+      }
+      case 'store_request_status': {
+        requireScope('store_ops:read')
+        return jsonResult(
+          await storeOps.getRequestStatusPack({
+            request_id: a.request_id,
+            request_number: a.request_number,
+          }),
+        )
+      }
+      case 'floor_adjustment_queue': {
+        // Accept either store_ops:read or inventory:read
+        try {
+          requireScope('store_ops:read')
+        } catch {
+          requireScope('inventory:read')
+        }
+        return jsonResult(
+          await storeOps.floorAdjustmentQueue({
+            status: a.status,
+            limit: a.limit,
+          }),
+        )
+      }
+      case 'exception_verify': {
+        requireScope('store_ops:verify')
+        if (a.action === 'adjust') {
+          requireScope('inventory:write')
+        }
+        const result = await storeOps.verifyException({
+          exception_id: a.exception_id,
+          action: a.action,
+          note: a.note,
+          adjust_actual_qty: a.adjust_actual_qty,
+        })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'inventory_exceptions',
+            entity_id: String(a.exception_id),
+            status: result.exception?.status,
+            operation: 'UPDATE',
+            after_data: result,
+          },
+          result,
+        )
       }
       case 'store_ops_create_draft_request': {
         requireScope('store_ops:write')

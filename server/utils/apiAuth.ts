@@ -119,12 +119,12 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
 
 /**
  * Checks if the API key has a given scope.
- * Empty scopes array means "all scopes" (legacy full access).
- * Prefer explicit packages on new keys (pos_connector, worldsyntech_ofs, …).
+ * Phase P: empty scopes[] means **no** access (not full). Use explicit packages
+ * (pos_connector, mcp:ops_safe, …) or ['*'] for unrestricted service keys.
  * @see server/utils/scopes.ts
  */
 export function hasScope(ctx: ApiKeyContext, scope: string): boolean {
-  if (ctx.scopes.length === 0) return true
+  if (ctx.scopes.length === 0) return false
   if (ctx.scopes.includes('*') || ctx.scopes.includes('full')) return true
   return ctx.scopes.includes(scope)
 }

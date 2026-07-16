@@ -64,6 +64,8 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 062 | ensure_default_store_location.sql | Store ST-MAIN seed | Seed ST-MAIN store + FRAN01 POS bind when missing |
 | 063 | api_keys_bound_user.sql | A2: bound_user_id, key_kind, max_package, soft revoke | API key lifecycle for MCP bind |
 | 064 | notification_bus.sql | Phase N: policies, deliveries, workspace notification settings | Store-ops + PO lifecycle defaults |
+| 065 | inventory_manager_schema.sql | Inventory Manager display + inventory_manager slug alias | HQ ops without execute_3pl |
+| 066 | report_registry.sql | Track K: report templates, subscriptions (toggle), runs + reports/automations scopes | Agentic packs Rpt-0–2 |
 
 ## Planned Phase C Spine
 

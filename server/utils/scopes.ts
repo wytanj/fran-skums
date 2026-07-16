@@ -42,6 +42,19 @@ export const MCP_OPS_ELEVATED_SCOPES: string[] = [
   'po:decide',
   'pipeline:decide',
   'intel:write',
+  'reports:write',
+  'reports:admin',
+  'automations:webhook',
+]
+
+/** Track K — agentic report registry + n8n-style automations */
+export const REPORT_SCOPES: string[] = [
+  'reports:read',
+  'reports:run',
+  'reports:write',
+  'reports:admin',
+  'automations:webhook',
+  'automations:inbound',
 ]
 
 /** App / role packages used for API keys and install grants. */
@@ -81,6 +94,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'brands:read',
     'categories:read',
     'actions:read',
+    'reports:read',
   ],
   'mcp:member': [
     ...MCP_CLOUD_SAFE_SCOPES,
@@ -91,6 +105,8 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'actions:read',
     'actions:write',
     'actions:submit',
+    'reports:read',
+    'reports:run',
   ],
   'mcp:ops_safe': [
     ...MCP_CLOUD_SAFE_SCOPES,
@@ -103,6 +119,9 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'actions:write',
     'actions:submit',
     'api:read',
+    'reports:read',
+    'reports:run',
+    'reports:write',
   ],
   'mcp:store': [
     'products:read',
@@ -123,6 +142,8 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'po:draft',
     'projection:run',
     'study:write',
+    'reports:read',
+    'reports:run',
   ],
   'mcp:finance': [
     'products:read',
@@ -131,10 +152,28 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'actions:approve',
     'projection:run',
     'intel:read',
+    'reports:read',
+    'reports:run',
   ],
   /** Alias used by Settings Claude key button */
-  'mcp:safe': [...MCP_CLOUD_SAFE_SCOPES, 'products:read', 'actions:read', 'actions:write', 'actions:submit'],
-  mcp_safe: [...MCP_CLOUD_SAFE_SCOPES, 'products:read', 'actions:read', 'actions:write', 'actions:submit'],
+  'mcp:safe': [
+    ...MCP_CLOUD_SAFE_SCOPES,
+    'products:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'reports:read',
+    'reports:run',
+  ],
+  mcp_safe: [
+    ...MCP_CLOUD_SAFE_SCOPES,
+    'products:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'reports:read',
+    'reports:run',
+  ],
   inventory_ops: [
     'products:read',
     'products:write',
@@ -158,6 +197,67 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'intel:read',
     'actions:read',
     'actions:submit',
+    'study:write',
+    'pipeline:propose',
+    'po:draft',
+    'po:submit',
+    'po:decide',
+    'projection:run',
+    'reports:read',
+    'reports:run',
+    'reports:write',
+  ],
+  /** Alias for inventory_ops (HQ inventory manager seat) */
+  inventory_manager: [
+    'products:read',
+    'products:write',
+    'inventory:read',
+    'inventory:write',
+    'inventory:po',
+    'inventory:override_expiry',
+    'locations:read',
+    'locations:write',
+    'expiry:read',
+    'expiry:write',
+    'store_ops:read',
+    'store_ops:write',
+    'store_ops:approve',
+    'store_ops:verify',
+    'store_ops:inbound',
+    'pos:read',
+    'pos:write',
+    'forecasting:read',
+    'forecasting:write',
+    'intel:read',
+    'actions:read',
+    'actions:submit',
+    'study:write',
+    'pipeline:propose',
+    'po:draft',
+    'po:submit',
+    'po:decide',
+    'projection:run',
+    'reports:read',
+    'reports:run',
+    'reports:write',
+  ],
+  /** MCP package for inventory manager web role */
+  'mcp:inventory_manager': [
+    ...MCP_CLOUD_SAFE_SCOPES,
+    ...MCP_OPS_ELEVATED_SCOPES.filter(
+      (s) => s !== 'store_ops:execute_3pl' && s !== 'pipeline:execute' && s !== 'intel:write',
+    ),
+    'products:read',
+    'products:write',
+    'brands:read',
+    'categories:read',
+    'actions:read',
+    'actions:write',
+    'actions:submit',
+    'api:read',
+    'reports:read',
+    'reports:run',
+    'reports:write',
   ],
   viewer: [
     'products:read',
@@ -174,6 +274,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'forecasting:read',
     'actions:read',
     'apps:read',
+    'reports:read',
   ],
 }
 
@@ -281,6 +382,9 @@ export function applyCloudMcpCeiling(scopes: string[]): string[] {
       'pos:read',
       'pos:write',
       'api:read',
+      'reports:read',
+      'reports:run',
+      'reports:write',
     ]
   }
   return list.filter((s) => !MCP_CLOUD_FORBIDDEN_SCOPES.includes(s))
@@ -331,6 +435,9 @@ export function computeEffectiveScopes(opts: {
 export function defaultMcpPackageForRole(role: string | null | undefined): string {
   const r = String(role || 'member').toLowerCase()
   if (r === 'owner' || r === 'admin') return 'mcp:ops_safe'
+  if (r === 'inventory_ops' || r === 'inventory_manager' || r === 'inventory-manager') {
+    return 'mcp:inventory_manager'
+  }
   if (r === 'viewer') return 'mcp:viewer'
   if (r === 'store_associate' || r === 'store') return 'mcp:store'
   if (r === 'buyer') return 'mcp:buyer'
@@ -369,6 +476,8 @@ export function permissionsMapToScopes(permissions: Record<string, any> | null |
     images: 'images',
     assistant: 'assistant',
     organization: 'organization',
+    reports: 'reports',
+    automations: 'automations',
   }
 
   for (const [area, flags] of Object.entries(permissions)) {
@@ -399,7 +508,8 @@ export function hasScope(
   required: string | string[],
   options: ScopeCheckOptions = {},
 ): boolean {
-  const emptyMeansFull = options.emptyMeansFull !== false
+  // Phase P: empty scopes ≠ full access (default false). Pass emptyMeansFull:true only for explicit legacy call sites.
+  const emptyMeansFull = options.emptyMeansFull === true
   const list = normalizeGrantedScopes(granted)
   if (list.length === 0) return emptyMeansFull
   if (list.includes('*') || list.includes('full')) return true
