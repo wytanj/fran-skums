@@ -1,9 +1,9 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-16  
+**Date:** 2026-07-17  
 **Production:** https://fran-skums.vercel.app  
 **DB:** migrations **001–067** (066 = report registry · 067 = report.run.completed policy).  
-**Held / parked:** R2 OAuth · live scrape / Browserbase / brand radar · Phase H ecommerce  
+**Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · brand radar · Phase H ecommerce  
 
 **Plans (do not lose track):**
 
@@ -22,7 +22,8 @@
 ## Start here next
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** (scopes · `/reports` · hourly cron · MCP `reports_*` · `POST /api/v1/reports/run` + n8n webhook).  
-**Next eng:** **K Rpt-6** real section handlers · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Next eng:** **K Rpt-6** real section handlers · **G1** Windows local Shopee when resuming scrape · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Shopee collect:** primary = **Windows Chrome + cookies + `shopee_puppeteer`**; Browserbase **not** primary (Linux plan + captcha).  
 **Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
 **Cron cadence:** Vercel Hobby = **daily** (`0 0 * * *` UTC) in `vercel.json` (hourly needs Pro). Due logic still supports hourly/daily/weekly packs when tick runs.  
 **Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
@@ -43,7 +44,7 @@
 | **K** | **Agentic report registry** | **Rpt-0–5 done** — cron · MCP tools · n8n API; next Rpt-6 real sections |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
-| **G** | Scrape / brand radar | Parked |
+| **G** | **Shopee / marketplace collect** | **Decision locked** — local Windows primary (below); Browserbase not primary |
 
 ### Claude / remote MCP (verified)
 
@@ -510,9 +511,42 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 
 ## Explicitly parked
 
-- Live scrape / Browserbase / brand radar  
+- Browserbase as **primary** Shopee collector (Linux-only on Developer plan; captcha)  
+- Brand radar / multi-marketplace expansion beyond Shopee seeds  
 - Phase H ecommerce  
 - R2 OAuth until packages + pilot solid  
+
+---
+
+## Track G — Shopee / marketplace collect (decision 2026-07-17)
+
+**Problem:** Browserbase Developer sessions are **Linux** OS; Shopee still hits captcha/traffic walls. Operator develops/tests on **Windows**, not Linux. Auto captcha solve + cold cloud browser is not a reliable unattended path.
+
+### Decision (lock)
+
+| Role | Choice |
+|------|--------|
+| **Primary runtime** | **Local Windows Chrome** + `shopee_puppeteer` + warm `SHOPEE_SG_SESSION_JSON` / cookie file |
+| **Control plane** | Vercel remains seeds / jobs / metrics / UI (already shipped phases 0–2) |
+| **Browserbase** | **Not primary** until Verified/Enterprise (Windows/Mac OS) *and* warm context still loses less than local |
+| **Chrome extension** | Optional later: **cookie export** (+ optional “push this SERP”); **not** the crawl engine |
+| **Vercel serverless browser** | Still out of scope for batch Shopee |
+
+### Why not extension-only
+
+Unattended multi-seed overnight needs a job runner + writers. Extension is a **session factory**, not a scheduler. Keep `marketplace/*` jobs → upsert → metrics.
+
+### Next slices (when resuming G)
+
+| Slice | Work |
+|-------|------|
+| **G1** | Document + smoke **Windows local primary** path (cookie required; BB demoted in README defaults) |
+| **G2** | Job status: surface `login_required` / captcha blocked clearly in UI + seed last_error |
+| **G3** | Optional cookie-export extension (writes SKUMS-ready JSON / paste into Settings) |
+| **G4** | Task Scheduler / Windows worker recipe for nightly seeds |
+| **G5** | Revisit Browserbase only if plan gets non-Linux OS + persistent context works |
+
+**Refs:** `marketplace/README.md` · `docs/SHOPEE_CRAWLER_NEXT_STEPS.md` · `docs/SCRAPING_DEPLOYMENT_OPTIONS.md` · collectors `shopee_puppeteer` / `browserbase` / `mock`.
 
 ---
 
@@ -541,6 +575,7 @@ Next eng:
   R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
   M1–M3 + inv manager + empty-key ≠ full ✅ (mig 065)
   K   Rpt-0–5 ✅ · next Rpt-6 real section handlers
+  G   Shopee: local Windows + cookies primary; BB parked as primary
   0.x Loft email / dictionary IDs → M4 send_to_loft
   J   supplier KR/HK (draft PO → affirm → FOB PDF → in_transit → ASN)
   P   install UI
@@ -548,7 +583,7 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** **K Rpt-6** (real sections) · Loft Phase 0 → **M4** · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
+**Recommended next:** **K Rpt-6** (real sections) · **G1** Windows local Shopee smoke when resuming scrape · Loft Phase 0 → **M4** · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
@@ -593,7 +628,7 @@ Next eng:
 
 ### Held / later
 
-R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · live scrape / brand radar · Phase H ecommerce · full supplier email ingest (J5)
+R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Browserbase-as-primary Shopee · brand radar · Phase H ecommerce · full supplier email ingest (J5)
 
 ### Suggested sequence (next eng slices)
 

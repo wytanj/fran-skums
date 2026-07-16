@@ -8,8 +8,8 @@ Competitive observation for public marketplaces (Shopee first).
 | `collector_id` | Runtime | Notes |
 |----------------|---------|--------|
 | `mock` | In-process | Deterministic fixtures (tests / dry-run) |
-| `shopee_puppeteer` | Puppeteer via `browser-manager` | Local Chrome; often captcha/traffic-walled |
-| `browserbase` | Browserbase cloud browser + Puppeteer | Preferred live path; `BROWSERBASE_API_KEY` |
+| `shopee_puppeteer` | Puppeteer via `browser-manager` | **Primary live path (2026-07-17):** local **Windows** Chrome + warm `SHOPEE_SG_SESSION_JSON` |
+| `browserbase` | Browserbase cloud browser + Puppeteer | **Not primary** — Developer plan is Linux OS; Shopee captcha common. Revisit only with non-Linux OS plan + persistent context |
 | `cloudflare_browser_run` | Cloudflare Browser Rendering REST | Needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` |
 
 ## Phase 0
@@ -47,18 +47,23 @@ GET  /api/v1/marketplace/jobs
 GET  /api/v1/marketplace/snapshots
 ```
 
-### Session (optional but recommended)
+### Session (required for reliable live Shopee)
+
+Cold browsers (especially Linux cloud) get captcha. Prefer a **warm human session** from Windows Chrome:
 
 ```env
-SHOPEE_SG_SESSION_JSON=[{"name":"SPC_ST","value":"...","domain":".shopee.sg","path":"/"}]
+# Full cookie jar for .shopee.sg (export from logged-in Chrome after captcha)
+SHOPEE_SG_SESSION_JSON=[{"name":"SPC_ST","value":"...","domain":".shopee.sg","path":"/"}, ...]
+# Or: sample-cookie.json + SHOPEE_USE_COOKIE_FILE=1 for local smokes
 MARKETPLACE_CRON_SECRET=...
-# Preferred live cloud path:
-BROWSERBASE_API_KEY=...
+# Browserbase — parked as primary (Linux Developer OS + captcha). Optional experiment only:
+# BROWSERBASE_API_KEY=...
 # BROWSERBASE_PROXIES=1
 # BROWSERBASE_REGION=ap-southeast-1
+# BROWSERBASE_CONTEXT_ID=...   # if revisiting: persist after human solve
 # Optional CF fallback:
-CLOUDFLARE_ACCOUNT_ID=...
-CLOUDFLARE_API_TOKEN=...
+# CLOUDFLARE_ACCOUNT_ID=...
+# CLOUDFLARE_API_TOKEN=...
 ```
 
 ### Suggested seed
@@ -69,7 +74,7 @@ CLOUDFLARE_API_TOKEN=...
   "country": "sg",
   "mode": "keyword",
   "schedule_kind": "daily",
-  "collector_id": "browserbase",
+  "collector_id": "shopee_puppeteer",
   "max_pages": 2,
   "max_listings": 40
 }
@@ -77,10 +82,20 @@ CLOUDFLARE_API_TOKEN=...
 
 Use `collector_id: "mock"` to validate the write path without hitting Shopee.
 
-Live smoke (Browserbase):
+Live smoke (local Windows Chrome — primary):
 
 ```bash
-node scripts/_smoke_shopee_browserbase.mjs
+# After exporting cookies to sample-cookie.json:
+SHOPEE_USE_COOKIE_FILE=1 node scripts/_smoke_shopee_live.mjs
+# Interactive captcha if needed:
+# SHOPEE_INTERACTIVE=1 SHOPEE_USE_COOKIE_FILE=1 node scripts/_smoke_shopee_live.mjs
+```
+
+Browserbase smoke (optional only — not primary):
+
+```bash
+# Prefer cookies if trying BB at all:
+SHOPEE_USE_COOKIE_FILE=1 node scripts/_smoke_shopee_browserbase.mjs
 ```
 
 ## Phase 2 (current)
