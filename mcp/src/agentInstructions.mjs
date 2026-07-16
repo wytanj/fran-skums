@@ -30,6 +30,8 @@ Composite-first (prefer ONE tool, then answer):
 | Low stock → request lines | low_stock_request_pack then draft request | auto-approve |
 | Draft ASN / floor adj | inbound_create_draft, floor_adjustment_create_draft (dry_run) | send Loft / apply ledger |
 | POS-off shortlist | pos_enable_proposal | bulk Activate for POS |
+| List report packs / digests | reports_list / reports_get (Rpt-4) | inventing digests |
+| Run a subscribed report pack | reports_run (enabled only; reports:run) | auto-approve / Loft / FOB |
 `.trim()
 
 /**
@@ -89,7 +91,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, store_request_status, floor_adjustment_queue, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
+    'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, store_request_status, floor_adjustment_queue, reports_list/get/run, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
     'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     cloud
       ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'

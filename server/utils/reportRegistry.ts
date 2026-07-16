@@ -1,8 +1,12 @@
 /**
  * Track K — agentic report registry helpers.
  * Subscribe/toggle packs; runs are suggest-only (no auto approve/Loft/FOB).
+ * Rpt-3: cron due + Phase N deliver · Rpt-5: n8n webhook out.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isSubscriptionDue } from '../../core/reports/schedule.mjs'
+import { runStubSections } from '../../core/reports/sections.mjs'
+import { emitLifecycleNotification } from './notifications'
 
 export type ReportSchedule = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'manual'
 export type ReportRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
@@ -64,6 +68,8 @@ const SEED_SLUGS = [
   'warehouse-weekly-baseline',
   'finance-stock-rewards',
 ] as const
+
+export { isSubscriptionDue }
 
 /** Platform + workspace templates visible to a workspace. */
 export async function listReportTemplates(
@@ -145,10 +151,9 @@ export async function listSubscriptionsWithLastRun(
   if (sErr) throw new Error(sErr.message)
 
   const subIds = (subs || []).map((s: any) => s.id)
-  let lastBySub = new Map<string, ReportRun>()
+  const lastBySub = new Map<string, ReportRun>()
 
   if (subIds.length) {
-    // Latest run per subscription (fetch recent, pick first per sub)
     const { data: runs, error: rErr } = await client
       .from('report_runs')
       .select('*')
@@ -181,7 +186,6 @@ export async function listSubscriptionsWithLastRun(
     })
   }
 
-  // Sort: enabled first, then title
   cards.sort((a, b) => {
     if (a.subscription.enabled !== b.subscription.enabled) {
       return a.subscription.enabled ? -1 : 1
@@ -210,28 +214,188 @@ export async function setSubscriptionEnabled(
   return data as ReportSubscription
 }
 
+export async function getReportRun(
+  client: SupabaseClient,
+  workspaceId: string,
+  runId: string,
+): Promise<ReportRun | null> {
+  const { data, error } = await client
+    .from('report_runs')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .eq('id', runId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as ReportRun) || null
+}
+
+export async function getSubscriptionBySlugOrId(
+  client: SupabaseClient,
+  workspaceId: string,
+  opts: { subscriptionId?: string; templateSlug?: string },
+): Promise<{ subscription: ReportSubscription; template: ReportTemplate | null } | null> {
+  if (opts.subscriptionId) {
+    const { data, error } = await client
+      .from('report_subscriptions')
+      .select('*, report_templates(*)')
+      .eq('workspace_id', workspaceId)
+      .eq('id', opts.subscriptionId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
+    return {
+      subscription: data as ReportSubscription,
+      template: ((data as any).report_templates as ReportTemplate) || null,
+    }
+  }
+  if (opts.templateSlug) {
+    await ensureDefaultSubscriptions(client, workspaceId)
+    const { data: tmpl, error: tErr } = await client
+      .from('report_templates')
+      .select('id')
+      .eq('slug', opts.templateSlug)
+      .or(`workspace_id.is.null,workspace_id.eq.${workspaceId}`)
+      .limit(1)
+      .maybeSingle()
+    if (tErr) throw new Error(tErr.message)
+    if (!tmpl) return null
+    const { data, error } = await client
+      .from('report_subscriptions')
+      .select('*, report_templates(*)')
+      .eq('workspace_id', workspaceId)
+      .eq('template_id', tmpl.id)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
+    return {
+      subscription: data as ReportSubscription,
+      template: ((data as any).report_templates as ReportTemplate) || null,
+    }
+  }
+  return null
+}
+
+export { runStubSections }
+
 /**
- * Stub section runner — Rpt-6 will replace with real handlers.
- * Always suggest-only; never mutates stock or approves.
+ * Resolve n8n/outbound automation webhook URL for a subscription.
+ * Order: subscription.metadata.webhook_url → workspace settings metadata.
  */
-export function runStubSections(sections: string[]): {
-  sections: Array<{ id: string; status: string; summary: string; data: Record<string, unknown> }>
-  markdown: string
-} {
-  const out = sections.map((id) => ({
-    id,
-    status: 'stub',
-    summary: `Section \`${id}\` is registered but not yet implemented (Rpt-6).`,
-    data: { stub: true },
-  }))
-  const lines = [
-    '## Report run (stub sections)',
-    '',
-    '_Suggest ≠ execute. No stock, approve, Loft, or FOB side effects._',
-    '',
-    ...out.map((s) => `- **${s.id}**: ${s.summary}`),
-  ]
-  return { sections: out, markdown: lines.join('\n') }
+export async function resolveAutomationsWebhookUrl(
+  client: SupabaseClient,
+  workspaceId: string,
+  subscription: ReportSubscription,
+): Promise<string | null> {
+  const meta = (subscription.metadata || {}) as Record<string, unknown>
+  const fromSub = meta.webhook_url || meta.automations_webhook_url
+  if (typeof fromSub === 'string' && fromSub.startsWith('http')) return fromSub.trim()
+
+  const { data } = await client
+    .from('workspace_notification_settings')
+    .select('metadata')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle()
+
+  const wmeta = (data?.metadata || {}) as Record<string, unknown>
+  const fromWs = wmeta.report_webhook_url || wmeta.automations_webhook_url
+  if (typeof fromWs === 'string' && fromWs.startsWith('http')) return fromWs.trim()
+  return null
+}
+
+/** Phase N in_app/slack + optional n8n webhook out (Rpt-3 / Rpt-5). */
+export async function deliverReportRun(
+  client: SupabaseClient,
+  opts: {
+    run: ReportRun
+    subscription: ReportSubscription
+    template: ReportTemplate | null
+    actorUserId?: string | null
+  },
+): Promise<{ phase_n: unknown; webhook: { status: string; error?: string | null } | null }> {
+  const { run, subscription, template } = opts
+  const title = `Report ready: ${template?.title || 'Agentic pack'}`
+  const body = (run.markdown_summary || '').slice(0, 1500)
+  const deepLink = `/reports?run=${run.id}`
+
+  const channels = (subscription.channels || ['in_app']).filter(
+    (c) => c === 'in_app' || c === 'slack',
+  ) as Array<'in_app' | 'slack'>
+
+  const phase_n = await emitLifecycleNotification(client, {
+    workspaceId: run.workspace_id,
+    eventType: 'report.run.completed',
+    entityType: 'report_run',
+    entityId: run.id,
+    title,
+    body: body || null,
+    deepLink,
+    priority: 'normal',
+    actorUserId: opts.actorUserId || null,
+    channels: channels.length ? channels : ['in_app'],
+    payload: {
+      subscription_id: subscription.id,
+      template_slug: template?.slug || null,
+      template_title: template?.title || null,
+      trigger_source: run.trigger_source,
+      status: run.status,
+    },
+    idempotencyRoot: `report.run.completed:${run.id}`,
+  })
+
+  let webhook: { status: string; error?: string | null } | null = null
+  const channelsAll = subscription.channels || []
+  const meta = (subscription.metadata || {}) as Record<string, unknown>
+  const wantsWebhook =
+    channelsAll.includes('webhook')
+    || typeof meta.webhook_url === 'string'
+    || typeof meta.automations_webhook_url === 'string'
+
+  if (wantsWebhook) {
+    const url = await resolveAutomationsWebhookUrl(client, run.workspace_id, subscription)
+    if (!url) {
+      webhook = { status: 'skipped', error: 'no_webhook_url' }
+    } else {
+      webhook = await postAutomationsWebhook(url, {
+        event: 'report.run.completed',
+        workspace_id: run.workspace_id,
+        run_id: run.id,
+        subscription_id: subscription.id,
+        template_slug: template?.slug || null,
+        template_title: template?.title || null,
+        status: run.status,
+        markdown_summary: run.markdown_summary,
+        payload_json: run.payload_json,
+        deep_link: deepLink,
+        suggest_only: true,
+        finished_at: run.finished_at,
+      })
+    }
+  }
+
+  return { phase_n, webhook }
+}
+
+async function postAutomationsWebhook(
+  url: string,
+  body: Record<string, unknown>,
+): Promise<{ status: string; error?: string | null }> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'fran-skums-reports/1.0',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!res.ok) {
+      return { status: 'failed', error: `HTTP ${res.status}` }
+    }
+    return { status: 'sent', error: null }
+  } catch (e: any) {
+    return { status: 'failed', error: e?.message || String(e) }
+  }
 }
 
 export async function runSubscriptionNow(
@@ -243,8 +407,10 @@ export async function runSubscriptionNow(
     createdBy?: string | null
     /** Allow run when subscription disabled (admin force) */
     force?: boolean
+    /** Deliver Phase N + webhook after complete (default true) */
+    deliver?: boolean
   },
-): Promise<ReportRun> {
+): Promise<ReportRun & { delivery?: unknown }> {
   const { data: sub, error: sErr } = await client
     .from('report_subscriptions')
     .select('*, report_templates(*)')
@@ -304,7 +470,23 @@ export async function runSubscriptionNow(
       .single()
 
     if (uErr) throw new Error(uErr.message)
-    return done as ReportRun
+
+    const run = done as ReportRun
+    let delivery: unknown = null
+    if (opts.deliver !== false) {
+      try {
+        delivery = await deliverReportRun(client, {
+          run,
+          subscription: sub as ReportSubscription,
+          template,
+          actorUserId: opts.createdBy || null,
+        })
+      } catch (e: any) {
+        // Delivery must not fail the run
+        delivery = { error: e?.message || String(e) }
+      }
+    }
+    return Object.assign(run, { delivery })
   } catch (e: any) {
     const msg = e?.message || String(e)
     await client
@@ -316,5 +498,123 @@ export async function runSubscriptionNow(
       })
       .eq('id', pending.id)
     throw e
+  }
+}
+
+/**
+ * Rpt-3: find enabled due subscriptions and run them.
+ */
+export async function runReportCronTick(
+  client: SupabaseClient,
+  opts: {
+    limit?: number
+    workspaceId?: string
+    now?: Date
+  } = {},
+): Promise<{
+  scanned: number
+  due: number
+  ran: number
+  skipped: number
+  failed: number
+  results: Array<{
+    subscription_id: string
+    workspace_id: string
+    status: string
+    run_id?: string
+    error?: string
+  }>
+}> {
+  const limit = Math.min(Math.max(opts.limit || 50, 1), 200)
+  const now = opts.now || new Date()
+
+  let q = client
+    .from('report_subscriptions')
+    .select('*, report_templates(*)')
+    .eq('enabled', true)
+    .neq('schedule', 'manual')
+    .limit(500)
+
+  if (opts.workspaceId) {
+    q = q.eq('workspace_id', opts.workspaceId)
+  }
+
+  const { data: subs, error } = await q
+  if (error) throw new Error(error.message)
+
+  const list = subs || []
+  const results: Array<{
+    subscription_id: string
+    workspace_id: string
+    status: string
+    run_id?: string
+    error?: string
+  }> = []
+
+  let due = 0
+  let ran = 0
+  let skipped = 0
+  let failed = 0
+
+  // Prefetch last completed run per subscription
+  const subIds = list.map((s: any) => s.id)
+  const lastBySub = new Map<string, string | null>()
+  if (subIds.length) {
+    const { data: runs } = await client
+      .from('report_runs')
+      .select('subscription_id, finished_at, status, created_at')
+      .in('subscription_id', subIds)
+      .in('status', ['completed', 'failed', 'skipped'])
+      .order('created_at', { ascending: false })
+      .limit(Math.min(subIds.length * 3, 600))
+
+    for (const r of runs || []) {
+      if (!lastBySub.has(r.subscription_id)) {
+        lastBySub.set(r.subscription_id, r.finished_at || r.created_at || null)
+      }
+    }
+  }
+
+  for (const sub of list) {
+    if (results.filter((r) => r.status === 'completed').length >= limit) break
+
+    const last = lastBySub.get(sub.id) || null
+    if (!isSubscriptionDue(sub, last, now)) {
+      skipped++
+      continue
+    }
+    due++
+    try {
+      const run = await runSubscriptionNow(client, {
+        workspaceId: sub.workspace_id,
+        subscriptionId: sub.id,
+        triggerSource: 'cron',
+        deliver: true,
+      })
+      ran++
+      results.push({
+        subscription_id: sub.id,
+        workspace_id: sub.workspace_id,
+        status: 'completed',
+        run_id: run.id,
+      })
+    } catch (e: any) {
+      failed++
+      results.push({
+        subscription_id: sub.id,
+        workspace_id: sub.workspace_id,
+        status: 'failed',
+        error: e?.message || String(e),
+      })
+    }
+  }
+
+  return {
+    scanned: list.length,
+    due,
+    ran,
+    skipped,
+    failed,
+    results,
   }
 }

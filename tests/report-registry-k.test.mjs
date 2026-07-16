@@ -11,7 +11,7 @@ import {
   hasScope,
   permissionsMapToScopes,
 } from '../server/utils/scopes.ts'
-import { runStubSections } from '../server/utils/reportRegistry.ts'
+import { runStubSections } from '../core/reports/sections.mjs'
 
 const root = new URL('..', import.meta.url)
 

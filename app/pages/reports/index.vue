@@ -15,10 +15,27 @@ const lastMarkdown = ref<string | null>(null)
 const lastTitle = ref<string | null>(null)
 const toast = ref<string | null>(null)
 
+const route = useRoute()
+
 watch(
   () => currentWorkspace.value?.id,
-  () => {
-    loadPacks()
+  async () => {
+    await loadPacks()
+    // Deep link from Phase N: /reports?run=<id>
+    const runId = typeof route.query.run === 'string' ? route.query.run : ''
+    if (runId && currentWorkspace.value?.id) {
+      try {
+        const res = await $fetch<{ data: any }>(`/api/reports/runs/${runId}`, {
+          query: { workspace_id: currentWorkspace.value.id },
+        })
+        if (res.data) {
+          lastTitle.value = res.data.payload_json?.template_title || 'Report run'
+          lastMarkdown.value = res.data.markdown_summary || 'No summary.'
+        }
+      } catch {
+        /* soft-fail */
+      }
+    }
   },
   { immediate: true },
 )

@@ -23,6 +23,7 @@ import * as po from './lib/po.mjs'
 import * as projection from './lib/projection.mjs'
 import * as storeOps from './lib/storeOps.mjs'
 import * as study from './lib/study.mjs'
+import * as reports from './lib/reports.mjs'
 
 /**
  * Record MCP mutation audit + attach envelope fields to result payload.
@@ -1052,6 +1053,43 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'reports_list',
+    description:
+      'Rpt-4 List agentic report packs (subscription toggle, schedule, last run). reports:read. Prefer over inventing digests.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        enabled_only: { type: 'boolean', description: 'Only packs with toggle on' },
+      },
+    },
+  },
+  {
+    name: 'reports_get',
+    description:
+      'Rpt-4 Get one report pack (subscription_id or template_slug) or one run (run_id). reports:read.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        subscription_id: { type: 'string' },
+        template_slug: { type: 'string', description: 'e.g. marketing-weekly' },
+        run_id: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'reports_run',
+    description:
+      'Rpt-4 Run an enabled report pack now (stub sections until Rpt-6). Suggest-only — never approve/Loft/FOB. reports:run. force=true needs reports:write.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        subscription_id: { type: 'string' },
+        template_slug: { type: 'string' },
+        force: { type: 'boolean', description: 'Run even if pack toggle is off (needs reports:write)' },
+      },
+    },
+  },
+  {
     name: 'store_ops_decide',
     description:
       'HQ decide on a store replenishment request: approve_now | reject | defer_to_wave. Requires store_ops:approve (owner/admin web role on bound key). approve_now converts to order; Send to Loft is still a separate execute_3pl step. cloud OK when scoped.',
@@ -1758,6 +1796,47 @@ export async function handleTool(name, args = {}) {
             status: a.status,
             limit: a.limit,
           }),
+        )
+      }
+      case 'reports_list': {
+        requireScope('reports:read')
+        return jsonResult(await reports.listReports({ enabled_only: a.enabled_only }))
+      }
+      case 'reports_get': {
+        requireScope('reports:read')
+        return jsonResult(
+          await reports.getReport({
+            subscription_id: a.subscription_id,
+            template_slug: a.template_slug,
+            run_id: a.run_id,
+          }),
+        )
+      }
+      case 'reports_run': {
+        requireScope('reports:run')
+        if (a.force) requireScope('reports:write')
+        const result = await reports.runReport({
+          subscription_id: a.subscription_id,
+          template_slug: a.template_slug,
+          force: a.force,
+        })
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'report_runs',
+            entity_id: String(result?.run?.id || ''),
+            status: result?.run?.status || 'completed',
+            is_draft: false,
+            operation: 'INSERT',
+            event_type: 'report.run.completed',
+            after_data: result?.run || null,
+            metadata: {
+              template_slug: result?.run?.payload_json?.template_slug || null,
+              suggest_only: true,
+            },
+          },
+          result,
         )
       }
       case 'exception_verify': {

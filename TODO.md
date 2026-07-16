@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-16  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–066** (065 = inventory_manager · 066 = report registry).  
+**DB:** migrations **001–067** (066 = report registry · 067 = report.run.completed policy).  
 **Held / parked:** R2 OAuth · live scrape / Browserbase / brand radar · Phase H ecommerce  
 
 **Plans (do not lose track):**
@@ -21,7 +21,9 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–2** (scopes + toggle UI + 3 seed packs).  
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** (scopes · `/reports` · hourly cron · MCP `reports_*` · `POST /api/v1/reports/run` + n8n webhook).  
+**Next eng:** **K Rpt-6** real section handlers · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
 **Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
 `https://fran-skums.vercel.app/mcp/c/sk_live_…` (OAuth blank; Settings → Create Claude / MCP key).  
 **POS:** structure handoff `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` — roles/MCP next section below.
@@ -37,7 +39,7 @@
 | **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
 | **I** | MCP M1–M3 packs | **Shipped** — `store_request_status`, `floor_adjustment_queue`, `exception_verify` |
 | **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — MCP draft editable · affirm · **FOB PDF → in transit** (below) |
-| **K** | **Agentic report registry** | **Rpt-0–2 done** — scopes · `/reports` toggle UI · 3 seeds; next Rpt-3 cron |
+| **K** | **Agentic report registry** | **Rpt-0–5 done** — cron · MCP tools · n8n API; next Rpt-6 real sections |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | Scrape / brand radar | Parked |
@@ -212,13 +214,15 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 | **Rpt-0** | Scopes `reports:*` + `automations:webhook` in catalog + packages | **Done** (`scopes.ts`, mig **066** permission areas) |
 | **Rpt-1** | Schema: templates, subscriptions, runs; UI list + **toggle** + last run | **Done** (`/reports`, APIs under `/api/reports/*`) |
 | **Rpt-2** | Seed 3 packs (marketing weekly, warehouse baseline, finance stock) — stub sections OK | **Done** (platform seeds; Run now = stub sections) |
-| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) | **Next** |
-| **Rpt-4** | MCP `reports_list` / `get` / `run` | Later |
-| **Rpt-5** | n8n webhook out + `POST` run API | Later |
-| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs | Later |
+| **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) | **Done** (`/api/internal/reports/cron-tick`, mig **067**, `vercel.json` hourly) |
+| **Rpt-4** | MCP `reports_list` / `get` / `run` | **Done** |
+| **Rpt-5** | n8n webhook out + `POST` run API | **Done** (`POST /api/v1/reports/run`, webhook on channel/metadata) |
+| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs | **Next** |
 
 **Depends on:** Phase N bus (shipped) · velocity views (`v_demand_velocity` exists) · ATS / store ops (shipped).  
-**Code:** `server/utils/reportRegistry.ts` · `app/pages/reports/index.vue` · `tests/report-registry-k.test.mjs`.
+**Code:** `server/utils/reportRegistry.ts` · `core/reports/schedule.mjs` · `mcp/src/lib/reports.mjs` · `app/pages/reports/index.vue`.  
+**Cron auth:** `REPORTS_CRON_SECRET` or `CRON_SECRET` / marketplace / queue secrets.  
+**n8n webhook URL:** subscription `metadata.webhook_url` or workspace_notification_settings `metadata.automations_webhook_url` + channel `webhook`.
 
 ---
 
@@ -426,7 +430,7 @@ npm run db:migrate:status    # 066 applied (use --only N if 015 checksum blocks 
 # https://fran-skums.vercel.app
 # Settings → Claude MCP key (mcp:ops_safe, bound to you) → capabilities
 # /reports — toggle packs; Run now (stub sections until Rpt-6)
-node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs tests/mcp-backlog-8.test.mjs tests/report-registry-k.test.mjs tests/m1-m3-packs.test.mjs
+node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.mjs tests/tool-scopes-capabilities.test.mjs tests/mcp-backlog-8.test.mjs tests/report-registry-k.test.mjs tests/report-registry-rpt3-5.test.mjs tests/m1-m3-packs.test.mjs
 ```
 
 ### Ops / env leftovers
@@ -435,8 +439,10 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 - [x] Migration **064** notification bus on shared project
 - [x] Migration **065** inventory_manager schema on shared project
 - [x] Migration **066** report registry on shared project
+- [x] Migration **067** report.run.completed policy on shared project
 - [ ] Confirm prod deploy green after each push
-- [ ] Confirm prod DB has **063–066** if not same project as local migrate
+- [ ] Confirm prod DB has **063–067** if not same project as local migrate
+- [ ] Set Vercel **`CRON_SECRET`** (or REPORTS_CRON_SECRET) for hourly report cron
 - [ ] Fill Vercel **`SUPABASE_DB_URL`** if empty
 - [ ] Optional: `FRAN_MCP_ACTOR_USER_ID` local attribution
 - [ ] Secret rotation / Vercel env audit
@@ -453,7 +459,7 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 
 ## Completed tracks (do not redo)
 
-- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live · **M1–M3** · inv manager **065** · **K Rpt-0–2** (mig **066**)  
+- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live · **M1–M3** · inv manager **065** · **K Rpt-0–5** (mig **066–067**)  
 - Detail in git history / `TODO-LOFT.md` / commit summaries  
 
 ### Phase N — stakeholder notifications
@@ -533,7 +539,7 @@ Next eng:
   N   notifications N1–N4 ✅ · N5 digests / N6 email provider later
   R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
   M1–M3 + inv manager + empty-key ≠ full ✅ (mig 065)
-  K   Rpt-0–2 ✅ · next Rpt-3 cron / Slack deliver
+  K   Rpt-0–5 ✅ · next Rpt-6 real section handlers
   0.x Loft email / dictionary IDs → M4 send_to_loft
   J   supplier KR/HK (draft PO → affirm → FOB PDF → in_transit → ASN)
   P   install UI
@@ -541,7 +547,7 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** **K Rpt-3** (cron + Phase N delivery) · Loft Phase 0 → **M4** · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
+**Recommended next:** **K Rpt-6** (real sections) · Loft Phase 0 → **M4** · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
@@ -563,16 +569,16 @@ Next eng:
 
 ### Near-term eng (code)
 
-1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**empty-key ≠ full**~~ · ~~**K Rpt-0–2**~~  
-2. **K Rpt-3** — cron runner + in_app / Slack via Phase N  
+1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**K Rpt-0–5**~~  
+2. **K Rpt-6** — real section handlers (velocity, store_fill, sales, finance)  
 3. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
-4. **K Rpt-4–6** — MCP tools, n8n, real section handlers  
+4. **J** supplier FOB lifecycle when buying focus  
 
 ### Product platforms (larger)
 
 | Track | Outcome |
 |-------|---------|
-| **K Agentic reports** | Rpt-0–2 shipped (`/reports`); next cron + real sections |
+| **K Agentic reports** | Rpt-0–5 shipped; **Rpt-6** real sections next |
 | **J Supplier KR/HK** | Draft PO editable; affirm; **FOB PDF → in transit → Loft ASN** |
 | Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B |
 
@@ -592,11 +598,10 @@ R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · li
 
 ```text
 M1–M3 + Inventory Manager + empty-key ≠ full   ✅
-Rpt-0 scopes → Rpt-1 toggle UI → Rpt-2 seed packs   ✅ (mig 066)
-  →  Rpt-3 cron + Phase N deliver
+Rpt-0 → Rpt-5 (scopes, UI, cron, MCP, n8n)   ✅ (mig 066–067)
+  →  Rpt-6 real section handlers
   →  Loft Phase 0 ops · M4 send-to-loft
   →  J1–J4 supplier FOB lifecycle when buying focus
-  →  Rpt-4 MCP tools · Rpt-6 velocity + store_fill/supplier_buy
 ```
 
 ---

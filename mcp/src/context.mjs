@@ -260,6 +260,14 @@ export function resolveCloudMcpScopes(apiKeyScopes) {
       mapped.add('intel:read')
       mapped.add('inventory:read')
       mapped.add('store_ops:read')
+      mapped.add('reports:read')
+    }
+    if (s === 'mcp:member' || s === 'mcp:safe' || s === 'mcp:ops_safe' || s === 'mcp:inventory_manager') {
+      mapped.add('reports:read')
+      mapped.add('reports:run')
+    }
+    if (s === 'mcp:ops_safe' || s === 'mcp:inventory_manager') {
+      mapped.add('reports:write')
     }
   }
 

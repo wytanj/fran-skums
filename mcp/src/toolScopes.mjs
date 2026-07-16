@@ -48,6 +48,18 @@ export const TOOL_SCOPE_CATALOG = {
     scope: 'store_ops:verify',
     action: 'M3 HQ verify receive exception (confirm/reject/adjust/escalate)',
   },
+  reports_list: {
+    scope: 'reports:read',
+    action: 'List agentic report packs (toggle + last run)',
+  },
+  reports_get: {
+    scope: 'reports:read',
+    action: 'Get one report pack or run',
+  },
+  reports_run: {
+    scope: 'reports:run',
+    action: 'Run report pack now (suggest-only digest)',
+  },
   store_ops_create_draft_request: {
     scope: 'store_ops:write',
     action: 'Create draft/submitted store request',

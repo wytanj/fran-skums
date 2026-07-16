@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/reports/cron-tick",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
