@@ -4,7 +4,7 @@
 **Production:** https://fran-skums.vercel.app  
 **DB:** migrations **001–069** (066–067 = reports · **068–069** = brand universe + shop identity).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
-**Brand radar / Mall harvest:** Track **BR** below — next **MH-1+** (Mall harvest plan), not PR-4 yet
+**Brand radar / Mall harvest:** Track **BR** below — **MH-1 done** · next **MH-2** All Products harvest
 
 **Plans (do not lose track):**
 
@@ -23,7 +23,7 @@
 ## Start here next
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** · **BR PR-1–3.3** (universe, materialize, extension, shop-harvest API).  
-**Next eng:** **BR MH-2** All Products harvest worker · **K Rpt-6** · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Next eng:** **BR MH-3** collection harvest (optional) / live MH-2 run · **K Rpt-6** · Loft Phase 0 → **M4** · **J** supplier when buying.  
 **Shopee collect:** primary = **Windows warm Chrome** (extension for identity/single page; Playwright/worker for multi-page Mall). Browserbase **not** primary.  
 **Brand radar:** identity + harvest path started; **no full sold history yet** until Mall harvest worker runs.
 **Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
@@ -47,7 +47,7 @@
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Decision locked** — local Windows primary (below); Browserbase not primary |
-| **BR** | **Weekly brand radar / Mall harvest** | **MH-1 done** — next **MH-2** All Products harvest |
+| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–2 done** — next live harvest run / **MH-3** collections |
 
 ### Claude / remote MCP (verified)
 
@@ -599,8 +599,8 @@ sold_label · sold_count_lower_bound · title
 | **PR-3.2** | Puppeteer Mall URL discovery | **Done** (demoted — captcha) |
 | **PR-3.3** | Chrome extension side panel + resolve-shop + shop-harvest | **Done** (v0.3 harvest UI) |
 | **MH-1** | **Discover shop collections** — parse Mall navbar → `metadata.shop_collections[{name, shop_collection_id}]` (extension + offline script + API) | **Done** |
-| **MH-2** | **All Products harvest worker** — Playwright warm profile; `/{user}?page=N&sortBy=pop`; name+sold; push `shop-harvest` / upsert snapshots; pilot **12** brands | **Next** |
-| **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; optional only for pilot | Planned |
+| **MH-2** | **All Products harvest worker** — Puppeteer warm Chrome profile; `/{user}?page=N&sortBy=pop`; name+sold; upsert snapshots; pilot brands with `shop_username` | **Done** |
+| **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; optional only for pilot | **Next** |
 | **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold per shop only | Planned |
 | **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | Planned |
 | **MH-6** | Scale pilot → mid (~50) → full (~125); collection crawl only where needed | Planned |
@@ -614,11 +614,11 @@ sold_label · sold_count_lower_bound · title
 ### Suggested resume order (when you come back)
 
 ```text
-1. MH-1  Discover collections ✅ — extension + scripts/discover-shop-collections.mjs + API
-2. MH-2  Playwright All Products harvest for pilot 12 (name + sold)  ← next
-3. Verify warehouse snapshots for beauty-of-joseon
-4. MH-4  Optional: PDP breadcrumb on top sold only
-5. MH-3  Optional: full Serums/Sunscreens/… collection passes
+1. MH-1  Discover collections ✅
+2. MH-2  All Products harvest worker ✅ — scripts/mall-all-products-harvest.mjs
+3. Run live harvest for BOJ / pilot (warm Chrome profile) — ops
+4. MH-3  Optional: collection passes (Serums, …)
+5. MH-4  Optional: PDP breadcrumb on top sold
 6. MH-5  Wire weekly automation
 7. PR-4+ metrics / report pack
 ```
@@ -629,7 +629,7 @@ sold_label · sold_count_lower_bound · title
 |------|--------|
 | 125 brands in universe | Imported, most `pilot_tier=paused` except pilot set |
 | BOJ `@beautyofjoseonsg` | **Confirmed** (extension); primary seed `mode=shop` + SERP secondary |
-| Crawl jobs / listing snapshots for BOJ | **None yet** — identity only |
+| Crawl jobs / listing snapshots for BOJ | Identity + collections saved; run `mall-all-products-harvest.mjs --brand beauty-of-joseon` for sold/name |
 | Extension | Side panel harvest (name/sold/category tab); needs Reload after deploys |
 | Prod API | brand-universe + resolve-shop + shop-harvest on main |
 
@@ -640,6 +640,7 @@ sold_label · sold_count_lower_bound · title
 | Universe / materialize | `marketplace/brandKey.mjs` · `materializeBrandSeeds.mjs` · `server/utils/marketplaceBrandUniverse.ts` |
 | Shop extract / harvest | `marketplace/shopProductExtract.mjs` · `POST /api/v1/marketplace/shop-harvest` |
 | Shop collections (MH-1) | `marketplace/shopCollections.mjs` · `POST .../brand-universe/collections` · `scripts/discover-shop-collections.mjs` |
+| All Products harvest (MH-2) | `marketplace/mallHarvestWorker.mjs` · `scripts/mall-all-products-harvest.mjs` |
 | Extension | `extensions/skums-shopee-shop-resolve/` (v0.4 — Discover collections + harvest) |
 | Collect worker (generic) | `marketplace/processJobs.mjs` · `stampBrandSignals.mjs` |
 | Weekly script skeleton | `scripts/windows-marketplace-weekly.mjs` |
@@ -721,7 +722,7 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** **BR MH-1 → MH-2** (Mall collections + All Products harvest for pilot) · **K Rpt-6** · Loft Phase 0 → **M4** · **J supplier** when buying · Phase S Workspace MFA (ops).  
+**Recommended next:** **BR MH-2** (All Products harvest for pilot) · **K Rpt-6** · Loft Phase 0 → **M4** · **J supplier** when buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
@@ -744,7 +745,7 @@ Next eng:
 ### Near-term eng (code)
 
 1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**K Rpt-0–5**~~  
-2. **BR MH-1 → MH-2** — Mall collection map + All Products harvest (pilot 12)  
+2. **BR MH-2** — All Products harvest for pilot 12 (name + sold)  
 3. **BR PR-4+** — brand metrics → weekly pack → Grok brief (after harvest data)  
 3. **K Rpt-6** — real section handlers (velocity, store_fill, sales, finance)  
 4. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
