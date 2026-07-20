@@ -151,15 +151,27 @@
     </select>
     <p class="muted" id="brandMeta"></p>
 
-    <button id="btnHarvest" type="button">Harvest products on this shop page</button>
+    <button id="btnDiscover" type="button">1. Discover collections (navbar)</button>
+    <button id="btnPushCollections" type="button" class="secondary" disabled>
+      Push collections to SKUMS
+    </button>
+    <p class="muted" id="collectionsMeta"></p>
+    <div class="card" id="collectionsBox">
+      <div class="muted">
+        MH-1: open Mall home (e.g. beautyofjoseonsg) → Discover collections → Push.<br />
+        Stores shop shelves (Serums, Sunscreens…) via <code>shopCollection=</code> ids.
+      </div>
+    </div>
+
+    <button id="btnHarvest" type="button">2. Harvest products on this page</button>
     <button id="btnPush" type="button" class="secondary" disabled>Push harvest to SKUMS</button>
-    <button id="btnDownload" type="button" class="secondary" disabled>Download JSON</button>
+    <button id="btnDownload" type="button" class="secondary" disabled>Download harvest JSON</button>
 
     <p class="muted" id="harvestMeta"></p>
     <div class="card" id="productTable">
       <div class="muted">
-        Open a Mall shop sorted by popularity, then Harvest.<br />
-        Tip: click category chips (or stay on All Products) so category is correct.
+        Open a Mall list page (<code>sortBy=pop</code> or a collection URL), then Harvest.<br />
+        Category on products = active shelf when possible (not Shopee platform Eye Care path).
       </div>
     </div>
 

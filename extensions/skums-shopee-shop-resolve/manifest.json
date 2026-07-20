@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SKUMS Shopee Shop Resolve",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Harvest Mall shop products (name, sold, category) from official Shopee storefronts into Fran SKUMS.",
   "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
   "host_permissions": [

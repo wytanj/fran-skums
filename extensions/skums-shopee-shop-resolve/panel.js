@@ -5,12 +5,15 @@
 const $ = (id) => document.getElementById(id)
 const CACHE_KEY = 'skums_brand_cache_v1'
 const HARVEST_KEY = 'skums_last_harvest_v1'
+const COLL_KEY = 'skums_last_collections_v1'
 
 let brands = []
 let lastWorkspaceId = null
 let selectedBrandKey = ''
 /** @type {any} */
 let lastHarvest = null
+/** @type {any} */
+let lastCollections = null
 
 function setStatus(msg, cls) {
   const el = $('status')
@@ -100,8 +103,14 @@ async function persistHarvest() {
   }
 }
 
+async function persistCollections() {
+  if (lastCollections) {
+    await chrome.storage.local.set({ [COLL_KEY]: lastCollections })
+  }
+}
+
 async function restoreCaches() {
-  const stored = await chrome.storage.local.get([CACHE_KEY, HARVEST_KEY])
+  const stored = await chrome.storage.local.get([CACHE_KEY, HARVEST_KEY, COLL_KEY])
   const cache = stored[CACHE_KEY]
   if (cache?.brands?.length && (!cache.apiBase || cache.apiBase === apiBase())) {
     brands = cache.brands
@@ -116,6 +125,35 @@ async function restoreCaches() {
     lastHarvest = stored[HARVEST_KEY]
     renderHarvest(lastHarvest)
   }
+  if (stored[COLL_KEY]?.collections?.length) {
+    lastCollections = stored[COLL_KEY]
+    renderCollections(lastCollections)
+  }
+}
+
+function renderCollections(disc) {
+  lastCollections = disc
+  const meta = $('collectionsMeta')
+  const box = $('collectionsBox')
+  const list = disc?.collections || []
+  meta.textContent = disc
+    ? `@${disc.shop_username || '?'} · ${list.length} collections · ${disc.discovered_at || ''}`
+    : ''
+  if (!list.length) {
+    box.innerHTML = '<div class="muted">No collections found. Open Mall home (not a PDP).</div>'
+    $('btnPushCollections').disabled = true
+    return
+  }
+  box.innerHTML =
+    '<table><thead><tr><th>Shelf name</th><th>shopCollection id</th></tr></thead><tbody>' +
+    list
+      .map(
+        (c) =>
+          `<tr><td>${esc(c.name)}</td><td><code>${esc(c.shop_collection_id || '— (All Products)')}</code></td></tr>`,
+      )
+      .join('') +
+    '</tbody></table>'
+  $('btnPushCollections').disabled = false
 }
 
 function renderBrandSelect() {
@@ -225,6 +263,56 @@ async function sendToTab(tabId, msg) {
   }
 }
 
+async function discoverCollections() {
+  const tab = await getShopeeTab()
+  if (!tab?.id) {
+    setStatus('Open a Shopee Mall shop home tab first (e.g. beautyofjoseonsg)', 'err')
+    return
+  }
+  setStatus(`Discovering collections: ${tab.title || tab.url}…`)
+  const res = await sendToTab(tab.id, { type: 'SKUMS_DISCOVER_COLLECTIONS' })
+  if (!res?.ok) {
+    setStatus(res?.error || 'Discover failed — reload shop tab', 'err')
+    return
+  }
+  const disc = res.discovery
+  if (disc.shop_username && brands.length) {
+    const match = brands.find(
+      (b) => String(b.shop_username || '').toLowerCase() === disc.shop_username,
+    )
+    if (match) {
+      $('brandSelect').value = match.brand_key
+      selectedBrandKey = match.brand_key
+      await persistBrandCache()
+    }
+  }
+  renderCollections(disc)
+  await persistCollections()
+  setStatus(
+    `Found ${disc.collections?.length || 0} shelves for @${disc.shop_username || '?'}\n` +
+      `Push to save on brand universe (MH-1). Then harvest list pages (MH-2).`,
+    disc.collections?.length ? 'ok' : 'err',
+  )
+}
+
+async function pushCollections() {
+  if (!lastCollections?.collections?.length) throw new Error('No collections discovered')
+  if (!$('apiKey').value.trim()) throw new Error('API key required')
+  const brand_key = $('brandSelect').value || undefined
+  setStatus('Pushing collections…')
+  const data = await apiPost('/api/v1/marketplace/brand-universe/collections', {
+    brand_key,
+    shop_username: lastCollections.shop_username,
+    collections: lastCollections.collections,
+    confirm_shop: true,
+  })
+  setStatus(
+    `Saved ${data.collection_count} collections on ${data.brand_key} (@${data.shop_username})`,
+    'ok',
+  )
+  await loadBrands()
+}
+
 async function harvestActiveShop() {
   const tab = await getShopeeTab()
   if (!tab?.id) {
@@ -301,6 +389,12 @@ function downloadHarvest() {
 $('btnSave').addEventListener('click', () => saveSettings().catch((e) => setStatus(e.message, 'err')))
 $('btnLoadBrands').addEventListener('click', () =>
   loadBrands().catch((e) => setStatus(String(e.message || e), 'err')),
+)
+$('btnDiscover').addEventListener('click', () =>
+  discoverCollections().catch((e) => setStatus(e.message, 'err')),
+)
+$('btnPushCollections').addEventListener('click', () =>
+  pushCollections().catch((e) => setStatus(e.message, 'err')),
 )
 $('btnHarvest').addEventListener('click', () =>
   harvestActiveShop().catch((e) => setStatus(e.message, 'err')),

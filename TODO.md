@@ -23,7 +23,7 @@
 ## Start here next
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** · **BR PR-1–3.3** (universe, materialize, extension, shop-harvest API).  
-**Next eng:** **BR Mall harvest MH-1+** (plan below) · **K Rpt-6** · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Next eng:** **BR MH-2** All Products harvest worker · **K Rpt-6** · Loft Phase 0 → **M4** · **J** supplier when buying.  
 **Shopee collect:** primary = **Windows warm Chrome** (extension for identity/single page; Playwright/worker for multi-page Mall). Browserbase **not** primary.  
 **Brand radar:** identity + harvest path started; **no full sold history yet** until Mall harvest worker runs.
 **Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
@@ -47,7 +47,7 @@
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Decision locked** — local Windows primary (below); Browserbase not primary |
-| **BR** | **Weekly brand radar / Mall harvest** | **PR-1–3.3 done** — next **MH-1** collections + All Products harvest |
+| **BR** | **Weekly brand radar / Mall harvest** | **MH-1 done** — next **MH-2** All Products harvest |
 
 ### Claude / remote MCP (verified)
 
@@ -598,8 +598,8 @@ sold_label · sold_count_lower_bound · title
 | **PR-3.1** | Shop identity columns (mig **069**) | **Done** |
 | **PR-3.2** | Puppeteer Mall URL discovery | **Done** (demoted — captcha) |
 | **PR-3.3** | Chrome extension side panel + resolve-shop + shop-harvest | **Done** (v0.3 harvest UI) |
-| **MH-1** | **Discover shop collections** — parse Mall navbar → `metadata.shop_collections[{name, shop_collection_id}]` (extension button and/or Playwright once-per-shop) | **Next** |
-| **MH-2** | **All Products harvest worker** — Playwright warm profile; `/{user}?page=N&sortBy=pop`; name+sold; push `shop-harvest` / upsert snapshots; pilot **12** brands | Planned |
+| **MH-1** | **Discover shop collections** — parse Mall navbar → `metadata.shop_collections[{name, shop_collection_id}]` (extension + offline script + API) | **Done** |
+| **MH-2** | **All Products harvest worker** — Playwright warm profile; `/{user}?page=N&sortBy=pop`; name+sold; push `shop-harvest` / upsert snapshots; pilot **12** brands | **Next** |
 | **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; optional only for pilot | Planned |
 | **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold per shop only | Planned |
 | **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | Planned |
@@ -614,8 +614,8 @@ sold_label · sold_count_lower_bound · title
 ### Suggested resume order (when you come back)
 
 ```text
-1. MH-1  Discover collections (navbar → metadata) for BOJ + pilot shops
-2. MH-2  Playwright All Products harvest for pilot 12 (name + sold)
+1. MH-1  Discover collections ✅ — extension + scripts/discover-shop-collections.mjs + API
+2. MH-2  Playwright All Products harvest for pilot 12 (name + sold)  ← next
 3. Verify warehouse snapshots for beauty-of-joseon
 4. MH-4  Optional: PDP breadcrumb on top sold only
 5. MH-3  Optional: full Serums/Sunscreens/… collection passes
@@ -639,7 +639,8 @@ sold_label · sold_count_lower_bound · title
 |------|------|
 | Universe / materialize | `marketplace/brandKey.mjs` · `materializeBrandSeeds.mjs` · `server/utils/marketplaceBrandUniverse.ts` |
 | Shop extract / harvest | `marketplace/shopProductExtract.mjs` · `POST /api/v1/marketplace/shop-harvest` |
-| Extension | `extensions/skums-shopee-shop-resolve/` (v0.3) |
+| Shop collections (MH-1) | `marketplace/shopCollections.mjs` · `POST .../brand-universe/collections` · `scripts/discover-shop-collections.mjs` |
+| Extension | `extensions/skums-shopee-shop-resolve/` (v0.4 — Discover collections + harvest) |
 | Collect worker (generic) | `marketplace/processJobs.mjs` · `stampBrandSignals.mjs` |
 | Weekly script skeleton | `scripts/windows-marketplace-weekly.mjs` |
 | Samples | `extensions/sample-beauty-of-joseon/` · `extensions/sample-serum-joseon.html` |

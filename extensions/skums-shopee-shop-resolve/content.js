@@ -165,10 +165,96 @@
     }
   }
 
+  /**
+   * MH-1 — Mall navbar shop collections (seller shelves).
+   * e.g. Serums → ?shopCollection=248405931  (not Shopee platform Eye Care path)
+   */
+  function discoverShopCollections() {
+    const shop_username = parseShopUsername(location.href)
+    const byKey = new Map()
+
+    function add(row) {
+      const key = row.shop_collection_id || (row.is_all_products ? '__all__' : row.name)
+      if (!byKey.has(key)) byKey.set(key, row)
+    }
+
+    for (const a of document.querySelectorAll('a[href]')) {
+      const href = a.href || a.getAttribute('href') || ''
+      let abs
+      try {
+        abs = new URL(href, location.origin).href
+      } catch {
+        continue
+      }
+      if (!/shopee\./i.test(abs)) continue
+      const user = parseShopUsername(abs)
+      if (shop_username && user && user !== shop_username) continue
+
+      const name = (a.textContent || '').replace(/\s+/g, ' ').trim()
+      if (!name || name.length > 80) continue
+      if (/blog|help|mall$|seller|flash|ambassador|policy|coin/i.test(name)) continue
+
+      let collId = null
+      try {
+        collId = new URL(abs).searchParams.get('shopCollection')
+      } catch {
+        /* ignore */
+      }
+      if (collId && !/^\d+$/.test(collId)) collId = null
+
+      const isAll =
+        /all\s*products/i.test(name) ||
+        (!collId && /#product_list/i.test(abs) && user)
+
+      if (!collId && !isAll) continue
+
+      // Prefer nav/menu
+      const inNav =
+        a.closest('[class*="navbar"]') ||
+        a.closest('[class*="menu"]') ||
+        a.closest('nav') ||
+        /navbar|menu/i.test(a.className || '')
+      if (!inNav && !isAll && !collId) continue
+
+      add({
+        name,
+        shop_collection_id: collId,
+        url: abs.split('#')[0] + '#product_list',
+        is_all_products: Boolean(isAll),
+      })
+    }
+
+    if (shop_username && ![...byKey.values()].some((c) => c.is_all_products)) {
+      add({
+        name: 'All Products',
+        shop_collection_id: null,
+        url: location.origin + '/' + shop_username + '#product_list',
+        is_all_products: true,
+      })
+    }
+
+    const collections = [...byKey.values()].sort((a, b) => {
+      if (a.is_all_products && !b.is_all_products) return -1
+      if (!a.is_all_products && b.is_all_products) return 1
+      return a.name.localeCompare(b.name)
+    })
+
+    return {
+      shop_username,
+      collections,
+      page_url: location.href,
+      discovered_at: new Date().toISOString(),
+    }
+  }
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       if (msg?.type === 'SKUMS_HARVEST_SHOP') {
         sendResponse({ ok: true, harvest: harvestShopProducts() })
+        return true
+      }
+      if (msg?.type === 'SKUMS_DISCOVER_COLLECTIONS') {
+        sendResponse({ ok: true, discovery: discoverShopCollections() })
         return true
       }
       if (msg?.type === 'SKUMS_SCAN_PAGE') {
