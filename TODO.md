@@ -1,10 +1,10 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-17  
+**Date:** 2026-07-20  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–068** (066–067 = reports · **068** = brand universe / weekly radar).  
+**DB:** migrations **001–069** (066–067 = reports · **068–069** = brand universe + shop identity).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
-**Brand radar (unparked):** PR-1–3 done — see Track **BR** · `docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`
+**Brand radar / Mall harvest:** Track **BR** below — next **MH-1+** (Mall harvest plan), not PR-4 yet
 
 **Plans (do not lose track):**
 
@@ -22,10 +22,10 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** (scopes · `/reports` · hourly cron · MCP `reports_*` · `POST /api/v1/reports/run` + n8n webhook).  
-**Next eng:** **BR PR-4** brand metrics rollup + WoW · **K Rpt-6** real section handlers · Loft Phase 0 → **M4** · **J** supplier when buying.  
-**Shopee collect:** primary = **Windows Chrome + cookies + `shopee_puppeteer`**; Browserbase **not** primary (Linux plan + captcha).  
-**Brand radar:** PR-1–3 **done** (universe, materialize, collect/stop_batch/weekly script); next PR-4 metrics.
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** · **BR PR-1–3.3** (universe, materialize, extension, shop-harvest API).  
+**Next eng:** **BR Mall harvest MH-1+** (plan below) · **K Rpt-6** · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Shopee collect:** primary = **Windows warm Chrome** (extension for identity/single page; Playwright/worker for multi-page Mall). Browserbase **not** primary.  
+**Brand radar:** identity + harvest path started; **no full sold history yet** until Mall harvest worker runs.
 **Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
 **Cron cadence:** Vercel Hobby = **daily** (`0 0 * * *` UTC) in `vercel.json` (hourly needs Pro). Due logic still supports hourly/daily/weekly packs when tick runs.  
 **Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
@@ -47,7 +47,7 @@
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Decision locked** — local Windows primary (below); Browserbase not primary |
-| **BR** | **Weekly brand radar** | **PR-1–3 done** — next PR-4 brand metrics + WoW |
+| **BR** | **Weekly brand radar / Mall harvest** | **PR-1–3.3 done** — next **MH-1** collections + All Products harvest |
 
 ### Claude / remote MCP (verified)
 
@@ -522,33 +522,135 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 
 ---
 
-## Track BR — Weekly brand radar (unparked 2026-07-20)
+## Track BR — Weekly brand radar / Mall harvest (unparked 2026-07-20)
 
-**Design:** `docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`  
-**Universe:** `sample-brands.csv` → `marketplace_brand_universe` (mig **068**)  
-**Collect window:** flexible **week-of** (not all brands forced to one Sunday night)  
-**Primary collect:** Track G Windows + cookies (not Browserbase primary)
+**Design (overview):** `docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`  
+**Samples:** `extensions/sample-beauty-of-joseon/` (Mall grid) · `extensions/sample-serum-joseon.html` (PDP breadcrumb)  
+**Workspace pilot:** `c21c057f-ea01-4e19-bc79-fafcf2626b19` (125 brands imported; BOJ shop confirmed)
+
+### Goal (operator-facing)
+
+For official **Shopee Mall** shops (e.g. `https://shopee.sg/beautyofjoseonsg?page=0&sortBy=pop`), capture:
+
+| Field | Why |
+|-------|-----|
+| **Product name** | What SKU |
+| **Sold** (`sold_label` + lower bound) | Popularity / movers |
+| **Category** | Two layers — see dual taxonomy below |
+
+**Non-goal for this track:** SERP reseller mix as primary; cold Browserbase; 10×125 manual clicks.
+
+### Dual taxonomy (lock)
+
+Two **different** category systems — store **both**, never force 1:1 map.
+
+| Layer | Example | Defined by | URL / source | Stable key |
+|-------|---------|------------|--------------|------------|
+| **A. Shop collection** | Mall nav **Serums** | Seller (BOJ) | `?shopCollection=248405931#product_list` | `shop_collection_id` **per shop** |
+| **B. Platform path** | Shopee → Beauty & Personal Care → Skincare → **Eye Care** → product | Shopee | PDP **JSON-LD BreadcrumbList** + `*-cat.11012…` URLs | `platform_category_ids[]` + path |
+
+**Validated from samples:**
+
+- Mall home navbar: All Products, Sunscreens, Serums, Cleansers, Moisturizers, … via `shopCollection=`
+- PDP (`sample-serum-joseon.html`): breadcrumb  
+  `Shopee > Beauty & Personal Care > Skincare > Eye Care > [name]`  
+  even when user arrived via shop **Serums** shelf
+- `tab=` is UI-only — **do not** use as category key
+
+**Warehouse stamps (target):**
+
+```text
+signals.shop_collection_name / signals.shop_collection_id
+signals.platform_category_path[] / leaf / platform_category_ids[]
+signals.brand_key · signals.shop_username · official_shop
+sold_label · sold_count_lower_bound · title
+```
+
+### Runtime split (lock)
+
+| Job | Tool | Why |
+|-----|------|-----|
+| Confirm Mall `@username` | **Chrome extension** (side panel) | Real human session; no cold captcha |
+| Single-page harvest / debug | Extension harvest + `POST /shop-harvest` | Fast manual pass |
+| Multi-page / multi-collection weekly | **Playwright (or Puppeteer) + warm Chrome user-data dir** on Windows | Scales past click fatigue |
+| Control plane | Vercel APIs + Supabase | Already deployed brand-universe + shop-harvest |
+| Cold Browserbase / Vercel browser | **Not primary** | Captcha / no Chrome |
+
+### Scale math (avoid 10 × 125 hell)
+
+| Path | ~Navigations (125 brands × 10 coll × 3 pages) | When |
+|------|-----------------------------------------------|------|
+| All Products only, paginated, `sortBy=pop` | ~125 × 3–5 pages | **Default weekly** (name + sold) |
+| Every shop collection | ~125 × 10 × 3 ≈ **4k** | Later / pilot-only first |
+| Every PDP for platform breadcrumb | Much larger | **Top-N by sold** or sample only |
+
+**Default weekly = All Products + pop + pages.**  
+**Categories:** discover collections once; full collection crawl after pilot proves value.  
+**Platform path:** enrich via PDP JSON-LD for tops/new only.
+
+### Phased plan (Mall harvest MH-*)
 
 | Slice | Work | Status |
 |-------|------|--------|
-| **PR-1** | Schema 068 + `brandKey` + CSV import script/API types | **Done** |
-| **PR-2** | Materialize weekly `brand_portfolio` seeds + list/patch/import APIs | **Done** |
-| **PR-3** | Collect stamp `signals.brand_key`, stop_batch, INTER_SEED, Windows weekly script, G1 docs | **Done** |
-| **PR-3.1** | Official Mall `shop_username` + mode=shop collect + resolve-before-scrape | **Done** (mig **069**) |
-| **PR-3.2** | Automated Mall URL discovery (Puppeteer) | **Done** (often blocked by captcha) |
-| **PR-3.3** | **Chrome extension** shop resolve (session-backed) | **Done** — `extensions/skums-shopee-shop-resolve` |
-| **PR-4** | Brand `metrics_daily` rollup + WoW gates | **Next** |
-| **PR-5** | Report pack `marketplace-brand-weekly` + hybrid section runner | Planned |
-| **PR-6** | Weekly Grok brief → `bi_digests` (Sunday week_key) | Planned |
-| **PR-7** | Ops runbook + G2 session-health UI | Planned |
-| **PR-8** | Activate Appendix A pilot allowlist | Planned |
-| **PR-9** | Optional brand-radar UI page | Optional |
+| **PR-1** | Schema 068 + brandKey + CSV import | **Done** |
+| **PR-2** | Materialize weekly seeds | **Done** |
+| **PR-3** | stop_batch, brand_key stamp, Windows weekly script skeleton | **Done** |
+| **PR-3.1** | Shop identity columns (mig **069**) | **Done** |
+| **PR-3.2** | Puppeteer Mall URL discovery | **Done** (demoted — captcha) |
+| **PR-3.3** | Chrome extension side panel + resolve-shop + shop-harvest | **Done** (v0.3 harvest UI) |
+| **MH-1** | **Discover shop collections** — parse Mall navbar → `metadata.shop_collections[{name, shop_collection_id}]` (extension button and/or Playwright once-per-shop) | **Next** |
+| **MH-2** | **All Products harvest worker** — Playwright warm profile; `/{user}?page=N&sortBy=pop`; name+sold; push `shop-harvest` / upsert snapshots; pilot **12** brands | Planned |
+| **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; optional only for pilot | Planned |
+| **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold per shop only | Planned |
+| **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | Planned |
+| **MH-6** | Scale pilot → mid (~50) → full (~125); collection crawl only where needed | Planned |
+| **PR-4** | Brand `metrics_daily` rollup + WoW (after harvest data exists) | After MH-2 |
+| **PR-5** | Report pack `marketplace-brand-weekly` | After PR-4 |
+| **PR-6** | Weekly Grok brief → `bi_digests` | After PR-5 |
+| **PR-7** | Ops runbook + job health UI | Parallel MH-5 |
+| **PR-8** | Activate remaining pilot shops / allowlist polish | Parallel MH-1 |
+| **PR-9** | Optional brand-radar UI scoreboard | Optional |
 
-**Code:** `marketplace/brandKey.mjs` · `materializeBrandSeeds.mjs` · `stampBrandSignals.mjs` · `processJobs.mjs` ·  
-`server/utils/marketplaceBrandUniverse.ts` · `marketplaceCollect.ts` ·  
-`GET/PATCH /api/v1/marketplace/brand-universe` · `POST .../import` · `POST .../materialize-seeds` ·  
-`POST /api/internal/marketplace/weekly-digest` (stub until PR-6) · `scripts/windows-marketplace-weekly.mjs|.ps1`  
-**Ops:** import → materialize pilot → `windows-marketplace-weekly` (cookies required for live collect).
+### Suggested resume order (when you come back)
+
+```text
+1. MH-1  Discover collections (navbar → metadata) for BOJ + pilot shops
+2. MH-2  Playwright All Products harvest for pilot 12 (name + sold)
+3. Verify warehouse snapshots for beauty-of-joseon
+4. MH-4  Optional: PDP breadcrumb on top sold only
+5. MH-3  Optional: full Serums/Sunscreens/… collection passes
+6. MH-5  Wire weekly automation
+7. PR-4+ metrics / report pack
+```
+
+### Current pilot state (2026-07-20)
+
+| Item | State |
+|------|--------|
+| 125 brands in universe | Imported, most `pilot_tier=paused` except pilot set |
+| BOJ `@beautyofjoseonsg` | **Confirmed** (extension); primary seed `mode=shop` + SERP secondary |
+| Crawl jobs / listing snapshots for BOJ | **None yet** — identity only |
+| Extension | Side panel harvest (name/sold/category tab); needs Reload after deploys |
+| Prod API | brand-universe + resolve-shop + shop-harvest on main |
+
+### Code map
+
+| Area | Path |
+|------|------|
+| Universe / materialize | `marketplace/brandKey.mjs` · `materializeBrandSeeds.mjs` · `server/utils/marketplaceBrandUniverse.ts` |
+| Shop extract / harvest | `marketplace/shopProductExtract.mjs` · `POST /api/v1/marketplace/shop-harvest` |
+| Extension | `extensions/skums-shopee-shop-resolve/` (v0.3) |
+| Collect worker (generic) | `marketplace/processJobs.mjs` · `stampBrandSignals.mjs` |
+| Weekly script skeleton | `scripts/windows-marketplace-weekly.mjs` |
+| Samples | `extensions/sample-beauty-of-joseon/` · `extensions/sample-serum-joseon.html` |
+
+### Explicit non-goals (until MH-2 proves out)
+
+- Manual 10 collections × 125 brands  
+- Using `tab=` as category  
+- Treating shop “Serums” as equal to platform “Eye Care”  
+- LLM inventing sold counts or category paths  
+- Browserbase-as-primary Mall crawl  
 
 ---
 
@@ -618,7 +720,7 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** **BR PR-4** (brand metrics + WoW) · **K Rpt-6** (real sections) · Loft Phase 0 → **M4** · **J supplier** when KR/HK buying · Phase S Workspace MFA (ops).  
+**Recommended next:** **BR MH-1 → MH-2** (Mall collections + All Products harvest for pilot) · **K Rpt-6** · Loft Phase 0 → **M4** · **J supplier** when buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
@@ -641,7 +743,8 @@ Next eng:
 ### Near-term eng (code)
 
 1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**K Rpt-0–5**~~  
-2. **BR PR-4+** — brand metrics → weekly pack → Grok brief (design doc)  
+2. **BR MH-1 → MH-2** — Mall collection map + All Products harvest (pilot 12)  
+3. **BR PR-4+** — brand metrics → weekly pack → Grok brief (after harvest data)  
 3. **K Rpt-6** — real section handlers (velocity, store_fill, sales, finance)  
 4. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
 5. **J** supplier FOB lifecycle when buying focus  
