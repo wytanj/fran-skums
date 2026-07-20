@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "SKUMS Shopee Shop Resolve",
-  "version": "0.1.0",
-  "description": "Resolve official Shopee Mall shop usernames into Fran SKUMS brand universe (runs in your logged-in Chrome session).",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "version": "0.2.0",
+  "description": "Resolve official Shopee Mall shop usernames into Fran SKUMS brand universe (side panel stays open while you browse).",
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
   "host_permissions": [
     "https://shopee.sg/*",
     "https://*.shopee.sg/*",
@@ -11,9 +11,14 @@
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
   "action": {
-    "default_title": "SKUMS Shop Resolve",
-    "default_popup": "popup.html"
+    "default_title": "SKUMS Shop Resolve (side panel)"
   },
   "content_scripts": [
     {
@@ -21,6 +26,5 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-  ],
-  "icons": {}
+  ]
 }
