@@ -145,11 +145,22 @@
       </div>
     </details>
 
-    <label>Brand (optional — auto if shop_username known)</label>
-    <select id="brandSelect">
-      <option value="">— auto / load brands —</option>
-    </select>
-    <p class="muted" id="brandMeta"></p>
+    <div class="card" style="max-height:none">
+      <strong>Link Mall page → brand</strong>
+      <p class="muted" id="linkMeta" style="margin:6px 0 0">
+        Open an official shop (e.g. <code>shopee.sg/beautyofjoseonsg</code>). We guess the brand from
+        <code>@username</code> so you usually only hit <strong>Link</strong>.
+      </p>
+      <label>Filter brands (type to narrow 125)</label>
+      <input id="brandFilter" placeholder="joseon, cosrx, anua…" autocomplete="off" />
+      <label>Brand</label>
+      <select id="brandSelect">
+        <option value="">— auto / load brands —</option>
+      </select>
+      <p class="muted" id="brandMeta"></p>
+      <button id="btnLinkShop" type="button">Link this Mall page to brand</button>
+      <button id="btnGuessBrand" class="secondary" type="button">Re-guess from tab</button>
+    </div>
 
     <button id="btnDiscover" type="button">1. Discover collections (navbar)</button>
     <button id="btnPushCollections" type="button" class="secondary" disabled>
@@ -176,6 +187,7 @@
     </div>
 
     <div id="status" class="muted"></div>
+    <script src="brandMatch.js"></script>
     <script src="panel.js"></script>
   </body>
 </html>

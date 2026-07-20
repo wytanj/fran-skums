@@ -95,6 +95,7 @@ test('CLI script exists', () => {
   assert.match(script, /userDataDir|SHOPEE_PROFILE_DIR/)
   assert.match(script, /pilot-only/)
   assert.match(script, /mode/)
+  assert.match(script, /--computer/)
 })
 
 test('resolveShelvesForBrand modes', () => {

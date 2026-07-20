@@ -13,6 +13,10 @@
  *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --max-pages 2
  *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --pilot-only --mode collections --dry-run
  *
+ * Computer mode (mode B — captcha-friendly, watch & intervene):
+ *   --computer   headed + real mouse/scroll + Enter on captcha
+ *   --step       also pause for Enter after each page extract
+ *
  * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SHOPEE_PROFILE_DIR, SHOPEE_INTERACTIVE
  */
 
@@ -22,6 +26,10 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import puppeteer from 'puppeteer'
 import { PILOT_BRAND_KEYS } from '../marketplace/brandKey.mjs'
+import {
+  computerBrowserLaunchOptions,
+  withComputerDefaults,
+} from '../marketplace/computerHarvest.mjs'
 import {
   harvestBrandAllProducts,
   harvestBrandCollections,
@@ -56,9 +64,12 @@ function parseArgs(argv) {
     collectionNames: null,
     maxPages: 3,
     delayMs: 4500,
+    delayMsExplicit: false,
     dryRun: false,
     interactive: process.env.SHOPEE_INTERACTIVE !== '0',
     headless: process.env.SHOPEE_HEADLESS === '1',
+    computer: false,
+    step: false,
     profileDir: process.env.SHOPEE_PROFILE_DIR || '.shopee-chrome-profile',
   }
   for (let i = 0; i < argv.length; i++) {
@@ -72,7 +83,6 @@ function parseArgs(argv) {
         .filter(Boolean)
     } else if (a === '--mode') opts.mode = String(argv[++i] || 'all').toLowerCase()
     else if (a === '--collections') {
-      // alias: harvest named shelves only
       opts.mode = 'collections'
       const names = argv[i + 1]
       if (names && !names.startsWith('--')) {
@@ -82,17 +92,37 @@ function parseArgs(argv) {
           .filter(Boolean)
       }
     } else if (a === '--max-pages') opts.maxPages = Number(argv[++i])
-    else if (a === '--delay-ms') opts.delayMs = Number(argv[++i])
-    else if (a === '--dry-run') opts.dryRun = true
+    else if (a === '--delay-ms') {
+      opts.delayMs = Number(argv[++i])
+      opts.delayMsExplicit = true
+    } else if (a === '--dry-run') opts.dryRun = true
     else if (a === '--headed') opts.headless = false
     else if (a === '--headless') opts.headless = true
-    else if (a === '--no-interactive') opts.interactive = false
+    else if (a === '--computer') {
+      opts.computer = true
+      opts.headless = false
+      opts.interactive = true
+    } else if (a === '--step') {
+      opts.step = true
+      opts.computer = true
+      opts.headless = false
+      opts.interactive = true
+    } else if (a === '--no-interactive') opts.interactive = false
     else if (a === '--help' || a === '-h') {
-      console.log(`mall-all-products-harvest.mjs --workspace <uuid> [--mode all|collections|both] [--brand key] [--max-pages 3]
+      console.log(`mall-all-products-harvest.mjs --workspace <uuid> [--mode all|collections|both] [--brand key]
+
+Shelf modes:
   --mode all           All Products only (MH-2)
   --mode collections   Each MH-1 shop_collections shelf (MH-3)
   --mode both          All Products then each collection
-  --collections Serums,Sunscreens   filter shelf names (implies mode=collections)`)
+
+Runtime styles:
+  (default)            Script-style: faster goto+scroll, timed captcha wait
+  --computer           Computer-style: headed, mouse moves, wheel scroll, Enter on captcha
+  --step               Computer + pause after every page (press Enter to continue)
+
+Example (recommended when captcha is likely):
+  node scripts/mall-all-products-harvest.mjs -w <uuid> --brand beauty-of-joseon --mode both --computer --max-pages 2`)
       process.exit(0)
     }
   }
@@ -146,6 +176,8 @@ async function main() {
       {
         workspace_id: opts.workspace,
         mode: opts.mode,
+        runtime: opts.computer ? 'computer' : 'script',
+        step: opts.step,
         dry_run: opts.dryRun,
         max_pages: opts.maxPages,
         headless: opts.headless,
@@ -184,15 +216,25 @@ async function main() {
   const profileDir = resolve(ROOT, opts.profileDir)
   mkdirSync(profileDir, { recursive: true })
 
-  const browser = await puppeteer.launch({
-    headless: opts.headless,
-    userDataDir: profileDir,
-    defaultViewport: { width: 1365, height: 900 },
-    args: ['--disable-blink-features=AutomationControlled', '--no-first-run'],
-  })
+  if (opts.computer) {
+    console.error('[computer] Mode B: headed Chrome + mouse/scroll. Keep this terminal focused for Enter pauses.')
+    console.error('[computer] Solve any captcha in the Chrome window, then press Enter here when asked.')
+  }
+
+  const launchOpts = opts.computer
+    ? computerBrowserLaunchOptions({ profileDir })
+    : {
+        headless: opts.headless,
+        userDataDir: profileDir,
+        defaultViewport: { width: 1365, height: 900 },
+        args: ['--disable-blink-features=AutomationControlled', '--no-first-run'],
+      }
+
+  const browser = await puppeteer.launch(launchOpts)
 
   const summary = {
     mode: opts.mode,
+    runtime: opts.computer ? 'computer' : 'script',
     ok: 0,
     failed: 0,
     products: 0,
@@ -202,11 +244,14 @@ async function main() {
 
   try {
     const page = await browser.newPage()
+    if (!opts.computer) {
+      await page.setViewport({ width: 1365, height: 900 })
+    }
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     )
 
-    const harvestOpts = {
+    let harvestOpts = {
       workspace_id: opts.workspace,
       max_pages: opts.maxPages,
       delay_ms: opts.delayMs,
@@ -215,6 +260,16 @@ async function main() {
       dry_run: false,
       collection_names: opts.collectionNames,
       mode: opts.mode === 'both' ? 'both' : 'collections',
+      computer: opts.computer,
+      step: opts.step,
+    }
+    if (opts.computer) {
+      // Computer pacing defaults unless user passed --delay-ms
+      const base = opts.delayMsExplicit
+        ? harvestOpts
+        : { ...harvestOpts, delay_ms: undefined, shelf_delay_ms: undefined }
+      harvestOpts = withComputerDefaults(base)
+      if (opts.delayMsExplicit) harvestOpts.delay_ms = opts.delayMs
     }
 
     for (const brand of withShop) {

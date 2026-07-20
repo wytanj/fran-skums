@@ -8,6 +8,7 @@ test('chrome extension package present', () => {
   assert.ok(existsSync(new URL('manifest.json', root)))
   assert.ok(existsSync(new URL('panel.html', root)))
   assert.ok(existsSync(new URL('panel.js', root)))
+  assert.ok(existsSync(new URL('brandMatch.js', root)))
   assert.ok(existsSync(new URL('background.js', root)))
   assert.ok(existsSync(new URL('content.js', root)))
   assert.ok(existsSync(new URL('README.md', root)))
@@ -27,7 +28,18 @@ test('panel persists brand cache', () => {
   const js = readFileSync(new URL('panel.js', root), 'utf8')
   assert.match(js, /skums_brand_cache/)
   assert.match(js, /restoreBrandCache|persistBrandCache/)
-  assert.match(js, /side_panel|side panel|Restored/i)
+  assert.match(js, /side_panel|side panel|Restored|Ready/i)
+})
+
+test('panel has fast Link shop path + brand filter', () => {
+  const js = readFileSync(new URL('panel.js', root), 'utf8')
+  const html = readFileSync(new URL('panel.html', root), 'utf8')
+  assert.match(js, /linkActiveShop|btnLinkShop/)
+  assert.match(js, /guessBrandForShop|SkumsBrandMatch/)
+  assert.match(js, /brandFilter/)
+  assert.match(html, /brandFilter/)
+  assert.match(html, /Link this Mall page/)
+  assert.match(html, /brandMatch\.js/)
 })
 
 test('content script scans for shop username', () => {

@@ -112,10 +112,14 @@
       <button id="btnLoadBrands" class="secondary" type="button">Load brands</button>
     </div>
 
+    <label>Filter brands</label>
+    <input id="brandFilter" placeholder="type joseon, cosrx…" autocomplete="off" />
+
     <label>Brand (needs shop)</label>
     <select id="brandSelect">
       <option value="">— load brands —</option>
     </select>
+    <p class="muted" id="guessMeta"></p>
 
     <div class="row">
       <button id="btnScan" type="button">Scan this tab</button>
@@ -131,6 +135,7 @@
     <button id="btnPushManual" class="secondary" type="button">Push pasted URL</button>
 
     <div id="status" class="muted"></div>
+    <script src="brandMatch.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

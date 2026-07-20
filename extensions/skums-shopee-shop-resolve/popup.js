@@ -8,6 +8,10 @@ let lastScan = null
 let selectedCandidate = null
 let brands = []
 let lastWorkspaceId = null
+let brandFilter = ''
+let allBrandsForSelect = []
+
+const BM = () => globalThis.SkumsBrandMatch
 
 async function loadSettings() {
   const s = await chrome.storage.sync.get(['apiBase', 'apiKey'])
@@ -98,15 +102,10 @@ async function loadBrands() {
   brands = Array.isArray(data.brands) ? data.brands : []
   lastWorkspaceId = data.workspace_id || null
 
+  allBrandsForSelect = brands
+  renderBrandSelect()
   const need = brands.filter(needsShop)
-  const sel = $('brandSelect')
-  sel.innerHTML = ''
-  const opt0 = document.createElement('option')
-  opt0.value = ''
-
   if (brands.length === 0) {
-    opt0.textContent = '— no brands in this key’s workspace —'
-    sel.appendChild(opt0)
     setStatus(
       `0 brands for workspace ${lastWorkspaceId || '(unknown)'}.\n` +
         `API key is bound to a workspace that has no marketplace_brand_universe rows.\n` +
@@ -116,21 +115,47 @@ async function loadBrands() {
     )
     return
   }
+  setStatus(
+    `Loaded ${brands.length} brands (${need.length} need shop)\nworkspace: ${lastWorkspaceId || '?'}`,
+    'ok',
+  )
+}
+
+function renderBrandSelect() {
+  const list = allBrandsForSelect.length ? allBrandsForSelect : brands
+  const need = list.filter(needsShop)
+  const sel = $('brandSelect')
+  const prev = sel.value
+  sel.innerHTML = ''
+  const opt0 = document.createElement('option')
+  opt0.value = ''
+
+  if (list.length === 0) {
+    opt0.textContent = '— no brands —'
+    sel.appendChild(opt0)
+    return
+  }
+
+  const q = brandFilter.trim().toLowerCase()
+  const sorted = [...list]
+    .filter((b) => {
+      if (!q) return true
+      return `${b.display_name} ${b.brand_key} ${b.shop_username || ''}`.toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      const an = needsShop(a) ? 0 : 1
+      const bn = needsShop(b) ? 0 : 1
+      if (an !== bn) return an - bn
+      const ap = a.pilot_tier === 'pilot' ? 0 : 1
+      const bp = b.pilot_tier === 'pilot' ? 0 : 1
+      if (ap !== bp) return ap - bp
+      return String(a.display_name || '').localeCompare(String(b.display_name || ''))
+    })
 
   opt0.textContent = need.length
-    ? `— ${need.length} need shop · ${brands.length} total —`
-    : `— all ${brands.length} confirmed —`
+    ? `— ${need.length} need shop · ${list.length} total —`
+    : `— all ${list.length} confirmed —`
   sel.appendChild(opt0)
-
-  const sorted = [...brands].sort((a, b) => {
-    const ap = a.pilot_tier === 'pilot' ? 0 : 1
-    const bp = b.pilot_tier === 'pilot' ? 0 : 1
-    if (ap !== bp) return ap - bp
-    const an = needsShop(a) ? 0 : 1
-    const bn = needsShop(b) ? 0 : 1
-    if (an !== bn) return an - bn
-    return String(a.display_name || '').localeCompare(String(b.display_name || ''))
-  })
 
   for (const b of sorted) {
     const o = document.createElement('option')
@@ -140,10 +165,8 @@ async function loadBrands() {
     sel.appendChild(o)
   }
 
-  setStatus(
-    `Loaded ${brands.length} brands (${need.length} need shop)\nworkspace: ${lastWorkspaceId || '?'}`,
-    'ok',
-  )
+  if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev
+  else if (sorted.length === 1) sel.value = sorted[0].brand_key
 }
 
 function renderCandidates(scan) {
@@ -207,24 +230,46 @@ async function scanActiveTab() {
   lastScan = res.scan
   renderCandidates(lastScan)
 
-  if (lastScan.search_query && brands.length) {
+  // Fuzzy brand from @username (primary) or search/title
+  const candUser =
+    selectedCandidate?.shop_username ||
+    lastScan.candidates?.[0]?.shop_username ||
+    BM()?.usernameFromShopUrl?.(lastScan.page_url || tab.url) ||
+    ''
+  let guess = null
+  if (brands.length && BM()?.guessBrandForShop) {
+    guess = BM().guessBrandForShop(brands, {
+      shop_username: candUser,
+      page_title: lastScan.page_title || tab.title || '',
+      prefer_unconfirmed: true,
+    })
+  }
+  if (!guess && lastScan.search_query && brands.length) {
     const q = lastScan.search_query.toLowerCase()
     const match = brands.find(
       (b) =>
         q.includes(String(b.display_name).toLowerCase()) ||
         q.includes(String(b.brand_key).replace(/-/g, ' ')),
     )
-    if (match) $('brandSelect').value = match.brand_key
+    if (match) guess = { brand: match, score: 60 }
   }
-
-  if (lastScan.page_kind === 'shop' && brands.length) {
-    const title = (lastScan.page_title || '').toLowerCase()
-    const match = brands.find((b) => title.includes(String(b.display_name).toLowerCase()))
-    if (match) $('brandSelect').value = match.brand_key
+  if (guess?.brand?.brand_key) {
+    brandFilter = ''
+    if ($('brandFilter')) $('brandFilter').value = ''
+    renderBrandSelect()
+    $('brandSelect').value = guess.brand.brand_key
+    if ($('guessMeta')) {
+      $('guessMeta').textContent = `Suggested: ${guess.brand.display_name} ← @${candUser || '?'} (score ${guess.score})`
+    }
+  } else if ($('guessMeta')) {
+    $('guessMeta').textContent = candUser
+      ? `No auto-match for @${candUser} — filter or pick brand`
+      : ''
   }
 
   setStatus(
-    `Found ${lastScan.candidates.length} candidate(s) · page=${lastScan.page_kind}`,
+    `Found ${lastScan.candidates.length} candidate(s) · page=${lastScan.page_kind}` +
+      (guess ? ` · brand ${guess.brand.brand_key}` : ''),
     'ok',
   )
 }
@@ -302,6 +347,11 @@ $('btnPushManual').addEventListener('click', async () => {
   } catch (e) {
     setStatus(e.message, 'err')
   }
+})
+
+$('brandFilter')?.addEventListener('input', () => {
+  brandFilter = $('brandFilter').value
+  renderBrandSelect()
 })
 
 loadSettings().catch(() => {})

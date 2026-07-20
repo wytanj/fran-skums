@@ -73,21 +73,36 @@ node scripts/materialize-brand-seeds.mjs --workspace <uuid> --pilot-allowlist
 
 ### MH-2 / MH-3 — Mall harvest (warm Chrome)
 
+Two runtimes:
+
+| Runtime | Flag | Behavior |
+|---------|------|----------|
+| **Mode A — script** | (default) / `--headed` | Fast `goto` + `window.scrollBy`; timed captcha wait |
+| **Mode B — computer** | `--computer` | Headed + real mouse moves + wheel scroll + **press Enter** after captcha (Perplexity Computer–style; keep machine on) |
+
 ```bash
-# MH-2 All Products only
+# MH-2 All Products only (script)
 node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode all --max-pages 3 --headed
 
 # MH-3 each shop shelf (needs MH-1 collections on metadata)
 node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode collections --max-pages 2 --headed
 
-# Both
+# Both (script)
 node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --max-pages 2 --headed
 
+# Mode B when captcha is likely (recommended for live Mall)
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --computer --max-pages 2
+
+# Mode B + pause after every page extract
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --computer --step --max-pages 1
+
 # Dry plan
-node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --dry-run
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --computer --dry-run
 ```
 
 Writes name + sold + `shop_collection_*` into listings/snapshots. Profile: `.shopee-chrome-profile`.
+
+**Mode B ops:** leave the Chrome window visible; when the terminal says solve captcha, fix it in Chrome, then press **Enter** in the terminal (not only wait). Module: `marketplace/computerHarvest.mjs`.
 
 ## Phase 0
 

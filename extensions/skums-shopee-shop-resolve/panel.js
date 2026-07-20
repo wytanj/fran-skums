@@ -10,10 +10,15 @@ const COLL_KEY = 'skums_last_collections_v1'
 let brands = []
 let lastWorkspaceId = null
 let selectedBrandKey = ''
+let brandFilter = ''
+/** @type {string | null} */
+let activeShopUsername = null
 /** @type {any} */
 let lastHarvest = null
 /** @type {any} */
 let lastCollections = null
+
+const BM = () => globalThis.SkumsBrandMatch
 
 function setStatus(msg, cls) {
   const el = $('status')
@@ -162,24 +167,190 @@ function renderBrandSelect() {
   sel.innerHTML = ''
   const opt0 = document.createElement('option')
   opt0.value = ''
-  opt0.textContent = brands.length ? `— auto by shop_username (${brands.length}) —` : '— load brands —'
+  const needN = brands.filter(needsShop).length
+  opt0.textContent = brands.length
+    ? `— pick brand (${needN} need shop · ${brands.length} total) —`
+    : '— load brands —'
   sel.appendChild(opt0)
-  const sorted = [...brands].sort((a, b) => {
-    const ap = a.pilot_tier === 'pilot' ? 0 : 1
-    const bp = b.pilot_tier === 'pilot' ? 0 : 1
-    if (ap !== bp) return ap - bp
-    return String(a.display_name || '').localeCompare(String(b.display_name || ''))
-  })
+
+  const q = brandFilter.trim().toLowerCase()
+  const sorted = [...brands]
+    .filter((b) => {
+      if (!q) return true
+      const hay = `${b.display_name} ${b.brand_key} ${b.shop_username || ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+    .sort((a, b) => {
+      // Unconfirmed first (what you're linking), then pilot, then name
+      const an = needsShop(a) ? 0 : 1
+      const bn = needsShop(b) ? 0 : 1
+      if (an !== bn) return an - bn
+      const ap = a.pilot_tier === 'pilot' ? 0 : 1
+      const bp = b.pilot_tier === 'pilot' ? 0 : 1
+      if (ap !== bp) return ap - bp
+      return String(a.display_name || '').localeCompare(String(b.display_name || ''))
+    })
+
   for (const b of sorted) {
     const o = document.createElement('option')
     o.value = b.brand_key
+    const flag = !needsShop(b) ? '✓' : b.shop_username ? '~' : '·'
     const mark = b.shop_username ? `@${b.shop_username}` : 'no shop yet'
-    o.textContent = `${b.display_name} · ${mark}`
+    o.textContent = `${flag} ${b.display_name} · ${mark}`
     sel.appendChild(o)
   }
   if (prev && [...sel.options].some((o) => o.value === prev)) {
     sel.value = prev
     selectedBrandKey = prev
+  } else if (sorted.length === 1) {
+    // Filter narrowed to one brand — select it
+    sel.value = sorted[0].brand_key
+    selectedBrandKey = sorted[0].brand_key
+  }
+  updateLinkButton()
+}
+
+function updateLinkButton() {
+  const btn = $('btnLinkShop')
+  if (!btn) return
+  const user = activeShopUsername
+  const brand = $('brandSelect').value
+  if (user && brand) {
+    btn.textContent = `Link @${user} → ${brand}`
+    btn.disabled = false
+  } else if (user) {
+    btn.textContent = `Link @${user} → (pick brand)`
+    btn.disabled = true
+  } else {
+    btn.textContent = 'Link this Mall page to brand'
+    btn.disabled = true
+  }
+}
+
+/**
+ * Read active Shopee tab, guess brand from @username, preselect dropdown.
+ */
+async function syncFromActiveTab(opts = {}) {
+  const quiet = opts.quiet === true
+  const tab = await getShopeeTab()
+  if (!tab?.url) {
+    activeShopUsername = null
+    if ($('linkMeta')) {
+      $('linkMeta').textContent = 'No Shopee tab found. Open a Mall shop URL first.'
+    }
+    updateLinkButton()
+    return null
+  }
+
+  const username =
+    BM()?.usernameFromShopUrl?.(tab.url) ||
+    null
+  activeShopUsername = username
+
+  let guess = null
+  if (username && brands.length && BM()?.guessBrandForShop) {
+    guess = BM().guessBrandForShop(brands, {
+      shop_username: username,
+      page_title: tab.title || '',
+      prefer_unconfirmed: true,
+    })
+    if (guess?.brand?.brand_key) {
+      selectedBrandKey = guess.brand.brand_key
+      // Clear filter so the option is visible, then render
+      if ($('brandFilter') && brandFilter) {
+        brandFilter = ''
+        $('brandFilter').value = ''
+      }
+      renderBrandSelect()
+      $('brandSelect').value = guess.brand.brand_key
+    }
+  }
+
+  if ($('linkMeta')) {
+    if (!username) {
+      $('linkMeta').textContent =
+        `Tab is not a Mall shop path (${tab.url}). Open e.g. shopee.sg/{username}.`
+    } else if (guess) {
+      $('linkMeta').textContent =
+        `Detected @${username} → suggested ${guess.brand.display_name} (${guess.brand.brand_key}, score ${guess.score}). Click Link if correct.`
+    } else if (!brands.length) {
+      $('linkMeta').textContent = `Detected @${username}. Refresh brands first, then Link.`
+    } else {
+      $('linkMeta').textContent =
+        `Detected @${username} — no auto-match. Type filter or pick brand, then Link.`
+    }
+  }
+
+  updateLinkButton()
+  if (!quiet && username) {
+    setStatus(
+      guess
+        ? `Ready: @${username} → ${guess.brand.brand_key}. Press Link.`
+        : `On @${username}. Pick brand (filter helps), then Link.`,
+      guess ? 'ok' : 'muted',
+    )
+  }
+  return { tab, username, guess }
+}
+
+async function linkActiveShop() {
+  if (!$('apiKey').value.trim()) throw new Error('API key required')
+  if (!brands.length) await loadBrands()
+
+  const tab = await getShopeeTab()
+  if (!tab?.url) throw new Error('Open a Shopee Mall shop tab first')
+
+  const username = BM()?.usernameFromShopUrl?.(tab.url)
+  if (!username) {
+    throw new Error('URL is not a shop path like shopee.sg/beautyofjoseonsg')
+  }
+
+  // Re-guess if select empty
+  if (!$('brandSelect').value && brands.length) {
+    const g = BM()?.guessBrandForShop?.(brands, {
+      shop_username: username,
+      page_title: tab.title || '',
+    })
+    if (g?.brand?.brand_key) {
+      $('brandSelect').value = g.brand.brand_key
+      selectedBrandKey = g.brand.brand_key
+    }
+  }
+
+  const brand_key = $('brandSelect').value
+  if (!brand_key) throw new Error('Select a brand (use filter or Re-guess)')
+
+  setStatus(`Linking @${username} → ${brand_key}…`)
+  const data = await apiPost('/api/v1/marketplace/brand-universe/resolve-shop', {
+    brand_key,
+    status: 'confirmed',
+    source: 'manual',
+    shop_username: username,
+    shop_url: `https://shopee.sg/${username}`,
+    evidence: {
+      via: 'chrome_extension_side_panel',
+      page_url: tab.url,
+      page_title: tab.title || null,
+    },
+  })
+
+  setStatus(
+    `Linked @${data.brand?.shop_username || username} → ${data.brand?.brand_key || brand_key}\n` +
+      `Next: open another Mall shop (panel stays open).`,
+    'ok',
+  )
+  await loadBrands()
+  activeShopUsername = username
+  // Keep selection on confirmed brand briefly, then clear for next
+  selectedBrandKey = ''
+  $('brandSelect').value = ''
+  brandFilter = ''
+  if ($('brandFilter')) $('brandFilter').value = ''
+  renderBrandSelect()
+  updateLinkButton()
+  if ($('linkMeta')) {
+    $('linkMeta').textContent =
+      `Saved @${username}. Open the next Mall page → Re-guess / Link.`
   }
 }
 
@@ -276,16 +447,24 @@ async function discoverCollections() {
     return
   }
   const disc = res.discovery
+  activeShopUsername = disc.shop_username || activeShopUsername
   if (disc.shop_username && brands.length) {
-    const match = brands.find(
+    const exact = brands.find(
       (b) => String(b.shop_username || '').toLowerCase() === disc.shop_username,
     )
-    if (match) {
-      $('brandSelect').value = match.brand_key
-      selectedBrandKey = match.brand_key
+    const guess =
+      exact ||
+      BM()?.guessBrandForShop?.(brands, {
+        shop_username: disc.shop_username,
+        page_title: tab.title || '',
+      })?.brand
+    if (guess) {
+      $('brandSelect').value = guess.brand_key
+      selectedBrandKey = guess.brand_key
       await persistBrandCache()
     }
   }
+  updateLinkButton()
   renderCollections(disc)
   await persistCollections()
   setStatus(
@@ -332,17 +511,25 @@ async function harvestActiveShop() {
   }
 
   const harvest = res.harvest
-  // Auto-select brand by shop_username
+  activeShopUsername = harvest.shop_username || activeShopUsername
+  // Auto-select brand by exact shop_username, else fuzzy @username
   if (harvest.shop_username && brands.length) {
-    const match = brands.find(
+    const exact = brands.find(
       (b) => String(b.shop_username || '').toLowerCase() === harvest.shop_username,
     )
-    if (match) {
-      $('brandSelect').value = match.brand_key
-      selectedBrandKey = match.brand_key
+    const guess =
+      exact ||
+      BM()?.guessBrandForShop?.(brands, {
+        shop_username: harvest.shop_username,
+        page_title: tab.title || '',
+      })?.brand
+    if (guess) {
+      $('brandSelect').value = guess.brand_key
+      selectedBrandKey = guess.brand_key
       await persistBrandCache()
     }
   }
+  updateLinkButton()
 
   renderHarvest(harvest)
   await persistHarvest()
@@ -388,7 +575,15 @@ function downloadHarvest() {
 
 $('btnSave').addEventListener('click', () => saveSettings().catch((e) => setStatus(e.message, 'err')))
 $('btnLoadBrands').addEventListener('click', () =>
-  loadBrands().catch((e) => setStatus(String(e.message || e), 'err')),
+  loadBrands()
+    .then(() => syncFromActiveTab({ quiet: true }))
+    .catch((e) => setStatus(String(e.message || e), 'err')),
+)
+$('btnLinkShop').addEventListener('click', () =>
+  linkActiveShop().catch((e) => setStatus(e.message, 'err')),
+)
+$('btnGuessBrand').addEventListener('click', () =>
+  syncFromActiveTab().catch((e) => setStatus(e.message, 'err')),
 )
 $('btnDiscover').addEventListener('click', () =>
   discoverCollections().catch((e) => setStatus(e.message, 'err')),
@@ -403,8 +598,27 @@ $('btnPush').addEventListener('click', () => pushHarvest().catch((e) => setStatu
 $('btnDownload').addEventListener('click', () => downloadHarvest())
 $('brandSelect').addEventListener('change', async () => {
   selectedBrandKey = $('brandSelect').value
+  updateLinkButton()
   await persistBrandCache()
 })
+$('brandFilter').addEventListener('input', () => {
+  brandFilter = $('brandFilter').value
+  renderBrandSelect()
+})
+
+// Re-guess when user switches Shopee tabs (panel stays open)
+if (chrome.tabs?.onActivated) {
+  chrome.tabs.onActivated.addListener(() => {
+    syncFromActiveTab({ quiet: true }).catch(() => {})
+  })
+}
+if (chrome.tabs?.onUpdated) {
+  chrome.tabs.onUpdated.addListener((_id, info, tab) => {
+    if (info.status === 'complete' && tab?.active && /shopee\.sg/i.test(tab.url || '')) {
+      syncFromActiveTab({ quiet: true }).catch(() => {})
+    }
+  })
+}
 
 ;(async () => {
   try {
@@ -414,9 +628,11 @@ $('brandSelect').addEventListener('change', async () => {
       await loadBrands()
     } else if (!$('apiKey').value.trim()) {
       $('settingsBox').open = true
-      setStatus('Settings → API key → Save → Refresh brands (optional for push)', 'muted')
-    } else {
-      setStatus('Ready. Open Mall shop page → Harvest products.', 'ok')
+      setStatus('Settings → API key → Save → Refresh brands', 'muted')
+    }
+    await syncFromActiveTab({ quiet: !brands.length })
+    if (brands.length) {
+      setStatus('Ready. Mall page → Link (auto brand) · or Discover / Harvest.', 'ok')
     }
   } catch (e) {
     setStatus(String(e.message || e), 'err')

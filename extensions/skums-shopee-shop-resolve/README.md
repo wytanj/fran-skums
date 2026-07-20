@@ -28,21 +28,30 @@ Validated against saved HTML in `extensions/sample-beauty-of-joseon/`
 
 Not required for your use case (ignored as primary): price history, full INCI, SERP rank vs resellers.
 
-## UX (v0.3)
+## UX (v0.5)
 
 - **Side panel** stays open while you browse
-- **Harvest products on this shop page** → table of name / sold / category
-- **Push harvest to SKUMS** → `POST /api/v1/marketplace/shop-harvest`
-- **Download JSON** offline backup
-- Brand list cached; auto-links `@beautyofjoseonsg` → `beauty-of-joseon` when confirmed
+- **Link Mall page → brand** (fast path for the 125): detects `@username` from the tab URL, **auto-guesses** brand (`beautyofjoseonsg` → `beauty-of-joseon`), one click **Link**
+- **Filter brands** typeahead when auto-guess misses
+- **Discover collections** / **Harvest products** still work after link
+- Brand list cached; re-guesses when you switch tabs
 
-## Workflow
+## Workflow — assign Mall URLs to brands (semi-auto)
 
-1. `chrome://extensions` → **Reload** this extension  
-2. Open side panel; set API base `https://fran-skums.vercel.app` + `sk_live` key (`intel:read` + `intel:write`)  
-3. Open Mall shop (popularity sort), optionally click a category chip  
-4. **Harvest** → review table → **Push**  
-5. Next page: change `page=1` in URL → Harvest again  
+1. `chrome://extensions` → **Reload** this extension (v0.5+)  
+2. Open side panel; API base + key → **Refresh brands**  
+3. Open official Mall shop tab (`shopee.sg/{username}`)  
+4. Panel suggests brand → **Link this Mall page to brand**  
+5. Next shop tab (panel stays open; re-guesses on tab switch)
+
+If guess is wrong: type 3–4 letters in **Filter brands**, pick, then Link.
+
+## Workflow — harvest products
+
+1. Open Mall shop (popularity sort), optionally a category chip  
+2. **Harvest** → review table → **Push**  
+3. Next page: change `page=1` in URL → Harvest again  
+
 
 ## API
 

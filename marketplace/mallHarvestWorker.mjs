@@ -17,6 +17,7 @@ import {
 import { stampBrandSignalsOnCards } from './stampBrandSignals.mjs'
 import { upsertObservationCards } from './writers/upsertObservations.mjs'
 import { detectSessionHealth } from './shopee/parseSearch.mjs'
+import { openAndHarvestPageComputer } from './computerHarvest.mjs'
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
@@ -25,6 +26,8 @@ function sleep(ms) {
 function humanDelay(min = 800, max = 1800) {
   return sleep(Math.floor(Math.random() * (max - min + 1)) + min)
 }
+
+export { sleep }
 
 /**
  * In-page extract (must stay pure browser JS — no imports).
@@ -137,9 +140,20 @@ export function browserHarvestEvaluate() {
 /**
  * @param {import('puppeteer').Page} page
  * @param {string} url
- * @param {{ interactive?: boolean, captchaWaitMs?: number }} [opts]
+ * @param {{ interactive?: boolean, captchaWaitMs?: number, computer?: boolean, step?: boolean, label?: string }} [opts]
  */
 export async function openAndHarvestPage(page, url, opts = {}) {
+  // Mode B — computer-style (mouse + wheel + Enter on captcha; machine stays on)
+  if (opts.computer) {
+    return openAndHarvestPageComputer(page, url, {
+      step: opts.step,
+      label: opts.label,
+      maxCaptchaRounds: 30,
+      harvestEvaluate: browserHarvestEvaluate,
+    })
+  }
+
+  // Mode A — pure script (faster goto + window.scrollBy; more captcha-prone)
   try {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 })
   } catch {
@@ -174,7 +188,6 @@ export async function openAndHarvestPage(page, url, opts = {}) {
         return { harvest, session_health: 'ok' }
       }
       if (h2 === 'ok' && harvest.product_count === 0) {
-        // page ok but empty — still return
         return { harvest, session_health: 'ok' }
       }
     }
@@ -291,7 +304,7 @@ export function resolveShelvesForBrand(brand, opts = {}) {
  * @param {object} brand
  * @param {any} db
  * @param {{ name: string, shop_collection_id: string | null, is_all_products?: boolean }} shelf
- * @param {{ max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string, harvest_source?: string }} opts
+ * @param {{ max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string, harvest_source?: string, computer?: boolean, step?: boolean }} opts
  */
 export async function harvestBrandShelf(page, brand, db, shelf, opts) {
   const username = String(brand.shop_username).trim()
@@ -317,6 +330,9 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
     const { harvest, session_health } = await openAndHarvestPage(page, url, {
       interactive: opts.interactive,
       captchaWaitMs: opts.captchaWaitMs,
+      computer: opts.computer,
+      step: opts.step,
+      label: `${brand.brand_key} / ${collName} p${pageIdx}`,
     })
 
     if (session_health === 'blocked' || session_health === 'login_required') {
@@ -435,7 +451,7 @@ export async function harvestBrandAllProducts(page, brand, db, opts) {
  * @param {import('puppeteer').Page} page
  * @param {object} brand
  * @param {any} db
- * @param {{ mode?: 'collections' | 'both', max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string, collection_names?: string[], shelf_delay_ms?: number }} opts
+ * @param {{ mode?: 'collections' | 'both', max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string, collection_names?: string[], shelf_delay_ms?: number, computer?: boolean, step?: boolean }} opts
  */
 export async function harvestBrandCollections(page, brand, db, opts) {
   const mode = opts.mode === 'both' ? 'both' : 'collections'
@@ -491,4 +507,4 @@ export async function harvestBrandCollections(page, brand, db, opts) {
   }
 }
 
-export { parseShopPageContext, sleep }
+export { parseShopPageContext }
