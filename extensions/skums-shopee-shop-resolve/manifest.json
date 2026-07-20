@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SKUMS Shopee Shop Resolve",
-  "version": "0.2.0",
-  "description": "Resolve official Shopee Mall shop usernames into Fran SKUMS brand universe (side panel stays open while you browse).",
+  "version": "0.3.0",
+  "description": "Harvest Mall shop products (name, sold, category) from official Shopee storefronts into Fran SKUMS.",
   "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
   "host_permissions": [
     "https://shopee.sg/*",

@@ -1,52 +1,75 @@
-# SKUMS Shopee Shop Resolve (Chrome extension)
+# SKUMS Shopee Mall harvest (Chrome extension)
 
-Resolves **official Shopee Mall shop usernames** into Fran SKUMS `marketplace_brand_universe` using **your logged-in Chrome session**.
+Harvest **official Mall shop product lists** into Fran SKUMS using your logged-in Chrome session.
 
-**v0.2:** **Side panel** (stays open while you click Shopee) + **cached brand list** (no re-Load every time).
+## Page this is designed for
 
-## Why side panel
+```
+https://shopee.sg/beautyofjoseonsg?page=0&sortBy=pop&tab=0
+```
 
-Chrome **popups close** when you click the page. That killed the brand list.  
-The **side panel** stays open; brands are restored from `chrome.storage.local`.
+| Query | Role |
+|-------|------|
+| `sortBy=pop` | Popularity order (sold signal strongest) |
+| `page=0,1,2…` | Paginate through the shop catalog |
+| `tab=0` | Collection tab |
 
-## Install / update
+Validated against saved HTML in `extensions/sample-beauty-of-joseon/`  
+(shop_id `1111230332`, product links `-i.{shop}.{item}`, sold text like `30k+ sold`).
 
-1. `chrome://extensions` → Developer mode  
-2. **Load unpacked** → `extensions/skums-shopee-shop-resolve`  
-3. After code updates: click **Reload** on the extension card  
-4. Click the toolbar icon → panel opens on the **right**
+## What we capture
 
-## Configure (once)
+| Field | Source on shop page |
+|-------|---------------------|
+| **name** | Product card / URL slug |
+| **sold** | Card text (`9k+ sold`) → lower bound |
+| **category** | Active shop collection tab (default `All Products`) |
+| ids / url | `shop_id`, `item_id`, listing URL (for warehouse upsert) |
 
-1. Expand **Settings** in the panel  
-2. **API base:** `https://fran-skums.vercel.app`  
-3. **API key:** `intel:read` + `intel:write`, workspace with brand universe  
-4. **Save** → **Refresh brands** once  
-5. Status: `Loaded N brands…` + workspace id  
+Not required for your use case (ignored as primary): price history, full INCI, SERP rank vs resellers.
 
-Next opens restore the list automatically.
+## UX (v0.3)
+
+- **Side panel** stays open while you browse
+- **Harvest products on this shop page** → table of name / sold / category
+- **Push harvest to SKUMS** → `POST /api/v1/marketplace/shop-harvest`
+- **Download JSON** offline backup
+- Brand list cached; auto-links `@beautyofjoseonsg` → `beauty-of-joseon` when confirmed
 
 ## Workflow
 
-1. Keep the side panel open  
-2. On Shopee: open Mall shop or brand search  
-3. **Scan active Shopee tab** → pick candidate → **Confirm + push**  
-4. Or paste URL → **Push pasted URL**  
-5. After several confirms:
-   ```bash
-   node scripts/materialize-brand-seeds.mjs --workspace <uuid> --pilot-allowlist
-   ```
+1. `chrome://extensions` → **Reload** this extension  
+2. Open side panel; set API base `https://fran-skums.vercel.app` + `sk_live` key (`intel:read` + `intel:write`)  
+3. Open Mall shop (popularity sort), optionally click a category chip  
+4. **Harvest** → review table → **Push**  
+5. Next page: change `page=1` in URL → Harvest again  
 
 ## API
 
 ```http
-GET  /api/v1/marketplace/brand-universe
-POST /api/v1/marketplace/brand-universe/resolve-shop
-Authorization: Bearer <api_key>
+POST /api/v1/marketplace/shop-harvest
+Authorization: Bearer <key>
 ```
 
-## Notes
+```json
+{
+  "shop_username": "beautyofjoseonsg",
+  "brand_key": "beauty-of-joseon",
+  "active_category": "All Products",
+  "page": 0,
+  "sort_by": "pop",
+  "products": [
+    {
+      "name": "Beauty Of Joseon Relief Sun …",
+      "sold_label": "30k+ sold",
+      "sold_count_lower_bound": 30000,
+      "category": "All Products",
+      "shop_id": "1111230332",
+      "item_id": "28707244664",
+      "listing_url": "https://shopee.sg/…"
+    }
+  ]
+}
+```
 
-- Not a crawl engine — only shop identity.  
-- Puppeteer mall discovery is demoted (captcha).  
-- Keys stay in `chrome.storage.sync`; brand cache in `chrome.storage.local`.
+Writes mall listings + snapshots (sold, category in `signals`).

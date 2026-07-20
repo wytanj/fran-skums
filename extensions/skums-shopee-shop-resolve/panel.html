@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SKUMS Shop Resolve</title>
+    <title>SKUMS Mall harvest</title>
     <style>
       :root {
         font-family: system-ui, Segoe UI, sans-serif;
@@ -11,9 +11,8 @@
       }
       body {
         margin: 0;
-        padding: 12px 14px 24px;
+        padding: 12px 14px 28px;
         background: #f8fafc;
-        min-width: 280px;
       }
       h1 {
         font-size: 15px;
@@ -50,7 +49,6 @@
       }
       button:disabled {
         opacity: 0.5;
-        cursor: not-allowed;
       }
       .row {
         display: flex;
@@ -59,21 +57,40 @@
       .row > * {
         flex: 1;
       }
+      .banner {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 10px;
+        font-size: 11px;
+        line-height: 1.4;
+      }
       .card {
         background: #fff;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 8px;
         margin-top: 8px;
-        max-height: 40vh;
+        max-height: 45vh;
         overflow: auto;
       }
-      .cand {
-        border-bottom: 1px solid #f1f5f9;
-        padding: 6px 0;
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
       }
-      .cand:last-child {
-        border-bottom: none;
+      th,
+      td {
+        text-align: left;
+        padding: 4px 3px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: top;
+      }
+      th {
+        color: #64748b;
+        font-weight: 600;
       }
       .muted {
         color: #64748b;
@@ -90,16 +107,6 @@
         margin-top: 10px;
         white-space: pre-wrap;
         font-size: 11px;
-        line-height: 1.45;
-      }
-      .banner {
-        background: #ecfdf5;
-        border: 1px solid #a7f3d0;
-        border-radius: 6px;
-        padding: 8px;
-        margin-bottom: 10px;
-        font-size: 11px;
-        color: #065f46;
       }
       details {
         margin-top: 8px;
@@ -110,51 +117,51 @@
         color: #475569;
         font-weight: 600;
       }
+      code {
+        font-size: 10px;
+        word-break: break-all;
+      }
     </style>
   </head>
   <body>
-    <h1>SKUMS · Shopee Mall resolve</h1>
+    <h1>SKUMS · Mall product harvest</h1>
     <div class="banner">
-      <strong>Side panel stays open</strong> while you click Shopee pages.
-      Brand list is cached — no need to re-load every time.
+      <strong>Designed for official Mall shop product lists</strong><br />
+      Example:
+      <code>shopee.sg/beautyofjoseonsg?page=0&amp;sortBy=pop&amp;tab=0</code><br />
+      Captures: <strong>name</strong>, <strong>sold</strong>, <strong>category</strong> (active tab).
+      Side panel stays open; brand list is cached.
     </div>
-    <p class="muted">
-      Open a Shopee shop or brand search → Scan → Confirm.
-      API key must match the workspace that has brand universe rows.
-    </p>
 
     <details id="settingsBox">
       <summary>Settings (API base + key)</summary>
       <label>API base</label>
       <input id="apiBase" placeholder="https://fran-skums.vercel.app" />
-
       <label>API key (intel:read + intel:write)</label>
       <input id="apiKey" type="password" placeholder="sk_live_…" autocomplete="off" />
-
       <div class="row">
         <button id="btnSave" class="secondary" type="button">Save settings</button>
         <button id="btnLoadBrands" class="secondary" type="button">Refresh brands</button>
       </div>
     </details>
 
-    <label>Brand</label>
+    <label>Brand (optional — auto if shop_username known)</label>
     <select id="brandSelect">
-      <option value="">— loading brands… —</option>
+      <option value="">— auto / load brands —</option>
     </select>
     <p class="muted" id="brandMeta"></p>
 
-    <div class="row">
-      <button id="btnScan" type="button">Scan active Shopee tab</button>
-      <button id="btnPush" type="button" disabled>Confirm + push</button>
-    </div>
+    <button id="btnHarvest" type="button">Harvest products on this shop page</button>
+    <button id="btnPush" type="button" class="secondary" disabled>Push harvest to SKUMS</button>
+    <button id="btnDownload" type="button" class="secondary" disabled>Download JSON</button>
 
-    <div class="card" id="candidates">
-      <div class="muted">Scan a Shopee tab to list shop candidates.</div>
+    <p class="muted" id="harvestMeta"></p>
+    <div class="card" id="productTable">
+      <div class="muted">
+        Open a Mall shop sorted by popularity, then Harvest.<br />
+        Tip: click category chips (or stay on All Products) so category is correct.
+      </div>
     </div>
-
-    <label>Or paste shop URL / username</label>
-    <input id="manualUrl" placeholder="https://shopee.sg/beautyofjoseonsg" />
-    <button id="btnPushManual" class="secondary" type="button">Push pasted URL</button>
 
     <div id="status" class="muted"></div>
     <script src="panel.js"></script>
