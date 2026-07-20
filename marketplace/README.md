@@ -71,20 +71,23 @@ After confirms:
 node scripts/materialize-brand-seeds.mjs --workspace <uuid> --pilot-allowlist
 ```
 
-### MH-2 — All Products harvest (warm Chrome)
+### MH-2 / MH-3 — Mall harvest (warm Chrome)
 
 ```bash
-# Dry plan (needs shop_username on brands)
-node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --dry-run
+# MH-2 All Products only
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode all --max-pages 3 --headed
 
-# Live: uses .shopee-chrome-profile (login/captcha once in that Chrome)
-node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --max-pages 3 --headed
+# MH-3 each shop shelf (needs MH-1 collections on metadata)
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode collections --max-pages 2 --headed
 
-# Pilot brands that already have shop_username
-node scripts/mall-all-products-harvest.mjs --workspace <uuid> --pilot-only --max-pages 2 --headed
+# Both
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --max-pages 2 --headed
+
+# Dry plan
+node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --dry-run
 ```
 
-Writes name + sold (+ All Products category) into marketplace listings/snapshots.
+Writes name + sold + `shop_collection_*` into listings/snapshots. Profile: `.shopee-chrome-profile`.
 
 ## Phase 0
 

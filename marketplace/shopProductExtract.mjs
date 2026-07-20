@@ -224,6 +224,11 @@ export function harvestToObservationCards(harvest, opts = {}) {
   const brand_key = opts.brand_key || null
   const currency = opts.currency || 'SGD'
   const products = harvest?.products || []
+  const collName =
+    harvest.shop_collection_name || harvest.active_category || null
+  const collId = harvest.shop_collection_id ?? null
+  const source = harvest.harvest_source || 'mall_list_harvest'
+
   return products.map((p, i) => ({
     shop_id: String(p.shop_id),
     item_id: String(p.item_id),
@@ -236,20 +241,26 @@ export function harvestToObservationCards(harvest, opts = {}) {
     sold_count_lower_bound: p.sold_count_lower_bound ?? undefined,
     rank_position: p.rank_position || i + 1,
     search_query: harvest.shop_username
-      ? `shop:${harvest.shop_username}`
+      ? collId
+        ? `shop:${harvest.shop_username}:coll:${collId}`
+        : `shop:${harvest.shop_username}`
       : undefined,
     signals: {
       official_shop: true,
       shop_username: harvest.shop_username || null,
-      category: p.category || harvest.active_category || null,
-      harvest_source: 'chrome_extension_shop_page',
+      category: p.category || collName || null,
+      shop_collection_name: collName,
+      shop_collection_id: collId,
+      harvest_source: source,
       sort_by: harvest.sort_by || null,
       page: harvest.page ?? null,
       ...(brand_key ? { brand_key } : {}),
     },
     raw: {
       harvest: true,
-      category: p.category,
+      category: p.category || collName,
+      shop_collection_id: collId,
+      shop_collection_name: collName,
       page_url: harvest.page_url,
     },
   }))

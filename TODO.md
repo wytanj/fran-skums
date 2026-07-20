@@ -23,7 +23,7 @@
 ## Start here next
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** · **BR PR-1–3.3** (universe, materialize, extension, shop-harvest API).  
-**Next eng:** **BR MH-3** collection harvest (optional) / live MH-2 run · **K Rpt-6** · Loft Phase 0 → **M4** · **J** supplier when buying.  
+**Next eng:** **Ops live Mall harvest** (MH-2/3) · **BR MH-4** PDP breadcrumb (optional) · **K Rpt-6** · Loft Phase 0 → **M4**.  
 **Shopee collect:** primary = **Windows warm Chrome** (extension for identity/single page; Playwright/worker for multi-page Mall). Browserbase **not** primary.  
 **Brand radar:** identity + harvest path started; **no full sold history yet** until Mall harvest worker runs.
 **Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
@@ -47,7 +47,7 @@
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Decision locked** — local Windows primary (below); Browserbase not primary |
-| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–2 done** — next live harvest run / **MH-3** collections |
+| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–3 done** — ops live harvest · next **MH-4** optional |
 
 ### Claude / remote MCP (verified)
 
@@ -600,8 +600,8 @@ sold_label · sold_count_lower_bound · title
 | **PR-3.3** | Chrome extension side panel + resolve-shop + shop-harvest | **Done** (v0.3 harvest UI) |
 | **MH-1** | **Discover shop collections** — parse Mall navbar → `metadata.shop_collections[{name, shop_collection_id}]` (extension + offline script + API) | **Done** |
 | **MH-2** | **All Products harvest worker** — Puppeteer warm Chrome profile; `/{user}?page=N&sortBy=pop`; name+sold; upsert snapshots; pilot brands with `shop_username` | **Done** |
-| **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; optional only for pilot | **Next** |
-| **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold per shop only | Planned |
+| **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; `--mode collections|both` | **Done** |
+| **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold per shop only | **Next** |
 | **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | Planned |
 | **MH-6** | Scale pilot → mid (~50) → full (~125); collection crawl only where needed | Planned |
 | **PR-4** | Brand `metrics_daily` rollup + WoW (after harvest data exists) | After MH-2 |
@@ -615,9 +615,9 @@ sold_label · sold_count_lower_bound · title
 
 ```text
 1. MH-1  Discover collections ✅
-2. MH-2  All Products harvest worker ✅ — scripts/mall-all-products-harvest.mjs
-3. Run live harvest for BOJ / pilot (warm Chrome profile) — ops
-4. MH-3  Optional: collection passes (Serums, …)
+2. MH-2  All Products harvest ✅
+3. MH-3  Collection harvest ✅ — --mode collections|both
+4. Ops: live harvest BOJ (all → collections) with warm profile
 5. MH-4  Optional: PDP breadcrumb on top sold
 6. MH-5  Wire weekly automation
 7. PR-4+ metrics / report pack
@@ -640,13 +640,51 @@ sold_label · sold_count_lower_bound · title
 | Universe / materialize | `marketplace/brandKey.mjs` · `materializeBrandSeeds.mjs` · `server/utils/marketplaceBrandUniverse.ts` |
 | Shop extract / harvest | `marketplace/shopProductExtract.mjs` · `POST /api/v1/marketplace/shop-harvest` |
 | Shop collections (MH-1) | `marketplace/shopCollections.mjs` · `POST .../brand-universe/collections` · `scripts/discover-shop-collections.mjs` |
-| All Products harvest (MH-2) | `marketplace/mallHarvestWorker.mjs` · `scripts/mall-all-products-harvest.mjs` |
+| All Products + collections (MH-2/3) | `marketplace/mallHarvestWorker.mjs` · `scripts/mall-all-products-harvest.mjs --mode all|collections|both` |
 | Extension | `extensions/skums-shopee-shop-resolve/` (v0.4 — Discover collections + harvest) |
 | Collect worker (generic) | `marketplace/processJobs.mjs` · `stampBrandSignals.mjs` |
 | Weekly script skeleton | `scripts/windows-marketplace-weekly.mjs` |
 | Samples | `extensions/sample-beauty-of-joseon/` · `extensions/sample-serum-joseon.html` |
 
-### Explicit non-goals (until MH-2 proves out)
+### Operator runbook (smooth path)
+
+```text
+A. One-time setup
+   1. API key on workspace c21c057f-… with intel:read + intel:write
+   2. chrome://extensions → Load/Reload skums-shopee-shop-resolve (side panel)
+   3. Extension settings: API base https://fran-skums.vercel.app + key → Save → Refresh brands
+   4. Chrome profile for harvest: scripts use .shopee-chrome-profile (login/captcha once)
+
+B. Per Mall brand (pilot)
+   1. Confirm shop: open https://shopee.sg/{mallUsername} → extension Discover collections
+      → Push collections  (MH-1; also confirms shop_username)
+      OR offline: node scripts/discover-shop-collections.mjs --workspace … --brand … --html …
+   2. Optional: materialize seeds
+      node scripts/materialize-brand-seeds.mjs --workspace … --pilot-allowlist
+   3. Harvest All Products (name + sold) — MH-2
+      node scripts/mall-all-products-harvest.mjs --workspace … --brand beauty-of-joseon --mode all --max-pages 3 --headed
+   4. Harvest each shelf (Serums, Sunscreens, …) — MH-3
+      node scripts/mall-all-products-harvest.mjs --workspace … --brand beauty-of-joseon --mode collections --max-pages 2 --headed
+      # or both in one run:
+      node scripts/mall-all-products-harvest.mjs --workspace … --brand beauty-of-joseon --mode both --max-pages 2 --headed
+   5. Check data:
+      node scripts/_check_boj_data.mjs
+
+C. Multi-brand pilot (only brands with shop_username + collections)
+   node scripts/mall-all-products-harvest.mjs --workspace … --pilot-only --mode both --max-pages 2 --headed
+
+D. If captcha / stop_batch
+   - Keep Chrome window; solve captcha; re-run same command (warm profile)
+   - Prefer headed + SHOPEE_INTERACTIVE=1 (default)
+   - Do not use cold Browserbase as primary
+
+E. What you get
+   - name, sold_label, sold_count_lower_bound
+   - shop_collection_name / shop_collection_id (shelf; not Shopee Eye Care path)
+   - platform breadcrumb = MH-4 later (PDP JSON-LD)
+```
+
+### Explicit non-goals (still)
 
 - Manual 10 collections × 125 brands  
 - Using `tab=` as category  

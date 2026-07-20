@@ -237,29 +237,82 @@ export async function loadHarvestTargets(db, workspaceId, filter = {}) {
 }
 
 /**
- * Harvest All Products pages for one brand universe row.
- * @param {import('puppeteer').Page} page
- * @param {object} brand  universe row
- * @param {any} db
- * @param {{ max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string }} opts
+ * Resolve shelves to harvest for a brand.
+ * @param {object} brand
+ * @param {{ mode?: 'all' | 'collections' | 'both', collection_names?: string[] }} [opts]
+ * @returns {Array<{ name: string, shop_collection_id: string | null, is_all_products: boolean }>}
  */
-export async function harvestBrandAllProducts(page, brand, db, opts) {
+export function resolveShelvesForBrand(brand, opts = {}) {
+  const mode = opts.mode || 'all'
+  const metaColl = Array.isArray(brand.metadata?.shop_collections)
+    ? brand.metadata.shop_collections
+    : []
+  const nameFilter = Array.isArray(opts.collection_names)
+    ? opts.collection_names.map((n) => String(n).toLowerCase())
+    : null
+
+  const allProducts = {
+    name: 'All Products',
+    shop_collection_id: null,
+    is_all_products: true,
+  }
+
+  let shelves = []
+  if (mode === 'all') {
+    shelves = [allProducts]
+  } else if (mode === 'collections') {
+    shelves = metaColl.filter((c) => !c.is_all_products && c.shop_collection_id)
+  } else {
+    // both
+    shelves = [allProducts, ...metaColl.filter((c) => !c.is_all_products && c.shop_collection_id)]
+  }
+
+  if (nameFilter?.length) {
+    shelves = shelves.filter(
+      (c) =>
+        c.is_all_products ||
+        nameFilter.some((n) => String(c.name || '').toLowerCase().includes(n)),
+    )
+  }
+
+  // Dedupe by collection id
+  const seen = new Set()
+  return shelves.filter((c) => {
+    const key = c.shop_collection_id || '__all__'
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+/**
+ * Harvest one shelf (All Products or a shopCollection) for a brand.
+ * @param {import('puppeteer').Page} page
+ * @param {object} brand
+ * @param {any} db
+ * @param {{ name: string, shop_collection_id: string | null, is_all_products?: boolean }} shelf
+ * @param {{ max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string, harvest_source?: string }} opts
+ */
+export async function harvestBrandShelf(page, brand, db, shelf, opts) {
   const username = String(brand.shop_username).trim()
   const maxPages = Math.min(Math.max(opts.max_pages ?? 3, 1), 15)
   const delayMs = opts.delay_ms ?? 4000
+  const collId = shelf.shop_collection_id || null
+  const collName = shelf.name || (collId ? 'Collection' : 'All Products')
   const pageHarvests = []
   let stop_batch = false
   let stop_reason = null
 
   for (let pageIdx = 0; pageIdx < maxPages; pageIdx++) {
     const url = shopCollectionListUrl(username, {
-      shop_collection_id: null,
+      shop_collection_id: collId,
       page: pageIdx,
       sort_by: 'pop',
       country: 'sg',
     })
-    // page=0: shopCollectionListUrl omits page=0 — ensure page param for >0 only (already)
-    console.error(`[mall-harvest] ${brand.brand_key} page=${pageIdx} ${url}`)
+    console.error(
+      `[mall-harvest] ${brand.brand_key} shelf="${collName}" coll=${collId || 'all'} page=${pageIdx}`,
+    )
 
     const { harvest, session_health } = await openAndHarvestPage(page, url, {
       interactive: opts.interactive,
@@ -273,23 +326,39 @@ export async function harvestBrandAllProducts(page, brand, db, opts) {
       break
     }
 
-    pageHarvests.push(harvest)
-    if (!harvest.product_count) {
-      console.error(`[mall-harvest] empty page ${pageIdx} — stop paging`)
+    // Force shelf category on products (page may say All Products even on collection URL)
+    const products = (harvest.products || []).map((p) => ({
+      ...p,
+      category: collName,
+    }))
+    pageHarvests.push({ ...harvest, products, active_category: collName })
+
+    if (!products.length) {
+      console.error(`[mall-harvest] empty page ${pageIdx} on ${collName} — stop paging`)
       break
     }
 
     if (pageIdx + 1 < maxPages && delayMs > 0) await sleep(delayMs)
   }
 
-  const products = mergeHarvestProducts(pageHarvests.map((h) => h.products))
+  const products = mergeHarvestProducts(pageHarvests.map((h) => h.products)).map((p) => ({
+    ...p,
+    category: collName,
+  }))
+
   const merged = {
     shop_username: username,
     shop_id: products[0]?.shop_id || null,
-    page_url: shopCollectionListUrl(username, { sort_by: 'pop' }),
+    page_url: shopCollectionListUrl(username, {
+      shop_collection_id: collId,
+      sort_by: 'pop',
+    }),
     page: 0,
     sort_by: 'pop',
-    active_category: 'All Products',
+    active_category: collName,
+    shop_collection_name: collName,
+    shop_collection_id: collId,
+    harvest_source: opts.harvest_source || 'mall_shelf_harvest',
     product_count: products.length,
     products,
     harvested_at: new Date().toISOString(),
@@ -309,6 +378,16 @@ export async function harvestBrandAllProducts(page, brand, db, opts) {
         universe_id: brand.id,
       },
     })
+    // Ensure collection stamps survive stampBrandSignals
+    cards = cards.map((c) => ({
+      ...c,
+      signals: {
+        ...(c.signals || {}),
+        shop_collection_name: collName,
+        shop_collection_id: collId,
+        category: collName,
+      },
+    }))
     write = await upsertObservationCards(db, {
       workspace_id: opts.workspace_id,
       marketplace: 'shopee',
@@ -321,6 +400,8 @@ export async function harvestBrandAllProducts(page, brand, db, opts) {
   return {
     brand_key: brand.brand_key,
     shop_username: username,
+    shelf: collName,
+    shop_collection_id: collId,
     product_count: products.length,
     with_sold: products.filter((p) => p.sold_label).length,
     pages_fetched: pageHarvests.length,
@@ -331,7 +412,82 @@ export async function harvestBrandAllProducts(page, brand, db, opts) {
       name: p.name,
       sold_label: p.sold_label,
       category: p.category,
+      shop_collection_id: collId,
     })),
+  }
+}
+
+/**
+ * Harvest All Products pages for one brand universe row (MH-2).
+ */
+export async function harvestBrandAllProducts(page, brand, db, opts) {
+  return harvestBrandShelf(
+    page,
+    brand,
+    db,
+    { name: 'All Products', shop_collection_id: null, is_all_products: true },
+    { ...opts, harvest_source: 'mall_all_products_harvest' },
+  )
+}
+
+/**
+ * MH-3 — Harvest each shop collection (and optionally All Products).
+ * @param {import('puppeteer').Page} page
+ * @param {object} brand
+ * @param {any} db
+ * @param {{ mode?: 'collections' | 'both', max_pages?: number, delay_ms?: number, interactive?: boolean, captchaWaitMs?: number, dry_run?: boolean, workspace_id: string, collection_names?: string[], shelf_delay_ms?: number }} opts
+ */
+export async function harvestBrandCollections(page, brand, db, opts) {
+  const mode = opts.mode === 'both' ? 'both' : 'collections'
+  const shelves = resolveShelvesForBrand(brand, {
+    mode,
+    collection_names: opts.collection_names,
+  })
+
+  if (!shelves.length) {
+    return {
+      brand_key: brand.brand_key,
+      shop_username: brand.shop_username,
+      error: 'no_shop_collections_run_mh1',
+      shelves: [],
+      product_count: 0,
+      stop_batch: false,
+    }
+  }
+
+  const shelfResults = []
+  let stop_batch = false
+  let stop_reason = null
+  let product_count = 0
+  const shelfDelay = opts.shelf_delay_ms ?? opts.delay_ms ?? 4000
+
+  for (let i = 0; i < shelves.length; i++) {
+    const shelf = shelves[i]
+    const result = await harvestBrandShelf(page, brand, db, shelf, {
+      ...opts,
+      harvest_source: shelf.is_all_products
+        ? 'mall_all_products_harvest'
+        : 'mall_collection_harvest',
+    })
+    shelfResults.push(result)
+    product_count += result.product_count || 0
+    if (result.stop_batch) {
+      stop_batch = true
+      stop_reason = result.stop_reason
+      break
+    }
+    if (i + 1 < shelves.length && shelfDelay > 0) await sleep(shelfDelay)
+  }
+
+  return {
+    brand_key: brand.brand_key,
+    shop_username: brand.shop_username,
+    shelves_planned: shelves.map((s) => s.name),
+    shelves_done: shelfResults.length,
+    product_count,
+    stop_batch,
+    stop_reason,
+    shelf_results: shelfResults,
   }
 }
 

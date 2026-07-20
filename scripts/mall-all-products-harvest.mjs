@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 /**
- * MH-2 — Harvest All Products (sortBy=pop) for Mall shops with confirmed shop_username.
+ * MH-2 / MH-3 — Mall harvest for official Shopee shops.
  *
- * Uses Puppeteer + warm Chrome profile (Track G). Not cold headless by default.
+ * Modes:
+ *   all           All Products only (MH-2 default)
+ *   collections   Each metadata.shop_collections shelf except All Products (MH-3)
+ *   both          All Products then each collection
  *
  * Usage:
- *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --pilot-only --max-pages 3
- *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --max-pages 2
- *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --pilot-only --dry-run
+ *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode all
+ *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode collections
+ *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-joseon --mode both --max-pages 2
+ *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --pilot-only --mode collections --dry-run
  *
- * Env:
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- *   SHOPEE_PROFILE_DIR          default .shopee-chrome-profile
- *   SHOPEE_INTERACTIVE=1        wait on captcha
- *   SHOPEE_CAPTCHA_WAIT_MS      default 180000
- *   SHOPEE_HEADLESS=1           headless (not recommended for first runs)
+ * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SHOPEE_PROFILE_DIR, SHOPEE_INTERACTIVE
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -25,7 +24,9 @@ import puppeteer from 'puppeteer'
 import { PILOT_BRAND_KEYS } from '../marketplace/brandKey.mjs'
 import {
   harvestBrandAllProducts,
+  harvestBrandCollections,
   loadHarvestTargets,
+  resolveShelvesForBrand,
 } from '../marketplace/mallHarvestWorker.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -51,6 +52,8 @@ function parseArgs(argv) {
     workspace: process.env.MARKETPLACE_WORKSPACE_ID || process.env.FRAN_MCP_WORKSPACE_ID || null,
     pilotOnly: false,
     brandKeys: null,
+    mode: 'all', // all | collections | both
+    collectionNames: null,
     maxPages: 3,
     delayMs: 4500,
     dryRun: false,
@@ -67,6 +70,17 @@ function parseArgs(argv) {
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean)
+    } else if (a === '--mode') opts.mode = String(argv[++i] || 'all').toLowerCase()
+    else if (a === '--collections') {
+      // alias: harvest named shelves only
+      opts.mode = 'collections'
+      const names = argv[i + 1]
+      if (names && !names.startsWith('--')) {
+        opts.collectionNames = String(argv[++i])
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      }
     } else if (a === '--max-pages') opts.maxPages = Number(argv[++i])
     else if (a === '--delay-ms') opts.delayMs = Number(argv[++i])
     else if (a === '--dry-run') opts.dryRun = true
@@ -74,17 +88,21 @@ function parseArgs(argv) {
     else if (a === '--headless') opts.headless = true
     else if (a === '--no-interactive') opts.interactive = false
     else if (a === '--help' || a === '-h') {
-      console.log(`mall-all-products-harvest.mjs --workspace <uuid> [--pilot-only] [--brand key] [--max-pages 3]`)
+      console.log(`mall-all-products-harvest.mjs --workspace <uuid> [--mode all|collections|both] [--brand key] [--max-pages 3]
+  --mode all           All Products only (MH-2)
+  --mode collections   Each MH-1 shop_collections shelf (MH-3)
+  --mode both          All Products then each collection
+  --collections Serums,Sunscreens   filter shelf names (implies mode=collections)`)
       process.exit(0)
     }
   }
+  if (!['all', 'collections', 'both'].includes(opts.mode)) opts.mode = 'all'
   if (opts.pilotOnly && !opts.brandKeys) opts.brandKeys = [...PILOT_BRAND_KEYS]
   return opts
 }
 
 async function main() {
   loadDotEnv()
-  // Prefer warm profile over cookie jar fight
   delete process.env.SHOPEE_SG_SESSION_JSON
 
   const opts = parseArgs(process.argv.slice(2))
@@ -110,22 +128,38 @@ async function main() {
     require_shop: true,
   })
 
-  // If pilot-only with brand keys list, still filter to those with shop
   const withShop = targets.filter((t) => t.shop_username)
-  const missingShop = (opts.brandKeys || PILOT_BRAND_KEYS).filter(
+  const missingShop = (opts.brandKeys || []).filter(
     (k) => !withShop.some((t) => t.brand_key === k),
   )
+  const missingCollections =
+    opts.mode !== 'all'
+      ? withShop.filter(
+          (t) =>
+            !Array.isArray(t.metadata?.shop_collections) ||
+            !t.metadata.shop_collections.some((c) => c.shop_collection_id),
+        )
+      : []
 
   console.log(
     JSON.stringify(
       {
         workspace_id: opts.workspace,
+        mode: opts.mode,
         dry_run: opts.dryRun,
         max_pages: opts.maxPages,
         headless: opts.headless,
         interactive: opts.interactive,
-        targets: withShop.map((t) => ({ brand_key: t.brand_key, shop: t.shop_username })),
+        targets: withShop.map((t) => ({
+          brand_key: t.brand_key,
+          shop: t.shop_username,
+          shelves: resolveShelvesForBrand(t, {
+            mode: opts.mode,
+            collection_names: opts.collectionNames,
+          }).map((s) => s.name),
+        })),
         missing_shop_username: missingShop,
+        missing_mh1_collections: missingCollections.map((t) => t.brand_key),
       },
       null,
       2,
@@ -133,12 +167,17 @@ async function main() {
   )
 
   if (!withShop.length) {
-    console.error('No brands with shop_username. Run MH-1 / extension confirm shops first.')
+    console.error('No brands with shop_username. Confirm shops (extension) first.')
+    process.exit(1)
+  }
+
+  if (opts.mode !== 'all' && missingCollections.length === withShop.length) {
+    console.error('No shop_collections on targets. Run MH-1 discover collections first.')
     process.exit(1)
   }
 
   if (opts.dryRun) {
-    console.log('Dry-run: would harvest All Products for targets above')
+    console.log(`Dry-run: would harvest mode=${opts.mode} for targets above`)
     process.exit(0)
   }
 
@@ -153,6 +192,7 @@ async function main() {
   })
 
   const summary = {
+    mode: opts.mode,
     ok: 0,
     failed: 0,
     products: 0,
@@ -166,38 +206,54 @@ async function main() {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     )
 
+    const harvestOpts = {
+      workspace_id: opts.workspace,
+      max_pages: opts.maxPages,
+      delay_ms: opts.delayMs,
+      interactive: opts.interactive,
+      captchaWaitMs: Number(process.env.SHOPEE_CAPTCHA_WAIT_MS || 180000),
+      dry_run: false,
+      collection_names: opts.collectionNames,
+      mode: opts.mode === 'both' ? 'both' : 'collections',
+    }
+
     for (const brand of withShop) {
       try {
-        const result = await harvestBrandAllProducts(page, brand, db, {
-          workspace_id: opts.workspace,
-          max_pages: opts.maxPages,
-          delay_ms: opts.delayMs,
-          interactive: opts.interactive,
-          captchaWaitMs: Number(process.env.SHOPEE_CAPTCHA_WAIT_MS || 180000),
-          dry_run: false,
-        })
-        summary.results.push(result)
-        if (result.stop_batch) {
-          summary.stop_batch = true
-          summary.failed++
-          console.error('[mall-harvest] batch stopped — refresh profile login / captcha, re-run')
-          break
-        }
-        if (result.product_count > 0) {
-          summary.ok++
-          summary.products += result.product_count
+        let result
+        if (opts.mode === 'all') {
+          result = await harvestBrandAllProducts(page, brand, db, harvestOpts)
+          summary.results.push(result)
+          if (result.stop_batch) {
+            summary.stop_batch = true
+            summary.failed++
+            break
+          }
+          if (result.product_count > 0) {
+            summary.ok++
+            summary.products += result.product_count
+          } else summary.failed++
         } else {
-          summary.failed++
+          result = await harvestBrandCollections(page, brand, db, harvestOpts)
+          summary.results.push(result)
+          if (result.stop_batch) {
+            summary.stop_batch = true
+            summary.failed++
+            break
+          }
+          if (result.product_count > 0) {
+            summary.ok++
+            summary.products += result.product_count
+          } else if (result.error) {
+            summary.failed++
+          } else summary.failed++
         }
         console.error(
-          `[mall-harvest] done ${brand.brand_key}: ${result.product_count} products (${result.with_sold} with sold)`,
+          `[mall-harvest] done ${brand.brand_key}: products=${result.product_count || 0}` +
+            (result.shelves_done != null ? ` shelves=${result.shelves_done}` : ''),
         )
       } catch (e) {
         summary.failed++
-        summary.results.push({
-          brand_key: brand.brand_key,
-          error: e?.message || String(e),
-        })
+        summary.results.push({ brand_key: brand.brand_key, error: e?.message || String(e) })
         console.error(`[mall-harvest] error ${brand.brand_key}:`, e?.message || e)
       }
     }

@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   browserHarvestEvaluate,
   mergeHarvestProducts,
+  resolveShelvesForBrand,
 } from '../marketplace/mallHarvestWorker.mjs'
 import { shopCollectionListUrl } from '../marketplace/shopCollections.mjs'
 import { harvestToObservationCards } from '../marketplace/shopProductExtract.mjs'
@@ -90,6 +91,57 @@ test('CLI script exists', () => {
     'utf8',
   )
   assert.match(script, /harvestBrandAllProducts/)
+  assert.match(script, /harvestBrandCollections/)
   assert.match(script, /userDataDir|SHOPEE_PROFILE_DIR/)
   assert.match(script, /pilot-only/)
+  assert.match(script, /mode/)
+})
+
+test('resolveShelvesForBrand modes', () => {
+  const brand = {
+    shop_username: 'beautyofjoseonsg',
+    metadata: {
+      shop_collections: [
+        { name: 'All Products', shop_collection_id: null, is_all_products: true },
+        { name: 'Serums', shop_collection_id: '248405931', is_all_products: false },
+        { name: 'Sunscreens', shop_collection_id: '248405946', is_all_products: false },
+      ],
+    },
+  }
+  assert.equal(resolveShelvesForBrand(brand, { mode: 'all' }).length, 1)
+  assert.equal(resolveShelvesForBrand(brand, { mode: 'collections' }).length, 2)
+  assert.equal(resolveShelvesForBrand(brand, { mode: 'both' }).length, 3)
+  const onlySerum = resolveShelvesForBrand(brand, {
+    mode: 'collections',
+    collection_names: ['serum'],
+  })
+  assert.equal(onlySerum.length, 1)
+  assert.match(onlySerum[0].name, /Serum/i)
+})
+
+test('harvest cards stamp shop_collection fields', () => {
+  const cards = harvestToObservationCards(
+    {
+      shop_username: 'beautyofjoseonsg',
+      shop_collection_name: 'Serums',
+      shop_collection_id: '248405931',
+      harvest_source: 'mall_collection_harvest',
+      products: [
+        {
+          name: 'BOJ Eye Serum',
+          sold_label: '30k+ sold',
+          sold_count_lower_bound: 30000,
+          category: 'Serums',
+          shop_id: '1',
+          item_id: '2',
+          listing_url: 'https://shopee.sg/x-i.1.2',
+        },
+      ],
+    },
+    { brand_key: 'beauty-of-joseon' },
+  )
+  assert.equal(cards[0].signals.shop_collection_name, 'Serums')
+  assert.equal(cards[0].signals.shop_collection_id, '248405931')
+  assert.equal(cards[0].signals.category, 'Serums')
+  assert.match(cards[0].search_query, /coll:248405931/)
 })
