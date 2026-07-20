@@ -67,6 +67,8 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 065 | inventory_manager_schema.sql | Inventory Manager display + inventory_manager slug alias | HQ ops without execute_3pl |
 | 066 | report_registry.sql | Track K: report templates, subscriptions (toggle), runs + reports/automations scopes | Agentic packs Rpt-0–2 |
 | 067 | report_delivery_policy.sql | Phase N policy report.run.completed (in_app + slack) | Rpt-3 delivery |
+| 068 | marketplace_brand_universe.sql | Weekly brand radar universe (sample-brands import) | Separate from catalog brands; pilot_tier default paused |
+| 069 | brand_universe_shop_identity.sql | shop_username / resolve status for official Mall storefronts | Prefer mode=shop when confirmed |
 
 ## Planned Phase C Spine
 

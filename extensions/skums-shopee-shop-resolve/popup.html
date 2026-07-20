@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SKUMS Shop Resolve</title>
+    <style>
+      :root {
+        font-family: system-ui, Segoe UI, sans-serif;
+        font-size: 13px;
+        color: #0f172a;
+      }
+      body {
+        width: 380px;
+        margin: 0;
+        padding: 12px;
+        background: #f8fafc;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 8px;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #475569;
+      }
+      input,
+      select,
+      button,
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 4px;
+        padding: 6px 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: #0f766e;
+        color: #fff;
+        border: none;
+        font-weight: 600;
+        margin-top: 8px;
+      }
+      button.secondary {
+        background: #334155;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+      }
+      .row > * {
+        flex: 1;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px;
+        margin-top: 8px;
+        max-height: 220px;
+        overflow: auto;
+      }
+      .cand {
+        border-bottom: 1px solid #f1f5f9;
+        padding: 6px 0;
+      }
+      .cand:last-child {
+        border-bottom: none;
+      }
+      .muted {
+        color: #64748b;
+        font-size: 11px;
+      }
+      .ok {
+        color: #047857;
+      }
+      .err {
+        color: #b91c1c;
+      }
+      #status {
+        margin-top: 8px;
+        white-space: pre-wrap;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SKUMS · Shopee Mall resolve</h1>
+    <p class="muted">
+      Uses your logged-in Chrome tab (no Puppeteer). Open a Shopee shop or search page, scan, then push to brand universe.
+      <br /><strong>API key must be for the same workspace</strong> where brands were imported
+      (e.g. <code>c21c057f-…</code>).
+    </p>
+
+    <label>API base</label>
+    <input id="apiBase" placeholder="http://127.0.0.1:3000  (or production after deploy)" />
+
+    <label>API key (intel:write)</label>
+    <input id="apiKey" type="password" placeholder="sk_live_…" autocomplete="off" />
+
+    <div class="row">
+      <button id="btnSave" class="secondary" type="button">Save settings</button>
+      <button id="btnLoadBrands" class="secondary" type="button">Load brands</button>
+    </div>
+
+    <label>Brand (needs shop)</label>
+    <select id="brandSelect">
+      <option value="">— load brands —</option>
+    </select>
+
+    <div class="row">
+      <button id="btnScan" type="button">Scan this tab</button>
+      <button id="btnPush" type="button" disabled>Confirm + push</button>
+    </div>
+
+    <div class="card" id="candidates">
+      <div class="muted">Scan a Shopee page to list shop candidates.</div>
+    </div>
+
+    <label>Or paste shop URL / username</label>
+    <input id="manualUrl" placeholder="https://shopee.sg/beautyofjoseonsg" />
+    <button id="btnPushManual" class="secondary" type="button">Push pasted URL</button>
+
+    <div id="status" class="muted"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

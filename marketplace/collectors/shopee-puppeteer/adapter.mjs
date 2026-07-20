@@ -14,7 +14,7 @@ import {
   cardsFromSearchPayload,
   detectSessionHealth,
 } from '../../shopee/parseSearch.mjs'
-import { shopeeSearchUrl } from '../../shopee/urls.mjs'
+import { shopeeSearchUrl, shopeeShopUrl } from '../../shopee/urls.mjs'
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
@@ -203,6 +203,13 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
   const country = seed.country || 'sg'
   const maxPages = Math.min(Math.max(seed.max_pages || 1, 1), 10)
   const maxListings = Math.min(Math.max(seed.max_listings || 40, 1), 200)
+  // detail_top_n <= 0 skips product-page navigations (list cards only).
+  const detailTopN = Number(seed.detail_top_n ?? 0)
+  const mode = seed.mode || 'keyword'
+  const isShop = mode === 'shop'
+  const shopUsername = isShop
+    ? String(seed.target || seed.metadata?.shop_username || '').trim()
+    : String(seed.metadata?.shop_username || '').trim() || null
 
   const browser = await browserApi.getBrowser()
   const page = await browserApi.createStealthPage(browser)
@@ -215,8 +222,12 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
   const onResponse = async (response) => {
     try {
       const url = response.url()
-      if (!/search/i.test(url)) return
-      if (!/item|search_items|v4\/search|v2\/search/i.test(url)) return
+      // SERP search APIs + shop item list APIs
+      const interesting =
+        /search_items|v4\/search|v2\/search|shop.*item|get_shop|rcmd_items|search_items/i.test(
+          url,
+        )
+      if (!interesting) return
       const ct = (response.headers()['content-type'] || '').toLowerCase()
       if (ct && !ct.includes('json') && !url.includes('search_items')) return
       const json = await response.json().catch(() => null)
@@ -234,20 +245,19 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
       await page.setCookie(...cookies)
     }
 
-    // Optional human solve: SHOPEE_INTERACTIVE=1 opens time to clear captcha in Chrome.
-    // Prefer stdin (press Enter) when TTY; else timed wait via SHOPEE_CAPTCHA_WAIT_MS.
     const interactiveOn =
       process.env.SHOPEE_INTERACTIVE === '1' || Number(process.env.SHOPEE_CAPTCHA_WAIT_MS || 0) > 0
-    // SHOPEE_SKIP_HOME=1 → go straight to search SERP (often where captcha actually appears).
     const skipHome = process.env.SHOPEE_SKIP_HOME === '1'
     const host = country === 'sg' ? 'shopee.sg' : `shopee.${country}`
 
-    if (!skipHome) {
+    if (!skipHome && !isShop) {
       await page.goto(`https://${host}/`, { waitUntil: 'domcontentloaded', timeout: 45000 })
       await humanDelay(1000, 2000)
       if (interactiveOn) {
         await waitForManualUnblock(page, 'home')
       }
+    } else if (isShop) {
+      console.error(`[shopee_puppeteer] mode=shop username=${shopUsername}`)
     } else {
       console.error('[shopee_puppeteer] SHOPEE_SKIP_HOME=1 — opening search first')
     }
@@ -255,7 +265,20 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
     for (let pageIdx = 0; pageIdx < maxPages; pageIdx++) {
       if (allCards.length >= maxListings) break
 
-      const url = shopeeSearchUrl(seed.target, country, pageIdx)
+      let url
+      if (isShop) {
+        if (!shopUsername) {
+          return { cards: [], session_health: 'unknown', details: [], error: 'missing_shop_username' }
+        }
+        // Shop storefront; page index via query when Shopee supports it
+        url = shopeeShopUrl(shopUsername, country)
+        if (pageIdx > 0) {
+          url += (url.includes('?') ? '&' : '?') + `page=${pageIdx}`
+        }
+      } else {
+        url = shopeeSearchUrl(seed.target, country, pageIdx)
+      }
+
       try {
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 })
       } catch {
@@ -269,7 +292,7 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
       await humanDelay(800, 1200)
 
       if (interactiveOn) {
-        await waitForManualUnblock(page, 'serp')
+        await waitForManualUnblock(page, isShop ? 'shop' : 'serp')
       }
 
       const title = await page.title()
@@ -285,28 +308,26 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
         }
       }
 
+      const queryLabel = isShop ? `shop:${shopUsername}` : seed.target
       const before = allCards.length
       const payloadsThisPage = apiPayloads.splice(0, apiPayloads.length)
       for (const payload of payloadsThisPage) {
         const mapped = cardsFromSearchPayload(payload, {
-          query: seed.target,
+          query: queryLabel,
           country,
           rankOffset: allCards.length,
         })
         for (const c of mapped) {
           if (allCards.length >= maxListings) break
           if (allCards.some((x) => x.shop_id === c.shop_id && x.item_id === c.item_id)) continue
-          allCards.push({
-            ...c,
-            raw: { ...(c.raw || {}), job_id: jobId, seed_id: seed.id, source: 'shopee_api' },
-          })
+          allCards.push(enrichCard(c, { jobId, seed, isShop, shopUsername, source: 'shopee_api' }))
         }
       }
 
       if (allCards.length === before) {
         const domRows = await extractDomCards(page)
         const mapped = cardsFromDomRows(domRows, {
-          query: seed.target,
+          query: queryLabel,
           country,
           rankOffset: allCards.length,
         })
@@ -317,10 +338,7 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
             const p = parseSoldLabel(c.sold_label)
             c.sold_count_lower_bound = p.lower_bound ?? undefined
           }
-          allCards.push({
-            ...c,
-            raw: { ...(c.raw || {}), job_id: jobId, seed_id: seed.id, source: 'shopee_dom' },
-          })
+          allCards.push(enrichCard(c, { jobId, seed, isShop, shopUsername, source: 'shopee_dom' }))
         }
       }
 
@@ -332,7 +350,7 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
     return {
       cards: allCards.slice(0, maxListings),
       session_health: 'ok',
-      details: [],
+      details: detailTopN > 0 ? [] : [],
     }
   } finally {
     try {
@@ -345,6 +363,38 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
     } catch {
       /* ignore */
     }
+  }
+}
+
+/**
+ * @param {Record<string, any>} c
+ * @param {{ jobId: string, seed: any, isShop: boolean, shopUsername: string | null, source: string }} ctx
+ */
+function enrichCard(c, ctx) {
+  const signals = {
+    ...(c.signals || {}),
+    ...(ctx.isShop ? { official_shop: true } : {}),
+    ...(ctx.shopUsername ? { shop_username: ctx.shopUsername } : {}),
+  }
+  // Shop storefront listings are Mall/official when mode=shop
+  const seller_type = ctx.isShop
+    ? c.seller_type === 'normal' || !c.seller_type
+      ? 'mall'
+      : c.seller_type
+    : c.seller_type
+
+  return {
+    ...c,
+    seller_type,
+    signals,
+    raw: {
+      ...(c.raw || {}),
+      job_id: ctx.jobId,
+      seed_id: ctx.seed.id,
+      source: ctx.source,
+      mode: ctx.seed.mode || 'keyword',
+      shop_username: ctx.shopUsername,
+    },
   }
 }
 

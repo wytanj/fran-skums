@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "SKUMS Shopee Shop Resolve",
+  "version": "0.1.0",
+  "description": "Resolve official Shopee Mall shop usernames into Fran SKUMS brand universe (runs in your logged-in Chrome session).",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://shopee.sg/*",
+    "https://*.shopee.sg/*",
+    "https://fran-skums.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_title": "SKUMS Shop Resolve",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://shopee.sg/*", "https://*.shopee.sg/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {}
+}

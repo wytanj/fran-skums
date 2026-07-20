@@ -13,6 +13,20 @@ export const mockCollectAdapter = {
   async scrapeSeed(seed, jobId) {
     const query = seed.target || 'demo'
     const host = seed.country === 'sg' ? 'shopee.sg' : `shopee.${seed.country}`
+    const meta = seed.metadata && typeof seed.metadata === 'object' ? seed.metadata : {}
+
+    // Test / dry-run: force session wall via metadata or env
+    const forcedHealth =
+      meta.mock_session_health ||
+      process.env.MOCK_SESSION_HEALTH ||
+      null
+    if (forcedHealth && forcedHealth !== 'ok') {
+      return {
+        cards: [],
+        session_health: String(forcedHealth),
+        details: [],
+      }
+    }
 
     const fixtures = [
       {
@@ -59,7 +73,29 @@ export const mockCollectAdapter = {
     ]
 
     const limit = Math.min(seed.max_listings || 60, fixtures.length)
-    const cards = fixtures.slice(0, limit).map((f) => {
+    // keyword + brand_portfolio = SERP; shop = official storefront
+    const isShop = seed.mode === 'shop'
+    const usesSerp =
+      !seed.mode || seed.mode === 'keyword' || seed.mode === 'brand_portfolio'
+    const detailTopN = Number(seed.detail_top_n ?? 0)
+    const shopUsername = isShop
+      ? query
+      : seed.metadata?.shop_username || null
+
+    // Shop mode: all cards look like official mall from that storefront
+    const sourceFixtures = isShop
+      ? fixtures.map((f, i) => ({
+          ...f,
+          shop_id: '900001',
+          item_id: String(300000 + i),
+          shop_name: `${query} Official`,
+          seller_type: 'mall',
+          title: `${query} Official SKU ${i + 1}`,
+          signals: { official_shop: true, shop_username: shopUsername },
+        }))
+      : fixtures
+
+    const cards = sourceFixtures.slice(0, limit).map((f) => {
       const sold = parseSoldLabel(f.sold_label)
       return {
         shop_id: f.shop_id,
@@ -76,21 +112,32 @@ export const mockCollectAdapter = {
         sold_label: f.sold_label,
         sold_count_lower_bound: sold.lower_bound ?? undefined,
         rank_position: f.rank_position,
-        search_query: seed.mode === 'keyword' ? query : undefined,
-        signals: f.signals || {},
+        search_query: usesSerp ? query : isShop ? `shop:${query}` : undefined,
+        signals: {
+          ...(f.signals || {}),
+          ...(shopUsername ? { shop_username: shopUsername } : {}),
+        },
         raw: {
           fixture: true,
           job_id: jobId,
           seed_id: seed.id,
           source: 'mock',
+          mode: seed.mode || 'keyword',
+          shop_username: shopUsername,
         },
       }
     })
 
+    // detail_top_n <= 0 ⇒ zero detail navigations (v1 mock never loads product pages)
+    const details =
+      detailTopN > 0
+        ? [] // reserved; still no product-page scrape in mock v1
+        : []
+
     return {
       cards,
       session_health: 'ok',
-      details: [],
+      details,
     }
   },
 }

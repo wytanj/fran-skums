@@ -168,12 +168,17 @@ test('upsertObservationCards writes shops listings snapshots via client mock', a
 })
 
 test('process-jobs and collect runner are wired for phase 1', () => {
+  const processCore = readFileSync(
+    new URL('../marketplace/processJobs.mjs', import.meta.url),
+    'utf8',
+  )
   assert.match(collectUtil, /processMarketplaceJobs/)
   assert.match(collectUtil, /shopee_puppeteer/)
   assert.match(collectUtil, /cloudflare_browser_run/)
   assert.match(collectUtil, /browserbase/)
-  assert.match(collectUtil, /upsertObservationCards/)
+  assert.match(collectUtil, /processJobs/)
   assert.match(collectUtil, /scrapeShopeeWithPuppeteer/)
+  assert.match(processCore, /upsertObservationCards/)
   assert.match(processRoute, /processMarketplaceJobs/)
   assert.match(snapshotsRoute, /marketplace_listing_snapshots/)
   assert.match(marketplaceReadme, /shopee_puppeteer|browserbase|Phase 1/)

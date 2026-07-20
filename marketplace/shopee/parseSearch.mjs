@@ -159,6 +159,18 @@ export function mapApiItemToCard(item, ctx) {
       : `https://cf.shopee.sg/file/${image}`
     : undefined
 
+  const isOfficial = Boolean(
+    basic.is_official_shop || basic.show_official_shop_label || basic.official_shop,
+  )
+  // Username rarely on item_basic; sometimes account / shop_username / user_name
+  const accountUsername =
+    basic.account?.username ||
+    basic.shop_username ||
+    basic.username ||
+    basic.user_name ||
+    basic.account_username ||
+    null
+
   return {
     shop_id: shopId,
     item_id: itemId,
@@ -176,8 +188,16 @@ export function mapApiItemToCard(item, ctx) {
     rank_position: ctx.rank,
     search_query: ctx.query,
     image_url,
-    signals,
-    raw: basic,
+    signals: {
+      ...signals,
+      is_official_shop: isOfficial,
+      ...(accountUsername ? { shop_username: String(accountUsername) } : {}),
+    },
+    raw: {
+      ...basic,
+      is_official_shop: isOfficial,
+      shop_username: accountUsername ? String(accountUsername) : undefined,
+    },
   }
 }
 

@@ -20,6 +20,8 @@ here with Supabase-style timestamped filenames.
 - `202607100048_study_pipeline.sql` mirrors `core/db/048_study_pipeline.sql`
 - `202607100049_internal_purchase_orders.sql` mirrors `core/db/049_internal_purchase_orders.sql`
 - `202607100050_projections.sql` mirrors `core/db/050_projections.sql`
+- `202607200068_marketplace_brand_universe.sql` mirrors `core/db/068_marketplace_brand_universe.sql`
+- `202607200069_brand_universe_shop_identity.sql` mirrors `core/db/069_brand_universe_shop_identity.sql`
 
 ## Rule
 

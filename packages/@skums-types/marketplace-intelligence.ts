@@ -37,6 +37,45 @@ export type MarketplaceAvailability = 'in_stock' | 'out_of_stock' | 'unknown'
 
 export type SessionHealth = 'ok' | 'login_required' | 'blocked' | 'unknown'
 
+/** Competitive brand radar universe (not catalog brands). */
+export type BrandUniversePilotTier = 'pilot' | 'mid' | 'full' | 'paused'
+
+export type ShopResolveStatus = 'unknown' | 'candidate' | 'confirmed' | 'failed'
+
+export type ShopResolveSource = 'manual' | 'serp' | 'heuristic' | 'import' | null
+
+export interface MarketplaceBrandUniverse {
+  id: string
+  workspace_id: string
+  brand_key: string
+  display_name: string
+  categories: string[]
+  origin_country: string | null
+  /** null = unknown (blank CSV Official) */
+  official_interest: boolean | null
+  shopee_mall_interest: boolean
+  iherb_interest: boolean
+  followers_note: string | null
+  /** Official Mall storefront slug, e.g. beautyofjoseonsg */
+  shop_username: string | null
+  shop_url: string | null
+  shop_id: string | null
+  shop_resolve_status: ShopResolveStatus
+  shop_resolve_source: ShopResolveSource
+  shop_resolve_evidence: Record<string, unknown>
+  marketplace: MarketplaceId
+  country: MarketplaceCountryCode
+  pilot_tier: BrandUniversePilotTier
+  enabled: boolean
+  priority: number
+  primary_seed_id: string | null
+  metadata: Record<string, unknown>
+  source: string
+  imported_at: string
+  created_at: string
+  updated_at: string
+}
+
 export interface MarketplaceCrawlSeed {
   id: string
   workspace_id: string
