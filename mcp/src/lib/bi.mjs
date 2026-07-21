@@ -2,6 +2,10 @@
  * BI / marketplace warehouse operations for MCP.
  */
 import {
+  queryBrandListings,
+  queryBrandSummary,
+} from '../../../marketplace/brandListingsQuery.mjs'
+import {
   buildExportTable,
   computeSellerMixMetrics,
   exportRowsToCsv,
@@ -257,6 +261,48 @@ export async function sellerMix(workspaceId, search_query) {
     limit: 100,
   })
   return exported.summary
+}
+
+/**
+ * Brand-radar flat listings for MCP / spreadsheets.
+ * @param {string} workspaceId
+ * @param {object} filters  brand_key, shop_username, min_sold, format, limit, …
+ */
+export async function brandListings(workspaceId, filters = {}) {
+  const db = getDb()
+  return queryBrandListings(db, workspaceId, {
+    brand_key: filters.brand_key,
+    brand_keys: filters.brand_keys,
+    shop_username: filters.shop_username,
+    shop_collection_name: filters.shop_collection_name,
+    platform_category_leaf: filters.platform_category_leaf,
+    min_sold: filters.min_sold,
+    q: filters.q,
+    seller_type: filters.seller_type,
+    since: filters.since,
+    until: filters.until,
+    limit: filters.limit ?? 100,
+    format: filters.format === 'csv' ? 'csv' : 'json',
+  })
+}
+
+/**
+ * Brand-radar summary (sold bands, top SKUs, shelf mix) for agents.
+ */
+export async function brandSummary(workspaceId, filters = {}) {
+  const db = getDb()
+  return queryBrandSummary(db, workspaceId, {
+    brand_key: filters.brand_key,
+    brand_keys: filters.brand_keys,
+    shop_username: filters.shop_username,
+    shop_collection_name: filters.shop_collection_name,
+    platform_category_leaf: filters.platform_category_leaf,
+    min_sold: filters.min_sold,
+    q: filters.q,
+    seller_type: filters.seller_type,
+    limit: filters.limit ?? 500,
+    top_n: filters.top_n ?? 10,
+  })
 }
 
 export async function listMetrics(workspaceId, filters = {}) {

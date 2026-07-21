@@ -18,6 +18,10 @@ import { stampBrandSignalsOnCards } from './stampBrandSignals.mjs'
 import { upsertObservationCards } from './writers/upsertObservations.mjs'
 import { detectSessionHealth } from './shopee/parseSearch.mjs'
 import { openAndHarvestPageComputer } from './computerHarvest.mjs'
+import {
+  isMultiBrandDistributor,
+  loadBrandsForShopUsername,
+} from './distributorShop.mjs'
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
@@ -147,6 +151,7 @@ export async function openAndHarvestPage(page, url, opts = {}) {
   if (opts.computer) {
     return openAndHarvestPageComputer(page, url, {
       step: opts.step,
+      pauseAfterLoad: opts.pauseAfterLoad === true,
       label: opts.label,
       maxCaptchaRounds: 30,
       harvestEvaluate: browserHarvestEvaluate,
@@ -383,18 +388,49 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
   }
 
   let write = null
+  let attribution = null
   if (!opts.dry_run && products.length) {
-    let cards = harvestToObservationCards(merged, { brand_key: brand.brand_key })
+    const multi = isMultiBrandDistributor(brand)
+    let brand_profiles = null
+    if (multi) {
+      brand_profiles = await loadBrandsForShopUsername(db, opts.workspace_id, username)
+      attribution = {
+        multi_brand: true,
+        allowlist: brand_profiles.map((b) => b.brand_key),
+      }
+    }
+
+    let cards = harvestToObservationCards(merged, {
+      brand_key: brand.brand_key,
+      multi_brand: multi,
+      brand_profiles: brand_profiles || undefined,
+    })
+
+    // Optional: only keep products for this brand when harvesting one brand of a multi shop
+    if (multi && opts.filter_to_brand !== false) {
+      // Keep attributed-to-this-brand + unattributed (still useful) when targeting one brand
+      // Default: keep all attributed products for any allowlist brand (one pass feeds many brands)
+      if (opts.filter_to_target_brand === true) {
+        cards = cards.filter(
+          (c) =>
+            !c.signals?.brand_key ||
+            c.signals.brand_key === brand.brand_key,
+        )
+      }
+    }
+
     cards = stampBrandSignalsOnCards(cards, {
       target: username,
       mode: 'shop',
+      shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
       metadata: {
         brand_key: brand.brand_key,
         shop_username: username,
         universe_id: brand.id,
+        shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
       },
     })
-    // Ensure collection stamps survive stampBrandSignals
+    // Ensure collection stamps survive stampBrandSignals; do not wipe per-card brand_key
     cards = cards.map((c) => ({
       ...c,
       signals: {
@@ -402,8 +438,17 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
         shop_collection_name: collName,
         shop_collection_id: collId,
         category: collName,
+        shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
       },
     }))
+
+    const attributed_count = cards.filter((c) => c.signals?.brand_key).length
+    const unattributed_count = cards.length - attributed_count
+    if (attribution) {
+      attribution.attributed_count = attributed_count
+      attribution.unattributed_count = unattributed_count
+    }
+
     write = await upsertObservationCards(db, {
       workspace_id: opts.workspace_id,
       marketplace: 'shopee',
@@ -416,6 +461,7 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
   return {
     brand_key: brand.brand_key,
     shop_username: username,
+    shop_kind: isMultiBrandDistributor(brand) ? 'multi_brand_distributor' : 'single_brand',
     shelf: collName,
     shop_collection_id: collId,
     product_count: products.length,
@@ -423,6 +469,7 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
     pages_fetched: pageHarvests.length,
     stop_batch,
     stop_reason,
+    attribution,
     write,
     sample: products.slice(0, 3).map((p) => ({
       name: p.name,

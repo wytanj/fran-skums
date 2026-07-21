@@ -1,16 +1,19 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-21  
+**Date:** 2026-07-22  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–069** (066–067 = reports · **068–069** = brand universe + shop identity).  
+**DB:** migrations **001–071** (066–067 reports · **068–070** brand universe/shop/multi-brand · **071** skums_migrations RLS).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
-**Brand radar / Mall harvest:** Track **BR** — **MH-1–3 + Mode B + ext v0.5 Link done** · ops: link 125 shops · live harvest with `--computer`
+**Brand radar / Mall harvest:** Track **BR** — **MH-1–7 + cycle + MCP brand slices done** · ops: finish link · Discover · `mall-brand-cycle --connect`  
+**Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
 
 **Plans (do not lose track):**
 
 | Doc | Role |
 |-----|------|
 | **This file** | Implementation queue + MCP #1–8 index |
+| **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
+| **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
 | **`docs/MCP_ACTION_BACKLOG.md`** | MCP tools detail, leftovers after #8 |
 | **`docs/MCP_USER_PERMISSION_DESIGN.md`** | Web ↔ MCP permission model (A2) |
 | **`docs/ORG_PERMISSION_SCOPES.md`** | Canonical scope catalog |
@@ -22,15 +25,13 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · **Phase N N1–N4** · Claude connector · **M1–M3** · **K Rpt-0–5** · **BR PR-1–3.3 + MH-1–3** · **Mode B computer harvest** · **extension v0.5** (Link Mall → brand).  
-**Next eng:** **Ops** link remaining Mall shops (ext Link) · **live harvest** with `--computer` · **BR MH-4** PDP breadcrumb (optional) · **K Rpt-6** · Loft Phase 0 → **M4**.  
-**Shopee collect:** primary = **Windows warm Chrome** (extension for identity; Mode B / worker for multi-page Mall). Browserbase **not** primary. Mode A pure-script captcha-prone (BOJ blocked 2026-07-21).  
-**Brand radar:** BOJ shop + collections confirmed; **listing snapshots** still need successful live harvest.
-**Ops (reports cron):** set Vercel `CRON_SECRET` or `REPORTS_CRON_SECRET`; ensure prod DB has mig **067**.  
-**Cron cadence:** Vercel Hobby = **daily** (`0 0 * * *` UTC) in `vercel.json` (hourly needs Pro). Due logic still supports hourly/daily/weekly packs when tick runs.  
-**Claude pilot:** **Working** (2026-07-16) — tools list non-empty; use URL  
-`https://fran-skums.vercel.app/mcp/c/sk_live_…` (OAuth blank; Settings → Create Claude / MCP key).  
-**POS:** structure handoff `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` — roles/MCP next section below.
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** (Mode B/`--connect`, cycle, MH-4, multi-brand distributor, brand MCP listings/summary/CSV) · ext **v0.6** · mig **070–071**.  
+**Next (tomorrow):** **Ops harvest** linked brands · sheet/MCP analysis · then **MH-5** / **TODO-WEB** when prioritized · **K Rpt-6** · Loft Phase 0 → **M4**.  
+**Shopee collect:** Windows warm Chrome + `--connect`; extension Link/Discover/multi-brand; CLI multi-page + MH-4. Browserbase **not** primary.  
+**Brand radar analysis:** `market_brand_*` MCP · `export-brand-listings.mjs` · `GET .../brand-listings` · `.../brand-summary`.  
+**Ops (reports cron):** `CRON_SECRET` / mig **067**; Hobby daily UTC.  
+**Claude pilot:** Working — `/mcp/c/sk_live_…`.  
+**POS:** `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
@@ -41,13 +42,14 @@
 | **D** | Phase P remaining | **Empty key ≠ full** shipped; install UI / R2 still open |
 | **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
 | **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
-| **I** | MCP M1–M3 packs | **Shipped** — `store_request_status`, `floor_adjustment_queue`, `exception_verify` |
-| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** — MCP draft editable · affirm · **FOB PDF → in transit** (below) |
-| **K** | **Agentic report registry** | **Rpt-0–5 done** — cron · MCP tools · n8n API; next Rpt-6 real sections |
-| **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** — not in-app TOTP (below) |
+| **I** | MCP M1–M3 packs | **Shipped** |
+| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** |
+| **K** | **Agentic report registry** | **Rpt-0–5 done** · next Rpt-6 |
+| **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
-| **G** | **Shopee / marketplace collect** | **Decision locked** — local Windows primary (below); Browserbase not primary |
-| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–3 + Mode B + ext v0.5 done** — link shops · harvest w/ `--computer` · next **MH-4** |
+| **G** | **Shopee / marketplace collect** | **Windows primary locked** |
+| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–7 + analysis done** — **ops harvest** next |
+| **WEB** | **Fran web → store** | **Parked in `TODO-WEB.md`** |
 
 ### Claude / remote MCP (verified)
 
@@ -603,9 +605,13 @@ sold_label · sold_count_lower_bound · title
 | **MH-2** | **All Products harvest worker** — Puppeteer warm Chrome profile; `/{user}?page=N&sortBy=pop`; name+sold; upsert snapshots; pilot brands with `shop_username` | **Done** |
 | **MH-2.B** | **Mode B computer harvest** — headed mouse/wheel + Enter on captcha (`computerHarvest.mjs`, CLI `--computer` / `--step`) | **Done** |
 | **MH-3** | **Collection harvest** — loop `shop_collections`; stamp `shop_collection_*`; `--mode collections|both` | **Done** |
-| **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold per shop only | **Next** |
+| **MH-4** | **PDP breadcrumb enrich** — parse `BreadcrumbList` JSON-LD → platform path/ids; top-N sold; CLI `--computer --connect` | **Done** |
+| **BR-A1** | **Brand listings query + CSV** — `GET .../brand-listings` · MCP `market_brand_listings` / `market_brand_export_csv` | **Done** |
+| **BR-A2** | **Brand summary** — sold bands, top SKUs, shelf mix · MCP `market_brand_summary` · `GET .../brand-summary` · local `export-brand-listings.mjs` | **Done** |
+| **BR-A3** | Optional SQL view “latest observation per listing”; brand scoreboard UI | Later |
 | **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | Planned |
 | **MH-6** | Scale pilot → mid (~50) → full (~125); collection crawl only where needed | Planned |
+| **MH-7** | **Multi-brand distributor Malls** — `shop_kind`, resolve-distributor-shop API, title attribution, ext v0.6 flag + multi-select | **Done** |
 | **PR-4** | Brand `metrics_daily` rollup + WoW (after harvest data exists) | After MH-2 |
 | **PR-5** | Report pack `marketplace-brand-weekly` | After PR-4 |
 | **PR-6** | Weekly Grok brief → `bi_digests` | After PR-5 |
@@ -616,16 +622,16 @@ sold_label · sold_count_lower_bound · title
 ### Suggested resume order (when you come back)
 
 ```text
-1. MH-1  Discover collections ✅
-2. MH-2  All Products harvest ✅
-3. MH-3  Collection harvest ✅ — --mode collections|both
-4. MH-2.B Mode B computer harvest ✅ — use when captcha (Mode A blocked on BOJ)
-5. PR-3.4 Extension Link shop (v0.5) ✅ — walk Mall pages for remaining 125
-6. Ops: link shops via side panel · live harvest BOJ with --computer
-7. MH-4  Optional: PDP breadcrumb on top sold
-8. MH-5  Wire weekly automation
-9. PR-4+ metrics / report pack
+1–7. MH-1…MH-4 + Mode B + ext Link + multi-brand (MH-7) + brand MCP slices ✅
+8. Ops: finish link 125 · Discover · mall-brand-cycle --connect (list + MH-4)
+9. Sheets / MCP: market_brand_summary · export_csv
+10. MH-5 weekly automation
+11. PR-4+ brand metrics / report pack
+12. WEB (TODO-WEB.md): store-routing site + offer ladder when prioritized
 ```
+
+**Operator cycle doc:** `docs/MALL_BRAND_CYCLE_RUNBOOK.md` · **Web plan:** `TODO-WEB.md`
+
 
 ### Current pilot state (2026-07-21)
 
@@ -635,8 +641,9 @@ sold_label · sold_count_lower_bound · title
 | BOJ `@beautyofjoseonsg` | **Confirmed**; collections (Cleansers, Moisturizers, Serums, Sunscreens, …) |
 | Live harvest BOJ | Mode A script → captcha/`blocked` (2026-07-21); use **Mode B `--computer`** |
 | Listing snapshots | Not yet from successful multi-page harvest — run computer mode next |
-| Extension | **v0.5** Link Mall→brand + Discover + Harvest; **Reload** after pull |
-| Prod API | brand-universe + resolve-shop + shop-harvest + collections on main |
+| Extension | **v0.6** Link + multi-brand distributor + copy brand name; **Reload** after pull |
+| Prod API | brand-universe + resolve-shop + resolve-distributor-shop + brand-listings/summary + shop-harvest |
+| DB | mig **070** shop_kind · **071** skums_migrations RLS (applied via `npm run db:migrate`) |
 
 ### Code map
 
@@ -646,7 +653,11 @@ sold_label · sold_count_lower_bound · title
 | Shop extract / harvest | `marketplace/shopProductExtract.mjs` · `POST /api/v1/marketplace/shop-harvest` |
 | Shop collections (MH-1) | `marketplace/shopCollections.mjs` · `POST .../brand-universe/collections` · `scripts/discover-shop-collections.mjs` |
 | All Products + collections (MH-2/3) | `marketplace/mallHarvestWorker.mjs` · `scripts/mall-all-products-harvest.mjs --mode all|collections|both` |
-| Mode B computer harvest (captcha-friendly) | `marketplace/computerHarvest.mjs` · CLI `--computer` / `--step` |
+| Mode B computer harvest (captcha-friendly) | `marketplace/computerHarvest.mjs` · CLI `--computer` / `--step` / `--connect` |
+| MH-4 PDP platform path | `marketplace/parseBreadcrumb.mjs` · `pdpEnrich.mjs` · `scripts/mall-pdp-breadcrumb-enrich.mjs` |
+| Brand cycle runbook | `docs/MALL_BRAND_CYCLE_RUNBOOK.md` |
+| Full cycle automation (list+MH-4) | `scripts/mall-brand-cycle.mjs` · `.mall-cycle-state.json` · captcha-only pause |
+| Brand sheet slice (MCP/API) | `marketplace/brandListingsQuery.mjs` · `GET .../brand-listings` · `.../brand-summary` · MCP `market_brand_*` · `scripts/export-brand-listings.mjs` |
 | Brand guess (ext + tests) | `marketplace/guessBrandFromShop.mjs` · `extensions/.../brandMatch.js` |
 | Extension | `extensions/skums-shopee-shop-resolve/` (**v0.5** — Link + Discover + harvest) |
 | Collect worker (generic) | `marketplace/processJobs.mjs` · `stampBrandSignals.mjs` |
@@ -689,11 +700,39 @@ E. If captcha / stop_batch
    - Keep Chrome window open; warm profile `.shopee-chrome-profile`
    - Do not use cold Browserbase as primary
 
-F. What you get
+F. MH-4 platform path (after list harvest has URLs)
+   node scripts/mall-pdp-breadcrumb-enrich.mjs --workspace … --brand biodance --top 20 --computer --connect
+   # stamps platform_category_path / ids from PDP BreadcrumbList
+
+G. What you get
    - name, sold_label, sold_count_lower_bound
-   - shop_collection_name / shop_collection_id (shelf; not Shopee Eye Care path)
-   - platform breadcrumb = MH-4 later (PDP JSON-LD)
+   - shop_collection_name / shop_collection_id (marketing shelf)
+   - platform_category_path / leaf / ids (Shopee taxonomy; MH-4)
+
+H. Analyze / spreadsheet (MCP or API or local CLI)
+   - MCP: market_brand_summary { brand_key: "biodance" }  → top SKUs + sold bands
+   - MCP: market_brand_listings { brand_key: "biodance", min_sold: 1000, limit: 100 }
+   - MCP: market_brand_export_csv { brand_key: "biodance", limit: 200 }  → paste into Sheets
+   - Local (no deploy): node scripts/export-brand-listings.mjs -w … --brand biodance -o biodance.csv
+   - HTTP: GET /api/v1/marketplace/brand-listings?brand_key=biodance&format=csv&raw=1
 ```
+
+**Full cycle:** `docs/MALL_BRAND_CYCLE_RUNBOOK.md`
+
+
+### Multi-brand distributor Malls (MH-7 — shipped)
+
+**Problem:** Group / distributor storefronts host many brands under one `shop_username`.
+
+**Ops (extension v0.6):**
+
+1. Open multi-brand Mall → enable **Multi-brand distributor shop**
+2. Check **2+ brands** sold there → **Link** (calls `resolve-distributor-shop`)
+3. Harvest as usual — server/CLI attributes each product title to a brand in the allowlist
+
+**Code:** mig **070** `shop_kind` · `attributeBrandFromTitle.mjs` · `distributorShop.mjs` · extension multi-select.
+
+Example: `amorepacific.hair.body.shop` → select Laneige + Ryo + … (whatever is on the grid).
 
 ### Explicit non-goals (still)
 
@@ -702,6 +741,8 @@ F. What you get
 - Treating shop “Serums” as equal to platform “Eye Care”  
 - LLM inventing sold counts or category paths  
 - Browserbase-as-primary Mall crawl  
+- (Now) Stamping multi-brand distributor grids as a single brand_key  
+
 
 ---
 

@@ -14,10 +14,12 @@
  *   node scripts/mall-all-products-harvest.mjs --workspace <uuid> --pilot-only --mode collections --dry-run
  *
  * Computer mode (mode B — captcha-friendly, watch & intervene):
- *   --computer   headed + real mouse/scroll + Enter on captcha
+ *   --computer   headed + mouse/scroll + pause after load (Enter when grid visible)
  *   --step       also pause for Enter after each page extract
+ *   --connect [url]  attach to your Chrome (default http://127.0.0.1:9222)
+ *                    start Chrome first with --remote-debugging-port=9222
  *
- * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SHOPEE_PROFILE_DIR, SHOPEE_INTERACTIVE
+ * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SHOPEE_PROFILE_DIR, SHOPEE_CDP_URL, SHOPEE_INTERACTIVE
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -28,6 +30,7 @@ import puppeteer from 'puppeteer'
 import { PILOT_BRAND_KEYS } from '../marketplace/brandKey.mjs'
 import {
   computerBrowserLaunchOptions,
+  connectComputerBrowser,
   withComputerDefaults,
 } from '../marketplace/computerHarvest.mjs'
 import {
@@ -70,6 +73,8 @@ function parseArgs(argv) {
     headless: process.env.SHOPEE_HEADLESS === '1',
     computer: false,
     step: false,
+    connect: process.env.SHOPEE_CDP_URL || null,
+    pauseAfterLoad: false, // captcha-only; --pause-load for every page
     profileDir: process.env.SHOPEE_PROFILE_DIR || '.shopee-chrome-profile',
   }
   for (let i = 0; i < argv.length; i++) {
@@ -107,7 +112,19 @@ function parseArgs(argv) {
       opts.computer = true
       opts.headless = false
       opts.interactive = true
-    } else if (a === '--no-interactive') opts.interactive = false
+    } else if (a === '--connect') {
+      opts.computer = true
+      opts.headless = false
+      opts.interactive = true
+      const next = argv[i + 1]
+      if (next && !next.startsWith('--')) {
+        opts.connect = argv[++i]
+      } else {
+        opts.connect = process.env.SHOPEE_CDP_URL || 'http://127.0.0.1:9222'
+      }
+    } else if (a === '--pause-load') opts.pauseAfterLoad = true
+    else if (a === '--no-pause-load') opts.pauseAfterLoad = false
+    else if (a === '--no-interactive') opts.interactive = false
     else if (a === '--help' || a === '-h') {
       console.log(`mall-all-products-harvest.mjs --workspace <uuid> [--mode all|collections|both] [--brand key]
 
@@ -118,11 +135,12 @@ Shelf modes:
 
 Runtime styles:
   (default)            Script-style: faster goto+scroll, timed captcha wait
-  --computer           Computer-style: headed, mouse moves, wheel scroll, Enter on captcha
-  --step               Computer + pause after every page (press Enter to continue)
+  --computer           Mouse/scroll; pause only on captcha (bell + Enter)
+  --pause-load         Also pause after every navigation (babysit mode)
+  --step               Pause after every extract
+  --connect [url]      Attach to YOUR Chrome (best vs captcha). Default http://127.0.0.1:9222
 
-Example (recommended when captcha is likely):
-  node scripts/mall-all-products-harvest.mjs -w <uuid> --brand beauty-of-joseon --mode both --computer --max-pages 2`)
+Or: node scripts/mall-brand-cycle.mjs (list + MH-4 in one go).`)
       process.exit(0)
     }
   }
@@ -151,6 +169,8 @@ async function main() {
     process.exit(1)
   }
 
+  // persistSession false + no hard process.exit after fetch reduces Windows
+  // UV_HANDLE_CLOSING asserts (src/win/async.c) when undici sockets are mid-close.
   const db = createClient(url, key, { auth: { persistSession: false } })
   const targets = await loadHarvestTargets(db, opts.workspace, {
     brand_keys: opts.brandKeys,
@@ -200,41 +220,73 @@ async function main() {
 
   if (!withShop.length) {
     console.error('No brands with shop_username. Confirm shops (extension) first.')
-    process.exit(1)
+    process.exitCode = 1
+    return
   }
 
   if (opts.mode !== 'all' && missingCollections.length === withShop.length) {
     console.error('No shop_collections on targets. Run MH-1 discover collections first.')
-    process.exit(1)
+    process.exitCode = 1
+    return
   }
 
   if (opts.dryRun) {
     console.log(`Dry-run: would harvest mode=${opts.mode} for targets above`)
-    process.exit(0)
+    console.error('[mall-harvest] dry-run ok — plan only; no browser opened')
+    process.exitCode = 0
+    return
   }
 
   const profileDir = resolve(ROOT, opts.profileDir)
   mkdirSync(profileDir, { recursive: true })
 
+  const useConnect = Boolean(opts.connect)
   if (opts.computer) {
-    console.error('[computer] Mode B: headed Chrome + mouse/scroll. Keep this terminal focused for Enter pauses.')
-    console.error('[computer] Solve any captcha in the Chrome window, then press Enter here when asked.')
+    console.error(
+      '[computer] Mode B: pause after each load — solve captcha in Chrome, then press Enter in this terminal.',
+    )
+    if (useConnect) {
+      console.error(`[computer] Connecting to existing Chrome at ${opts.connect}`)
+    } else {
+      console.error(
+        '[computer] Tip: if captcha keeps winning, use --connect after starting Chrome with --remote-debugging-port=9222',
+      )
+    }
   }
 
-  const launchOpts = opts.computer
-    ? computerBrowserLaunchOptions({ profileDir })
-    : {
-        headless: opts.headless,
-        userDataDir: profileDir,
-        defaultViewport: { width: 1365, height: 900 },
-        args: ['--disable-blink-features=AutomationControlled', '--no-first-run'],
-      }
-
-  const browser = await puppeteer.launch(launchOpts)
+  let browser
+  let connected = false
+  if (useConnect) {
+    try {
+      const c = await connectComputerBrowser(opts.connect)
+      browser = c.browser
+      connected = true
+    } catch (e) {
+      console.error(
+        `[computer] connect failed (${e?.message || e}).\n` +
+          `Start Chrome first:\n` +
+          `  chrome.exe --remote-debugging-port=9222 --user-data-dir="${profileDir}"\n` +
+          `Log into Shopee in that window, then re-run with --connect`,
+      )
+      process.exitCode = 1
+      return
+    }
+  } else {
+    const launchOpts = opts.computer
+      ? computerBrowserLaunchOptions({ profileDir })
+      : {
+          headless: opts.headless,
+          userDataDir: profileDir,
+          defaultViewport: { width: 1365, height: 900 },
+          args: ['--disable-blink-features=AutomationControlled', '--no-first-run'],
+        }
+    browser = await puppeteer.launch(launchOpts)
+  }
 
   const summary = {
     mode: opts.mode,
-    runtime: opts.computer ? 'computer' : 'script',
+    runtime: opts.computer ? (connected ? 'computer-cdp' : 'computer') : 'script',
+    connect: connected ? opts.connect : null,
     ok: 0,
     failed: 0,
     products: 0,
@@ -243,13 +295,23 @@ async function main() {
   }
 
   try {
-    const page = await browser.newPage()
-    if (!opts.computer) {
-      await page.setViewport({ width: 1365, height: 900 })
+    let page
+    if (connected) {
+      const pages = await browser.pages()
+      page =
+        pages.find((p) => /shopee\.sg/i.test(p.url() || '')) ||
+        pages[pages.length - 1] ||
+        (await browser.newPage())
+      console.error(`[computer] using tab: ${page.url() || '(blank)'}`)
+    } else {
+      page = await browser.newPage()
+      if (!opts.computer) {
+        await page.setViewport({ width: 1365, height: 900 })
+      }
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      )
     }
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    )
 
     let harvestOpts = {
       workspace_id: opts.workspace,
@@ -262,14 +324,15 @@ async function main() {
       mode: opts.mode === 'both' ? 'both' : 'collections',
       computer: opts.computer,
       step: opts.step,
+      pauseAfterLoad: opts.pauseAfterLoad,
     }
     if (opts.computer) {
-      // Computer pacing defaults unless user passed --delay-ms
       const base = opts.delayMsExplicit
         ? harvestOpts
         : { ...harvestOpts, delay_ms: undefined, shelf_delay_ms: undefined }
       harvestOpts = withComputerDefaults(base)
       if (opts.delayMsExplicit) harvestOpts.delay_ms = opts.delayMs
+      harvestOpts.pauseAfterLoad = opts.pauseAfterLoad
     }
 
     for (const brand of withShop) {
@@ -313,14 +376,23 @@ async function main() {
       }
     }
   } finally {
-    await browser.close().catch(() => {})
+    if (connected) {
+      // Leave user's Chrome open
+      browser.disconnect()
+    } else {
+      await browser.close().catch(() => {})
+    }
   }
 
   console.log(JSON.stringify(summary, null, 2))
-  if (summary.stop_batch || (summary.failed && !summary.ok)) process.exit(1)
+  if (summary.stop_batch || (summary.failed && !summary.ok)) {
+    process.exitCode = 1
+    return
+  }
+  process.exitCode = 0
 }
 
 main().catch((e) => {
   console.error(e)
-  process.exit(1)
+  process.exitCode = 1
 })

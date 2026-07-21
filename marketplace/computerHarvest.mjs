@@ -104,14 +104,54 @@ export async function humanScrollPage(page, opts = {}) {
   }
 }
 
+function isDetachedError(e) {
+  const msg = String(e?.message || e || '')
+  return /detached Frame|Target closed|Session closed|Execution context was destroyed|frame was detached/i.test(
+    msg,
+  )
+}
+
 /**
- * Navigate like a person: open URL, move mouse, scroll, wait, extract.
+ * page.evaluate that soft-fails on detached frames (Shopee captcha often remounts DOM).
+ * @param {import('puppeteer').Page} page
+ * @param {() => object} fn
+ */
+async function safeHarvestEvaluate(page, fn) {
+  try {
+    return await page.evaluate(fn)
+  } catch (e) {
+    if (isDetachedError(e)) {
+      console.error(`[computer] evaluate lost frame: ${e?.message || e}`)
+      return {
+        shop_username: null,
+        shop_id: null,
+        page_url: '',
+        page: 0,
+        sort_by: 'pop',
+        active_category: 'All Products',
+        product_count: 0,
+        products: [],
+        session_probe: {
+          title: '',
+          bodySnippet: 'detached_frame',
+        },
+        harvested_at: new Date().toISOString(),
+        _detached: true,
+      }
+    }
+    throw e
+  }
+}
+
+/**
+ * Navigate like a person: open URL, pause for captcha after first paint, scroll, extract.
  * On captcha/login: never silent-fail — wait for human Enter.
  *
  * @param {import('puppeteer').Page} page
  * @param {string} url
  * @param {{
  *   step?: boolean
+ *   pauseAfterLoad?: boolean
  *   label?: string
  *   maxCaptchaRounds?: number
  *   harvestEvaluate?: () => object
@@ -125,12 +165,17 @@ export async function openAndHarvestPageComputer(page, url, opts = {}) {
     const mod = await import('./mallHarvestWorker.mjs')
     harvestEvaluate = mod.browserHarvestEvaluate
   }
+  // Default false = captcha-only pause (Level 2). Use pauseAfterLoad: true for babysit mode.
+  const pauseAfterLoad = opts.pauseAfterLoad === true
 
   console.error(`[computer] open ${label}`)
   console.error(`[computer]   ${url}`)
 
-  // Pre-move so first frame isn't a pure programmatic goto + extract
-  await humanIdleMouse(page)
+  try {
+    await humanIdleMouse(page)
+  } catch {
+    /* blank tab */
+  }
   await sleep(rand(200, 600))
 
   try {
@@ -139,63 +184,108 @@ export async function openAndHarvestPageComputer(page, url, opts = {}) {
     console.error(`[computer] goto soft-fail: ${e?.message || e}`)
   }
 
-  await sleep(rand(1200, 2200))
-  await humanIdleMouse(page)
-  await sleep(rand(400, 900))
-  await humanScrollPage(page)
+  // Let SPA paint (user often sees products briefly before captcha)
+  await sleep(rand(1500, 2500))
+
+  if (pauseAfterLoad) {
+    console.error(
+      '[computer] Page navigated. If captcha / verify appears after paint, solve it in Chrome now.',
+    )
+    await waitForEnter(
+      '[computer] When the product grid is visible (captcha cleared), press Enter here…',
+      { fallbackMs: 300000 },
+    )
+  }
+
+  try {
+    await humanIdleMouse(page)
+  } catch {
+    /* ignore */
+  }
+  await sleep(rand(300, 700))
+  try {
+    await humanScrollPage(page)
+  } catch (e) {
+    if (!isDetachedError(e)) console.error(`[computer] scroll: ${e?.message || e}`)
+  }
   await sleep(rand(800, 1600))
 
-  let harvest = await page.evaluate(harvestEvaluate)
+  let harvest = await safeHarvestEvaluate(page, harvestEvaluate)
   let health = detectSessionHealth({
     title: harvest.session_probe?.title,
     bodyText: harvest.session_probe?.bodySnippet,
-    url: harvest.page_url || page.url(),
+    url: harvest.page_url || (await page.url().catch(() => url)),
   })
+  if (harvest._detached) health = 'blocked'
 
   let rounds = 0
   const maxRounds = opts.maxCaptchaRounds ?? 20
   while (
     (health === 'blocked' ||
       health === 'login_required' ||
-      (health === 'ok' && harvest.product_count === 0 && rounds === 0)) &&
+      (health === 'ok' && harvest.product_count === 0 && rounds === 0) ||
+      harvest._detached) &&
     rounds < maxRounds
   ) {
-    // Empty first load might be SPA — one more scroll before asking human
-    if (health === 'ok' && harvest.product_count === 0 && rounds === 0) {
+    if (health === 'ok' && harvest.product_count === 0 && rounds === 0 && !harvest._detached) {
       console.error('[computer] 0 products after scroll — scrolling again…')
-      await humanScrollPage(page, { bursts: 4 })
+      try {
+        await humanScrollPage(page, { bursts: 4 })
+      } catch {
+        /* ignore */
+      }
       await sleep(rand(1000, 2000))
-      harvest = await page.evaluate(harvestEvaluate)
+      harvest = await safeHarvestEvaluate(page, harvestEvaluate)
       health = detectSessionHealth({
         title: harvest.session_probe?.title,
         bodyText: harvest.session_probe?.bodySnippet,
-        url: page.url(),
+        url: await page.url().catch(() => url),
       })
       if (harvest.product_count > 0) break
     }
 
-    if (health === 'blocked' || health === 'login_required') {
-      console.error(`[computer] CAPTCHA / login wall (health=${health})`)
+    if (health === 'blocked' || health === 'login_required' || harvest._detached) {
+      console.error(`[computer] CAPTCHA / login / frame lost (health=${health})`)
+      try {
+        process.stderr.write('\x07') // terminal bell — look at Chrome
+      } catch {
+        /* ignore */
+      }
     } else {
       console.error('[computer] Still no products visible')
     }
 
     await waitForEnter(
-      '[computer] Solve captcha / wait for products in the Chrome window, then press Enter here…',
-      { fallbackMs: 180000 },
+      '[computer] Solve captcha in Chrome (or reload the shop URL if blank), then press Enter…',
+      { fallbackMs: 300000 },
     )
 
-    await humanScrollPage(page, { bursts: 3 })
+    // Soft reload if frame died during captcha remount
+    if (harvest._detached) {
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
+        await sleep(1500)
+      } catch (e) {
+        console.error(`[computer] reload soft-fail: ${e?.message || e}`)
+      }
+    }
+
+    try {
+      await humanScrollPage(page, { bursts: 3 })
+    } catch {
+      /* ignore */
+    }
     await sleep(rand(800, 1500))
-    harvest = await page.evaluate(harvestEvaluate)
+    harvest = await safeHarvestEvaluate(page, harvestEvaluate)
     health = detectSessionHealth({
       title: harvest.session_probe?.title,
       bodyText: harvest.session_probe?.bodySnippet,
-      url: page.url(),
+      url: await page.url().catch(() => url),
     })
+    if (harvest._detached) health = 'blocked'
     rounds++
 
-    if (health === 'ok' && harvest.product_count > 0) break
+    if (health === 'ok' && harvest.product_count > 0 && !harvest._detached) break
   }
 
   if (opts.step) {
@@ -204,7 +294,6 @@ export async function openAndHarvestPageComputer(page, url, opts = {}) {
       { fallbackMs: 5000 },
     )
   } else {
-    // Natural pause before next navigation
     await sleep(rand(2500, 5000))
   }
 
@@ -248,5 +337,30 @@ export function withComputerDefaults(opts = {}) {
     shelf_delay_ms: opts.shelf_delay_ms ?? 10000,
     captchaWaitMs: opts.captchaWaitMs ?? 600000,
     step: opts.step === true,
+    // Captcha-only by default; set pauseAfterLoad: true to Enter after every nav
+    pauseAfterLoad: opts.pauseAfterLoad === true,
   }
+}
+
+/**
+ * Attach to a Chrome you already started with remote debugging
+ * (real session cookies — far less captcha than puppeteer.launch).
+ *
+ *   chrome.exe --remote-debugging-port=9222 --user-data-dir="...\.shopee-chrome-profile"
+ *
+ * @param {string} [browserURL]
+ */
+export async function connectComputerBrowser(browserURL) {
+  const url = browserURL || process.env.SHOPEE_CDP_URL || 'http://127.0.0.1:9222'
+  const browser = await puppeteerConnect(url)
+  return { browser, browserURL: url, connected: true }
+}
+
+/** Lazy import so unit tests don't need puppeteer when only testing defaults. */
+async function puppeteerConnect(browserURL) {
+  const puppeteer = (await import('puppeteer')).default
+  return puppeteer.connect({
+    browserURL,
+    defaultViewport: null,
+  })
 }

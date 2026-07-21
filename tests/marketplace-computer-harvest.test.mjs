@@ -13,7 +13,13 @@ test('withComputerDefaults enables computer + slower pacing', () => {
   assert.equal(d.delay_ms, 8000)
   assert.equal(d.shelf_delay_ms, 10000)
   assert.equal(d.step, false)
+  assert.equal(d.pauseAfterLoad, false) // captcha-only default
   assert.ok(d.captchaWaitMs >= 600000)
+})
+
+test('withComputerDefaults can enable pauseAfterLoad babysit', () => {
+  const d = withComputerDefaults({ pauseAfterLoad: true })
+  assert.equal(d.pauseAfterLoad, true)
 })
 
 test('withComputerDefaults preserves explicit delays and step', () => {

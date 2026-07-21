@@ -22,6 +22,8 @@ here with Supabase-style timestamped filenames.
 - `202607100050_projections.sql` mirrors `core/db/050_projections.sql`
 - `202607200068_marketplace_brand_universe.sql` mirrors `core/db/068_marketplace_brand_universe.sql`
 - `202607200069_brand_universe_shop_identity.sql` mirrors `core/db/069_brand_universe_shop_identity.sql`
+- `202607210070_brand_universe_multi_brand_shop.sql` mirrors `core/db/070_brand_universe_multi_brand_shop.sql`
+- `202607210071_skums_migrations_rls.sql` mirrors `core/db/071_skums_migrations_rls.sql`
 
 ## Rule
 

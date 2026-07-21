@@ -170,6 +170,76 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'market_brand_listings',
+    description:
+      'Brand-radar sheet slice: official Mall harvest rows (name, sold, marketing shelf, platform path, URL). Filter by brand_key / shop / shelf / min_sold. Prefer this over bi_query_snapshots for Mall brand analysis.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand_key: {
+          type: 'string',
+          description: 'e.g. biodance, beauty-of-joseon, anua',
+        },
+        brand_keys: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Multiple brand keys',
+        },
+        shop_username: { type: 'string' },
+        shop_collection_name: {
+          type: 'string',
+          description: 'Marketing shelf substring e.g. Bundle, Serums',
+        },
+        platform_category_leaf: {
+          type: 'string',
+          description: 'Shopee platform leaf e.g. Eye Care, Face Mask (after MH-4)',
+        },
+        min_sold: { type: 'number', description: 'Minimum sold_count_lower_bound' },
+        q: { type: 'string', description: 'Title / brand / path text search' },
+        seller_type: { type: 'string' },
+        limit: { type: 'number', description: 'Max rows 1–500 (default 100)' },
+        since: { type: 'string' },
+        until: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'market_brand_export_csv',
+    description:
+      'Same as market_brand_listings but returns CSV text for Google Sheets / Excel. Columns: brand_key, shop, title, sold, shelf, platform path, price, url, …',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand_key: { type: 'string' },
+        brand_keys: { type: 'array', items: { type: 'string' } },
+        shop_username: { type: 'string' },
+        shop_collection_name: { type: 'string' },
+        platform_category_leaf: { type: 'string' },
+        min_sold: { type: 'number' },
+        q: { type: 'string' },
+        limit: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'market_brand_summary',
+    description:
+      'Brand-radar overview for planning sheets: SKU counts, sold bands, marketing shelf mix, platform leaf mix, top products by sold. Use before export_csv to choose filters.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand_key: { type: 'string' },
+        brand_keys: { type: 'array', items: { type: 'string' } },
+        shop_username: { type: 'string' },
+        shop_collection_name: { type: 'string' },
+        min_sold: { type: 'number' },
+        q: { type: 'string' },
+        limit: { type: 'number', description: 'Max SKUs to aggregate (default 500)' },
+        top_n: { type: 'number', description: 'Top products to list (default 10)' },
+      },
+    },
+  },
+  {
     name: 'market_listing_history',
     description: 'Time series snapshots for a listing (listing_id or shop_id+item_id).',
     inputSchema: {
@@ -1377,6 +1447,54 @@ export async function handleTool(name, args = {}) {
           limit: a.limit,
         })
         return jsonResult(hist)
+      }
+      case 'market_brand_listings': {
+        requireScope('intel:read')
+        const result = await bi.brandListings(requireWorkspaceId(), {
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          shop_username: a.shop_username,
+          shop_collection_name: a.shop_collection_name,
+          platform_category_leaf: a.platform_category_leaf,
+          min_sold: a.min_sold,
+          q: a.q,
+          seller_type: a.seller_type,
+          since: a.since,
+          until: a.until,
+          limit: a.limit ?? 100,
+          format: 'json',
+        })
+        return jsonResult(result)
+      }
+      case 'market_brand_export_csv': {
+        requireScope('intel:read')
+        const result = await bi.brandListings(requireWorkspaceId(), {
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          shop_username: a.shop_username,
+          shop_collection_name: a.shop_collection_name,
+          platform_category_leaf: a.platform_category_leaf,
+          min_sold: a.min_sold,
+          q: a.q,
+          seller_type: a.seller_type,
+          limit: a.limit ?? 200,
+          format: 'csv',
+        })
+        return jsonResult(result)
+      }
+      case 'market_brand_summary': {
+        requireScope('intel:read')
+        const result = await bi.brandSummary(requireWorkspaceId(), {
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          shop_username: a.shop_username,
+          shop_collection_name: a.shop_collection_name,
+          min_sold: a.min_sold,
+          q: a.q,
+          limit: a.limit ?? 500,
+          top_n: a.top_n ?? 10,
+        })
+        return jsonResult(result)
       }
       case 'pipeline_propose': {
         requireScope('pipeline:propose')

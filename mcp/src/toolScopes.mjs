@@ -102,6 +102,18 @@ export const TOOL_SCOPE_CATALOG = {
   market_search: { scope: 'intel:read', action: 'Search market warehouse' },
   market_seller_mix: { scope: 'intel:read', action: 'Seller mix summary' },
   market_listing_history: { scope: 'intel:read', action: 'Listing history' },
+  market_brand_listings: {
+    scope: 'intel:read',
+    action: 'Brand-radar listings slice (name/sold/shelf/platform path)',
+  },
+  market_brand_export_csv: {
+    scope: 'intel:read',
+    action: 'Export brand-radar listings as CSV for spreadsheets',
+  },
+  market_brand_summary: {
+    scope: 'intel:read',
+    action: 'Brand-radar summary: sold bands, top SKUs, shelf/platform mix',
+  },
   bi_list_seeds: { scope: 'intel:read', action: 'List crawl seeds' },
   bi_job_status: { scope: 'intel:read', action: 'Crawl job status' },
   bi_query_snapshots: { scope: 'intel:read', action: 'Query market snapshots' },

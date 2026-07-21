@@ -50,20 +50,34 @@ export function stampBrandSignalsOnCards(cards, seed) {
       ? `shop:${shop_username}`
       : search_query
 
+  const multi =
+    meta.shop_kind === 'multi_brand_distributor' || seed?.shop_kind === 'multi_brand_distributor'
+
   return list.map((card) => {
+    const existingSignals =
+      card.signals && typeof card.signals === 'object' ? card.signals : {}
+    // MH-7: keep per-SKU brand_key from title attribution when multi-brand
+    const cardBrand =
+      multi && existingSignals.brand_key
+        ? existingSignals.brand_key
+        : multi
+          ? existingSignals.brand_key || null
+          : brand_key
     const signals = {
-      ...(card.signals && typeof card.signals === 'object' ? card.signals : {}),
-      brand_key,
+      ...existingSignals,
+      ...(cardBrand ? { brand_key: cardBrand } : multi ? {} : { brand_key }),
     }
-    if (universe_id) signals.universe_id = universe_id
+    if (!multi && brand_key) signals.brand_key = brand_key
+    if (universe_id && !multi) signals.universe_id = universe_id
     if (shop_username) signals.shop_username = shop_username
     if (seed?.mode === 'shop') signals.official_shop = true
+    if (multi) signals.shop_kind = 'multi_brand_distributor'
 
     const raw = {
       ...(card.raw && typeof card.raw === 'object' ? card.raw : {}),
-      brand_key,
+      ...(cardBrand ? { brand_key: cardBrand } : {}),
     }
-    if (universe_id) raw.universe_id = universe_id
+    if (universe_id && !multi) raw.universe_id = universe_id
     if (shop_username) raw.shop_username = shop_username
 
     return {

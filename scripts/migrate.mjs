@@ -135,12 +135,21 @@ function createDbClient(dbUrl) {
 }
 
 async function ensureTrackingTable(sql) {
-  await sql.unsafe(`create table if not exists public.skums_migrations (
+  // Tracking table is for the Node migrate runner only (postgres / service connection).
+  // Enable RLS with no anon/authenticated policies so Supabase Advisor is happy and
+  // the table is not readable via the public API key. Direct DB migrations still work
+  // because the postgres role bypasses RLS.
+  await sql.unsafe(`
+    create table if not exists public.skums_migrations (
       version text primary key,
       name text not null,
       checksum text not null,
       applied_at timestamptz not null default now()
-    );`)
+    );
+    alter table public.skums_migrations enable row level security;
+    revoke all on table public.skums_migrations from anon, authenticated;
+    grant select, insert, update, delete on table public.skums_migrations to service_role;
+  `)
 }
 
 async function getApplied(sql) {

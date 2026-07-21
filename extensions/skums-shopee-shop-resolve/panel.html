@@ -158,6 +158,39 @@
         <option value="">— auto / load brands —</option>
       </select>
       <p class="muted" id="brandMeta"></p>
+      <div class="row">
+        <button id="btnCopyBrand" class="secondary" type="button" title="Copy display name for Google/Shopee search">
+          Copy brand name
+        </button>
+        <button id="btnCopyNextNeed" class="secondary" type="button" title="Select next brand still needing a shop, then copy name">
+          Next need + copy
+        </button>
+      </div>
+      <p class="muted" id="copyBrandHint" style="margin-top:4px">
+        Copies e.g. <code>Beauty of Joseon</code> or <code>UNOVE</code> for search.
+      </p>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-weight:600;cursor:pointer">
+        <input id="multiBrandToggle" type="checkbox" style="width:auto;margin:0" />
+        Multi-brand distributor shop
+      </label>
+      <p class="muted" style="margin-top:4px">
+        Group / official multi-brand Mall (e.g. Amorepacific Hair &amp; Body). Check brands sold here.
+        You can Link with 2 first, then later tick more and Link again — allowlist <strong>merges</strong>.
+        Harvest attributes each product by title.
+      </p>
+      <div id="multiBrandBox" style="display:none;margin-top:8px">
+        <label>Brands in this shop (check all that apply)</label>
+        <div
+          id="multiBrandList"
+          class="card"
+          style="max-height:160px;margin-top:4px;padding:6px"
+        >
+          <div class="muted">Load brands first</div>
+        </div>
+        <p class="muted" id="multiBrandMeta"></p>
+      </div>
+
       <button id="btnLinkShop" type="button">Link this Mall page to brand</button>
       <button id="btnGuessBrand" class="secondary" type="button">Re-guess from tab</button>
     </div>

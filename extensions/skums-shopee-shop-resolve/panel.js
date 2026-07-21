@@ -11,6 +11,10 @@ let brands = []
 let lastWorkspaceId = null
 let selectedBrandKey = ''
 let brandFilter = ''
+/** Multi-brand distributor mode (MH-7) */
+let multiBrandMode = false
+/** @type {Set<string>} */
+let multiBrandSelected = new Set()
 /** @type {string | null} */
 let activeShopUsername = null
 /** @type {any} */
@@ -161,6 +165,108 @@ function renderCollections(disc) {
   $('btnPushCollections').disabled = false
 }
 
+/**
+ * Human search label: "Beauty of Joseon", "UNOVE" (display_name preferred).
+ * @param {object | null} b
+ */
+function brandSearchLabel(b) {
+  if (!b) return ''
+  const name = String(b.display_name || '').replace(/\s+/g, ' ').trim()
+  if (name) return name
+  // fallback: beauty-of-joseon → Beauty Of Joseon
+  return String(b.brand_key || '')
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+function getSelectedBrand() {
+  const key = $('brandSelect')?.value || selectedBrandKey
+  if (!key) return null
+  return brands.find((b) => b.brand_key === key) || null
+}
+
+function updateCopyBrandButton() {
+  const btn = $('btnCopyBrand')
+  if (!btn) return
+  const b = getSelectedBrand()
+  const label = brandSearchLabel(b)
+  if (label) {
+    btn.textContent = `Copy “${label.length > 22 ? label.slice(0, 20) + '…' : label}”`
+    btn.disabled = false
+  } else {
+    btn.textContent = 'Copy brand name'
+    btn.disabled = true
+  }
+}
+
+async function copyTextToClipboard(text) {
+  const t = String(text || '').trim()
+  if (!t) throw new Error('Nothing to copy')
+  try {
+    await navigator.clipboard.writeText(t)
+  } catch {
+    // Fallback for restricted clipboard
+    const ta = document.createElement('textarea')
+    ta.value = t
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    ta.remove()
+  }
+}
+
+async function copySelectedBrandName() {
+  const b = getSelectedBrand()
+  const label = brandSearchLabel(b)
+  if (!label) throw new Error('Select a brand first')
+  await copyTextToClipboard(label)
+  const hint = $('copyBrandHint')
+  if (hint) hint.innerHTML = `Copied <code>${esc(label)}</code> — paste into Google / Shopee search`
+  setStatus(`Copied brand name: ${label}`, 'ok')
+}
+
+/** Select first brand still needing shop (respect filter), copy display name. */
+async function selectNextNeedAndCopy() {
+  const q = brandFilter.trim().toLowerCase()
+  const pool = [...brands]
+    .filter((b) => needsShop(b))
+    .filter((b) => {
+      if (!q) return true
+      const hay = `${b.display_name} ${b.brand_key} ${b.shop_username || ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+    .sort((a, b) => {
+      const ap = a.pilot_tier === 'pilot' ? 0 : 1
+      const bp = b.pilot_tier === 'pilot' ? 0 : 1
+      if (ap !== bp) return ap - bp
+      return String(a.display_name || '').localeCompare(String(b.display_name || ''))
+    })
+
+  if (!pool.length) {
+    setStatus('No brands still need a shop (or filter hides them)', 'muted')
+    return
+  }
+
+  // Prefer next after current selection in the need list
+  const cur = $('brandSelect').value
+  let idx = pool.findIndex((b) => b.brand_key === cur)
+  const pick = pool[idx >= 0 && idx + 1 < pool.length ? idx + 1 : 0]
+
+  selectedBrandKey = pick.brand_key
+  brandFilter = ''
+  if ($('brandFilter')) $('brandFilter').value = ''
+  renderBrandSelect()
+  $('brandSelect').value = pick.brand_key
+  await persistBrandCache()
+  updateLinkButton()
+  updateCopyBrandButton()
+  await copySelectedBrandName()
+}
+
 function renderBrandSelect() {
   const sel = $('brandSelect')
   const prev = selectedBrandKey || sel.value
@@ -208,12 +314,31 @@ function renderBrandSelect() {
     selectedBrandKey = sorted[0].brand_key
   }
   updateLinkButton()
+  updateCopyBrandButton()
 }
 
 function updateLinkButton() {
   const btn = $('btnLinkShop')
   if (!btn) return
   const user = activeShopUsername
+  if (multiBrandMode) {
+    const n = multiBrandSelected.size
+    // Merge on server: 1+ new brand ok if shop already has others
+    if (user && n >= 1) {
+      btn.textContent =
+        n >= 2
+          ? `Link @${user} → ${n} brands (distributor)`
+          : `Add brand to @${user} (merge distributor)`
+      btn.disabled = false
+    } else if (user) {
+      btn.textContent = `Link distributor (pick brands)`
+      btn.disabled = true
+    } else {
+      btn.textContent = 'Link multi-brand distributor shop'
+      btn.disabled = true
+    }
+    return
+  }
   const brand = $('brandSelect').value
   if (user && brand) {
     btn.textContent = `Link @${user} → ${brand}`
@@ -224,6 +349,67 @@ function updateLinkButton() {
   } else {
     btn.textContent = 'Link this Mall page to brand'
     btn.disabled = true
+  }
+}
+
+function setMultiBrandMode(on) {
+  multiBrandMode = Boolean(on)
+  const box = $('multiBrandBox')
+  if (box) box.style.display = multiBrandMode ? 'block' : 'none'
+  const tog = $('multiBrandToggle')
+  if (tog) tog.checked = multiBrandMode
+  if (multiBrandMode) renderMultiBrandList()
+  updateLinkButton()
+}
+
+function renderMultiBrandList() {
+  const box = $('multiBrandList')
+  const meta = $('multiBrandMeta')
+  if (!box) return
+  if (!brands.length) {
+    box.innerHTML = '<div class="muted">Load brands first</div>'
+    return
+  }
+  const q = brandFilter.trim().toLowerCase()
+  const sorted = [...brands]
+    .filter((b) => {
+      if (!q) return true
+      return `${b.display_name} ${b.brand_key}`.toLowerCase().includes(q)
+    })
+    .sort((a, b) =>
+      String(a.display_name || '').localeCompare(String(b.display_name || '')),
+    )
+
+  box.innerHTML = sorted
+    .slice(0, 80)
+    .map((b) => {
+      const checked = multiBrandSelected.has(b.brand_key) ? 'checked' : ''
+      const dist =
+        b.shop_kind === 'multi_brand_distributor' || b.metadata?.shop_kind === 'multi_brand_distributor'
+          ? ' · dist'
+          : ''
+      return `<label style="display:flex;gap:6px;align-items:flex-start;font-weight:500;margin:3px 0;cursor:pointer">
+        <input type="checkbox" data-brand="${esc(b.brand_key)}" ${checked} style="width:auto;margin-top:2px" />
+        <span>${esc(b.display_name || b.brand_key)} <span class="muted">(${esc(b.brand_key)}${dist})</span></span>
+      </label>`
+    })
+    .join('')
+
+  box.querySelectorAll('input[type=checkbox][data-brand]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const key = el.getAttribute('data-brand')
+      if (!key) return
+      if (el.checked) multiBrandSelected.add(key)
+      else multiBrandSelected.delete(key)
+      if (meta) meta.textContent = `${multiBrandSelected.size} brand(s) selected`
+      updateLinkButton()
+    })
+  })
+  if (meta) {
+    meta.textContent =
+      sorted.length > 80
+        ? `${multiBrandSelected.size} selected · showing 80 of ${sorted.length} (filter to narrow)`
+        : `${multiBrandSelected.size} brand(s) selected`
   }
 }
 
@@ -247,8 +433,27 @@ async function syncFromActiveTab(opts = {}) {
     null
   activeShopUsername = username
 
+  // Pre-select brands already linked to this shop (multi-brand re-visit)
+  const alreadyOnShop = brands.filter(
+    (b) => String(b.shop_username || '').toLowerCase() === String(username || '').toLowerCase(),
+  )
+  const alreadyMulti = alreadyOnShop.filter(
+    (b) =>
+      b.shop_kind === 'multi_brand_distributor' ||
+      b.metadata?.shop_kind === 'multi_brand_distributor',
+  )
+  if (alreadyMulti.length || alreadyOnShop.length > 1) {
+    const keys = new Set(alreadyOnShop.map((b) => b.brand_key))
+    for (const b of alreadyOnShop) {
+      for (const k of b.metadata?.distributor_brand_keys || []) keys.add(String(k).toLowerCase())
+    }
+    multiBrandSelected = keys
+    if (!multiBrandMode) setMultiBrandMode(true)
+    else renderMultiBrandList()
+  }
+
   let guess = null
-  if (username && brands.length && BM()?.guessBrandForShop) {
+  if (username && brands.length && BM()?.guessBrandForShop && !multiBrandMode) {
     guess = BM().guessBrandForShop(brands, {
       shop_username: username,
       page_title: tab.title || '',
@@ -270,6 +475,11 @@ async function syncFromActiveTab(opts = {}) {
     if (!username) {
       $('linkMeta').textContent =
         `Tab is not a Mall shop path (${tab.url}). Open e.g. shopee.sg/{username}.`
+    } else if (multiBrandMode && multiBrandSelected.size) {
+      $('linkMeta').textContent =
+        `Detected @${username} · multi-brand allowlist (${multiBrandSelected.size}): ` +
+        `${[...multiBrandSelected].slice(0, 8).join(', ')}${multiBrandSelected.size > 8 ? '…' : ''}. ` +
+        `Tick more brands + Link to merge.`
     } else if (guess) {
       $('linkMeta').textContent =
         `Detected @${username} → suggested ${guess.brand.display_name} (${guess.brand.brand_key}, score ${guess.score}). Click Link if correct.`
@@ -277,7 +487,7 @@ async function syncFromActiveTab(opts = {}) {
       $('linkMeta').textContent = `Detected @${username}. Refresh brands first, then Link.`
     } else {
       $('linkMeta').textContent =
-        `Detected @${username} — no auto-match. Type filter or pick brand, then Link.`
+        `Detected @${username} — no auto-match. Type filter or pick brand, then Link. Use Multi-brand for group Malls.`
     }
   }
 
@@ -305,6 +515,49 @@ async function linkActiveShop() {
     throw new Error('URL is not a shop path like shopee.sg/beautyofjoseonsg')
   }
 
+  // —— MH-7 multi-brand distributor ——
+  if (multiBrandMode) {
+    const brand_keys = [...multiBrandSelected]
+    if (!brand_keys.length) {
+      throw new Error('Multi-brand mode: check brands sold in this shop')
+    }
+    setStatus(`Linking distributor @${username} → ${brand_keys.join(', ')} (merges with any existing)…`)
+    const data = await apiPost(
+      '/api/v1/marketplace/brand-universe/resolve-distributor-shop',
+      {
+        brand_keys,
+        shop_username: username,
+        shop_url: `https://shopee.sg/${username}`,
+        evidence: {
+          via: 'chrome_extension_side_panel_distributor',
+          page_url: tab.url,
+          page_title: tab.title || null,
+        },
+      },
+    )
+    const full = data.brand_keys || brand_keys
+    const added = data.added_brand_keys || []
+    setStatus(
+      `Distributor @${data.shop_username || username}\n` +
+        `Allowlist (${full.length}): ${full.join(', ')}\n` +
+        (added.length ? `Newly added: ${added.join(', ')}\n` : '') +
+        `Re-link anytime to add more brands (merges). Harvest attributes by title.`,
+      'ok',
+    )
+    // Keep multi mode on so you can add more later; pre-check full allowlist
+    multiBrandSelected = new Set(full)
+    renderMultiBrandList()
+    await loadBrands()
+    activeShopUsername = username
+    if ($('linkMeta')) {
+      $('linkMeta').textContent =
+        `Multi-brand @${username}: ${full.length} brands. Tick more + Link again to merge.`
+    }
+    updateLinkButton()
+    return
+  }
+
+  // —— Single-brand ——
   // Re-guess if select empty
   if (!$('brandSelect').value && brands.length) {
     const g = BM()?.guessBrandForShop?.(brands, {
@@ -371,6 +624,7 @@ async function loadBrands() {
     return
   }
   $('brandMeta').textContent = `${brands.length} brands · ws ${lastWorkspaceId || '?'}`
+  if (multiBrandMode) renderMultiBrandList()
   setStatus(`Loaded ${brands.length} brands`, 'ok')
 }
 
@@ -548,14 +802,27 @@ async function pushHarvest() {
   if (!$('apiKey').value.trim()) throw new Error('API key required')
 
   const brand_key = $('brandSelect').value || undefined
+  // If shop is known multi-brand, server attributes by title
+  const shopUser = lastHarvest.shop_username
+  const multi = brands.some(
+    (b) =>
+      String(b.shop_username || '').toLowerCase() === String(shopUser || '').toLowerCase() &&
+      (b.shop_kind === 'multi_brand_distributor' ||
+        b.metadata?.shop_kind === 'multi_brand_distributor'),
+  )
   setStatus('Pushing harvest to SKUMS…')
   const data = await apiPost('/api/v1/marketplace/shop-harvest', {
     ...lastHarvest,
-    brand_key,
+    brand_key: multi ? undefined : brand_key,
+    multi_brand: multi || multiBrandMode || undefined,
   })
   setStatus(
     `Pushed ${data.product_count} products` +
-      (data.brand_key ? ` · brand ${data.brand_key}` : '') +
+      (data.multi_brand
+        ? ` · multi-brand attributed ${data.attributed_count ?? '?'}/${data.product_count}`
+        : data.brand_key
+          ? ` · brand ${data.brand_key}`
+          : '') +
       `\nlistings upserted: ${data.write?.listings_upserted ?? '?'} · snapshots: ${data.write?.snapshots_inserted ?? '?'}`,
     'ok',
   )
@@ -599,11 +866,28 @@ $('btnDownload').addEventListener('click', () => downloadHarvest())
 $('brandSelect').addEventListener('change', async () => {
   selectedBrandKey = $('brandSelect').value
   updateLinkButton()
+  updateCopyBrandButton()
   await persistBrandCache()
 })
 $('brandFilter').addEventListener('input', () => {
   brandFilter = $('brandFilter').value
   renderBrandSelect()
+  if (multiBrandMode) renderMultiBrandList()
+})
+$('btnCopyBrand')?.addEventListener('click', () =>
+  copySelectedBrandName().catch((e) => setStatus(e.message, 'err')),
+)
+$('btnCopyNextNeed')?.addEventListener('click', () =>
+  selectNextNeedAndCopy().catch((e) => setStatus(e.message, 'err')),
+)
+$('multiBrandToggle')?.addEventListener('change', (e) => {
+  setMultiBrandMode(e.target.checked)
+  if (e.target.checked) {
+    setStatus(
+      'Multi-brand mode: check all brands sold in this shop, then Link (min 2).',
+      'muted',
+    )
+  }
 })
 
 // Re-guess when user switches Shopee tabs (panel stays open)

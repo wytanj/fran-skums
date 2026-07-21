@@ -30,6 +30,8 @@ second-sample.json
 *-sample.json
 # Persistent Chrome profile for interactive Shopee smoke (do not commit)
 .shopee-chrome-profile/
+# Local mall harvest cycle resume state
+.mall-cycle-state.json
 # Large local supplier dumps (do not commit)
 product-list.csv
 # Local scrape debug artifacts

@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "SKUMS Shopee Shop Resolve",
-  "version": "0.5.0",
-  "description": "Link Mall shops to brand universe + harvest products (name, sold, category) into Fran SKUMS.",
-  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
+  "version": "0.6.0",
+  "description": "Link single-brand or multi-brand distributor Malls + harvest products into Fran SKUMS.",
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs", "clipboardWrite"],
   "host_permissions": [
     "https://shopee.sg/*",
     "https://*.shopee.sg/*",

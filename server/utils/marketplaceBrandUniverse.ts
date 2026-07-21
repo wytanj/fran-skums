@@ -15,6 +15,12 @@ import {
   resolveShopFromManualUrl,
   universeShopPatchFromResolve,
 } from '../../marketplace/resolveShopUsername.mjs'
+import {
+  SHOP_KIND_DISTRIBUTOR,
+  SHOP_KIND_SINGLE,
+  mergeDistributorMetadata,
+} from '../../marketplace/distributorShop.mjs'
+import { normalizeBrandKeyList } from '../../marketplace/attributeBrandFromTitle.mjs'
 import { getServiceClient } from './supabase'
 
 export { PILOT_BRAND_KEYS }
@@ -83,6 +89,7 @@ export async function patchBrandUniverse(
     'shop_username',
     'shop_url',
     'shop_id',
+    'shop_kind',
     'shop_resolve_status',
     'shop_resolve_source',
     'shop_resolve_evidence',
@@ -200,6 +207,212 @@ export async function resolveBrandShop(
     }),
     shop_resolve_status: status,
     shop_resolve_source: source,
+  }
+
+  const { data, error } = await db
+    .from('marketplace_brand_universe')
+    .update(patch)
+    .eq('id', row.id)
+    .eq('workspace_id', workspaceId)
+    .select('*')
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+/**
+ * MH-7 — Link one Mall shop to many brands (multi-brand distributor).
+ *
+ * Merges with brands already linked to this shop_username so you can
+ * add brands later (e.g. linked 2, later found 4) without re-selecting all.
+ * Final allowlist is written onto every brand in the union.
+ */
+export async function resolveDistributorShop(
+  workspaceId: string,
+  opts: {
+    brand_keys: string[]
+    shop_url?: string
+    shop_username?: string
+    shop_id?: string | null
+    /** If true, replace allowlist with brand_keys only (default: merge) */
+    replace?: boolean
+    evidence?: Record<string, unknown>
+  },
+) {
+  const db = getServiceClient()
+  const requested = normalizeBrandKeyList(opts.brand_keys)
+  if (!requested.length) {
+    const err = new Error('brand_keys required (at least one; merge with existing shop brands)')
+    ;(err as any).statusCode = 400
+    throw err
+  }
+
+  const input = opts.shop_url || opts.shop_username
+  if (!input) {
+    const err = new Error('shop_url or shop_username required')
+    ;(err as any).statusCode = 400
+    throw err
+  }
+
+  const resolved = resolveShopFromManualUrl(input, {
+    country: 'sg',
+    brand_key: requested[0],
+  })
+  if (!resolved.ok) {
+    const err = new Error(resolved.error || 'unparseable shop')
+    ;(err as any).statusCode = 400
+    throw err
+  }
+
+  const shop_username = resolved.shop_username
+  const shop_url = resolved.shop_url
+  const shop_id = opts.shop_id || resolved.shop_id || null
+
+  // Brands already on this shop (+ their stored allowlists)
+  const { data: existingOnShop, error: exErr } = await db
+    .from('marketplace_brand_universe')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .eq('shop_username', shop_username)
+    .limit(100)
+  if (exErr) throw new Error(exErr.message)
+
+  const existingKeys = new Set<string>()
+  for (const r of existingOnShop || []) {
+    existingKeys.add(String(r.brand_key).toLowerCase())
+    const meta = r.metadata && typeof r.metadata === 'object' ? r.metadata : {}
+    for (const k of normalizeBrandKeyList(meta.distributor_brand_keys)) {
+      existingKeys.add(k)
+    }
+  }
+
+  const brand_keys = opts.replace
+    ? requested
+    : normalizeBrandKeyList([...requested, ...existingKeys])
+
+  if (brand_keys.length < 2) {
+    const err = new Error(
+      'distributor shops need at least 2 brands total (select more, or this shop already has only one)',
+    )
+    ;(err as any).statusCode = 400
+    throw err
+  }
+
+  const { data: rows, error: loadErr } = await db
+    .from('marketplace_brand_universe')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .in('brand_key', brand_keys)
+    .limit(100)
+
+  if (loadErr) throw new Error(loadErr.message)
+  const found = new Map((rows || []).map((r: any) => [String(r.brand_key).toLowerCase(), r]))
+  const missing = brand_keys.filter((k) => !found.has(k))
+  if (missing.length) {
+    const err = new Error(`brand_keys not in universe: ${missing.join(', ')}`)
+    ;(err as any).statusCode = 404
+    throw err
+  }
+
+  const added = requested.filter((k) => !existingKeys.has(k))
+  const updated: any[] = []
+
+  for (const key of brand_keys) {
+    const row = found.get(key)
+    const meta = mergeDistributorMetadata(row.metadata || {}, {
+      shop_username,
+      brand_keys,
+      shop_kind: SHOP_KIND_DISTRIBUTOR,
+    })
+    const patch = {
+      ...universeShopPatchFromResolve({
+        ...resolved,
+        status: 'confirmed',
+        source: 'manual',
+        shop_id,
+        evidence: {
+          ...(resolved.evidence || {}),
+          ...(opts.evidence || {}),
+          via: 'api_resolve_distributor_shop',
+          distributor_brand_keys: brand_keys,
+          merged: !opts.replace,
+          added_brand_keys: added,
+        },
+      }),
+      shop_kind: SHOP_KIND_DISTRIBUTOR,
+      shop_resolve_status: 'confirmed',
+      shop_resolve_source: 'manual',
+      metadata: meta,
+    }
+
+    const { data, error } = await db
+      .from('marketplace_brand_universe')
+      .update(patch)
+      .eq('id', row.id)
+      .eq('workspace_id', workspaceId)
+      .select('*')
+      .single()
+
+    if (error) throw new Error(error.message)
+    updated.push(data)
+  }
+
+  return {
+    shop_username,
+    shop_url,
+    shop_id,
+    shop_kind: SHOP_KIND_DISTRIBUTOR,
+    brand_keys,
+    added_brand_keys: added,
+    previous_brand_keys: [...existingKeys],
+    brands: updated,
+  }
+}
+
+/**
+ * Revert a brand to single_brand shop kind (keeps shop_username unless clear_shop).
+ */
+export async function setBrandShopKind(
+  workspaceId: string,
+  opts: { brand_key?: string; id?: string; shop_kind: string; clear_shop?: boolean },
+) {
+  const db = getServiceClient()
+  const kind =
+    opts.shop_kind === SHOP_KIND_DISTRIBUTOR ? SHOP_KIND_DISTRIBUTOR : SHOP_KIND_SINGLE
+
+  let q = db.from('marketplace_brand_universe').select('*').eq('workspace_id', workspaceId)
+  if (opts.id) q = q.eq('id', opts.id)
+  else if (opts.brand_key) q = q.eq('brand_key', String(opts.brand_key).toLowerCase().trim())
+  else {
+    const err = new Error('brand_key or id required')
+    ;(err as any).statusCode = 400
+    throw err
+  }
+
+  const { data: row, error: loadErr } = await q.maybeSingle()
+  if (loadErr || !row) {
+    const err = new Error('Brand universe row not found')
+    ;(err as any).statusCode = 404
+    throw err
+  }
+
+  const meta = { ...(row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) }
+  meta.shop_kind = kind
+  if (kind === SHOP_KIND_SINGLE) {
+    delete meta.distributor_brand_keys
+    delete meta.distributor_shop_username
+  }
+
+  const patch: Record<string, unknown> = {
+    shop_kind: kind,
+    metadata: meta,
+  }
+  if (opts.clear_shop) {
+    patch.shop_username = null
+    patch.shop_url = null
+    patch.shop_id = null
+    patch.shop_resolve_status = 'unknown'
   }
 
   const { data, error } = await db

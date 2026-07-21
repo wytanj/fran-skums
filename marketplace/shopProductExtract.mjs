@@ -12,6 +12,7 @@
  * Plus stable ids: shop_id, item_id, listing_url
  */
 
+import { attributeProductsToBrands } from './attributeBrandFromTitle.mjs'
 import { parseSoldLabel } from './soldLabel.mjs'
 import { parseShopeeItemIds, parseShopeeShopUsername } from './shopee/urls.mjs'
 
@@ -218,50 +219,81 @@ function detectActiveShopCategory(doc) {
 /**
  * Map harvest products → ObservedListingCard shape for warehouse upsert.
  * @param {object} harvest  extractShopProducts* result
- * @param {{ brand_key?: string, currency?: string }} [opts]
+ * @param {{
+ *   brand_key?: string
+ *   currency?: string
+ *   brand_profiles?: Array<{ brand_key: string, display_name?: string }>
+ *   multi_brand?: boolean
+ * }} [opts]
+ *
+ * When multi_brand / brand_profiles set, brand_key is attributed per product title.
  */
 export function harvestToObservationCards(harvest, opts = {}) {
-  const brand_key = opts.brand_key || null
+  const fallbackBrand = opts.brand_key || null
   const currency = opts.currency || 'SGD'
   const products = harvest?.products || []
   const collName =
     harvest.shop_collection_name || harvest.active_category || null
   const collId = harvest.shop_collection_id ?? null
   const source = harvest.harvest_source || 'mall_list_harvest'
+  const multi =
+    opts.multi_brand === true ||
+    (Array.isArray(opts.brand_profiles) && opts.brand_profiles.length > 1)
 
-  return products.map((p, i) => ({
-    shop_id: String(p.shop_id),
-    item_id: String(p.item_id),
-    title: p.name,
-    listing_url: p.listing_url,
-    shop_name: harvest.shop_username || null,
-    seller_type: 'mall',
-    currency,
-    sold_label: p.sold_label,
-    sold_count_lower_bound: p.sold_count_lower_bound ?? undefined,
-    rank_position: p.rank_position || i + 1,
-    search_query: harvest.shop_username
-      ? collId
-        ? `shop:${harvest.shop_username}:coll:${collId}`
-        : `shop:${harvest.shop_username}`
-      : undefined,
-    signals: {
-      official_shop: true,
-      shop_username: harvest.shop_username || null,
-      category: p.category || collName || null,
-      shop_collection_name: collName,
-      shop_collection_id: collId,
-      harvest_source: source,
-      sort_by: harvest.sort_by || null,
-      page: harvest.page ?? null,
-      ...(brand_key ? { brand_key } : {}),
-    },
-    raw: {
-      harvest: true,
-      category: p.category || collName,
-      shop_collection_id: collId,
-      shop_collection_name: collName,
-      page_url: harvest.page_url,
-    },
-  }))
+  let attributed = products
+  if (multi && opts.brand_profiles?.length) {
+    attributed = attributeProductsToBrands(products, opts.brand_profiles, { titleKey: 'name' })
+  }
+
+  return attributed.map((p, i) => {
+    const brand_key =
+      p.brand_key ||
+      p.brand_attribution?.brand_key ||
+      (multi ? null : fallbackBrand)
+    const attr = p.brand_attribution || null
+    return {
+      shop_id: String(p.shop_id),
+      item_id: String(p.item_id),
+      title: p.name,
+      listing_url: p.listing_url,
+      shop_name: harvest.shop_username || null,
+      seller_type: 'mall',
+      currency,
+      sold_label: p.sold_label,
+      sold_count_lower_bound: p.sold_count_lower_bound ?? undefined,
+      rank_position: p.rank_position || i + 1,
+      search_query: harvest.shop_username
+        ? collId
+          ? `shop:${harvest.shop_username}:coll:${collId}`
+          : `shop:${harvest.shop_username}`
+        : undefined,
+      signals: {
+        official_shop: true,
+        shop_username: harvest.shop_username || null,
+        category: p.category || collName || null,
+        shop_collection_name: collName,
+        shop_collection_id: collId,
+        harvest_source: source,
+        sort_by: harvest.sort_by || null,
+        page: harvest.page ?? null,
+        shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
+        ...(brand_key ? { brand_key } : {}),
+        ...(attr
+          ? {
+              brand_attribution_method: attr.method,
+              brand_attribution_score: attr.score,
+              brand_attribution_needle: attr.matched_needle,
+            }
+          : {}),
+      },
+      raw: {
+        harvest: true,
+        category: p.category || collName,
+        shop_collection_id: collId,
+        shop_collection_name: collName,
+        page_url: harvest.page_url,
+        brand_attribution: attr,
+      },
+    }
+  })
 }

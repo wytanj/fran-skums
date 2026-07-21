@@ -28,12 +28,14 @@ Validated against saved HTML in `extensions/sample-beauty-of-joseon/`
 
 Not required for your use case (ignored as primary): price history, full INCI, SERP rank vs resellers.
 
-## UX (v0.5)
+## UX (v0.6)
 
 - **Side panel** stays open while you browse
-- **Link Mall page → brand** (fast path for the 125): detects `@username` from the tab URL, **auto-guesses** brand (`beautyofjoseonsg` → `beauty-of-joseon`), one click **Link**
-- **Filter brands** typeahead when auto-guess misses
-- **Discover collections** / **Harvest products** still work after link
+- **Link Mall page → brand** (single-brand): auto-guess `@username` → one click **Link**
+- **Multi-brand distributor** (MH-7): toggle → multi-select brands → Link all to the same shop; harvest attributes SKUs by title
+- **Copy brand name** / **Next need + copy** for search workflow
+- **Filter brands** typeahead
+- **Discover collections** / **Harvest products** after link
 - Brand list cached; re-guesses when you switch tabs
 
 ## Workflow — assign Mall URLs to brands (semi-auto)

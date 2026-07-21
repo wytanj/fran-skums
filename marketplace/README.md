@@ -104,6 +104,46 @@ Writes name + sold + `shop_collection_*` into listings/snapshots. Profile: `.sho
 
 **Mode B ops:** leave the Chrome window visible; when the terminal says solve captcha, fix it in Chrome, then press **Enter** in the terminal (not only wait). Module: `marketplace/computerHarvest.mjs`.
 
+**Captcha-resistant:** start Chrome with `--remote-debugging-port=9222` and pass `--connect` (see `docs/MALL_BRAND_CYCLE_RUNBOOK.md`).
+
+### MH-4 — Platform taxonomy (PDP breadcrumb)
+
+After list harvest has product URLs:
+
+```bash
+# Dry plan: top sold missing platform path
+node scripts/mall-pdp-breadcrumb-enrich.mjs --workspace <uuid> --brand biodance --top 20 --dry-run
+
+# Enrich via your Chrome session
+node scripts/mall-pdp-breadcrumb-enrich.mjs --workspace <uuid> --brand biodance --top 20 --computer --connect
+```
+
+Stamps `signals.platform_category_path[]` / ids / leaf from JSON-LD `BreadcrumbList` (not Mall `shopCollection`).
+
+**Full operator cycle:** `docs/MALL_BRAND_CYCLE_RUNBOOK.md`
+
+### Brand cycle (list + MH-4 in one go)
+
+```bash
+# After brands are linked + Chrome --remote-debugging-port=9222
+node scripts/mall-brand-cycle.mjs --workspace <uuid> --brand biodance --connect --list-mode both --mh4-top 15
+
+# Multiple brands; skip ones already done in .mall-cycle-state.json
+node scripts/mall-brand-cycle.mjs --workspace <uuid> --brand biodance,anua --connect --skip-done
+```
+
+Default: **pause only on captcha** (terminal bell + Enter). Use `--pause-load` to babysit every page.
+
+### Analyze / spreadsheet (after harvest)
+
+```bash
+# API CSV (Bearer intel:read)
+# GET /api/v1/marketplace/brand-listings?brand_key=biodance&format=csv&raw=1
+```
+
+**MCP:** `market_brand_listings` · `market_brand_export_csv`  
+Filters: `brand_key`, `shop_collection_name`, `platform_category_leaf`, `min_sold`, `q`, `limit`.
+
 ## Phase 0
 
 | Module | Role |

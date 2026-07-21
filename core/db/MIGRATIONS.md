@@ -69,6 +69,8 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 067 | report_delivery_policy.sql | Phase N policy report.run.completed (in_app + slack) | Rpt-3 delivery |
 | 068 | marketplace_brand_universe.sql | Weekly brand radar universe (sample-brands import) | Separate from catalog brands; pilot_tier default paused |
 | 069 | brand_universe_shop_identity.sql | shop_username / resolve status for official Mall storefronts | Prefer mode=shop when confirmed |
+| 070 | brand_universe_multi_brand_shop.sql | shop_kind multi_brand_distributor (MH-7) | Shared Mall shops; per-SKU brand attribution |
+| 071 | skums_migrations_rls.sql | RLS on skums_migrations tracking table | Fixes Supabase “table publicly accessible”; migrate runner still works via DB URL |
 
 ## Planned Phase C Spine
 
@@ -112,6 +114,8 @@ SUPABASE_DB_URL=postgresql://postgres.<project-ref>:<password>@aws-1-<region>.po
 ```
 
 The runner records applied migrations in `public.skums_migrations` with a SHA-256 checksum. If a previously applied file changes, the runner stops with a checksum mismatch instead of silently reapplying changed SQL.
+
+**Security:** `skums_migrations` has **RLS enabled** and **no policies for `anon` / `authenticated`**, so the Supabase public URL + anon key cannot read it. Terminal migrations still work: they use `SUPABASE_DB_URL` as the **postgres** role, which **bypasses RLS**.
 
 ## App Migrations
 
