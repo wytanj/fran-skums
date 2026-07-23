@@ -9,6 +9,10 @@
         font-size: 13px;
         color: #0f172a;
       }
+      html,
+      body {
+        min-width: 480px;
+      }
       body {
         margin: 0;
         padding: 12px 14px 28px;
@@ -184,9 +188,14 @@
         <div
           id="multiBrandList"
           class="card"
-          style="max-height:160px;margin-top:4px;padding:6px"
+          style="max-height:280px;margin-top:4px;padding:6px;overflow:auto"
         >
           <div class="muted">Load brands first</div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btnClearMultiBrand" class="secondary" type="button" title="Uncheck all selected brands">
+            Clear selection
+          </button>
         </div>
         <p class="muted" id="multiBrandMeta"></p>
       </div>

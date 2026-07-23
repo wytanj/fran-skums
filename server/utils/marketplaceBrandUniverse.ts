@@ -265,12 +265,15 @@ export async function resolveDistributorShop(
     throw err
   }
 
-  const shop_username = resolved.shop_username
+  const shop_username = String(resolved.shop_username || '')
+    .toLowerCase()
+    .trim()
   const shop_url = resolved.shop_url
   const shop_id = opts.shop_id || resolved.shop_id || null
 
-  // Brands already on this shop (+ their stored allowlists)
-  const { data: existingOnShop, error: exErr } = await db
+  // Brands already on this shop (+ their stored allowlists).
+  // Match shop_username column and metadata.distributor_shop_username (re-visit / merge).
+  const { data: byShopUser, error: exErr } = await db
     .from('marketplace_brand_universe')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -278,8 +281,30 @@ export async function resolveDistributorShop(
     .limit(100)
   if (exErr) throw new Error(exErr.message)
 
+  const { data: distributors, error: distErr } = await db
+    .from('marketplace_brand_universe')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .eq('shop_kind', SHOP_KIND_DISTRIBUTOR)
+    .limit(200)
+  if (distErr) throw new Error(distErr.message)
+
+  const existingOnShop: any[] = [...(byShopUser || [])]
+  const seenIds = new Set(existingOnShop.map((r) => r.id))
+  for (const r of distributors || []) {
+    if (seenIds.has(r.id)) continue
+    const meta = r.metadata && typeof r.metadata === 'object' ? r.metadata : {}
+    const distUser = String(meta.distributor_shop_username || r.shop_username || '')
+      .toLowerCase()
+      .trim()
+    if (distUser === shop_username) {
+      existingOnShop.push(r)
+      seenIds.add(r.id)
+    }
+  }
+
   const existingKeys = new Set<string>()
-  for (const r of existingOnShop || []) {
+  for (const r of existingOnShop) {
     existingKeys.add(String(r.brand_key).toLowerCase())
     const meta = r.metadata && typeof r.metadata === 'object' ? r.metadata : {}
     for (const k of normalizeBrandKeyList(meta.distributor_brand_keys)) {
@@ -293,7 +318,10 @@ export async function resolveDistributorShop(
 
   if (brand_keys.length < 2) {
     const err = new Error(
-      'distributor shops need at least 2 brands total (select more, or this shop already has only one)',
+      `Multi-brand distributor needs at least 2 brands total. ` +
+        `You sent: ${requested.join(', ') || '(none)'}. ` +
+        `Already on @${shop_username}: ${existingKeys.size ? [...existingKeys].join(', ') : '(none)'}. ` +
+        `Check more brands in the extension (or link 2+ on first pass).`,
     )
     ;(err as any).statusCode = 400
     throw err
@@ -304,10 +332,26 @@ export async function resolveDistributorShop(
     .select('*')
     .eq('workspace_id', workspaceId)
     .in('brand_key', brand_keys)
-    .limit(100)
+    .limit(200)
 
   if (loadErr) throw new Error(loadErr.message)
   const found = new Map((rows || []).map((r: any) => [String(r.brand_key).toLowerCase(), r]))
+
+  // Case-insensitive fallback if .in missed mixed-case brand_key rows
+  const missingAfterIn = brand_keys.filter((k) => !found.has(k))
+  if (missingAfterIn.length) {
+    const { data: allRows, error: allErr } = await db
+      .from('marketplace_brand_universe')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .limit(500)
+    if (allErr) throw new Error(allErr.message)
+    for (const r of allRows || []) {
+      const k = String(r.brand_key).toLowerCase()
+      if (brand_keys.includes(k) && !found.has(k)) found.set(k, r)
+    }
+  }
+
   const missing = brand_keys.filter((k) => !found.has(k))
   if (missing.length) {
     const err = new Error(`brand_keys not in universe: ${missing.join(', ')}`)

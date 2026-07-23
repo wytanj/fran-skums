@@ -60,8 +60,19 @@ async function apiGet(path) {
   const res = await fetch(`${apiBase()}${path}`, { headers: authHeaders() })
   const text = await res.text()
   const json = parseApiBody(res, text)
-  if (!res.ok) throw new Error(json.statusMessage || json.message || `HTTP ${res.status}`)
+  if (!res.ok) throw new Error(apiErrorMessage(json, res.status))
   return json
+}
+
+function apiErrorMessage(json, status) {
+  if (!json || typeof json !== 'object') return `HTTP ${status}`
+  return (
+    json.message ||
+    json.statusMessage ||
+    json.data?.message ||
+    json.error ||
+    `HTTP ${status}`
+  )
 }
 
 async function apiPost(path, body) {
@@ -72,7 +83,7 @@ async function apiPost(path, body) {
   })
   const text = await res.text()
   const json = parseApiBody(res, text)
-  if (!res.ok) throw new Error(json.statusMessage || json.message || `HTTP ${res.status}`)
+  if (!res.ok) throw new Error(apiErrorMessage(json, res.status))
   return json
 }
 
@@ -352,14 +363,49 @@ function updateLinkButton() {
   }
 }
 
+/**
+ * Brands already linked to the active Mall @username (for multi-brand re-visit).
+ * Does not toggle multi-brand mode — only used when the user enables it.
+ */
+function brandsAlreadyOnActiveShop() {
+  const username = activeShopUsername
+  if (!username || !brands.length) return []
+  return brands.filter(
+    (b) => String(b.shop_username || '').toLowerCase() === String(username || '').toLowerCase(),
+  )
+}
+
+/** Pre-check brands already linked to this shop (allowlist re-visit / merge). */
+function seedMultiBrandFromActiveShop() {
+  const alreadyOnShop = brandsAlreadyOnActiveShop()
+  if (!alreadyOnShop.length) return
+  const keys = new Set(alreadyOnShop.map((b) => b.brand_key))
+  for (const b of alreadyOnShop) {
+    for (const k of b.metadata?.distributor_brand_keys || []) keys.add(String(k).toLowerCase())
+  }
+  multiBrandSelected = keys
+}
+
 function setMultiBrandMode(on) {
   multiBrandMode = Boolean(on)
   const box = $('multiBrandBox')
   if (box) box.style.display = multiBrandMode ? 'block' : 'none'
   const tog = $('multiBrandToggle')
   if (tog) tog.checked = multiBrandMode
-  if (multiBrandMode) renderMultiBrandList()
+  if (multiBrandMode) {
+    // Only seed when turning on and nothing is selected yet
+    if (!multiBrandSelected.size) seedMultiBrandFromActiveShop()
+    renderMultiBrandList()
+  }
   updateLinkButton()
+}
+
+/** Uncheck all brands in the multi-brand selector. */
+function clearMultiBrandSelection() {
+  multiBrandSelected = new Set()
+  renderMultiBrandList()
+  updateLinkButton()
+  setStatus('Multi-brand selection cleared.', 'muted')
 }
 
 function renderMultiBrandList() {
@@ -381,7 +427,6 @@ function renderMultiBrandList() {
     )
 
   box.innerHTML = sorted
-    .slice(0, 80)
     .map((b) => {
       const checked = multiBrandSelected.has(b.brand_key) ? 'checked' : ''
       const dist =
@@ -401,16 +446,22 @@ function renderMultiBrandList() {
       if (!key) return
       if (el.checked) multiBrandSelected.add(key)
       else multiBrandSelected.delete(key)
-      if (meta) meta.textContent = `${multiBrandSelected.size} brand(s) selected`
+      if (meta) {
+        meta.textContent = multiBrandMetaText(multiBrandSelected.size, sorted.length, brands.length)
+      }
       updateLinkButton()
     })
   })
   if (meta) {
-    meta.textContent =
-      sorted.length > 80
-        ? `${multiBrandSelected.size} selected · showing 80 of ${sorted.length} (filter to narrow)`
-        : `${multiBrandSelected.size} brand(s) selected`
+    meta.textContent = multiBrandMetaText(multiBrandSelected.size, sorted.length, brands.length)
   }
+}
+
+function multiBrandMetaText(selected, visible, total) {
+  if (visible < total) {
+    return `${selected} selected · showing ${visible} of ${total} (filter to narrow)`
+  }
+  return `${selected} selected · ${total} brand(s)`
 }
 
 /**
@@ -433,24 +484,8 @@ async function syncFromActiveTab(opts = {}) {
     null
   activeShopUsername = username
 
-  // Pre-select brands already linked to this shop (multi-brand re-visit)
-  const alreadyOnShop = brands.filter(
-    (b) => String(b.shop_username || '').toLowerCase() === String(username || '').toLowerCase(),
-  )
-  const alreadyMulti = alreadyOnShop.filter(
-    (b) =>
-      b.shop_kind === 'multi_brand_distributor' ||
-      b.metadata?.shop_kind === 'multi_brand_distributor',
-  )
-  if (alreadyMulti.length || alreadyOnShop.length > 1) {
-    const keys = new Set(alreadyOnShop.map((b) => b.brand_key))
-    for (const b of alreadyOnShop) {
-      for (const k of b.metadata?.distributor_brand_keys || []) keys.add(String(k).toLowerCase())
-    }
-    multiBrandSelected = keys
-    if (!multiBrandMode) setMultiBrandMode(true)
-    else renderMultiBrandList()
-  }
+  // Never auto-enable multi-brand mode; only re-render list if user already turned it on.
+  if (multiBrandMode) renderMultiBrandList()
 
   let guess = null
   if (username && brands.length && BM()?.guessBrandForShop && !multiBrandMode) {
@@ -517,11 +552,31 @@ async function linkActiveShop() {
 
   // —— MH-7 multi-brand distributor ——
   if (multiBrandMode) {
-    const brand_keys = [...multiBrandSelected]
-    if (!brand_keys.length) {
+    // Union checked brands + brands already linked to this shop so "add one more"
+    // works even if only the new brand is checked (server merges too).
+    activeShopUsername = username
+    const already = brandsAlreadyOnActiveShop().map((b) => b.brand_key)
+    const brand_keys = [
+      ...new Set(
+        [...multiBrandSelected, ...already]
+          .map((k) => String(k || '').toLowerCase().trim())
+          .filter(Boolean),
+      ),
+    ]
+    if (!multiBrandSelected.size) {
       throw new Error('Multi-brand mode: check brands sold in this shop')
     }
-    setStatus(`Linking distributor @${username} → ${brand_keys.join(', ')} (merges with any existing)…`)
+    if (brand_keys.length < 2) {
+      throw new Error(
+        `Multi-brand needs at least 2 brands total. Selected: ${[...multiBrandSelected].join(', ')}. ` +
+          `Already on @${username}: ${already.length ? already.join(', ') : 'none'}. ` +
+          `Check one more brand, or use single-brand Link if this Mall is only one brand.`,
+      )
+    }
+    setStatus(
+      `Linking distributor @${username} → ${brand_keys.join(', ')} ` +
+        `(${multiBrandSelected.size} checked + merge)…`,
+    )
     const data = await apiPost(
       '/api/v1/marketplace/brand-universe/resolve-distributor-shop',
       {
@@ -883,12 +938,16 @@ $('btnCopyNextNeed')?.addEventListener('click', () =>
 $('multiBrandToggle')?.addEventListener('change', (e) => {
   setMultiBrandMode(e.target.checked)
   if (e.target.checked) {
+    const n = multiBrandSelected.size
     setStatus(
-      'Multi-brand mode: check all brands sold in this shop, then Link (min 2).',
+      n
+        ? `Multi-brand mode: ${n} brand(s) already on this shop pre-checked. Tick more, then Link (min 2).`
+        : 'Multi-brand mode: check all brands sold in this shop, then Link (min 2).',
       'muted',
     )
   }
 })
+$('btnClearMultiBrand')?.addEventListener('click', () => clearMultiBrandSelection())
 
 // Re-guess when user switches Shopee tabs (panel stays open)
 if (chrome.tabs?.onActivated) {

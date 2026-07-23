@@ -21,9 +21,10 @@ The Fran-specific route surface is intentionally thin. It wraps generic SKUMS pr
 | `POST` | `/fran/pos/reservations` | Hold quoted stock against existing inventory reservations before payment or reward issue. |
 | `POST` | `/fran/pos/reservations/[id]/commit` | Commit held stock after POS payment success or product reward issue. |
 | `POST` | `/fran/pos/reservations/[id]/release` | Release held stock when checkout, reward issue, or sample issue is abandoned. |
-| `POST` | `/fran/pos/sales` | Ingest idempotent Fran POS sales while preserving CRM and reward references. |
+| `POST` | `/fran/pos/sales` | Ingest idempotent Fran POS sales while preserving CRM, loyalty member, voucher, quote, and reward references (SKUMS does **not** settle points). |
 | `POST` | `/fran/pos/returns` | Ingest idempotent Fran POS returns while preserving CRM return/reward references. |
 | `POST` | `/fran/pos/inventory-events` | Reuse the generic POS inventory event intake for damage, found stock, and transfer receipts. |
+| `POST` | `/fran/pos/products/context` | Bulk product context (ids/skus/barcodes) for POS/CRM loyalty evaluation — category, collection, reward flags only. |
 | `POST` | `/fran/store-ops/requests` | Create store-ops requests for replenishment, 3PL, damage, and reconciliation workflows. |
 
 Every POS write should include an `idempotency_key`. Duplicate keys return the already-recorded sale, return, inventory event, or request where the backing table supports it.
@@ -36,12 +37,26 @@ Quote availability is SKUMS-owned. Active reservations are reflected through the
 
 When POS needs to hold stock, it should call `POST /fran/pos/reservations` with the quote id and cart/register context. SKUMS writes `pos_reservations`, `pos_reservation_lines`, and linked `inventory_reservations`, then increments the `reserved` inventory bucket through the ledger RPC. On payment success, POS can either call the reservation commit endpoint directly or include `pos_reservation_id` in the sale ingest body; sale ingest will commit the reservation and write the `sale` inventory ledger movement. If checkout is abandoned, POS should release the reservation before the quote/reservation TTL expires.
 
+## Loyalty Sale Contract (Track L / L-skums)
+
+When Fran POS posts a sale after FWB checkout, it should include (in body and/or `metadata.fran_context`):
+
+- `member_ref` / `loyalty_member_ref` — CRM member id
+- `policy_version_id`, `assignment_id` — policy bundle used at preview
+- `skums_quote_id` / `quote_id` — basket quote id used for pricing
+- `points_earned`, `points_redeemed` — **informational only** (CRM ledger is SoR)
+- `voucher_ids` / `voucher_codes` — scanned birthday / category / redeem QRs
+- `loyalty_commit_id` — CRM `commit_sale` id when available
+
+SKUMS stores these under `metadata.fran_context` for audit and inventory linkage. SKUMS never computes or mutates point balances.
+
 ## Fran CRM Product Context
 
 Fran CRM can read narrow product facts for reward eligibility and counter advice through:
 
 ```text
 GET /fran/crm/product-context
+POST /fran/pos/products/context   (bulk by product_ids | skus | barcodes)
 ```
 
 The response is deliberately product-only:

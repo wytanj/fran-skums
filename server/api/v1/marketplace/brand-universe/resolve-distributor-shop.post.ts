@@ -32,6 +32,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: e?.statusCode || 500,
       statusMessage: e?.message || 'resolve-distributor-shop failed',
+      message: e?.message || 'resolve-distributor-shop failed',
     })
   }
 })

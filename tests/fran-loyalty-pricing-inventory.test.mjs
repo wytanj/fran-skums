@@ -25,6 +25,30 @@ test('Fran contract advertises quote-first pricing and reservation lifecycle', (
   assert.match(contractDoc, /pos_reservation_id/)
 })
 
+test('L-skums sale contract preserves loyalty refs without settling points', () => {
+  const posNorm = readFileSync(new URL('../server/fran/pos.ts', import.meta.url), 'utf8')
+  assert.match(posNorm, /loyalty_member_ref/)
+  assert.match(posNorm, /loyalty_policy_version_id/)
+  assert.match(posNorm, /loyalty_skums_quote_id/)
+  assert.match(posNorm, /loyalty_voucher_ids/)
+  assert.match(posNorm, /points_earned/)
+  assert.match(posNorm, /points_redeemed/)
+  assert.match(contractDoc, /Loyalty Sale Contract/)
+  assert.match(contractDoc, /SKUMS never computes or mutates point balances/)
+  assert.match(contractDoc, /\/fran\/pos\/products\/context/)
+})
+
+test('L-skums bulk product context route exists for POS/CRM evaluation', () => {
+  const bulk = readFileSync(
+    new URL('../server/routes/fran/pos/products/context.post.ts', import.meta.url),
+    'utf8',
+  )
+  assert.match(bulk, /product_ids/)
+  assert.match(bulk, /toFranProductContext/)
+  assert.match(bulk, /pos:read/)
+  assert.match(bulk, /Does not compute points/)
+})
+
 test('quote route prices from product facts and inventory levels with TTL provenance', () => {
   assert.match(quoteRoute, /createBasketQuoteFromBody/)
   assert.match(pricingInventory, /requireApiKey\(event,\s*'pos:read'\)/)
