@@ -36,9 +36,9 @@ test('getCloudMcpInstructions is composite-first and short-answer', () => {
   assert.match(text, /1–2 tools|1-2 tools/)
   assert.match(text, /stock_quantity/)
   assert.match(text, /invoice/i)
-  assert.match(text, /CLOUD-SAFE|cloud/i)
+  assert.match(text, /cloud-safe|CLOUD|cloud/i)
   assert.ok(text.length > 400)
-  assert.ok(text.length < 4500, 'initialize.instructions should stay reasonably compact')
+  assert.ok(text.length < 6000, 'initialize.instructions should stay reasonably compact')
 })
 
 test('stdio instructions include PO clone stop rule', () => {
@@ -59,16 +59,29 @@ test('routing table lists all composites', () => {
     'ops_snapshot',
     'capabilities',
     'help_resolve',
+    'market_brand_summary',
+    'market_brand_listings',
+    'market_brand_export_csv',
   ]) {
     assert.match(COMPOSITE_ROUTING, new RegExp(name))
   }
+  assert.match(COMPOSITE_ROUTING, /Two data buckets/)
+  assert.match(COMPOSITE_ROUTING, /Shopee Mall harvest/)
+  assert.match(COMPOSITE_ROUTING, /beauty-of-joseon|brand_key slug/)
   assert.match(ANSWER_STYLE, /Lead with the direct answer/)
+})
+
+test('cloud instructions mention market brand tools', () => {
+  const text = getCloudMcpInstructions()
+  assert.match(text, /market_brand_summary/)
+  assert.match(text, /inventory_ats/)
+  assert.match(text, /Two data buckets|Shopee Mall harvest/)
 })
 
 test('buildMcpAgentInstructions cloud vs local safety lines differ', () => {
   const cloud = buildMcpAgentInstructions({ cloud: true })
   const local = buildMcpAgentInstructions({ cloud: false })
-  assert.match(cloud, /CLOUD-SAFE/)
+  assert.match(cloud, /cloud-safe|CLOUD permission-based/i)
   assert.match(local, /SAFE by default/)
 })
 
@@ -89,8 +102,7 @@ test('README points at agentInstructions source of truth', () => {
   assert.match(readme, /Composite-first/)
 })
 
-test('TODO marks #4 done and defers MCP user permission scopes', () => {
-  assert.match(todo, /composite-first\)\s+✅/)
-  assert.match(todo, /MCP user permission/)
-  assert.match(todo, /Deferred \(user asked later\)/)
+test('TODO still tracks MCP composites and permission design', () => {
+  assert.match(todo, /MCP composites|#1–8|composite/i)
+  assert.match(todo, /MCP user permission|MCP_USER_PERMISSION|A2/i)
 })

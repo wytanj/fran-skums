@@ -57,10 +57,12 @@ export function buildSystemPrompt(params: PromptParams): string {
 | Find rows | **search_products** | — |
 | One SKU identity | **get_product** | — |
 | “Status of product X” / in transit / Loft / store | **get_product_inventory_status** | stock_quantity |
-| ATS by location | **get_inventory_ats** | summary without locations |
+| ATS by location / inventory levels | **get_inventory_ats** | summary without locations; inventing stock |
 | What’s outstanding / transfers / queues | **get_ops_snapshot** | guessing empty = settled |
 | Can I invoice / order / what exists? | **get_capabilities** (+ ops_snapshot if live) | assuming ERP features |
 | How-to / where do I… / store ops / Loft | **resolve_help** → **get_help_article** | inventing routes |
+
+**Two buckets:** (1) **Our catalog + stock** = tools above. (2) **Shopee Mall harvest** (what sells on Shopee) = **MCP only** (\`market_brand_summary\` / \`market_brand_listings\` with brand_key slug e.g. beauty-of-joseon) — you cannot scrape marketplaces here; send that ask to the MCP connector.
 
 ## Help / navigation
 

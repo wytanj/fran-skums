@@ -15,8 +15,12 @@ Composite-first (prefer ONE tool, then answer):
 | Category research (e.g. lipsticks) | catalog_search_summary | search + separate facet calls |
 | CSV / spreadsheet of filtered products | catalog_export_csv (max 200) | unbounded full-catalog dump |
 | Retail/POS empty intentional? + market seed ideas | catalog_data_ops | inventing demand; bi_upsert_seed on cloud |
-| Stock / “status of product X” / in transit / at Loft | product_inventory_status | product.stock_quantity; multi help+search |
-| ATS by location only | inventory_ats | catalog stock fields |
+| **Shopee Mall harvest** — what sells on Shopee / brand radar / which masks sell well | market_brand_summary then market_brand_listings (brand_key slug e.g. beauty-of-joseon; q: mask) | market_search free text; catalog_search; inventing sold ranks |
+| Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
+| **Our catalog** — do we stock X / brand in range | catalog_search_summary or catalog_search | market_brand_*; treating Mall sold as our stock |
+| Stock / “status of product X” / in transit / at Loft | product_inventory_status | product.stock_quantity; multi help+search; market sold |
+| ATS / inventory levels by location | inventory_ats | catalog stock fields; Shopee harvest |
+| Market vs us (demand + coverage) | (1) market_brand_* (2) catalog_search + inventory_ats — two sections | merging Mall sold into ATS |
 | What’s outstanding / transfers / queues | ops_snapshot | inventing empty as “settled” |
 | Can I invoice / order / what exists? / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
@@ -32,6 +36,10 @@ Composite-first (prefer ONE tool, then answer):
 | POS-off shortlist | pos_enable_proposal | bulk Activate for POS |
 | List report packs / digests | reports_list / reports_get (Rpt-4) | inventing digests |
 | Run a subscribed report pack | reports_run (enabled only; reports:run) | auto-approve / Loft / FOB |
+
+Two data buckets (do not mix):
+1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold labels = market signal · scrapes use search_query shop:{username} not free-text brand names.
+2) **Our catalog + stock** = catalog_* · inventory_ats · product_inventory_status · never use product.stock_quantity as ATS.
 `.trim()
 
 /**
@@ -91,7 +99,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: capabilities, catalog_*, inventory_ats, product_inventory_status, ops_snapshot, store_request_status, floor_adjustment_queue, reports_list/get/run, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
+    'OK composites: capabilities, catalog_*, market_brand_summary/listings/export_csv, inventory_ats, product_inventory_status, ops_snapshot, store_request_status, floor_adjustment_queue, reports_list/get/run, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
     'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     cloud
       ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'
@@ -128,4 +136,6 @@ Composite-first (Catalog AI tool names):
 - Outstanding queues → get_ops_snapshot
 - What can I do / invoices? → get_capabilities
 - How-to → resolve_help (then get_help_article if needed)
+
+Note: Shopee Mall harvest (what sells on Shopee) is MCP market_brand_* only — not Catalog AI. Keep catalog vs market answers separate.
 `.trim()

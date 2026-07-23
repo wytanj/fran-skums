@@ -1,10 +1,12 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-22  
+**Date:** 2026-07-23  
 **Production:** https://fran-skums.vercel.app  
 **DB:** migrations **001–071** (066–067 reports · **068–070** brand universe/shop/multi-brand · **071** skums_migrations RLS).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
 **Brand radar / Mall harvest:** Track **BR** — **MH-1–7 + cycle + MCP brand slices done** · ops: finish link · Discover · `mall-brand-cycle --connect`  
+**Loyalty FWB:** Track **L** — L-pos / L-skums / CRM L-base **slice 1 done** · CRM mig **0010** applied · next: persist commit_sale + POS vouchers  
+**MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`) — redeploy SKUMS for Claude  
 **Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
 
 **Plans (do not lose track):**
@@ -14,24 +16,29 @@
 | **This file** | Implementation queue + MCP #1–8 index |
 | **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
 | **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
+| **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
+| **`docs/loyaltys.pdf`** | FWB business rules (tiers, expiry, redeem dens, earn formula) |
 | **`docs/MCP_ACTION_BACKLOG.md`** | MCP tools detail, leftovers after #8 |
 | **`docs/MCP_USER_PERMISSION_DESIGN.md`** | Web ↔ MCP permission model (A2) |
 | **`docs/ORG_PERMISSION_SCOPES.md`** | Canonical scope catalog |
 | **`TODO-LOFT.md`** | Loft / store-ops / 3PL plan |
 | **`docs/SKUMS_OPERATOR_RUNBOOK.md`** | Operator how-to |
 | **`mcp/README.md`** | MCP setup (stdio + cloud) |
+| **`fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`** | POS policy evaluator / quote / commit plan |
 
 ---
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** (Mode B/`--connect`, cycle, MH-4, multi-brand distributor, brand MCP listings/summary/CSV) · ext **v0.6** · mig **070–071**.  
-**Next (tomorrow):** **Ops harvest** linked brands · sheet/MCP analysis · then **MH-5** / **TODO-WEB** when prioritized · **K Rpt-6** · Loft Phase 0 → **M4**.  
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
+**Track L (FWB):** slice 1 on POS + SKUMS + CRM · **CRM 0010 point batches applied**.  
+**Next:** CRM **persist** commit_sale → accounts/ledger/batches · POS voucher QR UI · ops harvest · **K Rpt-6** · Loft Phase 0 → **M4**.  
 **Shopee collect:** Windows warm Chrome + `--connect`; extension Link/Discover/multi-brand; CLI multi-page + MH-4. Browserbase **not** primary.  
-**Brand radar analysis:** `market_brand_*` MCP · `export-brand-listings.mjs` · `GET .../brand-listings` · `.../brand-summary`.  
+**Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug** (e.g. `beauty-of-joseon`); not free-text `market_search`.  
+**Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall sold as ATS.  
 **Ops (reports cron):** `CRON_SECRET` / mig **067**; Hobby daily UTC.  
-**Claude pilot:** Working — `/mcp/c/sk_live_…`.  
-**POS:** `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md`.
+**Claude pilot:** `/mcp/c/sk_live_…` · after deploy reconnect so `initialize.instructions` include two-bucket table.  
+**POS:** `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` · FWB: `fran-pos/dashboard/src/pos/fran/lib/fwb-earn.ts`.
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
@@ -45,11 +52,89 @@
 | **I** | MCP M1–M3 packs | **Shipped** |
 | **J** | **Supplier order lifecycle (KR/HK)** | **Planned** |
 | **K** | **Agentic report registry** | **Rpt-0–5 done** · next Rpt-6 |
+| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Slice 1 done** · CRM **0010 applied** · next persist commit_sale |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Windows primary locked** |
 | **BR** | **Weekly brand radar / Mall harvest** | **MH-1–7 + analysis done** — **ops harvest** next |
 | **WEB** | **Fran web → store** | **Parked in `TODO-WEB.md`** |
+
+## Track L — Fran’s With Benefits (loyalty execution)
+
+**Sources:** `docs/loyaltys.pdf` · `docs/LOYALTY_FWB_ARCHITECTURE.md` · `fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`  
+**Ownership:** CRM = ledger/policy SoR · POS = checkout UX · SKUMS = product/price/sale facts · MCP = campaign airlock (later)
+
+| Slice | Owner | Status | Notes |
+|-------|--------|--------|--------|
+| **L-base** | fran-crm | **Slice 1 done · 0010 applied** | FWB engine + golden tests · POS policy `format=pos` · `commit-sale` demo · **point batches table live** · dens + calendar tiers |
+| **L-kinds / L-sim** | fran-crm | **Not started** | Closed campaign kinds + implication simulator |
+| **L-mcp** | MCP → CRM | **Not started** | draft → simulate → propose; publish gated |
+| **L-skums** | fran-skums | **Slice 1 done** | Sale contract preserves member/policy/quote/voucher/points refs; `POST /fran/pos/products/context` bulk; quote/reserve already shipped (mig **046**) |
+| **L-pos** | fran-pos | **Slice 1 done** | FWB additive earn (`fwb-earn.ts`), calendar-year tier progress, fixed dens, mock F1/F2/F3, `commitSale` after pay (mock + live path) |
+
+### L-pos / L-skums slice 1 (2026-07-23)
+
+**fran-pos**
+
+- [x] Pure FWB earn/redeem helpers + PDF golden tests (`fwb-earn.ts`, `tests/fwb-loyalty-evaluator.test.mjs`)
+- [x] Policy evaluator: additive stack `floor(spend × (tier + bday + cat))`, not product of rates
+- [x] Fixed redeem dens 200→$6 … 2500→$175
+- [x] Mock policy/members F1/F2/F3 + calendar YTD
+- [x] `FranCrmClient.commitSale` + sale page calls it on payment (non-blocking)
+- [x] Member popup / strip / profile **FWB tier-aware** (`tier-display.ts` F1–F3, earn rate + YTD on lookup)
+- [ ] Cashier voucher QR scan UI (birthday / category / redeem)
+- [ ] Live CRM `POST /fran/pos/loyalty/commit-sale` (blocked on L-base)
+- [ ] Receipt labels for queued vs committed earn
+
+**fran-skums**
+
+- [x] `normalizeFranPosSaleBody` loyalty refs (`member_ref`, policy/quote, vouchers, points informational)
+- [x] `POST /fran/pos/products/context` bulk product context
+- [x] Contract doc: Loyalty Sale Contract section
+- [x] Quote + reservation lifecycle (prior; mig **046**)
+- [ ] Optional: collection membership resolve helper for Category Bonus scopes
+- [ ] Wire sale outbox consumers that expect new `fran_context` keys (if any)
+
+**fran-crm (L-base)**
+
+- [x] Pure FWB engine (`fwb-engine.ts`) + PDF golden earn/dens/expiry tests
+- [x] Policy rules keys **F1/F2/F3** + POS bundle adapter
+- [x] `GET .../policy-versions/active?format=pos` for Fran POS
+- [x] `POST /fran/pos/loyalty/commit-sale` (demo/in-memory settle)
+- [x] Migration `0010_fran_loyalty_point_batches.sql` (**applied**)
+- [ ] Persist commit_sale → accounts + ledger + batches in Supabase
+- [ ] Authorize voucher / redeem dens quote endpoints
+- [ ] Jan 1 tier renewal job
+
+### MCP two-bucket routing (2026-07-23)
+
+- [x] `mcp/src/agentInstructions.mjs` — Shopee Mall harvest vs our catalog/stock routing table
+- [x] In-app assistant note (Catalog AI ≠ market scrape; point to MCP for Mall)
+- [x] Tests: `tests/mcp-instructions.test.mjs`
+- [x] Deploy fran-skums so Claude `/mcp` initialize.instructions update
+
+**Claude prompts (copy-friendly):**
+
+```text
+# Market — which masks sell (Shopee Mall harvest)
+market_brand_summary / market_brand_listings
+  brand_key: beauty-of-joseon
+  q: mask
+
+# Us — inventory levels
+inventory_ats  sku: …   OR  q: mask
+product_inventory_status  sku: …
+```
+
+**Tests**
+
+```text
+# fran-pos
+node --test tests/fwb-loyalty-evaluator.test.mjs tests/fran-pos-buildout.test.mjs
+
+# fran-skums
+node --test tests/fran-loyalty-pricing-inventory.test.mjs tests/mcp-instructions.test.mjs
+```
 
 ### Claude / remote MCP (verified)
 
