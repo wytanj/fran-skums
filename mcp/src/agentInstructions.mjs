@@ -24,6 +24,7 @@ Composite-first (prefer ONE tool, then answer):
 | What’s outstanding / transfers / queues | ops_snapshot | inventing empty as “settled” |
 | Can I invoice / order / what exists? / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
+| POS + CRM + SKUMS **setup**, live loyalty, workspace key | help_resolve then **help_get slug=crm-pos-skums-setup** | inventing dual CRM keys on POS; CRM secrets in browser |
 | PO / transfer **statuses**, FOB, confirm, in transit rules | help_resolve then **help_get slug=po-transfer-lifecycle** | inventing statuses or merging Actions PO with Loft orders |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe; claiming in transit |
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | inventing approve without scope |
@@ -76,6 +77,7 @@ Safety:
 - Credentials scopes never on cloud keys. Other privileged tools (PO decide, pipeline execute) only if scopes granted.
 - Draft PO = decision-layer planning artifact (Actions), not supplier order, not Loft store order, not stock on_hand.
 - Lifecycle (as of 2026-07-24): internal approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received. Supplier in_transit needs FOB document evidence. Prefer help_get slug=po-transfer-lifecycle for status questions.
+- POS live loyalty: SKUMS workspace key only; CRM linked on SKUMS HQ. help_get slug=crm-pos-skums-setup. Never put CRM service secrets on the register.
 - Prefer po_update_draft / add_lines / clone over recreate. Empty queues ≠ transfers settled.
 - Auth: cloud uses API key in URL (?api_key= / /mcp/c/…) or Bearer; tools/list and tools/call require key.
 `.trim()
@@ -139,6 +141,7 @@ Composite-first (Catalog AI tool names):
 - Outstanding queues → get_ops_snapshot
 - What can I do / invoices? → get_capabilities
 - How-to → resolve_help (then get_help_article if needed)
+- POS + CRM + SKUMS setup / live loyalty → resolve_help then **get_help_article** slug **crm-pos-skums-setup** (as of 2026-07-24)
 - PO / transfer / FOB / in-transit status rules → resolve_help then **get_help_article** slug **po-transfer-lifecycle** (as of 2026-07-24)
 
 Note: Shopee Mall harvest (what sells on Shopee) is MCP market_brand_* only — not Catalog AI. Keep catalog vs market answers separate.

@@ -73,6 +73,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 071 | skums_migrations_rls.sql | RLS on skums_migrations tracking table | Fixes Supabase “table publicly accessible”; migrate runner still works via DB URL |
 | 072 | help_po_transfer_lifecycle.sql | Help: po-transfer-lifecycle + refresh actions-inbox / operator-runbook | Agent-readable PO + transfer statuses as of 2026-07-24 |
 | 073 | workspace_crm_links.sql | Optional Fran CRM loyalty link per workspace | POS → SKUMS loyalty facade → CRM; no POS/CRM hard dep |
+| 074 | help_crm_pos_skums_setup.sql | Help: crm-pos-skums-setup for Catalog AI + MCP | Live demo / production setup; agent-readable |
 
 ## Planned Phase C Spine
 

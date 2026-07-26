@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-24  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–073** (… **072** Help lifecycle · **073** workspace_crm_links loyalty facade).  
+**DB:** migrations **001–074** (… **073** workspace_crm_links · **074** Help crm-pos-skums-setup).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
 **Brand radar / Mall harvest:** Track **BR** — **MH-1–7 + cycle + MCP brand slices done** · ops: finish link · Discover · `mall-brand-cycle --connect`  
 **Loyalty FWB:** Track **L** — L-pos / L-skums / CRM L-base **slice 1 done** · CRM mig **0010** applied · next: persist commit_sale + POS vouchers  
@@ -64,7 +64,9 @@
 **Sources:** `docs/loyaltys.pdf` · `docs/LOYALTY_FWB_ARCHITECTURE.md` · `docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md` · `fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`  
 **Ownership:** CRM = ledger/policy SoR · POS = checkout UX · SKUMS = product/price/sale facts · MCP = campaign airlock (later)  
 **Connection target:** POS holds **only SKUMS workspace key**; CRM is a **workspace app link** on SKUMS; loyalty traffic POS→SKUMS facade→CRM. SKUMS has **no** hard POS/CRM product dependency.  
-**M1–M4 shipped:** mig **073** · loyalty proxy · POS SKUMS-first · Sale capabilities gate · **HQ Integrations → Fran CRM link UI** · POS legacy CRM under Advanced/dev. **Next M5:** test-workspace live demo smoke (env/link + FRAN-0001).
+**M1–M4 shipped:** mig **073** · loyalty proxy · POS SKUMS-first · Sale capabilities gate · **HQ Integrations → Fran CRM link UI** · POS legacy CRM under Advanced/dev.  
+**Help (agents):** `/help/crm-pos-skums-setup` (mig **074**) — Catalog AI `get_help_article` + MCP `help_get`.  
+**Next M5:** test-workspace live demo smoke (HQ link + FRAN-0001).
 
 | Slice | Owner | Status | Notes |
 |-------|--------|--------|--------|

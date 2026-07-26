@@ -107,6 +107,27 @@ const seedArticles = [
     ],
     sort_order: 55,
   },
+  {
+    id: '8',
+    slug: 'crm-pos-skums-setup',
+    title: 'Setup CRM POS SKUMS',
+    summary: 'Connect POS and CRM through SKUMS workspace key',
+    body_md: '## AGENT RULES\n1. POS holds only SKUMS key\n2. CRM linked on SKUMS HQ',
+    category: 'operations',
+    primary_path: '/integrations',
+    related_paths: [],
+    intent_tags: [
+      'crm',
+      'pos',
+      'skums',
+      'setup',
+      'loyalty',
+      'workspace key',
+      'live demo',
+      'connect',
+    ],
+    sort_order: 54,
+  },
 ]
 
 describe('help resolve matcher', () => {
@@ -161,6 +182,20 @@ describe('help resolve matcher', () => {
     assert.match(mig072, /on conflict \(slug\) do update/)
   })
 
+  test('POS CRM SKUMS setup ranks crm-pos-skums-setup', () => {
+    const r = rankHelpArticles(seedArticles, 'how do I connect POS to CRM with SKUMS workspace key for live loyalty')
+    assert.ok(r.matches.length >= 1)
+    assert.equal(r.matches[0].slug, 'crm-pos-skums-setup')
+  })
+
+  test('help migration 074 seeds crm-pos-skums-setup', () => {
+    const mig074 = readFileSync(new URL('../core/db/074_help_crm_pos_skums_setup.sql', import.meta.url), 'utf8')
+    assert.match(mig074, /crm-pos-skums-setup/)
+    assert.match(mig074, /AGENT RULES/)
+    assert.match(mig074, /SKUMS workspace API key/)
+    assert.match(mig074, /on conflict \(slug\) do update/)
+  })
+
   test('weak query needs clarification', () => {
     const r = rankHelpArticles(seedArticles, 'zzz qq xx', { min_score: 2 })
     assert.equal(r.needs_clarification, true)
@@ -184,7 +219,14 @@ describe('help wiring', () => {
     assert.match(prompt, /get_help_article/)
     assert.match(prompt, /Never invent routes/)
     assert.match(prompt, /po-transfer-lifecycle/)
+    assert.match(prompt, /crm-pos-skums-setup/)
     assert.match(prompt, /2026-07-24/)
+  })
+
+  test('MCP instructions route setup to crm-pos-skums-setup', () => {
+    const mcp = readFileSync(new URL('../mcp/src/agentInstructions.mjs', import.meta.url), 'utf8')
+    assert.match(mcp, /crm-pos-skums-setup/)
+    assert.match(mcp, /help_get slug=crm-pos-skums-setup|slug=\*\*crm-pos-skums-setup\*\*|slug \*\*crm-pos-skums-setup\*\*/)
   })
 
   test('sidebar and help page exist', () => {

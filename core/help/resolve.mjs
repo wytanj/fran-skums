@@ -77,6 +77,22 @@ export function scoreHelpArticle(article, tokens, rawQuery = '') {
     score += 4
   }
 
+  // CRM + POS + SKUMS setup / loyalty live path
+  if (
+    /\b(crm|fran.?crm|pos|fran.?pos|loyalty|fwb|commit.?sale|workspace.?key|pos.?connector|live.?demo|loyalty.?not.?linked|connect.?pos|setup.?pos|setup.?crm)\b/.test(
+      q,
+    ) &&
+    /crm-pos-skums|pos-vs-skums|operator|integrat|loyalty|setup|pos|crm/.test(blob)
+  ) {
+    score += 7
+  }
+  if (
+    /\b(how (do|to).*(connect|setup|link).*(pos|crm|skums)|skums.*(crm|pos)|pos.*(crm|loyalty))\b/.test(q) &&
+    /crm-pos-skums|pos-vs-skums|integrat|operator/.test(blob)
+  ) {
+    score += 5
+  }
+
   return score
 }
 

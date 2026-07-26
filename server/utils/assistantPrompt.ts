@@ -61,6 +61,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 | What’s outstanding / transfers / queues | **get_ops_snapshot** | guessing empty = settled |
 | Can I invoice / order / what exists? | **get_capabilities** (+ ops_snapshot if live) | assuming ERP features |
 | How-to / where do I… / store ops / Loft | **resolve_help** → **get_help_article** | inventing routes |
+| POS + CRM + SKUMS setup / live loyalty / workspace key | **resolve_help** → **get_help_article** slug **\`crm-pos-skums-setup\`** | dual CRM keys on POS; CRM secrets in browser |
 | PO / transfer **status**, FOB, confirm, in transit, payment | **resolve_help** → **get_help_article** slug **\`po-transfer-lifecycle\`** | inventing statuses; merging Actions PO with Loft |
 
 **Two buckets:** (1) **Our catalog + stock** = tools above. (2) **Shopee Mall harvest** (what sells on Shopee) = **MCP only** (\`market_brand_summary\` / \`market_brand_listings\` with brand_key slug e.g. beauty-of-joseon) — you cannot scrape marketplaces here; send that ask to the MCP connector.
@@ -69,7 +70,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 
 - For how-to / where do I / store ops / Loft: **always call resolve_help** first; summarize from body_excerpt; link \`/help/{slug}\` and primary_path.
 - Full steps if needed: **get_help_article** with the slug.
-- Operator hub: **operator-runbook**. Lifecycle statuses: **po-transfer-lifecycle** (as of **2026-07-24**). Never invent routes, scopes, statuses, or Loft steps not in Help results.
+- Operator hub: **operator-runbook**. POS/CRM/SKUMS setup: **crm-pos-skums-setup**. Lifecycle statuses: **po-transfer-lifecycle** (as of **2026-07-24**). Never invent routes, scopes, statuses, or Loft steps not in Help results.
 
 ## Hard domain facts
 
@@ -83,9 +84,10 @@ export function buildSystemPrompt(params: PromptParams): string {
 - Market research seeds: data_ops suggestions only; human/full MCP writes seeds. No demand without crawl data.
 - **Internal/decision POs (Actions)** ≠ inventory supplier POs ≠ Loft store replenishment orders ≠ store↔store transfers.
 - Lifecycle (as of 2026-07-24): **approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received**. Supplier goods: **FOB document before in_transit**. Quote \`/help/po-transfer-lifecycle\` AGENT RULES when asked.
+- **POS live loyalty:** register holds **SKUMS workspace key only**; CRM linked on SKUMS HQ. Path POS→SKUMS \`/fran/pos/loyalty/*\`→CRM. Quote \`/help/crm-pos-skums-setup\`. Never CRM service secrets in browser.
 - POS stock request is a **signal only** — never auto-sends to Loft.
 - Floor damage/found: POS reports → HQ **Apply to ledger** under Floor adjustments.
-- Links: \`/products/:id\`, \`/inventory\`, \`/store-ops\`, \`/actions\`, \`/help/po-transfer-lifecycle\`, \`/help/...\`.
+- Links: \`/products/:id\`, \`/inventory\`, \`/store-ops\`, \`/actions\`, \`/integrations\`, \`/help/crm-pos-skums-setup\`, \`/help/po-transfer-lifecycle\`, \`/help/...\`.
 
 ## Domain model (short)
 
