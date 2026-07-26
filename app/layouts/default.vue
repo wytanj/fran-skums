@@ -35,7 +35,7 @@ const mobileSidebarOpen = ref(false)
       <AppTopbar @open-sidebar="mobileSidebarOpen = true" />
 
       <!-- Page content -->
-      <main class="flex-1 overflow-y-auto p-6">
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6">
         <slot />
       </main>
     </div>
