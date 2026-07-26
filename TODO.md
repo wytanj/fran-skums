@@ -1,8 +1,8 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-23  
+**Date:** 2026-07-24  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–071** (066–067 reports · **068–070** brand universe/shop/multi-brand · **071** skums_migrations RLS).  
+**DB:** migrations **001–073** (… **072** Help lifecycle · **073** workspace_crm_links loyalty facade).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
 **Brand radar / Mall harvest:** Track **BR** — **MH-1–7 + cycle + MCP brand slices done** · ops: finish link · Discover · `mall-brand-cycle --connect`  
 **Loyalty FWB:** Track **L** — L-pos / L-skums / CRM L-base **slice 1 done** · CRM mig **0010** applied · next: persist commit_sale + POS vouchers  
@@ -32,7 +32,7 @@
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
 **Track L (FWB):** slice 1 on POS + SKUMS + CRM · **CRM 0010 point batches applied**.  
-**Next:** CRM **persist** commit_sale → accounts/ledger/batches · POS voucher QR UI · ops harvest · **K Rpt-6** · Loft Phase 0 → **M4**.  
+**Next:** CRM Jan-1 renewal job · L-kinds campaigns · ops harvest · **K Rpt-6** · Loft Phase 0 → **M4**.  
 **Shopee collect:** Windows warm Chrome + `--connect`; extension Link/Discover/multi-brand; CLI multi-page + MH-4. Browserbase **not** primary.  
 **Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug** (e.g. `beauty-of-joseon`); not free-text `market_search`.  
 **Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall sold as ATS.  
@@ -50,9 +50,9 @@
 | **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
 | **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
 | **I** | MCP M1–M3 packs | **Shipped** |
-| **J** | **Supplier order lifecycle (KR/HK)** | **Planned** |
+| **J** | **Supplier order lifecycle (KR/HK)** | **Design + Help 072 done** · next Phase 0 actors / J1 product |
 | **K** | **Agentic report registry** | **Rpt-0–5 done** · next Rpt-6 |
-| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Slice 1 done** · CRM **0010 applied** · next persist commit_sale |
+| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Slice 2.3 vouchers + POS scan UI** · next Jan-1 job / campaigns |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Windows primary locked** |
@@ -61,16 +61,18 @@
 
 ## Track L — Fran’s With Benefits (loyalty execution)
 
-**Sources:** `docs/loyaltys.pdf` · `docs/LOYALTY_FWB_ARCHITECTURE.md` · `fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`  
-**Ownership:** CRM = ledger/policy SoR · POS = checkout UX · SKUMS = product/price/sale facts · MCP = campaign airlock (later)
+**Sources:** `docs/loyaltys.pdf` · `docs/LOYALTY_FWB_ARCHITECTURE.md` · `docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md` · `fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`  
+**Ownership:** CRM = ledger/policy SoR · POS = checkout UX · SKUMS = product/price/sale facts · MCP = campaign airlock (later)  
+**Connection target:** POS holds **only SKUMS workspace key**; CRM is a **workspace app link** on SKUMS; loyalty traffic POS→SKUMS facade→CRM. SKUMS has **no** hard POS/CRM product dependency.  
+**M1–M3 shipped:** mig **073** · loyalty proxy · POS SKUMS-first client · **Sale capabilities banner + member gate** (`ready_for_member_loyalty`). **Next M4:** HQ CRM-link UI; drop prod legacy CRM URL; test-workspace live demo ops.
 
 | Slice | Owner | Status | Notes |
 |-------|--------|--------|--------|
-| **L-base** | fran-crm | **Slice 1 done · 0010 applied** | FWB engine + golden tests · POS policy `format=pos` · `commit-sale` demo · **point batches table live** · dens + calendar tiers |
+| **L-base** | fran-crm | **Slice 2 persist** | Engine + **0010** + durable commit_sale (accounts/ledger/batches) when workspaceId set; demo fallback without DB |
 | **L-kinds / L-sim** | fran-crm | **Not started** | Closed campaign kinds + implication simulator |
 | **L-mcp** | MCP → CRM | **Not started** | draft → simulate → propose; publish gated |
 | **L-skums** | fran-skums | **Slice 1 done** | Sale contract preserves member/policy/quote/voucher/points refs; `POST /fran/pos/products/context` bulk; quote/reserve already shipped (mig **046**) |
-| **L-pos** | fran-pos | **Slice 1 done** | FWB additive earn (`fwb-earn.ts`), calendar-year tier progress, fixed dens, mock F1/F2/F3, `commitSale` after pay (mock + live path) |
+| **L-pos** | fran-pos | **Slice 1 + live CRM bridge** | Mock path + **live CRM wire** (settings URL, POS↔CRM payload bridge, commit_sale map). Test: `fran-pos/docs/CRM_POS_LIVE_TEST.md` |
 
 ### L-pos / L-skums slice 1 (2026-07-23)
 
@@ -82,9 +84,11 @@
 - [x] Mock policy/members F1/F2/F3 + calendar YTD
 - [x] `FranCrmClient.commitSale` + sale page calls it on payment (non-blocking)
 - [x] Member popup / strip / profile **FWB tier-aware** (`tier-display.ts` F1–F3, earn rate + YTD on lookup)
-- [ ] Cashier voucher QR scan UI (birthday / category / redeem)
-- [ ] Live CRM `POST /fran/pos/loyalty/commit-sale` (blocked on L-base)
+- [x] Live CRM client bridge (`fran-crm-client` + Integrations URL/workspace; works when offline off)
+- [x] Test runbook `fran-pos/docs/CRM_POS_LIVE_TEST.md`
+- [ ] Cashier voucher QR scan UI polish (partial — dens QR exists on CRM side)
 - [ ] Receipt labels for queued vs committed earn
+- [ ] Supabase-backed member resolve (still demo graph)
 
 **fran-skums**
 
@@ -102,9 +106,13 @@
 - [x] `GET .../policy-versions/active?format=pos` for Fran POS
 - [x] `POST /fran/pos/loyalty/commit-sale` (demo/in-memory settle)
 - [x] Migration `0010_fran_loyalty_point_batches.sql` (**applied**)
-- [ ] Persist commit_sale → accounts + ledger + batches in Supabase
-- [ ] Authorize voucher / redeem dens quote endpoints
+- [x] Persist commit_sale → accounts + ledger + batches (`commit-sale-persist.ts`; needs workspaceId + service role)
+- [x] Authorize voucher / redeem dens quote endpoints (`vouchers/*`)
+- [x] POS voucher scan UI (`fran-voucher-scan.tsx` + dens QR issue)
+- [x] POS-shaped member resolve / counter-session (`handlers.ts` + `x-pos-client`)
+- [x] Unauthenticated POS `format=pos` policy returns demo FWB bundle (no JWT required)
 - [ ] Jan 1 tier renewal job
+- [ ] Real people resolve from Supabase (beyond demoCrmGraph)
 
 ### MCP two-bucket routing (2026-07-23)
 
@@ -320,6 +328,10 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 
 ## Supplier order lifecycle (KR/HK) — planned
 
+**Design doc:** [`docs/MERCH_PO_LIFECYCLE.md`](./docs/MERCH_PO_LIFECYCLE.md) — **shared buy + transfer principles** (actors, revisions, append-only `ops_documents`, evidence gates). Supplier path: commercial statuses, AP-lite, FOB→in_transit. Internal legs: loft↔store, store↔store, store→loft (replenishment orders + `inventory_transfers`).
+
+**In-app Help (as of 2026-07-24):** `/help/po-transfer-lifecycle` — migration `072_help_po_transfer_lifecycle.sql`. Catalog AI / MCP: `get_help_article` / `help_get` that slug for agent-readable status rules.
+
 **Reality (ops):** KR/HK supplier orders are **not automatic**. We plan with a PO; lines stay **editable while draft** (including via MCP). Suppliers may confirm or change amounts via **email / email PDF / (future) API** — we **affirm** that when we know the channel. We do **not** yet have a single “supplier confirmation truth” for every vendor.  
 
 **Hard gate for “in transit” / shipping reality:**  
@@ -409,11 +421,13 @@ Store replenishment (Loft → store) remains a **later** Store Ops path.
 
 | Slice | Work |
 |-------|------|
-| **J1** | Statuses + Help/agent copy: draft-editable; affirm ≠ FOB; in_transit only on FOB |
-| **J2** | Keep/strengthen MCP draft edit UX (tools + instructions) |
-| **J3** | Supplier affirm record (source type email\|pdf\|api, flexible payload; optional tally) |
-| **J4** | FOB PDF event → `in_transit` + link/create inbound ASN → Loft |
-| **J5** | Optional: email ingest / API webhook per supplier later (unknown truth sources for now) |
+| **J0** | Help + agent copy (`po-transfer-lifecycle`, instructions) | **Done** (mig **072** applied 2026-07-24) |
+| **J0b** | Phase 0: MCP/API set `created_by` / `submitted_by` / `approved_by` | **Next code** for Track J |
+| **J1** | Status expand + confirm / in_revision; docs table `ops_documents` | Planned |
+| **J2** | Keep/strengthen MCP draft edit UX (tools + instructions) | Partial (instructions done) |
+| **J3** | Supplier affirm record (source type email\|pdf\|api, flexible payload; optional tally) | Planned |
+| **J4** | FOB PDF event → `in_transit` + link/create inbound ASN → Loft | Planned |
+| **J5** | Optional: email ingest / API webhook per supplier later | Later |
 
 **Depends on:** inbound ASN path (shipped) · internal PO tools (shipped) · Loft Phase 0 IDs for reliable send.
 

@@ -85,6 +85,28 @@ const seedArticles = [
     intent_tags: ['operator', 'runbook', 'operate', 'store ops', 'loft', 'floor'],
     sort_order: 12,
   },
+  {
+    id: '7',
+    slug: 'po-transfer-lifecycle',
+    title: 'PO and stock movement statuses',
+    summary: 'Status rules for supplier POs and transfers as of 2026-07-24',
+    body_md: '## AGENT RULES\n1. approve ≠ confirm ≠ in transit\n2. FOB before supplier in transit',
+    category: 'operations',
+    primary_path: '/actions',
+    related_paths: [],
+    intent_tags: [
+      'po',
+      'purchase order',
+      'status',
+      'lifecycle',
+      'fob',
+      'in transit',
+      'transfer',
+      'confirmed',
+      'stock movement',
+    ],
+    sort_order: 55,
+  },
 ]
 
 describe('help resolve matcher', () => {
@@ -125,6 +147,20 @@ describe('help resolve matcher', () => {
     assert.ok(r.matches.some((m) => m.slug === 'operator-runbook' || m.slug === 'store-ops-replenishment'))
   })
 
+  test('PO status / FOB / in transit ranks po-transfer-lifecycle', () => {
+    const r = rankHelpArticles(seedArticles, 'what statuses does a purchase order have and when is fob in transit')
+    assert.ok(r.matches.length >= 1)
+    assert.equal(r.matches[0].slug, 'po-transfer-lifecycle')
+  })
+
+  test('help migration 072 seeds po-transfer-lifecycle', () => {
+    const mig072 = readFileSync(new URL('../core/db/072_help_po_transfer_lifecycle.sql', import.meta.url), 'utf8')
+    assert.match(mig072, /po-transfer-lifecycle/)
+    assert.match(mig072, /AGENT RULES/)
+    assert.match(mig072, /2026-07-24/)
+    assert.match(mig072, /on conflict \(slug\) do update/)
+  })
+
   test('weak query needs clarification', () => {
     const r = rankHelpArticles(seedArticles, 'zzz qq xx', { min_score: 2 })
     assert.equal(r.needs_clarification, true)
@@ -147,6 +183,8 @@ describe('help wiring', () => {
     assert.match(prompt, /always call resolve_help/i)
     assert.match(prompt, /get_help_article/)
     assert.match(prompt, /Never invent routes/)
+    assert.match(prompt, /po-transfer-lifecycle/)
+    assert.match(prompt, /2026-07-24/)
   })
 
   test('sidebar and help page exist', () => {

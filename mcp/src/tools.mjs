@@ -336,7 +336,7 @@ export const toolDefinitions = [
   {
     name: 'help_get',
     description:
-      'Load full Help article by slug (body_md). Use after help_resolve for complete operator steps (store-ops, floor adjustments, Loft, operator-runbook). intel:read / safe / cloud.',
+      'Load full Help article by slug (body_md). Use after help_resolve for complete operator steps. For PO/transfer statuses, FOB, confirm vs in_transit: slug po-transfer-lifecycle (as of 2026-07-24). Also operator-runbook, store-ops-*, actions-inbox. intel:read / safe / cloud.',
     inputSchema: {
       type: 'object',
       properties: {

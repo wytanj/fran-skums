@@ -106,7 +106,7 @@ export function buildToolDefinitions() {
       function: {
         name: 'get_help_article',
         description:
-          'Load the full Help Center article by slug (body_md included). Use after resolve_help when you need complete steps (store ops, Loft, floor ledger, inbound ASN, operator runbook). Prefer this over guessing.',
+          'Load the full Help Center article by slug (body_md included). Use after resolve_help when you need complete steps. For PO/transfer status rules, FOB, confirm vs in_transit: slug **po-transfer-lifecycle** (as of 2026-07-24). Also store-ops-*, operator-runbook, actions-inbox, inbound ASN. Prefer this over guessing.',
         parameters: {
           type: 'object',
           properties: {

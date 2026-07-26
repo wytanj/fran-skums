@@ -1,10 +1,10 @@
 # Fran SKUMS — Operator runbook
 
 **Audience:** HQ inventory ops, store managers (SKUMS UI), POS staff, admins  
-**Last updated:** 2026-07-15  
-**In-app Help:** [/help](/help) · article **operator-runbook** (+ store-ops-* guides)  
-**Catalog AI / MCP:** tools `resolve_help` / `get_help_article` (in-app) and `help_resolve` / `help_get` (MCP) read the same Help articles for fast accurate answers  
-**Related:** `docs/INVENTORY_AND_PURCHASE_LOGGING.md` · `docs/LOFT_OPS_DICTIONARY.md` · `docs/ORG_PERMISSION_SCOPES.md`
+**Last updated:** 2026-07-24  
+**In-app Help:** [/help](/help) · **operator-runbook** · **po-transfer-lifecycle** (PO + transfer statuses for agents) · store-ops-* guides  
+**Catalog AI / MCP:** `resolve_help` / `get_help_article` and `help_resolve` / `help_get` — for status questions use slug **`po-transfer-lifecycle`** (as of 2026-07-24)  
+**Related:** `docs/MERCH_PO_LIFECYCLE.md` · `docs/INVENTORY_AND_PURCHASE_LOGGING.md` · `docs/LOFT_OPS_DICTIONARY.md` · `docs/ORG_PERMISSION_SCOPES.md`
 
 This is the **how we operate** guide. Engineering plans live in `TODO-LOFT.md` / `TODO.md`.
 
@@ -58,6 +58,18 @@ Approve ≠ send: **Send to Loft** needs `store_ops:execute_3pl`.
 | Integrations | `/integrations` | WorldSyntech OFS connection, pull products/inventory |
 | Settings | `/settings` | Team, API keys (POS / Claude MCP) |
 | Help | `/help` | How-to articles |
+| Help: lifecycle | `/help/po-transfer-lifecycle` | **PO + transfer status rules** (as of 2026-07-24; agents should cite this) |
+
+### Status rules (short)
+
+| Rule | Meaning |
+|------|---------|
+| Approve ≠ confirm ≠ in transit ≠ paid ≠ received | Separate steps; do not collapse in language or tools |
+| Decision PO (Actions) | Buying intent only until supplier confirm + fulfillment |
+| Supplier in transit | Needs **FOB document** evidence (ops rule) |
+| loft→store | Request → approve → **send Loft** separate; store on_hand only after receive |
+| store↔store / store→loft | Stock movement / transfer path — not a supplier PO |
+| Full enums | In-app **`/help/po-transfer-lifecycle`** · design `docs/MERCH_PO_LIFECYCLE.md` |
 
 ### Store Ops tabs
 

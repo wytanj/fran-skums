@@ -64,6 +64,19 @@ export function scoreHelpArticle(article, tokens, rawQuery = '') {
   if (/\b(ledger|stock truth|who owns|points|crm)\b/.test(q) && /inventory|pos|crm|ledger|truth|operator/.test(blob)) score += 4
   if (/\b(operator|runbook|how do we|operate)\b/.test(q) && /operator|runbook|store-ops|getting-started/.test(blob)) score += 5
 
+  // PO / transfer lifecycle statuses (agent + operator)
+  if (
+    /\b(po status|purchase order|internal po|decision po|fob|in.?transit|supplier confirm|payment status|stock movement|store to store|loft to store|store to loft|packing list|dispatch note|on.?order)\b/.test(
+      q,
+    ) &&
+    /po-transfer|lifecycle|action|transfer|fob|purchase|replenish|inbound|inventory/.test(blob)
+  ) {
+    score += 6
+  }
+  if (/\b(lifecycle|status machine|when is.*transit|what status)\b/.test(q) && /po-transfer|lifecycle|operator|action/.test(blob)) {
+    score += 4
+  }
+
   return score
 }
 

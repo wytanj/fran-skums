@@ -61,6 +61,7 @@ export function buildSystemPrompt(params: PromptParams): string {
 | What’s outstanding / transfers / queues | **get_ops_snapshot** | guessing empty = settled |
 | Can I invoice / order / what exists? | **get_capabilities** (+ ops_snapshot if live) | assuming ERP features |
 | How-to / where do I… / store ops / Loft | **resolve_help** → **get_help_article** | inventing routes |
+| PO / transfer **status**, FOB, confirm, in transit, payment | **resolve_help** → **get_help_article** slug **\`po-transfer-lifecycle\`** | inventing statuses; merging Actions PO with Loft |
 
 **Two buckets:** (1) **Our catalog + stock** = tools above. (2) **Shopee Mall harvest** (what sells on Shopee) = **MCP only** (\`market_brand_summary\` / \`market_brand_listings\` with brand_key slug e.g. beauty-of-joseon) — you cannot scrape marketplaces here; send that ask to the MCP connector.
 
@@ -68,22 +69,23 @@ export function buildSystemPrompt(params: PromptParams): string {
 
 - For how-to / where do I / store ops / Loft: **always call resolve_help** first; summarize from body_excerpt; link \`/help/{slug}\` and primary_path.
 - Full steps if needed: **get_help_article** with the slug.
-- Operator hub: **operator-runbook** (operations). Never invent routes, scopes, or Loft steps not in Help results.
+- Operator hub: **operator-runbook**. Lifecycle statuses: **po-transfer-lifecycle** (as of **2026-07-24**). Never invent routes, scopes, statuses, or Loft steps not in Help results.
 
 ## Hard domain facts
 
 - Ledger ATS = inventory_levels (on_hand − reserved). Catalog \`stock_quantity\` is **not** stock truth (often 0 after cost-only import).
 - Path: forwarder→Loft (inbound ASN) → LOFT-SG → XFER/in_transit → store. Answer status from lifecycle + path_summary.
-- **No invoices** in Fran. No classic warehouse-transfer object — **Store Ops** replenishment is the path.
+- **No customer invoices** in Fran. Supplier payment tracking is design-target AP-lite only.
 - Empty open queues ≠ “transfers settled”; those objects are empty.
 - Catalog AI is session-scoped: if the logged-in user has store_ops:approve they can be guided to Store Ops; privileged MCP tools are on the MCP connector key path. Approve ≠ send to Loft (execute_3pl).
 - Imports often land **draft + POS off** until **Activate for POS** — often intentional until retail is set (see get_catalog_data_ops).
 - CSV: use **export_catalog_csv** with filters; leave blank retail blank — never invent prices.
 - Market research seeds: data_ops suggestions only; human/full MCP writes seeds. No demand without crawl data.
-- Internal/decision POs (Actions) ≠ inventory POs ≠ Loft store orders.
+- **Internal/decision POs (Actions)** ≠ inventory supplier POs ≠ Loft store replenishment orders ≠ store↔store transfers.
+- Lifecycle (as of 2026-07-24): **approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received**. Supplier goods: **FOB document before in_transit**. Quote \`/help/po-transfer-lifecycle\` AGENT RULES when asked.
 - POS stock request is a **signal only** — never auto-sends to Loft.
 - Floor damage/found: POS reports → HQ **Apply to ledger** under Floor adjustments.
-- Links: \`/products/:id\`, \`/inventory\`, \`/store-ops\`, \`/actions\`, \`/help/...\`.
+- Links: \`/products/:id\`, \`/inventory\`, \`/store-ops\`, \`/actions\`, \`/help/po-transfer-lifecycle\`, \`/help/...\`.
 
 ## Domain model (short)
 
@@ -169,7 +171,7 @@ CURRENT PAGE — Store Ops (/store-ops):
 - Active orders: ${contextData.activeOrders ?? '?'}
 - Open exceptions: ${contextData.openExceptions ?? '?'}
 - Pending floor adjustments: ${contextData.pendingAdjustments ?? '?'}
-- For how-to on this page: resolve_help or get_help_article (slugs: store-ops, store-ops-replenishment, store-ops-receive, store-ops-floor-adjustments, store-ops-inbound, loft-worldsyntech, operator-runbook).`
+- For how-to on this page: resolve_help or get_help_article (slugs: store-ops, store-ops-replenishment, store-ops-receive, store-ops-floor-adjustments, store-ops-inbound, loft-worldsyntech, operator-runbook, po-transfer-lifecycle).`
     } else if (contextType === 'help') {
       pageContext = `
 CURRENT PAGE — Help Center:
