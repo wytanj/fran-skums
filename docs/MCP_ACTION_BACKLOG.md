@@ -71,6 +71,7 @@ Owner/admin web elevation + `mcp:ops_safe` key → approve available. Viewer bou
 | **M5** | POS sync health (if data available) | `pos:read` | Outbox / failed events |
 | **J** | Supplier KR/HK lifecycle | po + inbound | MCP draft editable → affirm (email/PDF/API) → **in transit on FOB PDF** → ASN → Loft |
 | **K** | Agentic report registry | `reports:*` / `automations:*` | **Rpt-0–5 done** (cron, MCP reports_*, v1 run API); Rpt-6 sections next |
+| **FC** | Demand forecast studio | `forecasting:*` | Arch: `docs/FORECASTING_ARCHITECTURE.md` · FC-5 tools later (`forecast_snapshot` / `run` / recommend A/B only) |
 | **S** | Login MFA | Google Workspace | Not an MCP tool; enforce MFA on IdP (see TODO Phase S) |
 
 **Supplier (KR/HK) — do not conflate with store replenishment**

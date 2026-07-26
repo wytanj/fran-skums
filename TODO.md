@@ -1,11 +1,12 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-24  
+**Date:** 2026-07-27  
 **Production:** https://fran-skums.vercel.app  
 **DB:** migrations **001–074** (… **073** workspace_crm_links · **074** Help crm-pos-skums-setup).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
 **Brand radar / Mall harvest:** Track **BR** — **MH-1–7 + cycle + MCP brand slices done** · ops: finish link · Discover · `mall-brand-cycle --connect`  
 **Loyalty FWB:** Track **L** — L-pos / L-skums / CRM L-base **slice 1 done** · CRM mig **0010** applied · next: persist commit_sale + POS vouchers  
+**Demand forecast:** Track **FC** — architecture in **`docs/FORECASTING_ARCHITECTURE.md`** · next FC-1 after/with **K Rpt-6**  
 **MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`) — redeploy SKUMS for Claude  
 **Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
 
@@ -17,6 +18,7 @@
 | **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
 | **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
 | **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
+| **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B · anti “Excel→LLM” |
 | **`docs/loyaltys.pdf`** | FWB business rules (tiers, expiry, redeem dens, earn formula) |
 | **`docs/MCP_ACTION_BACKLOG.md`** | MCP tools detail, leftovers after #8 |
 | **`docs/MCP_USER_PERMISSION_DESIGN.md`** | Web ↔ MCP permission model (A2) |
@@ -25,6 +27,7 @@
 | **`docs/SKUMS_OPERATOR_RUNBOOK.md`** | Operator how-to |
 | **`mcp/README.md`** | MCP setup (stdio + cloud) |
 | **`fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`** | POS policy evaluator / quote / commit plan |
+| **`grok-forecasting.md` / `claude-forecast.md`** | Research notes (TSFM / LLM-context / Luckin ROI) — not the queue |
 
 ---
 
@@ -32,7 +35,7 @@
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
 **Track L (FWB):** slice 1 on POS + SKUMS + CRM · **CRM 0010 point batches applied**.  
-**Next (loyalty M5 live demo):** SKUMS HQ Integrations → Fran CRM link (or `FRAN_CRM_BASE_URL`) on **test** workspace · POS Live + SKUMS key · smoke **FRAN-0001**. Parallel: Jan-1 job · K Rpt-6 · BR harvest · Loft Phase 0.  
+**Next (loyalty M5 live demo):** SKUMS HQ Integrations → Fran CRM link (or `FRAN_CRM_BASE_URL`) on **test** workspace · POS Live + SKUMS key · smoke **FRAN-0001**. Parallel: Jan-1 job · **K Rpt-6** + **FC-1** (see forecasting arch) · BR harvest · Loft Phase 0.  
 **Shopee collect:** Windows warm Chrome + `--connect`; extension Link/Discover/multi-brand; CLI multi-page + MH-4. Browserbase **not** primary.  
 **Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug** (e.g. `beauty-of-joseon`); not free-text `market_search`.  
 **Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall sold as ATS.  
@@ -51,7 +54,8 @@
 | **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
 | **I** | MCP M1–M3 packs | **Shipped** |
 | **J** | **Supplier order lifecycle (KR/HK)** | **Design + Help 072 done** · next Phase 0 actors / J1 product |
-| **K** | **Agentic report registry** | **Rpt-0–5 done** · next Rpt-6 |
+| **K** | **Agentic report registry** | **Rpt-0–5 done** · next Rpt-6 (feeds FC) |
+| **FC** | **Demand forecast studio** | **Arch done** · next FC-1 foundation · see `docs/FORECASTING_ARCHITECTURE.md` |
 | **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Slice 2.3 vouchers + POS scan UI** · next Jan-1 job / campaigns |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
@@ -324,7 +328,30 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 **Depends on:** Phase N bus (shipped) · velocity views (`v_demand_velocity` exists) · ATS / store ops (shipped).  
 **Code:** `server/utils/reportRegistry.ts` · `core/reports/schedule.mjs` · `mcp/src/lib/reports.mjs` · `app/pages/reports/index.vue`.  
 **Cron auth:** `REPORTS_CRON_SECRET` or `CRON_SECRET` / marketplace / queue secrets.  
-**n8n webhook URL:** subscription `metadata.webhook_url` or workspace_notification_settings `metadata.automations_webhook_url` + channel `webhook`.
+**n8n webhook URL:** subscription `metadata.webhook_url` or workspace_notification_settings `metadata.automations_webhook_url` + channel `webhook`.  
+**Forecasting:** Rpt-6 section payloads are the **shared L1 truth** for Track **FC** (`docs/FORECASTING_ARCHITECTURE.md`). Do not recompute portfolio velocity on every chat or ad-hoc LLM call.
+
+---
+
+## Track FC — Demand forecast studio
+
+**Architecture:** [`docs/FORECASTING_ARCHITECTURE.md`](./docs/FORECASTING_ARCHITECTURE.md)  
+**Research notes:** `grok-forecasting.md` · `claude-forecast.md` (stack + Gen Z beauty / Luckin ROI order)  
+**Today:** `/forecasting` = reorder/expiry/events tables + one-shot `grok-3-mini` “method theatre” (`server/api/forecast.post.ts`). No path A/B actions, no run history, no MCP forecast tools.  
+**Target:** decision studio — deterministic views + K snapshots as floor; frontier models as **context/orchestrator**; TSFM later for distributions; drafts only (store_fill vs supplier_buy).
+
+| Slice | Work | Status |
+|-------|------|--------|
+| **FC-0** | Architecture doc + TODO index | **Done** (2026-07-27) |
+| **FC-1** | Foundation: velocity load, daily series, HQ chrome, multi-select queue | **Next eng** (with/after Rpt-6 start) |
+| **FC-2** | Persist `forecast_runs`; honest model/mode picker | Planned |
+| **FC-3** | Path A/B → draft store request / draft PO | Planned (pairs M6 · **J**) |
+| **FC-4** | Bind UI to K Rpt-6 demand/reorder sections | Planned (needs Rpt-6) |
+| **FC-5** | MCP `forecast_snapshot` / `run` / `get` / `recommend_actions` | Planned |
+| **FC-6** | Context: Excel → Sheets/Airtable via MCP tool log | Planned |
+| **FC-7+** | Event registry UX · read-and-react · TSFM · app funnel · causal promo | Later (see arch §9) |
+
+**Rules:** suggest ≠ execute · never merge path A/B · Mall/BR ≠ ATS · no ARIMA claim without code · lead time honesty for KR/HK.
 
 ---
 
@@ -946,9 +973,10 @@ Next eng:
 
 | Track | Outcome |
 |-------|---------|
-| **K Agentic reports** | Rpt-0–5 shipped; **Rpt-6** real sections next |
+| **K Agentic reports** | Rpt-0–5 shipped; **Rpt-6** real sections next (feeds FC) |
+| **FC Demand studio** | Arch done; **FC-1** foundation · path A/B · MCP · see `docs/FORECASTING_ARCHITECTURE.md` |
 | **J Supplier KR/HK** | Draft PO editable; affirm; **FOB PDF → in transit → Loft ASN** |
-| Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B |
+| Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B + FC UI |
 
 ### Ops (non-code or light)
 
@@ -967,7 +995,9 @@ R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Br
 ```text
 M1–M3 + Inventory Manager + empty-key ≠ full   ✅
 Rpt-0 → Rpt-5 (scopes, UI, cron, MCP, n8n)   ✅ (mig 066–067)
-  →  Rpt-6 real section handlers
+  →  Rpt-6 real section handlers  +  FC-1 studio foundation
+  →  FC-2/3/4 runs + path A/B drafts bound to K
+  →  FC-5 MCP forecast tools
   →  Loft Phase 0 ops · M4 send-to-loft
   →  J1–J4 supplier FOB lifecycle when buying focus
 ```
