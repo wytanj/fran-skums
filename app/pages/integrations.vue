@@ -37,6 +37,138 @@ const {
   getCredentialsForNode,
 } = useIntegrations()
 
+const { memberRole } = useWorkspace()
+const canManageCrmLink = computed(() => {
+  const r = (memberRole.value || '').toLowerCase()
+  return r === 'owner' || r === 'admin'
+})
+
+// ── Fran CRM loyalty link (POS facade) ──
+const crmLinkLoading = ref(false)
+const crmLinkSaving = ref(false)
+const crmLinkTesting = ref(false)
+const crmLinkError = ref('')
+const crmLinkNotice = ref('')
+const crmLinkMeta = ref<{
+  linked: boolean
+  source: string | null
+  status?: string
+  has_service_token?: boolean
+  last_health_status?: string | null
+  last_health_at?: string | null
+  last_error?: string | null
+  message?: string
+} | null>(null)
+const crmLinkForm = ref({
+  crm_base_url: '',
+  crm_workspace_id: '',
+  auth_mode: 'none' as 'none' | 'bearer',
+  service_token: '',
+  clear_token: false,
+})
+
+async function loadCrmLink() {
+  if (!currentWorkspace.value?.id) return
+  crmLinkLoading.value = true
+  crmLinkError.value = ''
+  try {
+    const data = await $fetch<any>('/api/integrations/fran-crm/link', {
+      query: { workspace_id: currentWorkspace.value.id },
+    })
+    crmLinkMeta.value = data
+    if (data?.crm_base_url) {
+      crmLinkForm.value.crm_base_url = data.crm_base_url
+    }
+    if (data?.crm_workspace_id) {
+      crmLinkForm.value.crm_workspace_id = data.crm_workspace_id
+    }
+    if (data?.auth_mode === 'bearer' || data?.auth_mode === 'none') {
+      crmLinkForm.value.auth_mode = data.auth_mode
+    }
+    crmLinkForm.value.service_token = ''
+    crmLinkForm.value.clear_token = false
+  } catch (e: any) {
+    crmLinkError.value = e?.data?.statusMessage || e?.message || 'Failed to load CRM link'
+    crmLinkMeta.value = null
+  } finally {
+    crmLinkLoading.value = false
+  }
+}
+
+async function saveCrmLink() {
+  if (!currentWorkspace.value?.id || !canManageCrmLink.value) return
+  crmLinkSaving.value = true
+  crmLinkError.value = ''
+  crmLinkNotice.value = ''
+  try {
+    const body: Record<string, unknown> = {
+      workspace_id: currentWorkspace.value.id,
+      crm_base_url: crmLinkForm.value.crm_base_url.trim(),
+      crm_workspace_id: crmLinkForm.value.crm_workspace_id.trim() || null,
+      auth_mode: crmLinkForm.value.auth_mode,
+      status: 'active',
+    }
+    if (crmLinkForm.value.clear_token) {
+      body.service_token = ''
+    } else if (crmLinkForm.value.service_token.trim()) {
+      body.service_token = crmLinkForm.value.service_token.trim()
+    }
+    await $fetch('/api/integrations/fran-crm/link', { method: 'PUT', body })
+    crmLinkNotice.value = 'CRM loyalty link saved. POS can use SKUMS workspace key only.'
+    await loadCrmLink()
+  } catch (e: any) {
+    crmLinkError.value = e?.data?.statusMessage || e?.message || 'Save failed'
+  } finally {
+    crmLinkSaving.value = false
+  }
+}
+
+async function clearCrmLink() {
+  if (!currentWorkspace.value?.id || !canManageCrmLink.value) return
+  if (!confirm('Remove database CRM link for this workspace? (Env FRAN_CRM_BASE_URL may still apply.)')) return
+  crmLinkSaving.value = true
+  crmLinkError.value = ''
+  try {
+    await $fetch('/api/integrations/fran-crm/link', {
+      method: 'PUT',
+      body: { workspace_id: currentWorkspace.value.id, clear: true },
+    })
+    crmLinkForm.value = {
+      crm_base_url: '',
+      crm_workspace_id: '',
+      auth_mode: 'none',
+      service_token: '',
+      clear_token: false,
+    }
+    crmLinkNotice.value = 'Database CRM link cleared.'
+    await loadCrmLink()
+  } catch (e: any) {
+    crmLinkError.value = e?.data?.statusMessage || e?.message || 'Clear failed'
+  } finally {
+    crmLinkSaving.value = false
+  }
+}
+
+async function testCrmLink() {
+  if (!currentWorkspace.value?.id) return
+  crmLinkTesting.value = true
+  crmLinkError.value = ''
+  crmLinkNotice.value = ''
+  try {
+    const data = await $fetch<any>('/api/integrations/fran-crm/test', {
+      method: 'POST',
+      body: { workspace_id: currentWorkspace.value.id },
+    })
+    crmLinkNotice.value = data?.message || 'CRM test OK'
+    await loadCrmLink()
+  } catch (e: any) {
+    crmLinkError.value =
+      e?.data?.message || e?.data?.statusMessage || e?.message || 'CRM test failed'
+  } finally {
+    crmLinkTesting.value = false
+  }
+}
+
 // ── Tabs ──
 const activeTab = ref<'nodes' | 'connections' | 'credentials' | 'executions'>('nodes')
 
@@ -845,7 +977,15 @@ function formatDuration(ms: number | null): string {
 // ── Init ──
 onMounted(async () => {
   await loadAll()
+  await loadCrmLink()
 })
+
+watch(
+  () => currentWorkspace.value?.id,
+  () => {
+    void loadCrmLink()
+  },
+)
 
 watch(activeTab, async (tab) => {
   if (tab === 'executions') {
@@ -885,6 +1025,139 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
           </svg>
           New Credential
+        </button>
+      </div>
+    </div>
+
+    <!-- Fran CRM loyalty link (POS → SKUMS key → CRM) -->
+    <div class="card mb-6 p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Fran CRM (POS loyalty)</h2>
+          <p class="mt-1 max-w-2xl text-sm text-gray-400">
+            Link this workspace to Fran CRM so POS registers only need a
+            <strong class="text-gray-300">SKUMS API key</strong>. Loyalty traffic is
+            <code class="text-xs text-indigo-300">POS → SKUMS /fran/pos/loyalty/* → CRM</code>.
+            SKUMS does not store points — CRM remains the ledger.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-if="crmLinkMeta?.linked"
+            class="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30"
+          >
+            Linked{{ crmLinkMeta.source === 'env' ? ' (env)' : '' }}
+          </span>
+          <span
+            v-else
+            class="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-200 ring-1 ring-amber-500/30"
+          >
+            Not linked
+          </span>
+          <span
+            v-if="crmLinkMeta?.last_health_status"
+            class="rounded-full bg-gray-800 px-2.5 py-1 text-xs text-gray-300"
+          >
+            Health: {{ crmLinkMeta.last_health_status }}
+          </span>
+        </div>
+      </div>
+
+      <p v-if="crmLinkLoading" class="mt-3 text-sm text-gray-500">Loading CRM link…</p>
+      <p v-if="crmLinkError" class="mt-3 text-sm text-red-400">{{ crmLinkError }}</p>
+      <p v-if="crmLinkNotice" class="mt-3 text-sm text-emerald-400">{{ crmLinkNotice }}</p>
+      <p v-if="crmLinkMeta?.last_error" class="mt-2 text-xs text-amber-400/90">
+        Last error: {{ crmLinkMeta.last_error }}
+      </p>
+
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-400">CRM base URL</label>
+          <input
+            v-model="crmLinkForm.crm_base_url"
+            type="url"
+            class="input-field w-full"
+            placeholder="https://fran-crm-eight.vercel.app"
+            :disabled="!canManageCrmLink || crmLinkMeta?.source === 'env'"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-400">CRM workspace ID (optional)</label>
+          <input
+            v-model="crmLinkForm.crm_workspace_id"
+            type="text"
+            class="input-field w-full font-mono text-sm"
+            placeholder="11111111-1111-4111-8111-111111111111"
+            :disabled="!canManageCrmLink || crmLinkMeta?.source === 'env'"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-400">Auth mode</label>
+          <select
+            v-model="crmLinkForm.auth_mode"
+            class="input-field w-full"
+            :disabled="!canManageCrmLink || crmLinkMeta?.source === 'env'"
+          >
+            <option value="none">none (demo POS routes)</option>
+            <option value="bearer">bearer (service token)</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-gray-400">
+            Service token
+            <span v-if="crmLinkMeta?.has_service_token" class="text-emerald-400">(set)</span>
+          </label>
+          <input
+            v-model="crmLinkForm.service_token"
+            type="password"
+            class="input-field w-full"
+            placeholder="Leave blank to keep existing"
+            :disabled="!canManageCrmLink || crmLinkForm.auth_mode !== 'bearer' || crmLinkMeta?.source === 'env'"
+          />
+          <label
+            v-if="canManageCrmLink && crmLinkMeta?.has_service_token"
+            class="mt-1 flex items-center gap-2 text-xs text-gray-500"
+          >
+            <input v-model="crmLinkForm.clear_token" type="checkbox" class="rounded border-gray-600" />
+            Clear stored token on save
+          </label>
+        </div>
+      </div>
+
+      <p v-if="crmLinkMeta?.source === 'env'" class="mt-3 text-xs text-sky-300/90">
+        Link is provided by server env <code class="text-sky-200">FRAN_CRM_BASE_URL</code>. Clear env or save a
+        database row to override via this UI.
+      </p>
+      <p v-if="!canManageCrmLink" class="mt-3 text-xs text-gray-500">
+        Only workspace owners/admins can change the CRM link.
+      </p>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="btn-secondary"
+          :disabled="crmLinkTesting || crmLinkLoading"
+          @click="testCrmLink"
+        >
+          {{ crmLinkTesting ? 'Testing…' : 'Test policy' }}
+        </button>
+        <button
+          v-if="canManageCrmLink"
+          type="button"
+          class="btn-primary"
+          :disabled="crmLinkSaving || !crmLinkForm.crm_base_url.trim()"
+          @click="saveCrmLink"
+        >
+          {{ crmLinkSaving ? 'Saving…' : 'Save CRM link' }}
+        </button>
+        <button
+          v-if="canManageCrmLink && crmLinkMeta?.linked && crmLinkMeta?.source !== 'env'"
+          type="button"
+          class="btn-secondary text-red-300"
+          :disabled="crmLinkSaving"
+          @click="clearCrmLink"
+        >
+          Clear link
         </button>
       </div>
     </div>

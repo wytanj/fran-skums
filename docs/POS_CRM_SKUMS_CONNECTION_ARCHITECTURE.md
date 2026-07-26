@@ -265,8 +265,8 @@ Rules for SKUMS engineering:
 | **M1** | SKUMS `workspace_crm_links` + `/fran/pos/loyalty/*` + capabilities | **Done** (mig **073**, env `FRAN_CRM_BASE_URL`) |
 | **M2** | POS prefer SKUMS loyalty when connector set | **Done** (`fran-crm-client` skums mode) |
 | **M3** | POS readiness gate: member path needs loyalty_ok | **Done** (Sale banner + block Find member) |
-| **M4** | HQ CRM-link UI; remove browser CRM URL from production | **Next** |
-| **M5** | Test-workspace live demo runbook + prod Fran workspace checklist | After M4 / ops |
+| **M4** | HQ CRM-link UI; demote browser CRM URL | **Done** (Integrations card + POS Advanced/dev) |
+| **M5** | Test-workspace live demo ops + prod Fran checklist | **Next** (ops) |
 
 Local test can still run CRM on `:3000` **behind** SKUMS proxy once M1 exists; until then, dual URL is a **dev shim**, not the architecture.
 

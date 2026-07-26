@@ -64,7 +64,7 @@
 **Sources:** `docs/loyaltys.pdf` · `docs/LOYALTY_FWB_ARCHITECTURE.md` · `docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md` · `fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`  
 **Ownership:** CRM = ledger/policy SoR · POS = checkout UX · SKUMS = product/price/sale facts · MCP = campaign airlock (later)  
 **Connection target:** POS holds **only SKUMS workspace key**; CRM is a **workspace app link** on SKUMS; loyalty traffic POS→SKUMS facade→CRM. SKUMS has **no** hard POS/CRM product dependency.  
-**M1–M3 shipped:** mig **073** · loyalty proxy · POS SKUMS-first client · **Sale capabilities banner + member gate** (`ready_for_member_loyalty`). **Next M4:** HQ CRM-link UI; drop prod legacy CRM URL; test-workspace live demo ops.
+**M1–M4 shipped:** mig **073** · loyalty proxy · POS SKUMS-first · Sale capabilities gate · **HQ Integrations → Fran CRM link UI** · POS legacy CRM under Advanced/dev. **Next M5:** test-workspace live demo smoke (env/link + FRAN-0001).
 
 | Slice | Owner | Status | Notes |
 |-------|--------|--------|--------|
