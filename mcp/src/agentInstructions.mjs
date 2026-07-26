@@ -146,4 +146,5 @@ Composite-first (Catalog AI tool names):
 
 Note: Shopee Mall harvest (what sells on Shopee) is MCP market_brand_* only — not Catalog AI. Keep catalog vs market answers separate.
 Hard facts: approve ≠ confirm ≠ in_transit ≠ paid; draft Actions PO ≠ Loft order; FOB before supplier in_transit.
+POS live loyalty: SKUMS key only; CRM linked on SKUMS HQ — get_help_article slug crm-pos-skums-setup.
 `.trim()
