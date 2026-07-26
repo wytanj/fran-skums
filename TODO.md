@@ -32,7 +32,7 @@
 
 **Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
 **Track L (FWB):** slice 1 on POS + SKUMS + CRM · **CRM 0010 point batches applied**.  
-**Next (loyalty live demo):** set prod env `FRAN_CRM_BASE_URL=https://fran-crm-eight.vercel.app` (or PUT crm-link) on **test** SKUMS workspace · POS Live + SKUMS key · smoke FRAN-0001. Then **M4** HQ CRM-link UI. Parallel: Jan-1 job · K Rpt-6 · BR harvest · Loft Phase 0.  
+**Next (loyalty M5 live demo):** SKUMS HQ Integrations → Fran CRM link (or `FRAN_CRM_BASE_URL`) on **test** workspace · POS Live + SKUMS key · smoke **FRAN-0001**. Parallel: Jan-1 job · K Rpt-6 · BR harvest · Loft Phase 0.  
 **Shopee collect:** Windows warm Chrome + `--connect`; extension Link/Discover/multi-brand; CLI multi-page + MH-4. Browserbase **not** primary.  
 **Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug** (e.g. `beauty-of-joseon`); not free-text `market_search`.  
 **Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall sold as ATS.  
