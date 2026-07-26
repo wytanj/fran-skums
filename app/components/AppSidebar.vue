@@ -23,7 +23,7 @@ const filteredWorkspaces = computed(() => {
 })
 
 const navigation = [
-  { name: 'Fran Ops', href: '/fran', icon: 'sparkle' },
+  // Fran Ops (/fran) hidden for now — page has no valuable actions yet
   { name: 'Dashboard', href: '/', icon: 'home' },
   { name: 'Actions', href: '/actions', icon: 'check' },
   { name: 'Products', href: '/products', icon: 'cube' },
