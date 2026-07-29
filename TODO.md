@@ -1,14 +1,16 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-28  
+**Date:** 2026-07-29  
 **Production:** https://fran-skums.vercel.app  
-**DB:** migrations **001–074** (… **073** workspace_crm_links · **074** Help crm-pos-skums-setup).  
+**DB:** migrations **001–075** (… **073** workspace_crm_links · **074** Help crm-pos-skums-setup · **075** marketplace harvest notify policies **applied**).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
-**Brand radar / Mall harvest:** Track **BR** — **MH-1–9 eng done** · **live bulk scrape paused 2026-07-29** (captcha; Chrome closed) · **~19 single-brand list OK / ~51 need** · see **`docs/scrape-summary.md`** · next: warm CDP → resume queue · MH-4 deepen · distributors later  
+**Brand radar / Mall harvest:** Track **BR** — **MH-1–9 eng done** · **live bulk scrape paused 2026-07-29** (captcha; Chrome closed) · see **`docs/scrape-summary.md`** · next: warm CDP → resume queue · MH-4 deepen · distributors later  
 
-**Loyalty FWB:** Track **L** — L-pos / L-skums / CRM L-base **slice 1 done** · CRM mig **0010** applied · next: persist commit_sale + POS vouchers  
-**Demand forecast:** Track **FC** — architecture in **`docs/FORECASTING_ARCHITECTURE.md`** · **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
-**MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`) — redeploy SKUMS for Claude  
+**Loyalty FWB:** Track **L** — M1–M4 connection + live wire **done** on test WS · POS **Sync from SKUMS** (create/update) shipped · CORS `x-pos-client` shipped · next: teammate invites (button UX) · L-sim / Jan-1 / campaigns  
+**Fran product UX:** Track **F0** — **single-org Fran** chrome (hide multi-tenant SaaS UI); later **country = legal entity** under one org · see § Track F0 below  
+**Teammate / Kristle:** Track **TEAM** — SKUMS invite exists · **POS + CRM invite/join UIs missing** (SQL today) · personal Gmail OK for test · Phase **S** = Workspace SSO + MFA later  
+**Demand forecast:** Track **FC** — **`docs/FORECASTING_ARCHITECTURE.md`** · **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
+**MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`)  
 **Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
 
 **Plans (do not lose track):**
@@ -18,33 +20,34 @@
 | **This file** | Implementation queue + MCP #1–8 index |
 | **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
 | **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
-| **`docs/scrape-summary.md`** | **2026-07-28 live Mall scrape stop** — done/need/cooldown/MH-4 redo + resume cmd |
+| **`docs/scrape-summary.md`** | Live Mall scrape stop / resume |
 | **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
-| **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B · anti “Excel→LLM” |
+| **`docs/LOYALTY_SIMULATOR_BRIEF.md`** | Agent brief: FWB rules, POS intent, rewards, sim design (recreate if missing on disk) |
+| **`docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md`** | POS key → SKUMS → CRM facade |
+| **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B |
 | **`docs/loyaltys.pdf`** | FWB business rules (tiers, expiry, redeem dens, earn formula) |
 | **`docs/MCP_ACTION_BACKLOG.md`** | MCP tools detail, leftovers after #8 |
 | **`docs/MCP_USER_PERMISSION_DESIGN.md`** | Web ↔ MCP permission model (A2) |
-| **`docs/ORG_PERMISSION_SCOPES.md`** | Canonical scope catalog |
+| **`docs/ORG_PERMISSION_SCOPES.md`** | Canonical scope catalog (keep in DB; **UI collapses under F0**) |
 | **`TODO-LOFT.md`** | Loft / store-ops / 3PL plan |
 | **`docs/SKUMS_OPERATOR_RUNBOOK.md`** | Operator how-to |
 | **`mcp/README.md`** | MCP setup (stdio + cloud) |
 | **`fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`** | POS policy evaluator / quote / commit plan |
-| **`grok-forecasting.md` / `claude-forecast.md`** | Research notes (TSFM / LLM-context / Luckin ROI) — not the queue |
+| **`grok-forecasting.md` / `claude-forecast.md`** | Research notes — not the queue |
 
 ---
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–9** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
-**Track L (FWB):** slice 1 on POS + SKUMS + CRM · **CRM 0010 point batches applied**.  
-**Next (loyalty M5 live demo):** SKUMS HQ Integrations → Fran CRM link (or `FRAN_CRM_BASE_URL`) on **test** workspace · POS Live + SKUMS key · smoke **FRAN-0001**. Parallel: Jan-1 job · **FC-2/3** · Loft Phase 0.  
-**Shopee / BR harvest (2026-07-28):** **Stopped for day — captcha.** Live pass used warm Chrome `--connect`, humanize, `_harvest_queue.mjs` (single-brand only, mh4 10→**40**, stall 18m / brand 90m). **~12 list OK** · **~65 single-brand still need list** · distributors deferred · MH-4 deepen later (`.mh4-redo.json`). Full snapshot: **`docs/scrape-summary.md`**. Resume cmd in that doc. Do **not** thrash captcha session same day.  
+**Shipped (recent):** Loft P–F · MCP #1–8 · BR MH-1–9 · CRM/POS/SKUMS loyalty facade · POS catalog `pos_enabled` DB filter · POS **Sync from SKUMS** (auto-start after preflight) · CRM nav cleanup (settings integrations, docs fran-pos) · mig **075** harvest notify policies.  
+**Loyalty triangle (test):** SKUMS WS `c21c057f-…` · CRM linked · policy OK · POS key + sync product(s) · smoke FRAN-0001.  
+**Next product (Fran-opinionated):** Track **F0** single-org UI chrome + Track **TEAM** button invites (POS company + CRM workspace) so teammates (e.g. Kristle) need **no SQL**. Test = personal Gmail; prod later = Google Workspace SSO (**S**).  
+**Parallel eng:** **FC-2/3** · **BR** resume harvest when captcha-ready · Loft Phase 0 · **J** when buying.  
+**Shopee / BR:** **Paused captcha** — resume single-brand queue only; see **`docs/scrape-summary.md`**.  
 
-**Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug** (e.g. `beauty-of-joseon`); not free-text `market_search`.  
-**Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall sold as ATS.  
-**Ops (reports cron):** `CRON_SECRET` / mig **067**; Hobby daily UTC.  
-**Claude pilot:** `/mcp/c/sk_live_…` · after deploy reconnect so `initialize.instructions` include two-bucket table.  
-**POS:** `fran-pos/docs/SKUMS_INVENTORY_STRUCTURE_HANDOFF.md` · FWB: `fran-pos/dashboard/src/pos/fran/lib/fwb-earn.ts`.
+**Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug**.  
+**Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall as ATS.  
+**POS:** Sync from SKUMS · FWB `fwb-earn.ts` · Live = SKUMS key only.
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
@@ -58,12 +61,14 @@
 | **I** | MCP M1–M3 packs | **Shipped** |
 | **J** | **Supplier order lifecycle (KR/HK)** | **Design + Help 072 done** · next Phase 0 actors / J1 product |
 | **K** | **Agentic report registry** | **Rpt-0–6 done** · hybrid live sections · next HQ demand pack seed optional |
-| **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2 runs / FC-3 path A/B drafts · `docs/FORECASTING_ARCHITECTURE.md` |
-| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Slice 2.3 vouchers + POS scan UI** · next Jan-1 job / campaigns |
-| **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** |
+| **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2 runs / FC-3 path A/B drafts |
+| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Live wire + Sync catalog shipped** · next TEAM + L-sim / Jan-1 / campaigns |
+| **F0** | **Fran single-org UX** | **Planned** — hide multi-tenant SaaS chrome; country later |
+| **TEAM** | **Teammate invite (buttons, no SQL)** | **SKUMS done** · **POS + CRM invite/join missing** |
+| **S** | **Login MFA = Google Workspace** | **Planned (ops)** — test may use personal Gmail |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
-| **G** | **Shopee / marketplace collect** | **Windows primary locked** · **G2 absorbed by MH-11** (don't build twice) |
-| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–9 done** · **bulk scrape paused** (captcha 2026-07-28) · **`docs/scrape-summary.md`** · resume single-brand queue + MH-4 redo |
+| **G** | **Shopee / marketplace collect** | **Windows primary locked** · **G2 absorbed by MH-11** |
+| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–9 done** · **bulk paused** · resume queue when ready |
 | **WEB** | **Fran web → store** | **Parked in `TODO-WEB.md`** |
 
 ## Track L — Fran’s With Benefits (loyalty execution)
@@ -73,7 +78,8 @@
 **Connection target:** POS holds **only SKUMS workspace key**; CRM is a **workspace app link** on SKUMS; loyalty traffic POS→SKUMS facade→CRM. SKUMS has **no** hard POS/CRM product dependency.  
 **M1–M4 shipped:** mig **073** · loyalty proxy · POS SKUMS-first · Sale capabilities gate · **HQ Integrations → Fran CRM link UI** · POS legacy CRM under Advanced/dev.  
 **Help (agents):** `/help/crm-pos-skums-setup` (mig **074**) — Catalog AI `get_help_article` + MCP `help_get`.  
-**Next M5:** test-workspace live demo smoke (HQ link + FRAN-0001).
+**M5 live wire (ops, test WS `c21c057f-…`):** CRM link + policy OK · POS key · Sync catalog · capabilities CORS fix (`x-pos-client`) · smoke FRAN-0001 — **largely done**.  
+**Catalog sync:** POS **Sync from SKUMS** (create/update by skums id/sku/barcode; auto-start after preflight) · SKUMS catalog filters `pos_enabled` in DB.
 
 | Slice | Owner | Status | Notes |
 |-------|--------|--------|--------|
@@ -466,6 +472,74 @@ Store replenishment (Loft → store) remains a **later** Store Ops path.
 
 ---
 
+## Track F0 — Fran single-org product UX (trim multi-tenant SaaS chrome)
+
+**Thesis:** Fran is the product and the **only org** staff mean. Keep org/workspace **tables + RLS** for later **country = legal entity** under Fran; **collapse UI** so people do not create/switch tenants day-to-day.
+
+```text
+NOW     Fran → one ops unit (SKUMS WS · POS company · CRM WS), linked by Connections
+LATER   Fran → country SG / MY … (each = legal entity + linked trio); switcher only if ≥2 countries
+```
+
+| Word today | Fran meaning | Staff UI |
+|------------|--------------|----------|
+| Organization | Fran | Hide switcher if one org |
+| Workspace / company | Ops unit / later **Country** | Soft label; hide switcher if one |
+| Create company / setup | Founder bootstrap | Hide after seed; invitees never see |
+| Plan / billing / hosted | SaaS packaging | Hide for internal Fran |
+| Team invite | Join Fran | **Primary** (Track TEAM) |
+
+### F0 slices
+
+| Slice | Work | Status |
+|-------|------|--------|
+| **F0.0** | Flags: `showOrgSwitcher` / `showCountrySwitcher` / `showCreateTenant` / `showBilling` = false when single-tenant | **Planned** |
+| **F0.1** | SKUMS: hide org chrome; Settings IA → **Team · Connections · Country · Keys · Advanced** | Planned |
+| **F0.2** | CRM: remove/hide Pricing; setup invite-first; Settings = Team + Connections (workspace ID) + Host | Planned (CRM nav already leaner) |
+| **F0.3** | POS: hide company switcher if one; onboarding create demoted behind invite | Planned |
+| **F0.4** | Copy: Workspace → Fran / Country; no UUID pickers for staff | Planned |
+| **F0.5** | Later: **Add country** wizard (creates linked SKUMS+POS+CRM) | Later |
+
+**Keep (do not delete):** scopes catalog · workspace-scoped keys · CRM link · POS connector · store locations.
+
+**IA target:** Catalog/ops tools first; Settings = Team · Connections · (Country) · Keys — not Organization/Workspace dual tabs + billing.
+
+---
+
+## Track TEAM — Teammate invite (buttons, no SQL)
+
+**Context:** Test uses **personal Gmail** (exact-match invites). Prod later: **Google Workspace SSO + MFA** (Phase **S**) — same Google button, domain + enforced 2FA; **not** a different loyalty architecture.
+
+| App | Today | Target (buttons only) |
+|-----|--------|------------------------|
+| **SKUMS** | Settings → Team → Invite + `/invite/[token]` + `accept_invite` | Done; optional **Copy link** polish |
+| **POS** | No company invite; onboarding creates **new** company; SQL → `profiles` | `company_invites` + RPC + Team UI + accept + onboarding gate |
+| **CRM** | No invite; setup creates workspace; SQL → `crm_workspace_members` | `crm_workspace_invites` + accept + Members UI + setup gate |
+
+### TEAM slices
+
+| Slice | Owner | Work | Status |
+|-------|--------|------|--------|
+| **TEAM-0** | ops | Kristle (or any): SKUMS invite Gmail + manual POS/CRM membership until UIs ship | **Ops path** |
+| **TEAM-1** | fran-pos | Migration `company_invites` + `accept_company_invite` RPC; Settings → Team; `/auth/invite/:token`; onboarding: pending invite **before** create company | **Next eng** |
+| **TEAM-2** | fran-crm | Migration `crm_workspace_invites` + accept; Settings Members; `/invite/[token]`; setup invite-first | **Next eng** |
+| **TEAM-3** | fran-skums | Copy invite link on Team; optional home banner pending invites | Polish |
+| **TEAM-4** | docs | `docs/TEAMMATE_ONBOARDING.md` (Gmail test vs Workspace prod) | Planned |
+| **TEAM-5** | later | Optional SKUMS “invite to suite” (three drafts) | Later |
+
+**Security (RPCs):** email match · owner/admin only create · 7d expiry · no invite-to-owner · security definer accept.
+
+**Floor vs HQ:** POS **Team** = Google dashboard users; **Staff PIN** = cashiers — separate sections.
+
+### Kristle (test) — until TEAM-1/2 ship
+
+1. SKUMS Team invite (buttons) → she Google-accepts.  
+2. POS: first Google login → you attach `profiles` **or** wait for TEAM-1.  
+3. CRM: first Google login → you attach `crm_workspace_members` **or** wait for TEAM-2.  
+4. Same SKUMS connector / CRM link / no second company.
+
+---
+
 ### Phase S — login MFA via Google Workspace (planned ops; not in-app TOTP)
 
 **Decision:** Fran staff log in with **Google SSO only**. **Login 2FA lives on Google Workspace**, not a second TOTP product inside SKUMS. App-level MFA would duplicate the IdP and create dual recovery burden.
@@ -479,11 +553,13 @@ Store replenishment (Loft → store) remains a **later** Store Ops path.
 
 #### Workspace policy (ops checklist)
 
-- [ ] All SKUMS users are Workspace (or allowed) Google accounts — no staff password-only local accounts
+- [ ] All **prod** SKUMS users are Workspace (or allowed) Google accounts — no staff password-only local accounts
+- [ ] **Test** may keep personal Gmail; **prod** domain-lock OAuth (`hd` / allowlist) when ready
 - [ ] Enforce MFA for the domain **or** a group that includes everyone with SKUMS access
 - [ ] Prefer stronger second factor for **owner** (and ideally **admin**) accounts
-- [ ] Block legacy less-secure sign-in paths; SSO is the only staff path into SKUMS
+- [ ] Block legacy less-secure sign-in paths; SSO is the only staff path into SKUMS (prod)
 - [ ] Document break-glass: Workspace admin recovery if an owner loses their second factor
+- [ ] Separate Google OAuth clients for dev vs prod (callback / consent isolation)
 
 #### Who must have Workspace MFA
 
@@ -1014,8 +1090,10 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** **BR MH-8/MH-9** (unattended harvest — fix hang, poll+notify) · Ops link shops (ext v0.6) in parallel · Loft Phase 0 → **M4** · **J supplier** when buying · Phase S Workspace MFA (ops).  
-**Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
+**Recommended next (product):** **TEAM-1** POS invite → **TEAM-2** CRM invite → **F0** single-org chrome.  
+**Recommended next (eng/ops parallel):** **FC-2/3** · **BR** harvest resume when captcha-ready · Loft Phase 0 → **M4** · **J** when buying · Phase **S** Workspace MFA on prod.  
+**Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace (**prod**); test Gmail OK.  
+**Fran UX thesis:** one org (Fran); country later as legal entity; Team + Connections not multi-tenant SaaS.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
 
@@ -1036,45 +1114,55 @@ Next eng:
 
 ### Near-term eng (code)
 
-1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**K Rpt-0–5**~~  
-2. ~~**BR MH-1–3 + Mode B + ext Link**~~ — ops: link 125 · harvest w/ `--computer`  
-3. **BR MH-8–13** — unattended harvest under captcha (MH-8 hang fix → MH-9 poll+notify → MH-12 completeness → MH-10 investigate → MH-11 pacing → MH-13 schedule)  
-4. **BR PR-4+** — brand metrics → weekly pack → Grok brief (**after MH-12**, else WoW reports captcha stops as sold declines)  
-5. ~~**K Rpt-6**~~ · ~~**FC-1**~~ — next **FC-2/3** (forecast runs + path A/B drafts)  
-6. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
-7. **J** supplier FOB lifecycle when buying focus  
+1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**K Rpt-0–5**~~ · ~~**loyalty M1–M4 + catalog sync**~~  
+2. **TEAM-1** — POS company invite + accept + onboarding gate (no SQL for profiles)  
+3. **TEAM-2** — CRM workspace invite + accept + setup gate  
+4. **F0.0–F0.3** — single-org chrome flags (hide org switcher / billing / create-tenant when alone)  
+5. ~~**BR MH-1–3 + Mode B + ext Link**~~ — ops: resume harvest when captcha-ready  
+6. **BR MH-8–13** / PR-4+ — unattended harvest + metrics (**after** stable list harvest)  
+7. ~~**K Rpt-6**~~ · ~~**FC-1**~~ — next **FC-2/3** (forecast runs + path A/B drafts)  
+8. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
+9. **J** supplier FOB lifecycle when buying focus  
+10. **L** — L-sim / campaigns / Jan-1 tier job (after TEAM or parallel)  
 
 ### Product platforms (larger)
 
 | Track | Outcome |
 |-------|---------|
+| **F0 Fran single-org UX** | SaaS chrome gone; country later under one Fran org |
+| **TEAM invites** | POS + CRM join via buttons (SKUMS already) |
 | **K Agentic reports** | Rpt-0–**6** shipped (hybrid live sections) |
-| **FC Demand studio** | FC-0–1 done; next FC-2 runs · FC-3 drafts · see `docs/FORECASTING_ARCHITECTURE.md` |
-| **J Supplier KR/HK** | Draft PO editable; affirm; **FOB PDF → in transit → Loft ASN** |
-| Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B + FC UI |
+| **FC Demand studio** | FC-0–1 done; next FC-2 runs · FC-3 drafts |
+| **J Supplier KR/HK** | Draft PO → affirm → **FOB PDF → in transit → Loft ASN** |
+| **L FWB** | Live wire done; sim/campaigns/Jan-1 next |
+| Demand MA | Nightly velocity → K + FC |
 
 ### Ops (non-code or light)
 
 | Item | Owner |
 |------|--------|
 | Loft Phase 0 email / `delivery_method_id`s | Ops |
-| Google Workspace MFA for all SKUMS users | Workspace admin (Phase S) |
-| Claude keys: `mcp:ops_safe` for HQ only; staff get weaker packages | Owner |
+| Teammate (Kristle): SKUMS invite + POS/CRM membership until TEAM-1/2 | Owner |
+| Google Workspace MFA / domain lock on **prod** (Phase S) | Workspace admin |
+| Test: personal Gmail OK | Owner |
+| Claude keys: `mcp:ops_safe` for HQ only; staff weaker packages | Owner |
 
 ### Held / later
 
-R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Browserbase-as-primary Shopee · multi-marketplace beyond Shopee · Phase H ecommerce · full supplier email ingest (J5)
+R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Browserbase-as-primary Shopee · multi-marketplace beyond Shopee · Phase H ecommerce · full supplier email ingest (J5) · F0.5 Add country wizard · TEAM-5 suite invite
 
-### Suggested sequence (next eng slices)
+### Suggested sequence (decide order)
 
 ```text
-M1–M3 + Inventory Manager + empty-key ≠ full   ✅
-Rpt-0 → Rpt-6 (scopes, UI, cron, MCP, n8n, live sections)   ✅
-FC-0 → FC-1 (arch + studio foundation)   ✅
-  →  FC-2/3/4 runs + path A/B drafts bound to K
-  →  FC-5 MCP forecast tools
-  →  Loft Phase 0 ops · M4 send-to-loft
-  →  J1–J4 supplier FOB lifecycle when buying focus
+Loyalty live wire + Sync catalog     ✅ (test WS)
+  →  TEAM-1 POS invite (buttons)     ← multi-user HQ without SQL
+  →  TEAM-2 CRM invite + setup gate
+  →  F0.0–F0.3 single-org chrome     ← product feels Fran, not SaaS
+  →  FC-2/3 forecast runs + drafts
+  →  BR harvest resume (ops/captcha)
+  →  Loft Phase 0 · M4 · J when buying
+  →  L-sim / campaigns / Jan-1
+  →  Phase S Workspace MFA (prod)
 ```
 
 ---
