@@ -22,7 +22,6 @@
 | **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
 | **`docs/scrape-summary.md`** | Live Mall scrape stop / resume |
 | **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
-| **`docs/LOYALTY_SIMULATOR_BRIEF.md`** | Agent brief: FWB rules, POS intent, rewards, sim design (recreate if missing on disk) |
 | **`docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md`** | POS key → SKUMS → CRM facade |
 | **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B |
 | **`docs/loyaltys.pdf`** | FWB business rules (tiers, expiry, redeem dens, earn formula) |
@@ -62,9 +61,9 @@
 | **J** | **Supplier order lifecycle (KR/HK)** | **Design + Help 072 done** · next Phase 0 actors / J1 product |
 | **K** | **Agentic report registry** | **Rpt-0–6 done** · hybrid live sections · next HQ demand pack seed optional |
 | **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2 runs / FC-3 path A/B drafts |
-| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Live wire + Sync catalog shipped** · next TEAM + L-sim / Jan-1 / campaigns |
+| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Live wire + Sync catalog shipped** · next Jan-1 / campaigns (sim brief deferred) |
 | **F0** | **Fran single-org UX** | **Planned** — hide multi-tenant SaaS chrome; country later |
-| **TEAM** | **Teammate invite (buttons, no SQL)** | **SKUMS done** · **POS + CRM invite/join missing** |
+| **TEAM** | **Teammate invite (buttons, no SQL)** | **Code done** · **apply POS 00014 + CRM 0011** on Supabase |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops)** — test may use personal Gmail |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Windows primary locked** · **G2 absorbed by MH-11** |
@@ -520,11 +519,11 @@ LATER   Fran → country SG / MY … (each = legal entity + linked trio); switch
 
 | Slice | Owner | Work | Status |
 |-------|--------|------|--------|
-| **TEAM-0** | ops | Kristle (or any): SKUMS invite Gmail + manual POS/CRM membership until UIs ship | **Ops path** |
-| **TEAM-1** | fran-pos | Migration `company_invites` + `accept_company_invite` RPC; Settings → Team; `/auth/invite/:token`; onboarding: pending invite **before** create company | **Next eng** |
-| **TEAM-2** | fran-crm | Migration `crm_workspace_invites` + accept; Settings Members; `/invite/[token]`; setup invite-first | **Next eng** |
-| **TEAM-3** | fran-skums | Copy invite link on Team; optional home banner pending invites | Polish |
-| **TEAM-4** | docs | `docs/TEAMMATE_ONBOARDING.md` (Gmail test vs Workspace prod) | Planned |
+| **TEAM-0** | ops | Kristle: SKUMS invite (buttons) + POS/CRM invites after migrate | **Ops** |
+| **TEAM-1** | fran-pos | `company_invites` + accept RPC + Settings → Team + `/invite/:token` + onboarding gate | **Done (code)** — apply mig **00014** on POS Supabase |
+| **TEAM-2** | fran-crm | `crm_workspace_invites` + accept RPC + Settings Team + `/invite/[token]` + setup gate | **Done (code)** — apply mig **0011** on CRM Supabase |
+| **TEAM-3** | fran-skums | Copy invite link on Team pending list | **Done (code)** |
+| **TEAM-4** | docs | **`docs/TEAMMATE_ONBOARDING.md`** | **Done** |
 | **TEAM-5** | later | Optional SKUMS “invite to suite” (three drafts) | Later |
 
 **Security (RPCs):** email match · owner/admin only create · 7d expiry · no invite-to-owner · security definer accept.

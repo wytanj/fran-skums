@@ -538,6 +538,16 @@ async function handleRevokeInvite(id: string) {
   }
 }
 
+async function copyInviteLink(token: string) {
+  const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${token}`
+  try {
+    await navigator.clipboard.writeText(url)
+    showSuccess('Invite link copied')
+  } catch {
+    showError('Could not copy link — open /invite/' + token)
+  }
+}
+
 async function handleRoleChange(userId: string, newRole: string) {
   const target = members.value.find((m) => m.user_id === userId)
   // Owner seat: only workspace owner may appoint or demote admins
@@ -1041,6 +1051,14 @@ onMounted(async () => {
               <span class="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400 ring-1 ring-inset ring-amber-500/20">
                 Pending
               </span>
+              <button
+                class="btn-secondary shrink-0 text-xs"
+                type="button"
+                title="Copy invite link"
+                @click="copyInviteLink(inv.token)"
+              >
+                Copy link
+              </button>
               <button
                 class="btn-ghost !p-1.5 text-red-400 hover:text-red-300"
                 title="Revoke invite"
