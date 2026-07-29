@@ -75,6 +75,7 @@ test('Fran route surface wraps generic SKUMS primitives with Fran context', () =
   assert.match(crmRoute, /requireApiKey\(event,\s*'products:read'\)/)
   assert.match(crmRoute, /toFranProductContext/)
   assert.match(cors, /path\.startsWith\('\/fran\/'\)/)
+  assert.match(cors, /x-pos-client/)
 })
 
 test('Fran POS writes preserve CRM and reward references without owning policy', () => {
