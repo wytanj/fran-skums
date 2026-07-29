@@ -51,6 +51,16 @@ export default defineEventHandler(async (event) => {
   // M5: default POS catalog = active only (never draft/archived). include_disabled can surface others for tooling.
   if (!includeDisabled) {
     productQuery = productQuery.eq('status', 'active')
+    // Filter POS-enabled at the DB so pagination is not wasted on thousands of POS-off actives.
+    // Missing pos_enabled → eligible (legacy). Explicit true → eligible. Explicit false → out.
+    productQuery = productQuery.or(
+      [
+        'product_data->>pos_enabled.is.null',
+        'product_data->>pos_enabled.eq.',
+        'product_data->>pos_enabled.eq.true',
+        'product_data->>sellable_in_pos.eq.true',
+      ].join(','),
+    )
   }
 
   if (search) {
