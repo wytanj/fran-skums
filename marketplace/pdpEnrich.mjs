@@ -30,7 +30,9 @@ export async function loadPdpEnrichCandidates(db, workspaceId, opts = {}) {
       ? [String(opts.brand_key).toLowerCase()]
       : null
 
-  const { data, error } = await db
+  // Prefer brand-scoped query so MH-4 backlog is not drowned out by the
+  // global "last 800 snapshots" window after a long multi-brand harvest.
+  let q = db
     .from('marketplace_listing_snapshots')
     .select(
       `
@@ -56,7 +58,17 @@ export async function loadPdpEnrichCandidates(db, workspaceId, opts = {}) {
     )
     .eq('workspace_id', workspaceId)
     .order('crawled_at', { ascending: false })
-    .limit(800)
+
+  if (brandKeys?.length === 1) {
+    q = q.contains('signals', { brand_key: brandKeys[0] }).limit(Math.max(top * 8, 120))
+  } else if (brandKeys?.length > 1) {
+    // PostgREST can't OR contains easily — fetch a wider recent window and filter in JS
+    q = q.limit(2500)
+  } else {
+    q = q.limit(800)
+  }
+
+  const { data, error } = await q
 
   if (error) throw new Error(error.message)
 
@@ -223,28 +235,62 @@ export async function writePdpEnrichResult(db, input) {
 
 /**
  * Open one PDP and parse (computer or script style).
+ *
+ * Retries only on captcha / login walls. A healthy page without a
+ * BreadcrumbList returns `ok: false` immediately — that is a real answer,
+ * not something a human can fix.
+ *
  * @param {import('puppeteer').Page} page
  * @param {string} url
- * @param {{ computer?: boolean, pauseAfterLoad?: boolean, step?: boolean }} [opts]
+ * @param {{
+ *   computer?: boolean
+ *   pauseAfterLoad?: boolean
+ *   step?: boolean
+ *   maxWaitMs?: number
+ *   recoveryPollMs?: number
+ *   onBlocked?: (info: object) => void | Promise<void>
+ *   onResolved?: (info: object) => void | Promise<void>
+ * }} [opts]
  */
 export async function openAndEnrichPdp(page, url, opts = {}) {
-  const { waitForEnter, humanScrollPage, humanIdleMouse } = await import('./computerHarvest.mjs')
+  const {
+    waitForEnter,
+    waitForRecovery,
+    humanScrollPage,
+    humanLightBrowse,
+    humanPreNavPause,
+  } = await import('./computerHarvest.mjs')
+
+  let activePage = opts.pageBag?.current || page
+  const bindPage = (p) => {
+    if (!p) return
+    activePage = p
+    if (opts.pageBag) opts.pageBag.current = p
+  }
 
   if (opts.computer) {
     console.error(`[mh4] open ${url}`)
+    if (opts.skipPreNavPause !== true) {
+      await humanPreNavPause({
+        minMs: opts.preNavMinMs ?? 4000,
+        maxMs: opts.preNavMaxMs ?? 12000,
+        label: 'mh4',
+      })
+    }
     try {
-      await humanIdleMouse(page)
+      await humanLightBrowse(activePage, { clicks: Math.random() < 0.3 })
     } catch {
       /* ignore */
     }
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
+      await activePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
     } catch (e) {
       console.error(`[mh4] goto soft-fail: ${e?.message || e}`)
     }
-    await new Promise((r) => setTimeout(r, 1500 + Math.random() * 1000))
+    await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2500))
 
-    if (opts.pauseAfterLoad === true) {
+    // Babysit flag — pointless without a TTY, where it would just blind-sleep.
+    if (opts.pauseAfterLoad === true && process.stdin.isTTY) {
       await waitForEnter(
         '[mh4] When PDP is fully loaded (captcha cleared), press Enter…',
         { fallbackMs: 300000 },
@@ -252,14 +298,14 @@ export async function openAndEnrichPdp(page, url, opts = {}) {
     }
 
     try {
-      await humanScrollPage(page, { bursts: 2 })
+      await humanScrollPage(activePage, { bursts: 2 })
     } catch {
       /* ignore */
     }
-    await new Promise((r) => setTimeout(r, 800))
+    await new Promise((r) => setTimeout(r, 800 + Math.random() * 900))
   } else {
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
+      await activePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
     } catch {
       /* ignore */
     }
@@ -268,7 +314,7 @@ export async function openAndEnrichPdp(page, url, opts = {}) {
 
   let raw
   try {
-    raw = await page.evaluate(browserPdpEvaluate)
+    raw = await activePage.evaluate(browserPdpEvaluate)
   } catch (e) {
     return {
       ok: false,
@@ -279,55 +325,70 @@ export async function openAndEnrichPdp(page, url, opts = {}) {
     }
   }
 
-  const health = detectSessionHealth({
+  // MH-8: these are reassigned every retry round — never let the loop condition
+  // read a stale first-attempt value (that used to loop until the round cap).
+  let health = detectSessionHealth({
     title: raw.session_probe?.title,
     bodyText: raw.session_probe?.bodySnippet,
     url: raw.page_url || url,
   })
 
-  const breadcrumb = parseBreadcrumbList(raw.breadcrumb)
-  const product = raw.product ? parseProductJsonLd(raw.product) : { ok: false }
+  let breadcrumb = parseBreadcrumbList(raw.breadcrumb)
+  let product = raw.product ? parseProductJsonLd(raw.product) : { ok: false }
 
-  // Captcha loop: wait + re-extract
+  // Only a captcha/login wall is worth a human. A healthy page with no
+  // BreadcrumbList is a legitimate "this PDP has no platform path" result —
+  // retrying it just burns the operator's attention on an unfixable page.
+  const needsHuman = () => health === 'blocked' || health === 'login_required'
+
+  // MH-9: poll for the wall to clear instead of blocking on a keypress, so
+  // MH-4 is schedulable too. Enter still short-circuits a poll for an operator
+  // who is watching.
   let rounds = 0
-  while (
-    (!breadcrumb.ok || health === 'blocked' || health === 'login_required') &&
-    rounds < 15
-  ) {
-    console.error(`[mh4] need human (health=${health} breadcrumb_ok=${breadcrumb.ok})`)
-    try {
-      process.stderr.write('\x07')
-    } catch {
-      /* ignore */
-    }
-    await waitForEnter(
-      '[mh4] Solve captcha / wait for product page, then press Enter…',
-      { fallbackMs: 300000 },
-    )
-    try {
-      raw = await page.evaluate(browserPdpEvaluate)
-    } catch (e) {
-      rounds++
-      continue
-    }
-    const h2 = detectSessionHealth({
-      title: raw.session_probe?.title,
-      bodyText: raw.session_probe?.bodySnippet,
-      url: raw.page_url || url,
-    })
-    const bc2 = parseBreadcrumbList(raw.breadcrumb)
-    const pr2 = raw.product ? parseProductJsonLd(raw.product) : { ok: false }
-    if (bc2.ok) {
-      return {
-        ok: h2 === 'ok' || bc2.ok,
-        session_health: h2,
-        page_url: raw.page_url || url,
-        breadcrumb: bc2,
-        product: pr2,
-        raw,
+  if (needsHuman()) {
+    if (typeof opts.bounceChromeOnCaptcha === 'function') {
+      try {
+        console.error('[mh4] captcha wall — bouncing Chrome (close → relaunch → settle)…')
+        const np = await opts.bounceChromeOnCaptcha({ label: 'mh4', url, health })
+        if (np) bindPage(np)
+        try {
+          await activePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
+          await new Promise((r) => setTimeout(r, 2000))
+        } catch (e) {
+          console.error(`[mh4] post-bounce goto soft-fail: ${e?.message || e}`)
+        }
+      } catch (e) {
+        console.error(`[mh4] chrome bounce failed: ${e?.message || e}`)
       }
     }
-    rounds++
+
+    const recovery = await waitForRecovery({
+      label: `mh4 ${String(url).slice(0, 60)}`,
+      deadlineMs: opts.maxWaitMs ?? 600000,
+      pollMs: opts.recoveryPollMs ?? 5000,
+      // A PDP has no product grid to count — health alone decides.
+      requireProducts: false,
+      onBlocked: opts.onBlocked,
+      onResolved: opts.onResolved,
+      probe: async () => {
+        try {
+          raw = await activePage.evaluate(browserPdpEvaluate)
+        } catch (e) {
+          return { health: 'blocked', productCount: 0 }
+        }
+        const h = detectSessionHealth({
+          title: raw.session_probe?.title,
+          bodyText: raw.session_probe?.bodySnippet,
+          url: raw.page_url || url,
+        })
+        return { health: h, productCount: 0 }
+      },
+    })
+
+    rounds = recovery.polls
+    health = recovery.health
+    breadcrumb = parseBreadcrumbList(raw.breadcrumb)
+    product = raw.product ? parseProductJsonLd(raw.product) : { ok: false }
   }
 
   if (opts.step) {
@@ -339,10 +400,13 @@ export async function openAndEnrichPdp(page, url, opts = {}) {
 
   return {
     ok: breadcrumb.ok,
+    // Current health, not the first-attempt value — a stale 'blocked' here
+    // used to trip mh4_captcha upstream and kill the rest of the brand.
     session_health: health,
     page_url: raw.page_url || url,
     breadcrumb,
     product,
     raw,
+    captcha_rounds: rounds,
   }
 }

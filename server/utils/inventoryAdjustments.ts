@@ -27,7 +27,7 @@ export async function listInventoryAdjustments(
       location:inventory_locations(id, code, name, location_type),
       lines:inventory_adjustment_lines(
         id, product_id, variant_id, system_qty, counted_qty, reason, sort_order,
-        product:products(id, sku, name)
+        product:products(id, sku, title)
       )
     `)
     .eq('workspace_id', params.workspaceId)

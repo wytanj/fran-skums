@@ -18,7 +18,8 @@ const error = ref('')
 const busy = ref(false)
 const pack = ref<any>(null)
 const note = ref('')
-const toast = ref('')
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify } = useActionFeedback()
 
 async function reload() {
   loading.value = true
@@ -56,8 +57,8 @@ async function onDecide(decision: 'accepted' | 'rejected' | 'deferred') {
 async function onCopyLink() {
   if (!c.value) return
   const ok = await copyDeepLink(`/actions/pipeline/${c.value.id}`)
-  toast.value = ok ? 'Link copied' : 'Could not copy'
-  setTimeout(() => { toast.value = '' }, 2000)
+  if (ok) notify.success('Link copied')
+  else notify.error(new Error('Could not copy the link'))
 }
 </script>
 
@@ -67,7 +68,6 @@ async function onCopyLink() {
       ← Actions
     </button>
 
-    <div v-if="toast" class="mb-3 rounded-lg bg-indigo-500/15 px-3 py-2 text-xs text-indigo-200">{{ toast }}</div>
     <div v-if="loading" class="card p-8 text-center text-sm text-gray-500">Loading…</div>
     <div v-else-if="error && !c" class="card p-6 text-red-300">{{ error }}</div>
 

@@ -8,6 +8,8 @@ import type {
   AlertLevel,
 } from '~/types'
 
+const ACTION_LEVELS = new Set(['stockout', 'critical', 'reorder_now'])
+
 export function useForecasting() {
   const client = useSupabaseClient()
   const { currentWorkspace } = useWorkspace()
@@ -198,38 +200,80 @@ export function useForecasting() {
 
   // ── AI Forecast ──────────────────────────────────────────────
   async function getAIForecast(productId: string): Promise<ForecastResult> {
-    const product = demandVelocity.value.find(d => d.product_id === productId)
+    // Ensure velocity is loaded (FC-1: was often empty if only alerts loaded)
+    if (!demandVelocity.value.length) {
+      await loadDemandVelocity()
+    }
+    if (!reorderAlerts.value.length) {
+      await loadReorderAlerts()
+    }
+    if (!forecastEvents.value.length) {
+      await loadForecastEvents()
+    }
+
+    let product = demandVelocity.value.find(d => d.product_id === productId)
     const alerts = reorderAlerts.value.find(a => a.product_id === productId)
     const expiry = expiryRisks.value.filter(e => e.product_id === productId)
+
+    // Fallback row from alerts if velocity view missed the product
+    if (!product && alerts) {
+      product = {
+        product_id: alerts.product_id,
+        product_title: alerts.product_title,
+        product_sku: alerts.product_sku,
+        velocity_7d: alerts.velocity_7d ?? 0,
+        velocity_30d: alerts.velocity_30d ?? alerts.daily_velocity ?? 0,
+        velocity_90d: 0,
+        best_velocity: alerts.daily_velocity ?? 0,
+        days_with_sales: alerts.days_with_sales ?? 0,
+        first_sale_date: null,
+      } as DemandVelocity
+    }
+
     const today = new Date().toISOString().split('T')[0]
-    const in90d = new Date()
-    in90d.setDate(in90d.getDate() + 90)
     const upcomingEvents = forecastEvents.value.filter(
-      e => e.date_from >= today && e.date_to >= today
+      e => e.date_from >= today || e.date_to >= today,
     )
 
-    // Cold start: fetch category peers if < 14 days history
     let categoryPeer: { avg_velocity: number; peer_count: number; category_name: string } | null = null
     const daysWithSales = product?.days_with_sales ?? 0
     if (daysWithSales < 14) {
       categoryPeer = await getCategoryPeerVelocity(productId)
     }
 
-    // Sparse detection: total observed days since first sale
     const firstSaleDate = product?.first_sale_date
     const totalDaysObserved = firstSaleDate
       ? Math.floor((Date.now() - new Date(firstSaleDate).getTime()) / 86400000)
       : daysWithSales
 
+    // Optional daily series for better sparse detection (last 90 sale events aggregated)
+    let daily_sales_history: Array<{ date: string; qty: number }> | undefined
+    try {
+      const sales = await loadSalesEvents(productId, 90)
+      if (sales.length) {
+        const byDay = new Map<string, number>()
+        for (const s of sales) {
+          const d = String(s.sale_date).slice(0, 10)
+          byDay.set(d, (byDay.get(d) || 0) + (Number(s.quantity_sold) || 0))
+        }
+        daily_sales_history = [...byDay.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([date, qty]) => ({ date, qty }))
+      }
+    } catch {
+      daily_sales_history = undefined
+    }
+
     const { data, error: err } = await useFetch('/api/forecast', {
       method: 'POST',
       body: {
         product_id: productId,
-        product_title: product?.product_title ?? '',
-        product_sku: product?.product_sku ?? '',
+        product_title: product?.product_title ?? alerts?.product_title ?? '',
+        product_sku: product?.product_sku ?? alerts?.product_sku ?? '',
         category_name: categoryPeer?.category_name ?? null,
+        daily_sales_history,
         velocity_7d: product?.velocity_7d ?? 0,
-        velocity_30d: product?.velocity_30d ?? 0,
+        velocity_30d: product?.velocity_30d ?? alerts?.daily_velocity ?? 0,
         velocity_90d: product?.velocity_90d ?? 0,
         days_with_sales: daysWithSales,
         total_days_observed: totalDaysObserved,
@@ -255,6 +299,18 @@ export function useForecasting() {
     if (err.value) throw new Error(err.value.message)
     forecastResult.value = data.value as ForecastResult
     return forecastResult.value
+  }
+
+  /** Path A/B hint from alert row (FC-1; loft split is full in Rpt-6 handlers). */
+  function pathHint(alert: ReorderAlert): 'store_fill' | 'supplier_buy' | 'watch' | 'none' {
+    if (!ACTION_LEVELS.has(alert.alert_level)) {
+      if (alert.alert_level === 'watch') return 'watch'
+      return 'none'
+    }
+    // Without loft join in client: zero ATS → supplier candidate; else store_fill candidate
+    if ((alert.available_to_sell ?? 0) <= 0 && (alert.total_on_order ?? 0) <= 0) return 'supplier_buy'
+    if ((alert.available_to_sell ?? 0) > 0) return 'store_fill'
+    return 'supplier_buy'
   }
 
   // ── Helpers ───────────────────────────────────────────────────
@@ -326,6 +382,7 @@ export function useForecasting() {
     createSaleEvent,
     getAIForecast,
     getCategoryPeerVelocity,
+    pathHint,
 
     alertLevelColor,
     alertLevelLabel,

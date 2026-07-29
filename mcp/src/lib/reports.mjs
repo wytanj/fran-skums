@@ -5,7 +5,7 @@
  */
 import { getDb, getMcpActorUserId, requireWorkspaceId } from '../context.mjs'
 import { isSubscriptionDue } from '../../../core/reports/schedule.mjs'
-import { runStubSections } from '../../../core/reports/sections.mjs'
+import { runReportSections } from '../../../core/reports/sections.mjs'
 
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -241,7 +241,7 @@ export async function runReport(args = {}) {
       ? sub.sections_override
       : template?.default_sections || []
 
-  const stub = runStubSections(sections)
+  const result = await runReportSections(db, workspaceId, sections)
   const started = new Date().toISOString()
   const actor = getMcpActorUserId()
   const { data: pending, error: pErr } = await db
@@ -263,9 +263,10 @@ export async function runReport(args = {}) {
   const payload = {
     template_slug: template?.slug || null,
     template_title: template?.title || null,
-    sections: stub.sections,
+    sections: result.sections,
     suggest_only: true,
-    note: 'Stub sections until Rpt-6 real handlers',
+    meta: result.meta || null,
+    note: 'Rpt-6 hybrid: live handlers where implemented; unknown ids remain stub',
     via: 'mcp',
   }
 
@@ -275,7 +276,7 @@ export async function runReport(args = {}) {
       status: 'completed',
       finished_at: finished,
       payload_json: payload,
-      markdown_summary: stub.markdown,
+      markdown_summary: result.markdown,
     })
     .eq('id', pending.id)
     .select('*')

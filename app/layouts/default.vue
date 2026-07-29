@@ -42,5 +42,8 @@ const mobileSidebarOpen = ref(false)
 
     <!-- AI Assistant drawer (teleports to body) -->
     <AssistantDrawer />
+
+    <!-- Action feedback (fixed; stays visible regardless of <main> scroll) -->
+    <ToastHost />
   </div>
 </template>

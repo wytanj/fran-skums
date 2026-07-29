@@ -147,14 +147,23 @@ export function browserHarvestEvaluate() {
  * @param {{ interactive?: boolean, captchaWaitMs?: number, computer?: boolean, step?: boolean, label?: string }} [opts]
  */
 export async function openAndHarvestPage(page, url, opts = {}) {
-  // Mode B — computer-style (mouse + wheel + Enter on captcha; machine stays on)
+  // Mode B — computer-style (mouse + wheel; polls for captcha recovery, MH-9)
   if (opts.computer) {
-    return openAndHarvestPageComputer(page, url, {
+    const active = opts.pageBag?.current || page
+    return openAndHarvestPageComputer(active, url, {
       step: opts.step,
       pauseAfterLoad: opts.pauseAfterLoad === true,
       label: opts.label,
-      maxCaptchaRounds: 30,
       harvestEvaluate: browserHarvestEvaluate,
+      recoveryDeadlineMs: opts.recoveryDeadlineMs,
+      recoveryPollMs: opts.recoveryPollMs,
+      preNavMinMs: opts.preNavMinMs,
+      preNavMaxMs: opts.preNavMaxMs,
+      skipPreNavPause: opts.skipPreNavPause,
+      onBlocked: opts.onBlocked,
+      onResolved: opts.onResolved,
+      bounceChromeOnCaptcha: opts.bounceChromeOnCaptcha,
+      pageBag: opts.pageBag,
     })
   }
 
@@ -175,9 +184,12 @@ export async function openAndHarvestPage(page, url, opts = {}) {
     title: harvest.session_probe?.title,
     bodyText: harvest.session_probe?.bodySnippet,
     url: harvest.page_url || url,
+    productCount: harvest.product_count,
   })
 
-  if (health !== 'ok' && opts.interactive) {
+  // Only pause for a wall we can actually clear — 'unknown' with a rendered
+  // grid is not worth an operator's time.
+  if ((health === 'blocked' || health === 'login_required') && opts.interactive) {
     const waitMs = opts.captchaWaitMs || 180000
     console.error(`[mall-harvest] session_health=${health} — solve captcha in Chrome (max ${Math.round(waitMs / 1000)}s)…`)
     const deadline = Date.now() + waitMs
@@ -188,12 +200,10 @@ export async function openAndHarvestPage(page, url, opts = {}) {
         title: harvest.session_probe?.title,
         bodyText: harvest.session_probe?.bodySnippet,
         url: harvest.page_url || page.url(),
+        productCount: harvest.product_count,
       })
-      if (h2 === 'ok' && harvest.product_count > 0) {
-        return { harvest, session_health: 'ok' }
-      }
-      if (h2 === 'ok' && harvest.product_count === 0) {
-        return { harvest, session_health: 'ok' }
+      if (h2 !== 'blocked' && h2 !== 'login_required') {
+        return { harvest, session_health: h2 }
       }
     }
   }
@@ -337,7 +347,15 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
       captchaWaitMs: opts.captchaWaitMs,
       computer: opts.computer,
       step: opts.step,
+      pauseAfterLoad: opts.pauseAfterLoad,
       label: `${brand.brand_key} / ${collName} p${pageIdx}`,
+      recoveryDeadlineMs: opts.recoveryDeadlineMs,
+      recoveryPollMs: opts.recoveryPollMs,
+      preNavMinMs: opts.preNavMinMs,
+      preNavMaxMs: opts.preNavMaxMs,
+      skipPreNavPause: opts.skipPreNavPause,
+      onBlocked: opts.onBlocked,
+      onResolved: opts.onResolved,
     })
 
     if (session_health === 'blocked' || session_health === 'login_required') {
@@ -359,7 +377,12 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
       break
     }
 
-    if (pageIdx + 1 < maxPages && delayMs > 0) await sleep(delayMs)
+    // Jitter page gap so 80-brand runs don't look metronomic
+    if (pageIdx + 1 < maxPages && delayMs > 0) {
+      const gap = Math.floor(delayMs * (0.7 + Math.random() * 0.7))
+      console.error(`[mall-harvest] page gap ${Math.round(gap / 1000)}s`)
+      await sleep(gap)
+    }
   }
 
   const products = mergeHarvestProducts(pageHarvests.map((h) => h.products)).map((p) => ({
@@ -539,7 +562,11 @@ export async function harvestBrandCollections(page, brand, db, opts) {
       stop_reason = result.stop_reason
       break
     }
-    if (i + 1 < shelves.length && shelfDelay > 0) await sleep(shelfDelay)
+    if (i + 1 < shelves.length && shelfDelay > 0) {
+      const gap = Math.floor(shelfDelay * (0.7 + Math.random() * 0.7))
+      console.error(`[mall-harvest] shelf gap ${Math.round(gap / 1000)}s before next shelf`)
+      await sleep(gap)
+    }
   }
 
   return {

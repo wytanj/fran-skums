@@ -440,4 +440,5 @@ export async function saveWaveAllocationPreview(
   return { preview, saved }
 }
 
-export { WEEKDAY_LABELS, ensureWave }
+// Do not re-export ensureWave — Nitro auto-import collides with storeReplenishment.ensureWave.
+export { WEEKDAY_LABELS }

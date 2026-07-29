@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'API key required. Pass via Authorization: Bearer <key> or X-API-Key header.',
     })
   }
-  if (!hasScope(ctx, 'pos:write') && !hasScope(ctx, 'store_ops:write')) {
+  if (!hasApiKeyScope(ctx, 'pos:write') && !hasApiKeyScope(ctx, 'store_ops:write')) {
     throw createError({
       statusCode: 403,
       statusMessage: 'API key lacks pos:write or store_ops:write',

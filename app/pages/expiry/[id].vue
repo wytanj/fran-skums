@@ -13,11 +13,10 @@ const {
 const batch = ref<ExpiryBatch | null>(null)
 const items = ref<ExpiryItem[]>([])
 const loading = ref(true)
-const message = ref('')
-const errorMsg = ref('')
-
-function showSuccess(msg: string) { message.value = msg; errorMsg.value = ''; setTimeout(() => (message.value = ''), 3000) }
-function showError(msg: string) { errorMsg.value = msg; message.value = '' }
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify } = useActionFeedback()
+function showSuccess(msg: string) { notify.success(msg) }
+function showError(msg: unknown) { notify.error(typeof msg === 'string' ? new Error(msg) : msg) }
 
 // Add item form
 const showItemForm = ref(false)
@@ -235,8 +234,6 @@ onMounted(loadData)
     </div>
 
     <!-- Messages -->
-    <div v-if="message" class="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{{ message }}</div>
-    <div v-if="errorMsg" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ errorMsg }}</div>
 
     <!-- Add actions -->
     <div class="flex flex-wrap gap-2">

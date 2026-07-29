@@ -21,6 +21,16 @@ const { currentWorkspace } = useWorkspace()
 const { locations, loadLocations } = useInventory()
 const { setContext, clearContext } = useAssistant()
 
+// Shared fixed toasts — define before any loaders that call showOk/showErr
+const { notify, runAction, isPending } = useActionFeedback()
+function showOk(message: string) {
+  notify.success(message)
+}
+function showErr(message: unknown) {
+  if (typeof message === 'string') notify.error(new Error(message))
+  else notify.error(message)
+}
+
 const {
   requests,
   orders,
@@ -407,18 +417,6 @@ async function confirmInbound(shipment: any) {
   }
 }
 
-const toast = ref('')
-const toastError = ref('')
-function showOk(message: string) {
-  toast.value = message
-  toastError.value = ''
-  setTimeout(() => (toast.value = ''), 3500)
-}
-function showErr(message: string) {
-  toastError.value = message
-  toast.value = ''
-}
-
 const posLocations = ref<PosLocation[]>([])
 
 async function loadPosLocations() {
@@ -438,7 +436,8 @@ async function loadPosLocations() {
 }
 
 async function refreshAll() {
-  await Promise.all([
+  // allSettled so one failing API (e.g. floor adjustments join) does not block the page
+  await Promise.allSettled([
     loadLocations(),
     loadPosLocations(),
     loadStoreOperations(),
@@ -587,7 +586,6 @@ function qtyLabel(value: number | null | undefined) {
   return Number(value || 0).toLocaleString()
 }
 
-const requestSaving = ref(false)
 const showRequestForm = ref(false)
 const requestForm = ref({
   request_type: 'manual' as StoreReplenishmentRequestType,
@@ -625,15 +623,15 @@ function resetRequestForm() {
 async function handleCreateRequest() {
   if (!currentWorkspace.value?.id) return showErr('No workspace selected')
   const validLines = requestLines.value.filter(line => line.sku.trim() && Number(line.requested_qty) > 0)
-  if (!validLines.length) return showErr('Add at least one SKU line')
+  if (!validLines.length) return showErr('Add at least one SKU line with a quantity above zero')
 
-  requestSaving.value = true
-  try {
+  const result = await runAction(
+    'request.create',
     // Server API: scope-checked + service-role write (avoids RLS RETURNING failures)
-    await $fetch('/api/store-ops/requests', {
+    () => $fetch<any>('/api/store-ops/requests', {
       method: 'POST',
       body: {
-        workspace_id: currentWorkspace.value.id,
+        workspace_id: currentWorkspace.value!.id,
         request_type: requestForm.value.request_type,
         priority: requestForm.value.priority,
         source_type: 'skums',
@@ -648,69 +646,81 @@ async function handleCreateRequest() {
           reason: line.reason || null,
         })),
       },
-    })
-    showOk('Request submitted to HQ queue (not sent to Loft)')
-    showRequestForm.value = false
-    resetRequestForm()
-    await loadStoreOperations()
-  } catch (e: any) {
-    const msg =
-      e?.data?.statusMessage
-      || e?.data?.message
-      || e?.statusMessage
-      || e?.message
-      || 'Failed to create request'
-    showErr(msg)
-  } finally {
-    requestSaving.value = false
-  }
+    }),
+    { errorFallback: 'Failed to create request' },
+  )
+  if (!result) return
+
+  // Name the artifact so the user can find it in the queue below.
+  const number = result?.data?.request?.request_number
+  notify.success(
+    number ? `Request ${number} submitted to HQ queue` : 'Request submitted to HQ queue',
+    `${validLines.length} line${validLines.length === 1 ? '' : 's'} · not sent to Loft — HQ must approve first.`,
+  )
+  showRequestForm.value = false
+  resetRequestForm()
+  await loadStoreOperations()
 }
 
 async function setRequestStatus(request: StoreReplenishmentRequest, status: StoreReplenishmentRequestStatus) {
-  const { error } = await updateReplenishmentRequestStatus(request.id, status)
-  if (error) showErr(error.message)
-  else showOk(`Request ${status.replace('_', ' ')}`)
+  await runAction(
+    `request.status.${request.id}`,
+    async () => {
+      const { error } = await updateReplenishmentRequestStatus(request.id, status)
+      if (error) throw error
+    },
+    { success: `Request ${request.request_number} ${status.replace('_', ' ')}` },
+  )
 }
 
 async function convertRequestToOrder(request: StoreReplenishmentRequest) {
-  const { data: lines, error: lineError } = await loadRequestLines(request.id)
-  if (lineError) return showErr(lineError.message)
-  if (!lines.length) return showErr('Request has no lines')
+  await runAction(`request.convert.${request.id}`, async () => {
+    const { data: lines, error: lineError } = await loadRequestLines(request.id)
+    if (lineError) throw lineError
+    if (!lines.length) throw new Error('Request has no lines to convert')
 
-  const { error } = await createReplenishmentOrder(
-    {
-      request_id: request.id,
-      status: 'approved',
-      priority: request.priority,
-      source_location_id: defaultSourceLocation.value?.id || null,
-      destination_location_id: request.store_location_id || defaultStoreLocation.value?.id || null,
-      pos_location_id: request.pos_location_id,
-      metadata: { created_from: 'store_replenishment_request', request_number: request.request_number },
-    },
-    lines.map(line => ({
-      product_identity_id: line.product_identity_id,
-      trade_unit_id: line.trade_unit_id,
-      listing_id: line.listing_id,
-      channel_id: line.channel_id,
-      sku_assignment_id: line.sku_assignment_id,
-      identifier_id: line.identifier_id,
-      product_id: line.product_id,
-      variant_id: line.variant_id,
-      sku: line.sku,
-      requested_qty: line.requested_qty,
-      approved_qty: line.approved_qty ?? line.requested_qty,
-      metadata: line.metadata,
-    })),
-  )
+    const { error } = await createReplenishmentOrder(
+      {
+        request_id: request.id,
+        status: 'approved',
+        priority: request.priority,
+        source_location_id: defaultSourceLocation.value?.id || null,
+        destination_location_id: request.store_location_id || defaultStoreLocation.value?.id || null,
+        pos_location_id: request.pos_location_id,
+        metadata: { created_from: 'store_replenishment_request', request_number: request.request_number },
+      },
+      lines.map(line => ({
+        product_identity_id: line.product_identity_id,
+        trade_unit_id: line.trade_unit_id,
+        listing_id: line.listing_id,
+        channel_id: line.channel_id,
+        sku_assignment_id: line.sku_assignment_id,
+        identifier_id: line.identifier_id,
+        product_id: line.product_id,
+        variant_id: line.variant_id,
+        sku: line.sku,
+        requested_qty: line.requested_qty,
+        approved_qty: line.approved_qty ?? line.requested_qty,
+        metadata: line.metadata,
+      })),
+    )
 
-  if (error) return showErr(error.message)
-  showOk('Replenishment order created')
+    if (error) throw error
+  }, {
+    success: `Replenishment order created from ${request.request_number}`,
+    successDetail: 'Still internal — not sent to Loft until you send it explicitly.',
+  })
 }
 
 async function setOrderStatus(order: StoreReplenishmentOrder, status: StoreReplenishmentOrderStatus) {
-  const { error } = await updateReplenishmentOrderStatus(order.id, status)
-  if (error) showErr(error.message)
-  else showOk(`Order ${status.replaceAll('_', ' ')}`)
+  await runAction(
+    `order.status.${order.id}`,
+    async () => {
+      const { error } = await updateReplenishmentOrderStatus(order.id, status)
+      if (error) throw error
+    },
+    { success: `Order ${status.replaceAll('_', ' ')}` },
+  )
 }
 
 const receivingSaving = ref(false)
@@ -879,12 +889,17 @@ async function handleCreateException() {
 }
 
 async function setExceptionStatus(exception: InventoryException, status: InventoryExceptionStatus) {
-  const { error } = await updateExceptionStatus(exception.id, status, {
-    updated_from: 'store_ops',
-    status,
-  })
-  if (error) showErr(error.message)
-  else showOk(`Exception ${status.replace('_', ' ')}`)
+  await runAction(
+    `exception.status.${exception.id}`,
+    async () => {
+      const { error } = await updateExceptionStatus(exception.id, status, {
+        updated_from: 'store_ops',
+        status,
+      })
+      if (error) throw error
+    },
+    { success: `Exception ${status.replace('_', ' ')}` },
+  )
 }
 
 onMounted(refreshAll)
@@ -910,8 +925,6 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
     </div>
 
-    <div v-if="toast" class="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{{ toast }}</div>
-    <div v-if="toastError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ toastError }}</div>
 
     <div
       v-if="inboxUnread > 0 && activeTab !== 'inbox'"
@@ -1088,8 +1101,8 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
 
       <div class="flex justify-end">
-        <button class="btn-primary" :disabled="requestSaving">
-          Create request
+        <button class="btn-primary" :disabled="isPending('request.create')">
+          {{ isPending('request.create') ? 'Creating request…' : 'Create request' }}
         </button>
       </div>
     </form>
@@ -1131,7 +1144,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               :disabled="decideSaving === request.id"
               @click="decideRequest(request, 'approve_now')"
             >
-              Lift now
+              {{ decideSaving === request.id ? 'Working…' : 'Lift now' }}
             </button>
             <button
               v-if="['submitted', 'in_review'].includes(request.status)"
@@ -1144,13 +1157,14 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             <button
               v-if="request.status === 'deferred_to_wave'"
               class="btn-secondary !px-3 !py-1.5 text-xs"
+              :disabled="isPending(`request.convert.${request.id}`)"
               @click="convertRequestToOrder(request)"
             >
-              Convert (legacy)
+              {{ isPending(`request.convert.${request.id}`) ? 'Converting…' : 'Convert (legacy)' }}
             </button>
             <button
               v-if="['submitted', 'in_review', 'deferred_to_wave'].includes(request.status)"
-              class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10"
+              class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-50"
               :disabled="decideSaving === request.id"
               @click="decideRequest(request, 'reject')"
             >
@@ -1194,19 +1208,19 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             <p class="text-xs text-gray-500">{{ qtyLabel(order.total_received_qty) }} received</p>
           </div>
           <div class="flex flex-wrap gap-2 xl:justify-end">
-            <button v-if="order.status === 'approved'" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setOrderStatus(order, 'queued')">
-              Queue
+            <button v-if="order.status === 'approved'" class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'queued')">
+              {{ isPending(`order.status.${order.id}`) ? 'Working…' : 'Queue' }}
             </button>
-            <button v-if="['approved', 'queued'].includes(order.status)" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setOrderStatus(order, 'sent_to_3pl')">
+            <button v-if="['approved', 'queued'].includes(order.status)" class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'sent_to_3pl')">
               Sent
             </button>
-            <button v-if="order.status === 'sent_to_3pl'" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setOrderStatus(order, 'acknowledged')">
+            <button v-if="order.status === 'sent_to_3pl'" class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'acknowledged')">
               Ack
             </button>
-            <button v-if="['acknowledged', 'sent_to_3pl'].includes(order.status)" class="btn-secondary !px-3 !py-1.5 text-xs" @click="setOrderStatus(order, 'shipped')">
+            <button v-if="['acknowledged', 'sent_to_3pl'].includes(order.status)" class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'shipped')">
               Shipped
             </button>
-            <button class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10" @click="setOrderStatus(order, 'exception')">
+            <button class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-50" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'exception')">
               Exception
             </button>
           </div>
@@ -1794,7 +1808,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             </div>
             <div class="text-sm space-y-1">
               <div v-for="line in (adj.lines || [])" :key="line.id" class="text-gray-300">
-                <span class="font-mono">{{ line.product?.sku || line.product_id?.slice?.(0, 8) }}</span>
+                <span class="font-mono">{{ line.product?.sku || line.product?.title || line.product_id?.slice?.(0, 8) }}</span>
                 <span class="text-gray-500"> · sys {{ line.system_qty ?? '—' }} → count {{ line.counted_qty }}</span>
               </div>
             </div>

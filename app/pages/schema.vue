@@ -24,7 +24,8 @@ const view = ref<'tree' | 'json' | 'resolved'>('tree')
 const showCreateModal = ref(false)
 const showAddPropertyModal = ref(false)
 const saving = ref(false)
-const errorMsg = ref('')
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify } = useActionFeedback()
 
 const createForm = reactive({
   name: '',
@@ -52,7 +53,7 @@ function autoSlug() {
 async function handleCreate() {
   if (!createForm.name.trim() || !createForm.slug.trim()) return
   saving.value = true
-  errorMsg.value = ''
+
   try {
     const newSchema = await createSchema({
       name: createForm.name,
@@ -68,7 +69,7 @@ async function handleCreate() {
     await fetchSchemas()
     activeSchemaId.value = newSchema.id
   } catch (e: any) {
-    errorMsg.value = e.message
+    notify.error(e)
   } finally {
     saving.value = false
   }
@@ -89,7 +90,7 @@ function openAddProperty(group = '') {
 async function handleAddProperty() {
   if (!activeSchema.value || !propertyForm.key.trim()) return
   saving.value = true
-  errorMsg.value = ''
+
 
   try {
     const schema = JSON.parse(JSON.stringify(activeSchema.value.schema)) as ProductSchemaDefinition
@@ -126,7 +127,7 @@ async function handleAddProperty() {
     showAddPropertyModal.value = false
     await fetchSchemas()
   } catch (e: any) {
-    errorMsg.value = e.message
+    notify.error(e)
   } finally {
     saving.value = false
   }
@@ -229,7 +230,6 @@ onMounted(async () => {
       </button>
     </div>
 
-    <div v-if="errorMsg" class="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ errorMsg }}</div>
 
     <div class="flex gap-6">
       <!-- Schema List (Left Panel) -->

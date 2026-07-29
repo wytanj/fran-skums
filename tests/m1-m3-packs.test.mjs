@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 import { hasScope, expandScopePackage, defaultMcpPackageForRole } from '../server/utils/scopes.ts'
-import { hasScope as apiKeyHasScope } from '../server/utils/apiAuth.ts'
+import { hasApiKeyScope as apiKeyHasScope } from '../server/utils/apiAuth.ts'
 import { resolveCloudMcpScopes } from '../mcp/src/context.mjs'
 import { listToolsForTransport } from '../mcp/src/httpProtocol.mjs'
 import { isToolPermitted } from '../mcp/src/toolScopes.mjs'
@@ -72,7 +72,7 @@ describe('Phase P empty non-MCP keys ≠ full', () => {
     assert.equal(hasScope(['*'], 'pos:write'), true)
   })
 
-  test('apiAuth hasScope empty key denies', () => {
+  test('apiAuth hasApiKeyScope empty key denies', () => {
     assert.equal(apiKeyHasScope({ scopes: [] }, 'pos:write'), false)
     assert.equal(apiKeyHasScope({ scopes: ['pos:write'] }, 'pos:write'), true)
     assert.equal(apiKeyHasScope({ scopes: ['*'] }, 'store_ops:approve'), true)

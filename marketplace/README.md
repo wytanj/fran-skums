@@ -78,7 +78,7 @@ Two runtimes:
 | Runtime | Flag | Behavior |
 |---------|------|----------|
 | **Mode A — script** | (default) / `--headed` | Fast `goto` + `window.scrollBy`; timed captcha wait |
-| **Mode B — computer** | `--computer` | Headed + real mouse moves + wheel scroll + **press Enter** after captcha (Perplexity Computer–style; keep machine on) |
+| **Mode B — computer** | `--computer` | Headed + real mouse moves + wheel scroll; on captcha it **polls for recovery** (MH-9) — no keypress needed, works with no TTY |
 
 ```bash
 # MH-2 All Products only (script)
@@ -102,7 +102,7 @@ node scripts/mall-all-products-harvest.mjs --workspace <uuid> --brand beauty-of-
 
 Writes name + sold + `shop_collection_*` into listings/snapshots. Profile: `.shopee-chrome-profile`.
 
-**Mode B ops:** leave the Chrome window visible; when the terminal says solve captcha, fix it in Chrome, then press **Enter** in the terminal (not only wait). Module: `marketplace/computerHarvest.mjs`.
+**Mode B ops:** leave the Chrome window visible. When the terminal says solve captcha, fix it in Chrome — the run detects the clear by polling and resumes on its own (Enter only re-checks sooner). After `--recovery-minutes` it cools the brand down and moves on. Modules: `marketplace/computerHarvest.mjs` (`waitForRecovery`) · `marketplace/harvestNotify.mjs` (Phase N pings).
 
 **Captcha-resistant:** start Chrome with `--remote-debugging-port=9222` and pass `--connect` (see `docs/MALL_BRAND_CYCLE_RUNBOOK.md`).
 

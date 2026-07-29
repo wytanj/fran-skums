@@ -889,7 +889,7 @@ export async function floorAdjustmentQueue(opts = {}) {
     .select(
       `id, adjustment_number, status, adjustment_type, notes, location_id, created_at, updated_at,
        location:inventory_locations(id, code, name),
-       lines:inventory_adjustment_lines(id, product_id, system_qty, counted_qty, reason, product:products(id, sku, name))`,
+       lines:inventory_adjustment_lines(id, product_id, system_qty, counted_qty, reason, product:products(id, sku, title))`,
     )
     .eq('workspace_id', workspace_id)
     .in('status', statuses)

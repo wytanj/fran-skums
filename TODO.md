@@ -1,12 +1,13 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-27  
+**Date:** 2026-07-28  
 **Production:** https://fran-skums.vercel.app  
 **DB:** migrations **001–074** (… **073** workspace_crm_links · **074** Help crm-pos-skums-setup).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
-**Brand radar / Mall harvest:** Track **BR** — **MH-1–7 + cycle + MCP brand slices done** · ops: finish link · Discover · `mall-brand-cycle --connect`  
+**Brand radar / Mall harvest:** Track **BR** — **MH-1–9 eng done** · **live bulk scrape paused 2026-07-29** (captcha; Chrome closed) · **~19 single-brand list OK / ~51 need** · see **`docs/scrape-summary.md`** · next: warm CDP → resume queue · MH-4 deepen · distributors later  
+
 **Loyalty FWB:** Track **L** — L-pos / L-skums / CRM L-base **slice 1 done** · CRM mig **0010** applied · next: persist commit_sale + POS vouchers  
-**Demand forecast:** Track **FC** — architecture in **`docs/FORECASTING_ARCHITECTURE.md`** · next FC-1 after/with **K Rpt-6**  
+**Demand forecast:** Track **FC** — architecture in **`docs/FORECASTING_ARCHITECTURE.md`** · **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
 **MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`) — redeploy SKUMS for Claude  
 **Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
 
@@ -17,6 +18,7 @@
 | **This file** | Implementation queue + MCP #1–8 index |
 | **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
 | **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
+| **`docs/scrape-summary.md`** | **2026-07-28 live Mall scrape stop** — done/need/cooldown/MH-4 redo + resume cmd |
 | **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
 | **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B · anti “Excel→LLM” |
 | **`docs/loyaltys.pdf`** | FWB business rules (tiers, expiry, redeem dens, earn formula) |
@@ -33,10 +35,11 @@
 
 ## Start here next
 
-**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–7** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
+**Shipped:** Loft P–F · remote MCP · composites **#1–8** · **BR MH-1–9** · ext multi-brand · mig **070–071** · **MCP two-bucket routing** (Mall harvest vs catalog/stock).  
 **Track L (FWB):** slice 1 on POS + SKUMS + CRM · **CRM 0010 point batches applied**.  
-**Next (loyalty M5 live demo):** SKUMS HQ Integrations → Fran CRM link (or `FRAN_CRM_BASE_URL`) on **test** workspace · POS Live + SKUMS key · smoke **FRAN-0001**. Parallel: Jan-1 job · **K Rpt-6** + **FC-1** (see forecasting arch) · BR harvest · Loft Phase 0.  
-**Shopee collect:** Windows warm Chrome + `--connect`; extension Link/Discover/multi-brand; CLI multi-page + MH-4. Browserbase **not** primary.  
+**Next (loyalty M5 live demo):** SKUMS HQ Integrations → Fran CRM link (or `FRAN_CRM_BASE_URL`) on **test** workspace · POS Live + SKUMS key · smoke **FRAN-0001**. Parallel: Jan-1 job · **FC-2/3** · Loft Phase 0.  
+**Shopee / BR harvest (2026-07-28):** **Stopped for day — captcha.** Live pass used warm Chrome `--connect`, humanize, `_harvest_queue.mjs` (single-brand only, mh4 10→**40**, stall 18m / brand 90m). **~12 list OK** · **~65 single-brand still need list** · distributors deferred · MH-4 deepen later (`.mh4-redo.json`). Full snapshot: **`docs/scrape-summary.md`**. Resume cmd in that doc. Do **not** thrash captcha session same day.  
+
 **Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug** (e.g. `beauty-of-joseon`); not free-text `market_search`.  
 **Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall sold as ATS.  
 **Ops (reports cron):** `CRON_SECRET` / mig **067**; Hobby daily UTC.  
@@ -54,13 +57,13 @@
 | **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
 | **I** | MCP M1–M3 packs | **Shipped** |
 | **J** | **Supplier order lifecycle (KR/HK)** | **Design + Help 072 done** · next Phase 0 actors / J1 product |
-| **K** | **Agentic report registry** | **Rpt-0–5 done** · next Rpt-6 (feeds FC) |
-| **FC** | **Demand forecast studio** | **Arch done** · next FC-1 foundation · see `docs/FORECASTING_ARCHITECTURE.md` |
+| **K** | **Agentic report registry** | **Rpt-0–6 done** · hybrid live sections · next HQ demand pack seed optional |
+| **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2 runs / FC-3 path A/B drafts · `docs/FORECASTING_ARCHITECTURE.md` |
 | **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Slice 2.3 vouchers + POS scan UI** · next Jan-1 job / campaigns |
 | **S** | **Login MFA = Google Workspace** | **Planned (ops policy)** |
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
-| **G** | **Shopee / marketplace collect** | **Windows primary locked** |
-| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–7 + analysis done** — **ops harvest** next |
+| **G** | **Shopee / marketplace collect** | **Windows primary locked** · **G2 absorbed by MH-11** (don't build twice) |
+| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–9 done** · **bulk scrape paused** (captcha 2026-07-28) · **`docs/scrape-summary.md`** · resume single-brand queue + MH-4 redo |
 | **WEB** | **Fran web → store** | **Parked in `TODO-WEB.md`** |
 
 ## Track L — Fran’s With Benefits (loyalty execution)
@@ -323,13 +326,14 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 | **Rpt-3** | Cron runner + deliver in_app / Slack (Phase N) | **Done** (`/api/internal/reports/cron-tick`, mig **067**, `vercel.json` daily UTC; Hobby limit) |
 | **Rpt-4** | MCP `reports_list` / `get` / `run` | **Done** |
 | **Rpt-5** | n8n webhook out + `POST` run API | **Done** (`POST /api/v1/reports/run`, webhook on channel/metadata) |
-| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance stubs | **Next** |
+| **Rpt-6** | Real sections: velocity MA, store_fill vs supplier_buy, sales category, finance, ops, data quality | **Done** (`core/reports/sections.mjs` `runReportSections`; hybrid live+stub) |
 
 **Depends on:** Phase N bus (shipped) · velocity views (`v_demand_velocity` exists) · ATS / store ops (shipped).  
-**Code:** `server/utils/reportRegistry.ts` · `core/reports/schedule.mjs` · `mcp/src/lib/reports.mjs` · `app/pages/reports/index.vue`.  
+**Code:** `server/utils/reportRegistry.ts` · `core/reports/sections.mjs` · `core/reports/schedule.mjs` · `mcp/src/lib/reports.mjs` · `app/pages/reports/index.vue`.  
 **Cron auth:** `REPORTS_CRON_SECRET` or `CRON_SECRET` / marketplace / queue secrets.  
 **n8n webhook URL:** subscription `metadata.webhook_url` or workspace_notification_settings `metadata.automations_webhook_url` + channel `webhook`.  
-**Forecasting:** Rpt-6 section payloads are the **shared L1 truth** for Track **FC** (`docs/FORECASTING_ARCHITECTURE.md`). Do not recompute portfolio velocity on every chat or ad-hoc LLM call.
+**Forecasting:** Rpt-6 section payloads are the **shared L1 truth** for Track **FC** (`docs/FORECASTING_ARCHITECTURE.md`). Do not recompute portfolio velocity on every chat or ad-hoc LLM call.  
+**Tests:** `tests/report-registry-rpt6.test.mjs`.
 
 ---
 
@@ -337,16 +341,16 @@ Moving average: recompute **nightly** (or post-sales batch) into snapshot; repor
 
 **Architecture:** [`docs/FORECASTING_ARCHITECTURE.md`](./docs/FORECASTING_ARCHITECTURE.md)  
 **Research notes:** `grok-forecasting.md` · `claude-forecast.md` (stack + Gen Z beauty / Luckin ROI order)  
-**Today:** `/forecasting` = reorder/expiry/events tables + one-shot `grok-3-mini` “method theatre” (`server/api/forecast.post.ts`). No path A/B actions, no run history, no MCP forecast tools.  
+**Today:** `/forecasting` = HQ chrome + multi-select + path A/B **hints** + AI explain (velocity loaded, daily series when present). Rpt-6 handlers live for portfolio path A/B. Still no draft actions / run history / MCP forecast tools.  
 **Target:** decision studio — deterministic views + K snapshots as floor; frontier models as **context/orchestrator**; TSFM later for distributions; drafts only (store_fill vs supplier_buy).
 
 | Slice | Work | Status |
 |-------|------|--------|
 | **FC-0** | Architecture doc + TODO index | **Done** (2026-07-27) |
-| **FC-1** | Foundation: velocity load, daily series, HQ chrome, multi-select queue | **Next eng** (with/after Rpt-6 start) |
-| **FC-2** | Persist `forecast_runs`; honest model/mode picker | Planned |
+| **FC-1** | Foundation: velocity load, daily series, HQ chrome, multi-select queue, path hints | **Done** (2026-07-27) |
+| **FC-2** | Persist `forecast_runs`; honest model/mode picker | **Next eng** |
 | **FC-3** | Path A/B → draft store request / draft PO | Planned (pairs M6 · **J**) |
-| **FC-4** | Bind UI to K Rpt-6 demand/reorder sections | Planned (needs Rpt-6) |
+| **FC-4** | Bind UI to last K demand/reorder section payload | Planned (Rpt-6 handlers ready) |
 | **FC-5** | MCP `forecast_snapshot` / `run` / `get` / `recommend_actions` | Planned |
 | **FC-6** | Context: Excel → Sheets/Airtable via MCP tool log | Planned |
 | **FC-7+** | Event registry UX · read-and-react · TSFM · app funnel · causal promo | Later (see arch §9) |
@@ -576,6 +580,8 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 - [x] Migration **066** report registry on shared project
 - [x] Migration **067** report.run.completed policy on shared project
 - [x] Migration **068** marketplace brand universe on shared project (local applied 2026-07-20)
+- [ ] **Apply migration 075** (`npm run db:migrate`) — MH-9 harvest notification policies
+- [ ] Set **`SKUMS_API_BASE`** + **`MARKETPLACE_CRON_SECRET`** locally for MH-9 blocked/recovered pings
 - [ ] Confirm prod deploy green after each push
 - [ ] Confirm prod DB has **063–068** if not same project as local migrate
 - [ ] Set Vercel **`CRON_SECRET`** (or REPORTS_CRON_SECRET) for hourly report cron
@@ -656,7 +662,21 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 
 **Design (overview):** `docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`  
 **Samples:** `extensions/sample-beauty-of-joseon/` (Mall grid) · `extensions/sample-serum-joseon.html` (PDP breadcrumb)  
-**Workspace pilot:** `c21c057f-ea01-4e19-bc79-fafcf2626b19` (125 brands imported; BOJ shop confirmed)
+**Workspace pilot:** `c21c057f-ea01-4e19-bc79-fafcf2626b19` (125 brands imported; BOJ shop confirmed)  
+**Live scrape snapshot (2026-07-28):** **`docs/scrape-summary.md`** · local state `.mall-cycle-state.json` · MH-4 redo `.mh4-redo.json` · queue `scripts/_harvest_queue.mjs`
+
+### Live bulk scrape — paused 2026-07-28 (captcha)
+
+| | |
+|--|--|
+| **Status** | **Stopped for day** — captcha triggered mid **beauty-of-joseon**; harvest processes killed |
+| **List OK** | **~12** brands (see scrape-summary table) |
+| **Still need (single-brand)** | **~65** |
+| **Deferred** | Multi-brand distributors (`beautyhaussg`, `younfamily.sg`) via `--single-brand-only` |
+| **Cooldown / stuck** | amuse, anua, banila-co (retry later) |
+| **MH-4** | Most done brands only top **10** PDPs; queue later set **mh4-top 40** — **deepen all list-OK via redo list** |
+| **Cadence learned** | Warm CDP session ≈ one captcha then OK; humanize short gaps when warm; machine **sleep freezes** CDP; stall kill advances queue |
+| **Next ops** | Fresh day → warm Chrome → resume queue (cmd in scrape-summary) → finish single-brand → optional distributors → MH-4 redo pass |
 
 ### Goal (operator-facing)
 
@@ -737,9 +757,15 @@ sold_label · sold_count_lower_bound · title
 | **BR-A1** | **Brand listings query + CSV** — `GET .../brand-listings` · MCP `market_brand_listings` / `market_brand_export_csv` | **Done** |
 | **BR-A2** | **Brand summary** — sold bands, top SKUs, shelf mix · MCP `market_brand_summary` · `GET .../brand-summary` · local `export-brand-listings.mjs` | **Done** |
 | **BR-A3** | Optional SQL view “latest observation per listing”; brand scoreboard UI | Later |
-| **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | Planned |
-| **MH-6** | Scale pilot → mid (~50) → full (~125); collection crawl only where needed | Planned |
+| **MH-5** | Weekly schedule + stop_batch + resume; Task Scheduler recipe; materialize shop-primary seeds for confirmed usernames | **Blocked on MH-9 + MH-13** (not independently schedulable — see below) |
+| **MH-6** | Scale pilot → mid (~50) → full (~125); collection crawl only where needed | **Blocked on MH-11** (needs pacing data) |
 | **MH-7** | **Multi-brand distributor Malls** — `shop_kind`, resolve-distributor-shop API, title attribution, ext v0.6 flag + multi-select | **Done** |
+| **MH-8** | **Fix the hang + isolate failure** — `pdpEnrich` stale `health`/`breadcrumb` retry loop; per-brand `stop_batch` isolation + cooldown in `mall-brand-cycle`; tighten `detectSessionHealth` (unknown ≠ ok; drop `robot`/`try again` substrings; `productCount` corroboration) | **Done** (2026-07-27) |
+| **MH-9** | **Poll-for-recovery + notify** — `waitForRecovery({probe, deadlineMs})` replaces the blocking `waitForEnter` in list + PDP paths; TTY Enter is an accelerator; Phase N `marketplace.harvest.blocked/recovered` (mig **075**) via `POST /api/internal/marketplace/harvest-event`. **Unlocks cron** | **Done** (2026-07-27) — mig 075 **pending apply** |
+| **MH-10** | **Item endpoint investigation** — wire existing `page.on('response')` interceptor into Mall path **log-only**; record real endpoints/params/shape; then decide on in-page `fetch()` pagination (DOM stays fallback) | Next (zero-risk step 1) |
+| **MH-11** | **Persist harvest health + adaptive pacing** — reuse `marketplace_crawl_seeds` `last_error`/`consecutive_failures`/`next_run_at`; per-shop cooldown + backoff + jitter; daily nav cap; brands spread ~18/day. **Closes G2** | Planned |
+| **MH-12** | **Completeness on writes** — `pages_fetched` / `harvest_complete` / `stopped_reason` in snapshot `signals`; `brand-listings` / `market_brand_summary` / PR-4 WoW flag or exclude truncated runs | Planned (cheap; do early) |
+| **MH-13** | **Schedule it** (delivers MH-5) — Task Scheduler → `mall-brand-cycle --connect --skip-done` on the MH-11 daily slice | Planned |
 | **PR-4** | Brand `metrics_daily` rollup + WoW (after harvest data exists) | After MH-2 |
 | **PR-5** | Report pack `marketplace-brand-weekly` | After PR-4 |
 | **PR-6** | Weekly Grok brief → `bi_digests` | After PR-5 |
@@ -751,15 +777,48 @@ sold_label · sold_count_lower_bound · title
 
 ```text
 1–7. MH-1…MH-4 + Mode B + ext Link + multi-brand (MH-7) + brand MCP slices ✅
-8. Ops: finish link 125 · Discover · mall-brand-cycle --connect (list + MH-4)
+8. Unattended harvest (eng):  MH-8 → MH-9 → MH-12 → MH-10 (investigate) → MH-11 → MH-13
+     MH-8/MH-9 are the actual unblock; MH-12 is cheap and guards the new failure mode;
+     MH-10 step 1 is log-only and can run in parallel with any of them.
+8b. Ops (parallel human track): finish link 125 · Discover collections
 9. Sheets / MCP: market_brand_summary · export_csv
-10. MH-5 weekly automation
-11. PR-4+ brand metrics / report pack
+10. MH-5 weekly automation  ← delivered by MH-13
+11. PR-4+ brand metrics / report pack  ← needs MH-12 or WoW reports fake declines
 12. WEB (TODO-WEB.md): store-routing site + offer ladder when prioritized
 ```
 
 **Operator cycle doc:** `docs/MALL_BRAND_CYCLE_RUNBOOK.md` · **Web plan:** `TODO-WEB.md`
 
+### MH-8–13 — Unattended harvest under captcha (2026-07-27)
+
+**Full plan:** local only (not in repo) — `~/.claude/plans/distributed-zooming-church.md`. Everything needed to execute is summarised below + in the MH-8–13 slice rows above.
+
+**Why MH-5/MH-6 never moved:** not missing features — the harvest loop is **human-synchronous**. Captcha recovery is `waitForEnter()` on a TTY keypress (`computerHarvest.mjs`). You cannot cron a keypress. Non-TTY doesn't poll for recovery, it **sleeps blindly**. At ~400–600 navigations/week × 20–30s, MH-6 today means multi-day attended babysitting.
+
+**Separate two things that get conflated as "the harvest":**
+
+| | Cadence | Who |
+|---|---------|-----|
+| **Onboarding a brand** — Link Mall→brand, Discover shelves | Once per brand | **Stays human** (judgment: which storefront is official, which brands a distributor carries). MH-8–13 does *not* touch this |
+| **Weekly harvest** — list pages + PDP paths for linked brands | Every week, ~125 brands | **Becomes unattended** |
+
+**Operator process — today vs intended (weekly harvest only):**
+
+| | Today | Intended |
+|---|---|---|
+| Trigger | Operator types a command per brand | Task Scheduler, daily slice (~18/day) |
+| Captcha recovery | Terminal bell → alt-tab → solve → **press Enter** (run frozen until then) | Slack/in-app ping → solve whenever → auto-resume |
+| Operator presence | Required for the whole pass | Only to react to a ping |
+| One brand blocked | **Whole run stops** | That brand cools down, run continues |
+| Blocked history | Console + local `.mall-cycle-state.json` | Persisted → drives pacing + G2 UI |
+| Truncated data | Looks identical to a real sold decline | Flagged; excluded from WoW |
+| Weekly cost | Attended, multi-day at 125 brands | Check Slack a couple of times |
+
+**Standing prerequisite (manual by design):** debug Chrome stays logged in and running. That warm authenticated profile is what keeps the block rate low — it is not an oversight.
+
+**Reuse (already in repo, unused by this path):** `marketplace_crawl_seeds` already has `last_error` / `consecutive_failures` / `last_success_at` / `next_run_at` / `preferred_hour` / `timezone` (mig **047**) — use it instead of `.mall-cycle-state.json` · Phase N bus `server/utils/notifications.ts` (in_app + Slack) replaces the terminal bell · `mapApiItemToCard` already maps `item_basic.historical_sold` → exact integer if MH-10 proves out · `marketplace/scheduler.mjs` already builds `next_run_at`.
+
+**Rules:** captcha is a **scheduling signal**, not a stop condition · truncated harvest ≠ sold decline · unknown health ≠ `ok` · keep DOM extract as fallback if MH-10 ships.
 
 ### Current pilot state (2026-07-21)
 
@@ -772,6 +831,7 @@ sold_label · sold_count_lower_bound · title
 | Extension | **v0.6** Link + multi-brand distributor + copy brand name; **Reload** after pull |
 | Prod API | brand-universe + resolve-shop + resolve-distributor-shop + brand-listings/summary + shop-harvest |
 | DB | mig **070** shop_kind · **071** skums_migrations RLS (applied via `npm run db:migrate`) |
+| ~~Known bug (MH-8)~~ | **Fixed 2026-07-27.** `pdpEnrich` retry loop reassigns `health`/`breadcrumb` each round, retries **only** captcha/login (a healthy PDP with no `BreadcrumbList` returns immediately), caps rounds + wall-clock, and returns current health. `mall-brand-cycle` cools a blocked brand down (`cooldown_until`, default 6h) and continues; aborts only after 3 consecutive blocks (exit **2**). `detectSessionHealth` no longer defaults unknown→`ok`. |
 
 ### Code map
 
@@ -785,6 +845,10 @@ sold_label · sold_count_lower_bound · title
 | MH-4 PDP platform path | `marketplace/parseBreadcrumb.mjs` · `pdpEnrich.mjs` · `scripts/mall-pdp-breadcrumb-enrich.mjs` |
 | Brand cycle runbook | `docs/MALL_BRAND_CYCLE_RUNBOOK.md` |
 | Full cycle automation (list+MH-4) | `scripts/mall-brand-cycle.mjs` · `.mall-cycle-state.json` · captcha-only pause |
+| **Captcha recovery (MH-9)** | `waitForRecovery` in `marketplace/computerHarvest.mjs` (replaces blocking `waitForEnter`; used by `pdpEnrich` too) |
+| **Harvest pings (MH-9)** | `marketplace/harvestNotify.mjs` → `POST /api/internal/marketplace/harvest-event` → `server/utils/notifications.ts` · policies mig **075** · env `SKUMS_API_BASE` + `MARKETPLACE_CRON_SECRET` |
+| **Harvest pacing store (MH-11)** | `marketplace_crawl_seeds` (`last_error` / `consecutive_failures` / `next_run_at` / `preferred_hour`) — **not** `.mall-cycle-state.json` |
+| **Session health** | `marketplace/shopee/parseSearch.mjs` `detectSessionHealth` · fixtures `tests/marketplace-intelligence-phase1.test.mjs` |
 | Brand sheet slice (MCP/API) | `marketplace/brandListingsQuery.mjs` · `GET .../brand-listings` · `.../brand-summary` · MCP `market_brand_*` · `scripts/export-brand-listings.mjs` |
 | Brand guess (ext + tests) | `marketplace/guessBrandFromShop.mjs` · `extensions/.../brandMatch.js` |
 | Extension | `extensions/skums-shopee-shop-resolve/` (**v0.5** — Link + Discover + harvest) |
@@ -827,6 +891,12 @@ E. If captcha / stop_batch
    - Optional `--step` pauses after every page extract (press Enter to continue)
    - Keep Chrome window open; warm profile `.shopee-chrome-profile`
    - Do not use cold Browserbase as primary
+   - MH-9 (done): the run now **polls** for recovery — no Enter needed, works with no TTY.
+     Solve the captcha in Chrome whenever you see it; the run resumes on its own.
+     Enter still works as an accelerator. After --recovery-minutes (default 15) it
+     cools the brand down and moves to the next one.
+   - Pings: set SKUMS_API_BASE + MARKETPLACE_CRON_SECRET for Slack/in-app blocked
+     notifications (mig 075 policies). --no-notify to silence.
 
 F. MH-4 platform path (after list harvest has URLs)
    node scripts/mall-pdp-breadcrumb-enrich.mjs --workspace … --brand biodance --top 20 --computer --connect
@@ -870,6 +940,9 @@ Example: `amorepacific.hair.body.shop` → select Laneige + Ryo + … (whatever 
 - LLM inventing sold counts or category paths  
 - Browserbase-as-primary Mall crawl  
 - (Now) Stamping multi-brand distributor grids as a single brand_key  
+- **Captcha-solving services** — cost, fragility, and it fights the platform instead of reducing load on it  
+- **Treating a truncated (captcha-stopped) harvest as a real sold decline** — flag it, never average it into WoW  
+- **More stealth flags** — `--disable-blink-features=AutomationControlled` already set; CDP-attach to a real logged-in profile strictly dominates  
 
 
 ---
@@ -897,7 +970,7 @@ Unattended multi-seed overnight needs a job runner + writers. Extension is a **s
 | Slice | Work |
 |-------|------|
 | **G1** | Document + smoke **Windows local primary** path (cookie required; BB demoted in README defaults) | **Done** (marketplace README + weekly script) |
-| **G2** | Job status: surface `login_required` / captcha blocked clearly in UI + seed last_error |
+| **G2** | Job status: surface `login_required` / captcha blocked clearly in UI + seed last_error — **absorbed by BR MH-11**; build it there, not twice |
 | **G3** | Chrome extension: **shop resolve** shipped (`extensions/skums-shopee-shop-resolve`); cookie-export still optional |
 | **G4** | Task Scheduler / Windows worker recipe for nightly seeds |
 | **G5** | Revisit Browserbase only if plan gets non-Linux OS + persistent context works |
@@ -930,9 +1003,10 @@ Next eng:
   N   notifications N1–N4 ✅ · N5 digests / N6 email provider later
   R1  Claude connector ✅ tools live (URL /mcp/c/… + package expand)
   M1–M3 + inv manager + empty-key ≠ full ✅ (mig 065)
-  K   Rpt-0–5 ✅ · next Rpt-6 real section handlers
-  G   Shopee: local Windows + cookies primary; BB parked as primary
-  BR  brand radar PR-1–3 ✅ · next PR-4 brand metrics + WoW
+  K   Rpt-0–6 ✅ · hybrid live sections (velocity, path A/B, sales, finance…)
+  FC  FC-0–1 ✅ · next FC-2/3 runs + drafts
+  G   Shopee: local Windows + cookies primary; BB parked as primary (G2 → MH-11)
+  BR  brand radar PR-1–3 ✅ · MH-8–13 unattended harvest · then PR-4 metrics + WoW
   0.x Loft email / dictionary IDs → M4 send_to_loft
   J   supplier KR/HK (draft PO → affirm → FOB PDF → in_transit → ASN)
   P   install UI
@@ -940,7 +1014,7 @@ Next eng:
   F   audit explorer filters
 ```
 
-**Recommended next:** **Ops link shops (ext v0.5)** · **live harvest `--computer`** · **K Rpt-6** · Loft Phase 0 → **M4** · **J supplier** when buying · Phase S Workspace MFA (ops).  
+**Recommended next:** **BR MH-8/MH-9** (unattended harvest — fix hang, poll+notify) · Ops link shops (ext v0.6) in parallel · Loft Phase 0 → **M4** · **J supplier** when buying · Phase S Workspace MFA (ops).  
 **Owner model:** one owner appoints admins; many admins for ops/keys; login MFA = Google Workspace.  
 **Supplier rule:** MCP creates/edits **draft** POs; supplier affirm when known; **in transit only on FOB PDF** → ASN → Loft.  
 **Reports rule:** sectionized packs with **toggle**; `reports:*` / `automations:*` scopes; suggest ≠ execute.
@@ -964,17 +1038,18 @@ Next eng:
 
 1. ~~**M1–M3**~~ · ~~**Inventory-manager**~~ · ~~**K Rpt-0–5**~~  
 2. ~~**BR MH-1–3 + Mode B + ext Link**~~ — ops: link 125 · harvest w/ `--computer`  
-3. **BR PR-4+** — brand metrics → weekly pack → Grok brief (after harvest data)  
-4. **K Rpt-6** — real section handlers (velocity, store_fill, sales, finance)  
-4. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
-5. **J** supplier FOB lifecycle when buying focus  
+3. **BR MH-8–13** — unattended harvest under captcha (MH-8 hang fix → MH-9 poll+notify → MH-12 completeness → MH-10 investigate → MH-11 pacing → MH-13 schedule)  
+4. **BR PR-4+** — brand metrics → weekly pack → Grok brief (**after MH-12**, else WoW reports captcha stops as sold declines)  
+5. ~~**K Rpt-6**~~ · ~~**FC-1**~~ — next **FC-2/3** (forecast runs + path A/B drafts)  
+6. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  
+7. **J** supplier FOB lifecycle when buying focus  
 
 ### Product platforms (larger)
 
 | Track | Outcome |
 |-------|---------|
-| **K Agentic reports** | Rpt-0–5 shipped; **Rpt-6** real sections next (feeds FC) |
-| **FC Demand studio** | Arch done; **FC-1** foundation · path A/B · MCP · see `docs/FORECASTING_ARCHITECTURE.md` |
+| **K Agentic reports** | Rpt-0–**6** shipped (hybrid live sections) |
+| **FC Demand studio** | FC-0–1 done; next FC-2 runs · FC-3 drafts · see `docs/FORECASTING_ARCHITECTURE.md` |
 | **J Supplier KR/HK** | Draft PO editable; affirm; **FOB PDF → in transit → Loft ASN** |
 | Demand MA | Nightly velocity snapshot feeding K sections + reorder A/B + FC UI |
 
@@ -994,8 +1069,8 @@ R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Br
 
 ```text
 M1–M3 + Inventory Manager + empty-key ≠ full   ✅
-Rpt-0 → Rpt-5 (scopes, UI, cron, MCP, n8n)   ✅ (mig 066–067)
-  →  Rpt-6 real section handlers  +  FC-1 studio foundation
+Rpt-0 → Rpt-6 (scopes, UI, cron, MCP, n8n, live sections)   ✅
+FC-0 → FC-1 (arch + studio foundation)   ✅
   →  FC-2/3/4 runs + path A/B drafts bound to K
   →  FC-5 MCP forecast tools
   →  Loft Phase 0 ops · M4 send-to-loft

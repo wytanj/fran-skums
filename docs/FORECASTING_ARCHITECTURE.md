@@ -1,7 +1,7 @@
 # Demand forecasting architecture (Fran SKUMS)
 
-**Status:** Track **FC** (new) · feeds Track **K** Rpt-6 · actions via Store Ops + Track **J**  
-**Date:** 2026-07-27  
+**Status:** Track **FC** · **FC-0–1 done** · **K Rpt-6 live handlers done** · next FC-2/3 · actions via Store Ops + Track **J**  
+**Date:** 2026-07-27 (updated same day: Rpt-6 + FC-1)  
 **Queue:** root [`TODO.md`](../TODO.md)  
 **Sources:** `grok-forecasting.md` · `claude-forecast.md` · current `/forecasting` UI · `server/api/forecast.post.ts` · report registry (mig **066–067**)
 
@@ -208,7 +208,7 @@ Track letter **FC** keeps forecasting work visible next to **K / J / BR / L** wi
 | Slice | Work | Status | Blocks / pairs with |
 |-------|------|--------|---------------------|
 | **FC-0** | This doc + TODO.md index + Help stub later | **Done** (this file) | — |
-| **FC-1** | Foundation fix: load velocity, pass daily series when present, HQ chrome, multi-select queue | **Next eng** after/alongside Rpt-6 start | — |
+| **FC-1** | Foundation fix: load velocity, pass daily series when present, HQ chrome, multi-select queue | **Done** | Rpt-6 handlers |
 | **FC-2** | Persist `forecast_runs`; model + mode picker; stop fake ARIMA labels unless code runs method | Planned | xAI / model gateway |
 | **FC-3** | Path A/B action buttons → draft store request / draft PO | Planned | Store Ops · **J** draft tools · M6 |
 | **FC-4** | Consume **K Rpt-6** sections in UI (“last nightly”); shared section handlers | Planned | **K Rpt-6** |
@@ -316,3 +316,4 @@ This doc is the **implementation contract** for Fran; the memos remain research 
 | Date | Note |
 |------|------|
 | 2026-07-27 | Initial architecture from grok/claude memos + Forecasting UI audit + TODO.md tracks K/J/BR/L |
+| 2026-07-27 | Rpt-6 `runReportSections` + FC-1 forecasting foundation shipped |

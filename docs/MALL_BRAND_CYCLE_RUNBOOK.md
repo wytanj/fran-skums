@@ -98,7 +98,11 @@ node scripts/mall-brand-cycle.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --bran
 | `--mh4-top N` | Top sold PDPs for platform path |
 | `--skip-done` | Skip brands already ok in `.mall-cycle-state.json` |
 | `--skip-list` / `--skip-mh4` | Run only one half |
-| `--pause-load` | Enter after **every** page (babysit; optional) |
+| `--pause-load` | Enter after **every** page (babysit; ignored with no TTY) |
+| `--recovery-minutes N` | How long to poll for a human to clear a captcha (default 15) |
+| `--cooldown-hours N` | Skip a blocked brand for N hours on re-run (default 6) |
+| `--max-consecutive-blocked N` | Abort after N brands block back-to-back (default 3) |
+| `--no-notify` | Silence blocked/recovered pings |
 
 State file: **`.mall-cycle-state.json`** (list/mh4 timestamps per brand). Safe to delete to re-run.
 
@@ -162,19 +166,44 @@ Columns: `brand_key, shop_username, title, sold_label, sold_count_lower_bound, s
 
 ---
 
-## Captcha tips
+## Captcha handling (MH-9 — no Enter required)
 
-Default automation is **captcha-only pause** (not every page). When blocked you hear a **bell** and the terminal waits for **Enter**.
+When a wall appears the run **polls** until it clears. You do **not** have to be at
+the terminal, and there is no keypress to miss — this is what makes the cycle
+schedulable.
+
+What happens:
+
+1. Bell + `[recover] … blocked — solve it in Chrome` (and a Slack/in-app ping if configured)
+2. The run re-probes every 5s for up to `--recovery-minutes` (default **15**)
+3. You solve the captcha in Chrome whenever you notice → the run resumes on its own
+4. If nobody solves it in time → that brand is **cooled down** (default 6h) and the
+   run **continues to the next brand**
+5. Only **3 consecutive** blocked brands aborts the run (exit code **2**) — that
+   means the session itself died, not one difficult shop
 
 | Symptom | What to do |
 |---------|------------|
-| Bell / “Solve captcha” | Fix in Chrome → **Enter** in terminal |
-| Page paints then captcha | Wait for auto detect, or use `--pause-load` once |
-| `detached Frame` | Solve captcha; Enter; script soft-reloads |
+| Bell / “Solve captcha” | Fix it in Chrome **whenever you see it** — no Enter needed (Enter just re-checks sooner) |
+| Page paints then captcha | Nothing — polling detects the clear automatically |
+| `detached Frame` | Nothing — the poller soft-reloads the URL itself |
+| Brand skipped as “cooled down” | Expected after a timeout. Re-run later, or lower `--cooldown-hours` |
+| Run exited with code 2 | Session died — re-login in the debug Chrome, re-run with `--skip-done` |
 | Launch always blocked | Use **`--connect`** + logged-in debug Chrome |
 | Still hopeless | Extension **Harvest** on the open tab |
 
 **One Chrome for all brands** — do not restart debug Chrome per brand.
+
+### Notifications (optional but recommended)
+
+```powershell
+$env:SKUMS_API_BASE = "https://fran-skums.vercel.app"
+$env:MARKETPLACE_CRON_SECRET = "<same secret as the cron routes>"
+```
+
+Sends `marketplace.harvest.blocked` / `.recovered` through the Phase N bus
+(in-app + Slack, migration **075**). Without them the run still works — it just
+polls silently. `--no-notify` disables.
 
 ---
 

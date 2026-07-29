@@ -1,5 +1,5 @@
 import { resolveNextWaveForStore } from '../../../utils/storeDeliveryCalendar'
-import { authenticateApiKey, hasScope } from '../../../utils/apiAuth'
+import { authenticateApiKey, hasApiKeyScope } from '../../../utils/apiAuth'
 
 /**
  * POS-facing next wave hint (signal cadence only).
@@ -15,10 +15,10 @@ export default defineEventHandler(async (event) => {
     })
   }
   if (
-    !hasScope(ctx, 'pos:read')
-    && !hasScope(ctx, 'store_ops:read')
-    && !hasScope(ctx, 'pos:write')
-    && !hasScope(ctx, 'store_ops:write')
+    !hasApiKeyScope(ctx, 'pos:read')
+    && !hasApiKeyScope(ctx, 'store_ops:read')
+    && !hasApiKeyScope(ctx, 'pos:write')
+    && !hasApiKeyScope(ctx, 'store_ops:write')
   ) {
     throw createError({
       statusCode: 403,

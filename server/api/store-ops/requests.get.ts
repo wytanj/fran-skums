@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     if (apiKey.workspaceId !== workspaceId) {
       throw createError({ statusCode: 403, statusMessage: 'Workspace mismatch' })
     }
-    if (!hasScope(apiKey, 'store_ops:read') && !hasScope(apiKey, 'pos:read')) {
+    if (!hasApiKeyScope(apiKey, 'store_ops:read') && !hasApiKeyScope(apiKey, 'pos:read')) {
       throw createError({ statusCode: 403, statusMessage: 'API key lacks store_ops:read or pos:read' })
     }
   } else {

@@ -21,11 +21,10 @@ const showMicrositeForm = ref(false)
 const newMicrosite = ref({ slug: '', title: '', description: '' })
 const micrositeSaving = ref(false)
 
-const message = ref('')
-const errorMsg = ref('')
-
-function showSuccess(msg: string) { message.value = msg; errorMsg.value = ''; setTimeout(() => (message.value = ''), 3000) }
-function showError(msg: string) { errorMsg.value = msg; message.value = '' }
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify } = useActionFeedback()
+function showSuccess(msg: string) { notify.success(msg) }
+function showError(msg: unknown) { notify.error(typeof msg === 'string' ? new Error(msg) : msg) }
 
 async function handleCreateBatch() {
   if (!newBatch.value.batch_code.trim()) return
@@ -117,8 +116,6 @@ onUnmounted(() => clearContext())
     </div>
 
     <!-- Messages -->
-    <div v-if="message" class="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{{ message }}</div>
-    <div v-if="errorMsg" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ errorMsg }}</div>
 
     <!-- Tabs -->
     <div class="flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">

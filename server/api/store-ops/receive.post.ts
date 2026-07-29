@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   let workspaceId = String(body.workspace_id || '').trim()
 
   if (apiKey) {
-    if (!hasScope(apiKey, 'pos:write') && !hasScope(apiKey, 'store_ops:write')) {
+    if (!hasApiKeyScope(apiKey, 'pos:write') && !hasApiKeyScope(apiKey, 'store_ops:write')) {
       throw createError({ statusCode: 403, statusMessage: 'API key lacks pos:write or store_ops:write' })
     }
     workspaceId = apiKey.workspaceId

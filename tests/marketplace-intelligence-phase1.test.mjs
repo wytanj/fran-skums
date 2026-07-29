@@ -79,6 +79,66 @@ test('detectSessionHealth flags login and captcha', () => {
   assert.equal(detectSessionHealth({ title: 'anua - Shopee', bodyText: 'results' }), 'ok')
 })
 
+test('MH-8: blank probe is unknown, never ok', () => {
+  // Used to return 'ok' — that is how a dead page / detached frame / soft block
+  // got written as a real empty harvest.
+  assert.equal(detectSessionHealth({}), 'unknown')
+  assert.equal(detectSessionHealth({ title: '', bodyText: '', url: '' }), 'unknown')
+  // A URL but no body text is still not enough to call healthy.
+  assert.equal(detectSessionHealth({ url: 'https://shopee.sg/anuasg' }), 'unknown')
+})
+
+test('MH-8: product copy no longer false-positives as blocked', () => {
+  // Real listings whose own text tripped the old substring matcher.
+  assert.equal(
+    detectSessionHealth({
+      title: 'Robot Vacuum Cleaner | Shopee Singapore',
+      bodyText: 'Smart robot vacuum · 4.2k sold · free shipping',
+      productCount: 30,
+    }),
+    'ok',
+  )
+  assert.equal(
+    detectSessionHealth({
+      bodyText: 'Something went wrong loading images — try again later',
+      productCount: 24,
+    }),
+    'ok',
+  )
+})
+
+test('MH-8: weak body signal needs corroboration, strong signal does not', () => {
+  const captchaBody = 'unusual traffic detected, please verify you are human'
+
+  // Grid rendered → the keyword is page furniture, not a wall.
+  assert.equal(detectSessionHealth({ bodyText: captchaBody, productCount: 42 }), 'ok')
+  // Nothing rendered → believe it.
+  assert.equal(detectSessionHealth({ bodyText: captchaBody, productCount: 0 }), 'blocked')
+  // Count unknown → preserve the cautious default.
+  assert.equal(detectSessionHealth({ bodyText: captchaBody }), 'blocked')
+
+  // Strong signals stand alone regardless of what rendered.
+  assert.equal(
+    detectSessionHealth({ url: 'https://shopee.sg/verify/traffic', productCount: 42 }),
+    'blocked',
+  )
+  assert.equal(
+    detectSessionHealth({ title: 'Captcha | Shopee', productCount: 42 }),
+    'blocked',
+  )
+})
+
+test('MH-8: explicit empty result set stays healthy', () => {
+  assert.equal(
+    detectSessionHealth({
+      title: 'Search - Shopee',
+      bodyText: 'No results found. Try different keywords.',
+      productCount: 0,
+    }),
+    'ok',
+  )
+})
+
 test('cloudflare HTML extractor finds -i.shop.item links', () => {
   const html = `
     <a href="/ANUA-Toner-i.111.222">x</a>

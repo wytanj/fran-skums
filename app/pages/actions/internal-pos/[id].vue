@@ -25,7 +25,8 @@ const decisionNote = ref('')
 const editNotes = ref('')
 const lineEdits = ref<Record<string, { quantity: number, unit_cost: number }>>({})
 const copyOk = ref(false)
-const toast = ref('')
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify } = useActionFeedback()
 
 async function reload() {
   loading.value = true
@@ -72,8 +73,7 @@ async function onSaveDraft() {
       notes: editNotes.value,
       lines: linePatches,
     })
-    toast.value = 'Draft saved'
-    setTimeout(() => { toast.value = '' }, 2000)
+    notify.success('Draft saved')
   } catch (e: any) {
     error.value = e?.message || 'Save failed'
   } finally {
@@ -88,8 +88,7 @@ async function onSubmit() {
   try {
     await submitPo(po.value.id)
     await reload()
-    toast.value = 'Submitted for approval'
-    setTimeout(() => { toast.value = '' }, 2500)
+    notify.success('Submitted for approval')
   } catch (e: any) {
     error.value = e?.message || 'Submit failed'
   } finally {
@@ -115,8 +114,9 @@ async function onCopyLink() {
   if (!po.value) return
   const ok = await copyDeepLink(`/actions/internal-pos/${po.value.id}`)
   copyOk.value = ok
-  toast.value = ok ? 'Link copied' : 'Could not copy'
-  setTimeout(() => { toast.value = ''; copyOk.value = false }, 2000)
+  if (ok) notify.success('Link copied')
+  else notify.error(new Error('Could not copy the link'))
+  setTimeout(() => { copyOk.value = false }, 2000)
 }
 
 function money(n: any, c = 'SGD') {
@@ -130,7 +130,6 @@ function money(n: any, c = 'SGD') {
       ← Actions
     </button>
 
-    <div v-if="toast" class="mb-3 rounded-lg bg-indigo-500/15 px-3 py-2 text-xs text-indigo-200">{{ toast }}</div>
     <div v-if="loading" class="card p-8 text-center text-sm text-gray-500">Loading…</div>
     <div v-else-if="error && !po" class="card p-6 text-red-300">{{ error }}</div>
 

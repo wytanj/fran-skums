@@ -13,7 +13,8 @@ const {
 
 const lastMarkdown = ref<string | null>(null)
 const lastTitle = ref<string | null>(null)
-const toast = ref<string | null>(null)
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify, runAction, isPending } = useActionFeedback()
 
 const route = useRoute()
 
@@ -41,31 +42,33 @@ watch(
 )
 
 async function onToggle(card: any, enabled: boolean) {
-  try {
-    await setEnabled(card.subscription.id, enabled)
-    toast.value = enabled
-      ? `Enabled “${card.template.title}”`
-      : `Disabled “${card.template.title}”`
-    setTimeout(() => {
-      toast.value = null
-    }, 2500)
-  } catch {
-    /* error set in composable */
-  }
+  // Previously swallowed the error entirely — a failed toggle looked identical
+  // to a successful one.
+  await runAction(
+    `pack.toggle.${card.subscription.id}`,
+    () => setEnabled(card.subscription.id, enabled),
+    {
+      success: enabled
+        ? `Enabled “${card.template.title}”`
+        : `Disabled “${card.template.title}”`,
+      errorFallback: 'Failed to change the subscription',
+    },
+  )
 }
 
 async function onRun(card: any) {
   lastMarkdown.value = null
   lastTitle.value = null
+  const run = await runAction(
+    `pack.run.${card.subscription.id}`,
+    () => runNow(card.subscription.id),
+    { errorFallback: 'Report run failed' },
+  )
   try {
-    const run = await runNow(card.subscription.id)
     if (run) {
       lastTitle.value = card.template.title
       lastMarkdown.value = run.markdown_summary || 'Run completed (no summary).'
-      toast.value = `Ran “${card.template.title}”`
-      setTimeout(() => {
-        toast.value = null
-      }, 2500)
+      notify.success(`Ran “${card.template.title}”`, 'Summary shown below.')
     }
   } catch {
     /* error set in composable */
@@ -124,13 +127,6 @@ function statusClass(status: string | undefined) {
       >
         Refresh
       </button>
-    </div>
-
-    <div
-      v-if="toast"
-      class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300"
-    >
-      {{ toast }}
     </div>
 
     <div

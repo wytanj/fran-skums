@@ -22,10 +22,10 @@ const tabs = [
 ]
 
 // ── Toast ──────────────────────────────────────────────────────
-const toast = ref('')
-const toastError = ref('')
-function showOk(msg: string)  { toast.value = msg; toastError.value = ''; setTimeout(() => (toast.value = ''), 3500) }
-function showErr(msg: string) { toastError.value = msg; toast.value = '' }
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify, runAction, isPending } = useActionFeedback()
+function showOk(msg: string) { notify.success(msg) }
+function showErr(msg: unknown) { notify.error(typeof msg === 'string' ? new Error(msg) : msg) }
 
 // ── Stock tab ──────────────────────────────────────────────────
 const expandedProduct = ref<string | null>(null)
@@ -229,8 +229,6 @@ watch(() => currentWorkspace.value?.id, async () => {
     </div>
 
     <!-- Toast -->
-    <div v-if="toast"      class="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">{{ toast }}</div>
-    <div v-if="toastError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ toastError }}</div>
 
     <!-- Tabs -->
     <div class="flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">

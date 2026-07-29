@@ -123,8 +123,13 @@ export async function authenticateApiKey(event: H3Event): Promise<ApiKeyContext 
  * (pos_connector, mcp:ops_safe, …) or ['*'] for unrestricted service keys.
  * @see server/utils/scopes.ts
  */
-export function hasScope(ctx: ApiKeyContext, scope: string): boolean {
-  if (ctx.scopes.length === 0) return false
+/**
+ * API-key scope check. Named distinctly from scopes.hasScope(string[]) so Nitro
+ * auto-import does not collide (duplicate `hasScope` was resolving to the array
+ * form and treating ApiKeyContext as granted scopes → always false / wrong 403).
+ */
+export function hasApiKeyScope(ctx: ApiKeyContext, scope: string): boolean {
+  if (!ctx?.scopes || ctx.scopes.length === 0) return false
   if (ctx.scopes.includes('*') || ctx.scopes.includes('full')) return true
   return ctx.scopes.includes(scope)
 }
@@ -138,7 +143,7 @@ export async function requireApiKey(event: H3Event, requiredScope?: string): Pro
   if (!ctx) {
     throw createError({ statusCode: 401, statusMessage: 'API key required. Pass via Authorization: Bearer <key> or X-API-Key header.' })
   }
-  if (requiredScope && !hasScope(ctx, requiredScope)) {
+  if (requiredScope && !hasApiKeyScope(ctx, requiredScope)) {
     throw createError({ statusCode: 403, statusMessage: `API key lacks required scope: ${requiredScope}` })
   }
   return ctx

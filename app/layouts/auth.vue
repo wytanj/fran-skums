@@ -9,5 +9,8 @@
       </div>
       <slot />
     </div>
+
+    <!-- Action feedback (login/invite errors surface here too) -->
+    <ToastHost />
   </div>
 </template>

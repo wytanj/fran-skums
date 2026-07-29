@@ -300,35 +300,65 @@ export function cardsFromDomRows(rows, opts = {}) {
 
 /**
  * Detect login / captcha walls from page title or body snippet.
- * @param {{ title?: string, bodyText?: string, url?: string }} page
+ *
+ * MH-8 rules:
+ * - A blank probe returns `'unknown'`, never `'ok'`. A dead page, a detached
+ *   frame and a soft block all look identical from nothing, and calling that
+ *   healthy is how empty harvests got written as real results.
+ * - Weak body keywords ('captcha', 'unusual traffic', …) only decide the
+ *   verdict when nothing else contradicts them. Pass `productCount` and a
+ *   rendered grid wins — Shopee sells products whose own copy trips these
+ *   words. `'robot'` and `'try again'`+`'loading'` are gone entirely: they
+ *   matched ordinary listings, not blocks.
+ *
+ * @param {{ title?: string, bodyText?: string, url?: string, productCount?: number }} page
  * @returns {'ok'|'login_required'|'blocked'|'unknown'}
  */
 export function detectSessionHealth(page = {}) {
   const title = String(page.title || '').toLowerCase()
   const body = String(page.bodyText || '').slice(0, 2000).toLowerCase()
   const url = String(page.url || '').toLowerCase()
+  const productCount = Number.isFinite(Number(page.productCount))
+    ? Number(page.productCount)
+    : null
 
-  if (url.includes('/buyer/login') || url.includes('/login') || title.includes('login')) {
+  // Observed nothing at all — say so instead of guessing healthy.
+  if (!title && !body && !url) return 'unknown'
+
+  if (url.includes('/buyer/login') || /\/login(\/|\?|$)/.test(url) || /\blogin\b/.test(title)) {
     return 'login_required'
   }
+
+  // Strong: the platform actually routed us to an interstitial.
   if (
     url.includes('/verify/traffic') ||
     url.includes('/verify/captcha') ||
     url.includes('/verify/') ||
+    title.includes('captcha')
+  ) {
+    return 'blocked'
+  }
+
+  // Weak: body copy only. Trust it unless a real product grid rendered.
+  const weakBlock =
     body.includes('page unavailable') ||
     body.includes('sorry, something went wrong') ||
     body.includes('loading issue') ||
     body.includes('verify you are human') ||
     body.includes('captcha') ||
-    body.includes('unusual traffic') ||
-    body.includes('robot') ||
-    body.includes('try again') && body.includes('loading') ||
-    title.includes('captcha')
-  ) {
+    body.includes('unusual traffic')
+
+  if (weakBlock && !(productCount != null && productCount > 0)) {
     return 'blocked'
   }
+
+  // Explicit "we searched and found nothing" is a healthy page.
   if (body.includes('no results found') || body.includes('try different keywords')) {
     return 'ok'
   }
+
+  // Body came back empty with no other signal — not enough to call it healthy.
+  if (!body && productCount == null) return 'unknown'
+
   return 'ok'
 }

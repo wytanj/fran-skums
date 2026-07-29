@@ -152,8 +152,8 @@ const profile = reactive({ full_name: '', company: '' })
 const workspace = reactive({ name: '' })
 const profileSaving = ref(false)
 const workspaceSaving = ref(false)
-const message = ref('')
-const errorMsg = ref('')
+
+
 
 // Custom fields
 const customFields = ref<any[]>([])
@@ -362,15 +362,15 @@ const inviteEmail = ref('')
 const inviteRole = ref<'admin' | 'member' | 'viewer'>('member')
 const inviteSending = ref(false)
 
+// Shared fixed-position feedback (ToastHost) — see useActionFeedback.
+const { notify } = useActionFeedback()
+
 function showSuccess(msg: string) {
-  errorMsg.value = ''
-  message.value = msg
-  setTimeout(() => message.value = '', 3000)
+  notify.success(msg)
 }
 
-function showError(msg: string) {
-  message.value = ''
-  errorMsg.value = msg
+function showError(msg: unknown) {
+  notify.error(typeof msg === 'string' ? new Error(msg) : msg)
 }
 
 function getUserId(): string | undefined {
@@ -636,7 +636,6 @@ async function loadAssistantProfile() {
 async function saveAssistantProfile() {
   if (!currentWorkspace.value) return
   assistantSaving.value = true
-  errorMsg.value = ''
   const payload = {
     workspace_id: currentWorkspace.value.id,
     user_role: assistantProfile.user_role,
@@ -649,7 +648,8 @@ async function saveAssistantProfile() {
     .from('assistant_context_profiles')
     .upsert(payload, { onConflict: 'workspace_id' })
   assistantSaving.value = false
-  if (error) { errorMsg.value = error.message } else { message.value = 'AI Assistant settings saved.' }
+  if (error) showError(error)
+  else showSuccess('AI Assistant settings saved.')
 }
 
 watch(activeTab, (tab) => {
@@ -667,25 +667,6 @@ onMounted(async () => {
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-white">Settings</h1>
     </div>
-
-    <!-- Error message -->
-    <div v-if="errorMsg" class="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
-      {{ errorMsg }}
-    </div>
-
-    <!-- Success message -->
-    <Transition
-      enter-active-class="transition duration-200"
-      enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition duration-150"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="message" class="mb-4 rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
-        {{ message }}
-      </div>
-    </Transition>
 
     <!-- Tabs -->
     <div class="mb-6 flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">

@@ -5,7 +5,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isSubscriptionDue } from '../../core/reports/schedule.mjs'
-import { runStubSections } from '../../core/reports/sections.mjs'
+import { runReportSections, runStubSections } from '../../core/reports/sections.mjs'
 import { emitLifecycleNotification } from './notifications'
 
 export type ReportSchedule = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'manual'
@@ -275,7 +275,7 @@ export async function getSubscriptionBySlugOrId(
   return null
 }
 
-export { runStubSections }
+export { runStubSections, runReportSections }
 
 /**
  * Resolve n8n/outbound automation webhook URL for a subscription.
@@ -448,14 +448,16 @@ export async function runSubscriptionNow(
   if (pErr) throw new Error(pErr.message)
 
   try {
-    const stub = runStubSections(sections)
+    const result = await runReportSections(client, opts.workspaceId, sections)
     const finished = new Date().toISOString()
+    const resultMeta = 'meta' in result ? result.meta : null
     const payload = {
       template_slug: template?.slug || null,
       template_title: template?.title || null,
-      sections: stub.sections,
+      sections: result.sections,
       suggest_only: true,
-      note: 'Stub sections until Rpt-6 real handlers',
+      meta: resultMeta || null,
+      note: 'Rpt-6 hybrid: live handlers where implemented; unknown ids remain stub',
     }
     const { data: done, error: uErr } = await client
       .from('report_runs')
@@ -463,7 +465,7 @@ export async function runSubscriptionNow(
         status: 'completed',
         finished_at: finished,
         payload_json: payload,
-        markdown_summary: stub.markdown,
+        markdown_summary: result.markdown,
       })
       .eq('id', pending.id)
       .select('*')

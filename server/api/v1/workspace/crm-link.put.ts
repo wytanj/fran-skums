@@ -6,12 +6,12 @@ import { getAdminClient } from '../../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   const ctx = await requireApiKey(event)
-  const { hasScope } = await import('../../../utils/apiAuth')
+  const { hasApiKeyScope } = await import('../../../utils/apiAuth')
   if (
-    !hasScope(ctx, 'credentials:write') &&
-    !hasScope(ctx, 'integrations:execute') &&
-    !hasScope(ctx, '*') &&
-    !hasScope(ctx, 'full')
+    !hasApiKeyScope(ctx, 'credentials:write') &&
+    !hasApiKeyScope(ctx, 'integrations:execute') &&
+    !hasApiKeyScope(ctx, '*') &&
+    !hasApiKeyScope(ctx, 'full')
   ) {
     throw createError({
       statusCode: 403,

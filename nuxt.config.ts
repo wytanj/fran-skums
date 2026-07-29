@@ -1,3 +1,17 @@
+import { fileURLToPath } from 'node:url'
+
+// Shared .mjs layers imported by server routes (core/*, marketplace/*).
+// Nitro externalises these by default; on Windows the emitted specifier loses
+// its drive prefix and resolves to `C:\core\...`, which 500s every route in
+// local dev. Inlining them keeps resolution inside the bundle on all platforms.
+// Keep in sync with: grep -rhoE "(\.\./)+[a-z]+/.*\.mjs" server/ | cut -d/ -f1 | sort -u
+const inlineProjectMjs = [
+  fileURLToPath(new URL('./core/', import.meta.url)),
+  fileURLToPath(new URL('./marketplace/', import.meta.url)),
+  fileURLToPath(new URL('./intelligence/', import.meta.url)),
+  fileURLToPath(new URL('./mcp/', import.meta.url)),
+]
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -55,6 +69,8 @@ export default defineNuxtConfig({
     externals: {
       // Puppeteer is dev-only (local crawling); exclude from serverless bundle
       external: ['puppeteer', 'puppeteer-core', 'chromium-bidi'],
+      // Bundle our own .mjs layers — see inlineProjectMjs above (Windows dev fix)
+      inline: inlineProjectMjs,
     },
   },
 
