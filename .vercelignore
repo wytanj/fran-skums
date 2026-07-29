@@ -1,0 +1,12 @@
+.shopee-chrome-profile
+.mh4-redo.json
+.mall-cycle-state.json
+node_modules
+.nuxt
+.output
+.data
+.git
+*.xlsx
+extensions/sample-*
+scripts/_tmp_*
+scripts/_shopee_*
