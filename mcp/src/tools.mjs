@@ -170,9 +170,43 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'market_brand_rollup',
+    description:
+      'START HERE for any aggregate question about the Shopee Mall harvest ("which brands/shelves sell most", "how much is MH-4 enriched", "top seller per category"). Groups in SQL and returns ~20x fewer tokens than fetching rows. group_by: brand | shelf | platform_leaf | shop. Response carries metric definitions and the sold-field caveat — cite them, do not invent your own definition. Only fall back to market_brand_listings when you need individual SKUs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        group_by: {
+          type: 'string',
+          enum: ['brand', 'shelf', 'platform_leaf', 'shop'],
+          description:
+            'brand = brand slug · shelf = seller marketing shelf (taxonomy A) · platform_leaf = Shopee category leaf (taxonomy B, MH-4) · shop = Mall storefront. Never equate shelf with platform_leaf.',
+        },
+        metrics: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['sku_count', 'sold_sum', 'sold_max', 'sold_avg', 'price_p50', 'with_platform_path'],
+          },
+          description: 'Default: sku_count, sold_sum, sold_max, with_platform_path.',
+        },
+        brand_key: { type: 'string' },
+        brand_keys: { type: 'array', items: { type: 'string' } },
+        shop_username: { type: 'string' },
+        shop_collection_name: { type: 'string', description: 'Shelf substring' },
+        platform_category_leaf: { type: 'string' },
+        min_sold: { type: 'number' },
+        seller_type: { type: 'string' },
+        since: { type: 'string' },
+        until: { type: 'string' },
+        limit: { type: 'number', description: 'Max groups 1–200 (default 50)' },
+      },
+    },
+  },
+  {
     name: 'market_brand_listings',
     description:
-      'Brand-radar sheet slice: official Mall harvest rows (name, sold, marketing shelf, platform path, URL). Filter by brand_key / shop / shelf / min_sold. Prefer this over bi_query_snapshots for Mall brand analysis.',
+      'Brand-radar rows: official Mall harvest, one row per listing. Returns COLUMNAR data — read `columns` for the field order, `rows` as arrays in that order, and `constant` for fields identical across every row (they are hoisted out, not missing). Build URLs from url_template + shop_id/item_id. ALWAYS check `complete`: when false, `total_matching` is the real count and you have only `row_count` of them — page with `offset: next_offset` or narrow first. For aggregate questions use market_brand_rollup instead; this is the token-heavy path.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -198,6 +232,16 @@ export const toolDefinitions = [
         q: { type: 'string', description: 'Title / brand / path text search' },
         seller_type: { type: 'string' },
         limit: { type: 'number', description: 'Max rows 1–500 (default 100)' },
+        offset: {
+          type: 'number',
+          description: 'Page offset. Pass the `next_offset` from a previous response to continue.',
+        },
+        fields: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Extra columns beyond the default projection (title, sold, shelf, platform leaf, price, brand, shop_id, item_id). See available_fields in the response. Only ask for what you will use — every column costs tokens. Listing URLs are reconstructible via url_template.',
+        },
         since: { type: 'string' },
         until: { type: 'string' },
       },
@@ -1448,6 +1492,24 @@ export async function handleTool(name, args = {}) {
         })
         return jsonResult(hist)
       }
+      case 'market_brand_rollup': {
+        requireScope('intel:read')
+        const result = await bi.brandRollup(requireWorkspaceId(), {
+          group_by: a.group_by || 'brand',
+          metrics: a.metrics,
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          shop_username: a.shop_username,
+          shop_collection_name: a.shop_collection_name,
+          platform_category_leaf: a.platform_category_leaf,
+          min_sold: a.min_sold,
+          seller_type: a.seller_type,
+          since: a.since,
+          until: a.until,
+          limit: a.limit ?? 50,
+        })
+        return jsonResult(result)
+      }
       case 'market_brand_listings': {
         requireScope('intel:read')
         const result = await bi.brandListings(requireWorkspaceId(), {
@@ -1462,6 +1524,8 @@ export async function handleTool(name, args = {}) {
           since: a.since,
           until: a.until,
           limit: a.limit ?? 100,
+          offset: a.offset,
+          fields: a.fields,
           format: 'json',
         })
         return jsonResult(result)
@@ -1478,6 +1542,7 @@ export async function handleTool(name, args = {}) {
           q: a.q,
           seller_type: a.seller_type,
           limit: a.limit ?? 200,
+          offset: a.offset,
           format: 'csv',
         })
         return jsonResult(result)

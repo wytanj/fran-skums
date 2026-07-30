@@ -165,6 +165,10 @@ export function buildPdpEnrichStamps(breadcrumbResult, productResult = null, bas
 export async function writePdpEnrichResult(db, input) {
   const stamps = buildPdpEnrichStamps(input.breadcrumb, input.product, input.candidate.signals || {})
   const now = new Date().toISOString()
+  // MH-4 is the *second* snapshot write path (upsertObservationCards is the
+  // first). Both must stamp the Track RP dimension columns, or PDP-enriched
+  // rows become invisible to the SQL filters in brandListingsQuery.
+  const { snapshotDimensions } = await import('./writers/upsertObservations.mjs')
 
   // Merge platform fields into existing listing.metadata (don't wipe)
   const { data: existing } = await db
@@ -220,6 +224,8 @@ export async function writePdpEnrichResult(db, input) {
       product: input.product,
     },
   }
+  // Derive indexed dimensions from the signals we just built (mig 076).
+  Object.assign(snapshotRow, snapshotDimensions(snapshotRow.signals))
 
   const { error: snapErr } = await db.from('marketplace_listing_snapshots').insert(snapshotRow)
   if (snapErr) throw new Error(`snapshot insert: ${snapErr.message}`)

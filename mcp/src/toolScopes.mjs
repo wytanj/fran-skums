@@ -102,6 +102,10 @@ export const TOOL_SCOPE_CATALOG = {
   market_search: { scope: 'intel:read', action: 'Search market warehouse' },
   market_seller_mix: { scope: 'intel:read', action: 'Seller mix summary' },
   market_listing_history: { scope: 'intel:read', action: 'Listing history' },
+  market_brand_rollup: {
+    scope: 'intel:read',
+    action: 'Brand-radar grouped aggregates (SQL GROUP BY; preferred entry point)',
+  },
   market_brand_listings: {
     scope: 'intel:read',
     action: 'Brand-radar listings slice (name/sold/shelf/platform path)',

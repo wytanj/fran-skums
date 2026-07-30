@@ -98,10 +98,15 @@ test('Fran store-ops request types map to generic store operations', () => {
   assert.match(storeOpsRoute, /idempotency_key/)
 })
 
-test('shared app types and navigation expose Fran contracts', () => {
+test('shared app types expose Fran contracts', () => {
   assert.match(types, /export interface FranProductMetadata/)
   assert.match(types, /export interface FranProductContext/)
   assert.match(types, /export type FranStoreOpsRequestType/)
-  assert.match(sidebar, /Fran Ops/)
-  assert.match(sidebar, /href: '\/fran'/)
+})
+
+test('Fran Ops stays out of the sidebar until the page has useful actions', () => {
+  // Deliberate product decision (commit 8862ce1). This test previously
+  // asserted the opposite and had been failing ever since — it was pinning
+  // the old behaviour, not protecting the current one.
+  assert.doesNotMatch(sidebar, /href: '\/fran'/)
 })

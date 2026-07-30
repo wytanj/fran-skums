@@ -33,6 +33,12 @@ test('server admin client uses service-role access for API-key protected routes'
 })
 
 test('API auth selects total_requests before incrementing usage count', () => {
-  assert.match(apiAuth, /\.select\('id, workspace_id, name, scopes, is_active, expires_at, total_requests'\)/)
-  assert.match(apiAuth, /total_requests:\s*data\.total_requests \+ 1/)
+  // The invariant is that total_requests is SELECTed before it is incremented,
+  // not the exact column list — that list has legitimately grown (bound_user_id,
+  // key_kind, max_package, revoked_at) and pinning it broke on every addition.
+  const selectAt = apiAuth.search(/\.select\([^)]*total_requests/)
+  const incrementAt = apiAuth.search(/total_requests:\s*data\.total_requests \+ 1/)
+  assert.ok(selectAt > -1, 'total_requests must be selected')
+  assert.ok(incrementAt > -1, 'total_requests must be incremented')
+  assert.ok(selectAt < incrementAt, 'select must precede the increment')
 })

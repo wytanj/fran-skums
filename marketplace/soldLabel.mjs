@@ -4,6 +4,31 @@
  */
 
 /**
+ * Upper bound for a credible per-listing lifetime sold count.
+ *
+ * Exists because the grid scraper reads the whole product card, and some
+ * titles contain their own marketing copy — a real example that reached the
+ * warehouse was "Shopee x BANILA CO 7.7 Brand Box 100M Sold Cleansing Balm",
+ * parsed as 100,000,000 and enough on its own to make that brand the top
+ * seller in every rollup.
+ *
+ * Generous on purpose: this is defence-in-depth behind the extraction fix, not
+ * the primary guard. Only absurdities should trip it.
+ */
+export const MAX_PLAUSIBLE_SOLD = 10_000_000
+
+/**
+ * @param {number | null | undefined} n
+ * @returns {boolean} false when the figure is too large to be a real listing
+ */
+export function isPlausibleSoldCount(n) {
+  if (n == null) return true
+  const v = Number(n)
+  if (!Number.isFinite(v)) return false
+  return v >= 0 && v <= MAX_PLAUSIBLE_SOLD
+}
+
+/**
  * @param {string | null | undefined} label
  * @returns {{ label: string | null, lower_bound: number | null, is_bucket: boolean }}
  */

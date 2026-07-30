@@ -93,6 +93,9 @@ function parseArgs(argv) {
     blockedCooldownMs: 6 * 60 * 60 * 1000,
     recoveryMinutes: 15,
     notify: true,
+    // NEVER default-kill Chrome on captcha when --connect (wipes human solves).
+    // Opt in with --bounce-on-captcha for unattended-only experiments.
+    bounceOnCaptcha: false,
     // Humanize: pre-nav settle + gap between brands (ms)
     preNavMinMs: 5000,
     preNavMaxMs: 15000,
@@ -143,6 +146,8 @@ function parseArgs(argv) {
     } else if (a === '--recovery-minutes') {
       opts.recoveryMinutes = Math.max(Number(argv[++i]) || 15, 1)
     } else if (a === '--no-notify') opts.notify = false
+    else if (a === '--bounce-on-captcha') opts.bounceOnCaptcha = true
+    else if (a === '--no-bounce-on-captcha') opts.bounceOnCaptcha = false
     else if (a === '--help' || a === '-h') {
       console.log(`mall-brand-cycle.mjs -w <uuid> --brand <key>[,key2] --connect
 
@@ -365,8 +370,12 @@ async function main() {
   const MAX_BOUNCES_PER_CYCLE = 4
 
   async function bounceChromeOnCaptcha(info = {}) {
-    if (!opts.connect) {
-      console.error('[cycle] captcha bounce skipped (not --connect)')
+    // Default OFF: taskkill+relaunch wipes a human captcha solve and often
+    // immediately re-walls. Only with --bounce-on-captcha (unattended experiments).
+    if (!opts.connect || !opts.bounceOnCaptcha) {
+      console.error(
+        '[cycle] captcha bounce disabled — keep Chrome open and solve captcha; harvest will poll',
+      )
       return pageBag.current
     }
     if (bounceInFlight) return bounceInFlight
@@ -458,7 +467,8 @@ async function main() {
       preNavMinMs: opts.preNavMinMs,
       preNavMaxMs: Math.max(opts.preNavMinMs, opts.preNavMaxMs),
       pageBag,
-      bounceChromeOnCaptcha: opts.connect ? bounceChromeOnCaptcha : null,
+      bounceChromeOnCaptcha:
+        opts.connect && opts.bounceOnCaptcha ? bounceChromeOnCaptcha : null,
     }
     harvestOpts = withComputerDefaults(harvestOpts)
     harvestOpts.pauseAfterLoad = opts.pauseAfterLoad
@@ -467,7 +477,8 @@ async function main() {
     harvestOpts.preNavMinMs = opts.preNavMinMs
     harvestOpts.preNavMaxMs = Math.max(opts.preNavMinMs, opts.preNavMaxMs)
     harvestOpts.pageBag = pageBag
-    harvestOpts.bounceChromeOnCaptcha = opts.connect ? bounceChromeOnCaptcha : null
+    harvestOpts.bounceChromeOnCaptcha =
+      opts.connect && opts.bounceOnCaptcha ? bounceChromeOnCaptcha : null
 
     console.error(
       `[cycle] humanize: pre-nav ${opts.preNavMinMs / 1000}-${opts.preNavMaxMs / 1000}s · ` +

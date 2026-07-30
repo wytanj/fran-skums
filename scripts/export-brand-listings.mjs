@@ -131,6 +131,9 @@ async function main() {
   const result = await queryBrandListings(db, opts.workspace, {
     ...filters,
     format: opts.format === 'json' ? 'json' : 'csv',
+    // Operator-facing CLI: keep readable row objects, not the columnar shape
+    // that exists to save an LLM tokens.
+    shape: 'objects',
   })
 
   if (opts.format === 'json') {

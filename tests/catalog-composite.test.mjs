@@ -52,7 +52,16 @@ test('TODO lists MCP composite build order starting with catalog_health', () => 
   assert.match(todo, /catalog_sample/)
   assert.match(todo, /catalog_search_summary/)
   assert.match(todo, /inventory_ats/)
-  assert.match(todo, /sample-mcp-responses/)
+})
+
+test('agent instructions cite the MCP pain-points doc', () => {
+  // Was asserted against TODO.md prose, which legitimately gets restructured.
+  // The reference that actually matters lives in the routing source of truth.
+  const instructions = readFileSync(
+    new URL('../mcp/src/agentInstructions.mjs', import.meta.url),
+    'utf8',
+  )
+  assert.match(instructions, /sample-mcp-responses/)
 })
 
 test('MCP and assistant register composite catalog tools', () => {

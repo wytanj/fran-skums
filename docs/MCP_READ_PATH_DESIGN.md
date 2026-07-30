@@ -4,6 +4,10 @@
 **Goal:** make the MCP read path trustworthy and cheap enough that marketers ask questions in natural language instead of learning PivotTables / Power BI / SQL.
 **Depends on:** BR harvest (MH-*) producing data · Track K report registry (Rpt-0–6, shipped)
 
+**Scope — Shopee Mall harvest only.** This track covers the **marketplace bucket** of the existing two-bucket MCP routing: `marketplace_listing_snapshots` / `marketplace_listings` read through `market_brand_*`. It does **not** touch our own catalog or stock (`catalog_*`, `inventory_ats`, `product_inventory_status`) — that is the other bucket, and the standing rule *Mall/BR ≠ ATS* still holds.
+
+The measurements below are from the marketplace tables only. The catalog/stock read path has **not** been measured, so nothing here should be read as a claim about it. The *pattern* (aggregate-first, honest truncation, metric definitions) will likely transfer; the numbers would need their own measurement first.
+
 ---
 
 ## Why this track exists
@@ -26,6 +30,103 @@ Two conclusions that shape the whole plan:
 2. **A confident wrong answer is worse than the tool it replaces.** A marketer in a PivotTable sees a row count and sets their own filter. An LLM handed a silently truncated sample produces fluent, plausible, wrong output with no tell. Two of those incidents kills trust in the whole approach.
 
 **Architectural correction:** the reflex "expose rows via MCP so the LLM can slice them" is wrong. LLMs are poor aggregators — non-reproducible, and wrong often enough to matter. Same principle `claude-forecast.md` reaches for forecasting: **the LLM is the context and orchestration layer, not the compute.** The pivot belongs in SQL; the model chooses which one and narrates it.
+
+---
+
+## Status
+
+| Slice | State |
+|---|---|
+| **RP-1** filters → SQL + honest truncation | **Done** 2026-07-28 |
+| **RP-2** denormalised dimensions + indexes | **Done** — mig **076** applied, 6,831 rows backfilled |
+| **RP-3** latest-per-listing view (BR-A3) | **Done** — `v_marketplace_listing_latest` |
+| **RP-4** aggregate-first rollup | **Done** — mig **077**, `market_brand_rollup` |
+| **RP-6** metric definitions | **Done** — `marketplace/metrics/definitions.mjs` |
+| **RP-5** columnar payload | **Done** — columnar + hoisting + projection |
+| **RP-7** tool tiering | **Done** — unfiltered rows capped + steered |
+| **RP-8** cache | **Done** — mig **078** cache + **079** update-sensitive data-version invalidation, applied |
+
+**Track complete.** RP-1 … RP-8 all shipped.
+
+**RP-4/6 measured** (same question, both shapes):
+
+```
+"which brands sell most"
+  via market_brand_rollup : ~1,683 tok  (20 groups, complete=false, total_groups=64)
+  via 100 listing rows    : ~23,122 tok (and incomplete — 3,279 match)
+  reduction               : 93%
+
+reconciliation (biodance): rollup sku_count=51 sold_sum=194,206
+                           rows   sku_count=51 sold_sum=194,206   AGREE
+```
+
+Rollup groups by brand / shelf / platform_leaf / shop in ~0.8–1.0s, declares
+`total_groups` and `complete`, and carries metric definitions plus the
+cumulative-sold caveat so the agent cites rather than invents.
+
+**RP-5 measured** (identical rows, both shapes):
+
+```
+100 rows : objects 23,159 tok → columnar  5,079 tok   -78%
+500 rows : objects 111,411 tok → columnar 22,722 tok  -80%
+
+single-brand query hoists shared fields out of every row:
+  constant : {"brand_key":"biodance","shop_id":"951591050"}
+  columns  : [title, sold_label, sold_count_lower_bound, shelf, leaf, price, item_id]
+```
+
+Shape defaults by consumer: **MCP → columnar** (the model pays the tokens);
+HTTP route and the operator CLI keep row objects unless they pass
+`shape=columnar`, so existing callers are unaffected.
+
+### Cumulative effect of the track
+
+| Question | Before RP | After RP | |
+|---|---|---|---|
+| "which brands sell most" | ~23,159 tok (100 rows, and **incomplete** — 3,279 matched) | ~1,712 tok (`market_brand_rollup`, declares 64 groups) | **−93%** |
+| "list biodance SKUs" | ~11,358 tok | ~2,294 tok | **−80%** |
+| `min_sold=1000` | 176 rows, claimed complete | 910 reachable, truncation declared | **correct** |
+
+**RP-7 measured** — an unfiltered row request used to return 100 of 3,388 as if
+it were an answer. It is now capped at 25 and carries:
+
+> *Unfiltered row request — capped at 25 of 3388 listings. This is a sample, not
+> a ranking. For "which brands/shelves sell most" use market_brand_rollup…*
+
+Narrowed calls (brand, shelf, leaf, min_sold, q, or any `offset > 0`) keep the
+full limit and get no guidance noise. Capping rather than erroring: a bare
+listing call is a reasonable-looking request, and a hard failure teaches less
+than a small honest sample plus the name of the right tool.
+
+**RP-8 measured** — repeated identical rollup, unchanged harvest:
+
+```
+1st call  1141ms  miss
+2nd call    56ms  hit      20.4x
+3rd call    56ms  hit      (same filters, different key order — keys normalise)
+different question  -> miss
+cache:false         -> disabled
+```
+
+Payload equivalence verified with `deepStrictEqual`. Note a naive
+`JSON.stringify` comparison *fails* here: Postgres `jsonb` does not preserve
+object key order, so the cached payload re-serialises in a different order with
+identical values.
+
+**Verified after RP-1/2/3** (same query that motivated the track):
+
+```
+min_sold=1000
+  total_matching : 910   (exact match to DB ground truth)
+  page 1         : 500 rows, complete=false, next_offset=500
+  paged total    : 910 reachable in 2 pages
+  before         : 176 rows, reported as complete
+```
+
+`brand_keys[]`, `shop_username`, shelf, leaf and `min_sold` now all execute as SQL
+predicates; `q` remains page-scoped and says so in the response. Summary output
+carries a `coverage` block stating how many of the matching rows its aggregates
+actually cover.
 
 ---
 
@@ -154,6 +255,24 @@ RP-1 and RP-6 are the two that change whether the strategy works at all. RP-5 is
 | A BI cube / semantic-layer product | Overkill at this size; RP-6 is a code module, not a platform. |
 | Text-to-SQL over the warehouse | Unbounded query risk and no metric consistency. Parameterised rollups give the same reach with guardrails. |
 | Caching before RP-1 | Would cache truncated answers. |
+
+## Data-quality defect surfaced by RP-4 (harvest bug, not read path)
+
+The first brand rollup put **banila-co** top with `sold_max: 100,000,000` and
+`sold_sum: 200,027,510` — from a listing titled *"Shopee x BANILA CO 7.7 Brand
+Box **100M Sold** Cleansing Balm"*.
+
+`browserHarvestEvaluate` matches `/([0-9.,]+\s*[kKmM]?\+?\s*sold)/i` against the
+whole product card's `innerText`, which includes the **title**. Any product whose
+name contains marketing copy like "100M Sold" has that parsed as its sold count.
+
+Impact: one bogus row dominates its brand's totals and would top any
+sold-ranked list. This is a **BR/MH harvest bug**, not an RP one — the rollup
+merely made it visible, which row dumps never did.
+
+Fix (not yet applied): prefer a dedicated sold element and exclude the title
+substring from the regex; add a sanity ceiling and flag outliers rather than
+silently ingesting them. Backfill would need re-parsing affected snapshots.
 
 ## Interaction with the harvest track
 

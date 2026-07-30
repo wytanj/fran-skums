@@ -72,6 +72,9 @@ function parseArgs(argv) {
     // Default: only official single-brand Malls (skip multi-brand distributors).
     singleBrandOnly: true,
     skipMh4: false,
+    // When set, start with SAFE pacing until first successful brand, then switch
+    // to these faster timings (captcha must be clear / session warm first).
+    speedAfterWarm: null,
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -93,26 +96,71 @@ function parseArgs(argv) {
     else if (a === '--single-brand-only') opts.singleBrandOnly = true
     else if (a === '--skip-mh4') opts.skipMh4 = true
     else if (a === '--babysit') {
-      // Human watching captchas: cut sleeps, keep MH-4 top. More captcha risk.
-      opts.delayMs = 3200
-      opts.brandGapMinSec = 3
-      opts.brandGapMaxSec = 8
-      opts.preNavMinSec = 1
-      opts.preNavMaxSec = 3
-      opts.recoveryMinutes = 8
-      opts.stallTimeoutMs = 12 * 60 * 1000
+      // Fast pacing ONLY after first successful brand (post-captcha / warm session).
+      // Cold start keeps safer overnight-ish delays so first nav does not re-wall.
+      opts.speedAfterWarm = {
+        delayMs: 3200,
+        brandGapMinSec: 3,
+        brandGapMaxSec: 8,
+        preNavMinSec: 1,
+        preNavMaxSec: 3,
+        recoveryMinutes: 8,
+        stallTimeoutMs: 12 * 60 * 1000,
+      }
+      // Explicit cold defaults (do not apply fast yet)
+      opts.delayMs = 7000
+      opts.brandGapMinSec = 8
+      opts.brandGapMaxSec = 20
+      opts.preNavMinSec = 5
+      opts.preNavMaxSec = 15
+      opts.recoveryMinutes = 12
+      opts.stallTimeoutMs = 15 * 60 * 1000
     } else if (a === '--fast') {
-      // Aggressive (cycle --fast equivalent). Expect more walls.
-      opts.delayMs = 2500
-      opts.brandGapMinSec = 2
-      opts.brandGapMaxSec = 5
-      opts.preNavMinSec = 1
-      opts.preNavMaxSec = 2
-      opts.recoveryMinutes = 6
-      opts.stallTimeoutMs = 10 * 60 * 1000
+      // Aggressive after warm (same gate as babysit). Expect more walls.
+      opts.speedAfterWarm = {
+        delayMs: 2500,
+        brandGapMinSec: 2,
+        brandGapMaxSec: 5,
+        preNavMinSec: 1,
+        preNavMaxSec: 2,
+        recoveryMinutes: 6,
+        stallTimeoutMs: 10 * 60 * 1000,
+      }
+      opts.delayMs = 7000
+      opts.brandGapMinSec = 8
+      opts.brandGapMaxSec = 20
+      opts.preNavMinSec = 5
+      opts.preNavMaxSec = 15
+      opts.recoveryMinutes = 12
+      opts.stallTimeoutMs = 15 * 60 * 1000
     }
   }
   return opts
+}
+
+/** Apply warm/babysit timings onto opts (mutates). */
+function applySpeedProfile(opts, profile, label) {
+  if (!profile) return
+  Object.assign(opts, profile)
+  log(
+    `speed ${label}: delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s brandGap=${opts.brandGapMinSec}-${opts.brandGapMaxSec}s`,
+  )
+  console.error(
+    `[queue] speed → ${label} (delay ${opts.delayMs}ms, pre-nav ${opts.preNavMinSec}-${opts.preNavMaxSec}s)`,
+  )
+}
+
+/** Safe cold profile (re-apply after captcha/stall so we don't stay hot while blocked). */
+function coldSpeedProfile() {
+  return {
+    delayMs: 7000,
+    brandGapMinSec: 8,
+    brandGapMaxSec: 20,
+    preNavMinSec: 5,
+    preNavMaxSec: 15,
+    recoveryMinutes: 12,
+    stallTimeoutMs: 15 * 60 * 1000,
+  }
 }
 
 /** True if another mall-brand-cycle is already running (not us waiting). */
@@ -368,9 +416,15 @@ async function main() {
   }
   const db = createClient(url, key)
 
+  const hasWarmSpeed = Boolean(opts.speedAfterWarm)
   log(
-    `queue up workspace=${opts.workspace} cdp=${opts.cdp} singleBrandOnly=${opts.singleBrandOnly !== false} listMode=${opts.listMode} mh4=${opts.skipMh4 ? 0 : opts.mh4Top} delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s brandGap=${opts.brandGapMinSec}-${opts.brandGapMaxSec}s recovery=${opts.recoveryMinutes}m`,
+    `queue up workspace=${opts.workspace} cdp=${opts.cdp} singleBrandOnly=${opts.singleBrandOnly !== false} listMode=${opts.listMode} mh4=${opts.skipMh4 ? 0 : opts.mh4Top} delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s brandGap=${opts.brandGapMinSec}-${opts.brandGapMaxSec}s recovery=${opts.recoveryMinutes}m warmSpeed=${hasWarmSpeed ? 'after-first-ok' : 'off'}`,
   )
+  if (hasWarmSpeed) {
+    console.error(
+      '[queue] cold start (safe delays). Babysit/fast speed unlocks after first successful brand — clear captcha first if needed.',
+    )
+  }
 
   while (isCycleRunning()) {
     log('waiting for mall-brand-cycle…')
@@ -378,6 +432,7 @@ async function main() {
   }
 
   let consecutiveErrors = 0
+  let sessionWarm = false
   for (;;) {
     while (isCycleRunning()) await sleep(8000)
 
@@ -404,12 +459,17 @@ async function main() {
     const mh4Left = need.filter((j) => j.phase === 'mh4').length
     const fullLeft = need.filter((j) => j.phase === 'full').length
     log(
-      `start ${brandKey} phase=${phase} (remaining ~${need.length}: mh4=${mh4Left} full=${fullLeft})`,
+      `start ${brandKey} phase=${phase} warm=${sessionWarm} (remaining ~${need.length}: mh4=${mh4Left} full=${fullLeft})`,
     )
 
     const result = await runOneBrand(opts, brandKey, phase)
     if (!result.ok) {
       consecutiveErrors++
+      // Captcha/stall: drop back to cold pacing so the next brand is not hot-raced into a wall
+      if (hasWarmSpeed && sessionWarm) {
+        sessionWarm = false
+        applySpeedProfile(opts, coldSpeedProfile(), 'cold-after-fail')
+      }
       console.error(
         `[queue ERROR] ${brandKey} phase=${phase} exit=${result.code} consecutive=${consecutiveErrors}`,
       )
@@ -442,10 +502,24 @@ async function main() {
         log(`cooldown write failed: ${e?.message || e}`)
       }
 
-      if (consecutiveErrors >= 5) {
-        console.error('[queue ERROR] 5 consecutive failures — stop')
+      // Don't kill the whole overnight queue on captcha storms — cooldown brand
+      // and keep walking. Only stop if almost nothing left but pure failures.
+      if (consecutiveErrors >= 40) {
+        console.error(
+          '[queue ERROR] 40 consecutive failures — stop (session likely dead; relaunch Chrome + captcha)',
+        )
         process.exitCode = 1
         return
+      }
+      if (consecutiveErrors % 5 === 0) {
+        log(
+          `warning: ${consecutiveErrors} consecutive failures — continuing (cooldown skips will advance)`,
+        )
+        console.error(
+          `[queue] ${consecutiveErrors} consecutive failures — still running; clear captcha if blocked`,
+        )
+        // Brief extra settle so a human can unlock Win+L / solve captcha
+        await sleep(20000)
       }
       await sleep(8000)
       continue
@@ -453,6 +527,11 @@ async function main() {
 
     consecutiveErrors = 0
     log(`ok ${brandKey} phase=${phase}`)
+    // First success after cold start → unlock babysit/fast for the rest
+    if (hasWarmSpeed && !sessionWarm) {
+      sessionWarm = true
+      applySpeedProfile(opts, opts.speedAfterWarm, 'babysit-warm')
+    }
     // short inter-brand pause (cycle also has brand-gap humanize)
     const gapLo = Math.max(1500, opts.brandGapMinSec * 400)
     const gapHi = Math.max(gapLo + 500, opts.brandGapMaxSec * 500)

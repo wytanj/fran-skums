@@ -23,7 +23,10 @@ test('UI API key creation checks workspace access through service-side authoriza
 })
 
 test('POS connector key creation is self-serve for workspace members only', () => {
-  assert.match(createRoute, /const isPosOnlyKey = scopes\.length > 0/)
+  // Match the rule, not its line breaks — this previously pinned the whole
+  // expression to one line and broke on a pure reformat.
+  assert.match(createRoute, /const isPosOnlyKey\s*=/)
+  assert.match(createRoute, /scopes\.every\(\(scope: string\) => \['pos:read', 'pos:write'\]\.includes\(scope\)\)/)
   assert.match(createRoute, /'pos:read', 'pos:write'/)
   assert.match(createRoute, /const canCreatePosConnector = isWorkspaceAdmin \|\| directRole === 'member'/)
   assert.match(createRoute, /Workspace access required to create a POS connector key/)

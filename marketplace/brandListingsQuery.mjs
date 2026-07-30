@@ -5,6 +5,34 @@
 
 import { exportRowsToCsv } from './normalize/metrics.mjs'
 
+/**
+ * RP-5 — default projection for agent (JSON) responses.
+ *
+ * Measured on 100 rows of the full column set: listing_url was 26% of all
+ * tokens, listing_id (UUID) 6%, crawled_at 5%, platform_category_path_text
+ * 10% — none of which a model reads. Dropping them plus emitting columnar
+ * arrays instead of object-per-row cut the same data by 84%.
+ *
+ * URLs are reconstructible from shop_id + item_id, so the response carries one
+ * `url_template` instead of a full URL on every row. Callers who genuinely
+ * need more can ask via `fields`; CSV export is unaffected and keeps
+ * BRAND_LISTING_COLUMNS in full.
+ */
+export const DEFAULT_LISTING_FIELDS = [
+  'title',
+  'sold_label',
+  'sold_count_lower_bound',
+  'shop_collection_name',
+  'platform_category_leaf',
+  'price',
+  'brand_key',
+  'shop_id',
+  'item_id',
+]
+
+/** Reconstructs a listing URL from the ids kept in the default projection. */
+export const LISTING_URL_TEMPLATE = 'https://shopee.sg/product/{shop_id}/{item_id}'
+
 /** Stable column order for sheets */
 export const BRAND_LISTING_COLUMNS = [
   'brand_key',
@@ -282,8 +310,9 @@ export async function queryBrandSummary(db, workspaceId, filters = {}) {
   const result = await queryBrandListings(db, workspaceId, {
     ...filters,
     limit,
-    fetch_limit: Math.max(Number(filters.fetch_limit) || 1200, limit),
     format: 'json',
+    // Aggregation below needs keyed rows, not columnar arrays.
+    shape: 'objects',
   })
   const summary = buildBrandRadarSummary(result.rows || [], { top_n })
   return {
@@ -295,74 +324,280 @@ export async function queryBrandSummary(db, workspaceId, filters = {}) {
       shop_collection_name: filters.shop_collection_name || null,
       min_sold: filters.min_sold ?? null,
     },
+    // Track RP: say plainly whether these aggregates cover the whole match set.
+    // A summary computed from one page of 500 is not a summary of 3,000 rows,
+    // and an agent must be able to tell the difference.
+    coverage: {
+      summarised_rows: result.row_count,
+      total_matching: result.total_matching,
+      complete: result.complete,
+      ...(result.complete
+        ? {}
+        : {
+            note: `Aggregates cover the top ${result.row_count} of ${result.total_matching} matching listings by sold. Narrow with brand_key / min_sold for a complete summary.`,
+          }),
+    },
     summary,
     // Small sample for agents without dumping full sheet
     sample_rows: (result.rows || []).slice(0, Math.min(5, top_n)),
   }
 }
 
+const SNAPSHOT_SELECT = `
+  id,
+  listing_id,
+  crawled_at,
+  price,
+  currency,
+  rating,
+  review_count,
+  sold_label,
+  sold_count_lower_bound,
+  seller_type,
+  search_query,
+  signals,
+  brand_key,
+  shop_username,
+  shop_collection_name,
+  platform_category_leaf,
+  marketplace_listings (
+    id,
+    shop_id,
+    item_id,
+    title,
+    shop_name,
+    listing_url,
+    seller_type,
+    category_path,
+    metadata
+  )
+`
+
 /**
- * Query snapshots and return brand-listing slice.
+ * Track RP — apply every supported filter in SQL.
+ *
+ * Previously only brand_key / seller_type / since / until reached the database;
+ * min_sold, brand_keys, shop, shelf, leaf and q were applied in JS *after* a
+ * capped recency window, so they silently saw ~12% of the table. Filters now
+ * run against the denormalised columns from migration 076.
+ *
+ * @param {any} q supabase query builder
+ * @param {object} filters
+ */
+function applySqlFilters(q, filters = {}) {
+  const lower = (v) => String(v).trim().toLowerCase()
+
+  if (filters.brand_key) q = q.eq('brand_key', lower(filters.brand_key))
+  if (Array.isArray(filters.brand_keys) && filters.brand_keys.length) {
+    q = q.in('brand_key', filters.brand_keys.map(lower))
+  }
+  if (filters.shop_username) q = q.eq('shop_username', lower(filters.shop_username))
+
+  // Shelf / leaf stay substring matches — callers pass partials like "Bundle".
+  if (filters.shop_collection_name) {
+    q = q.ilike('shop_collection_name', `%${String(filters.shop_collection_name).trim()}%`)
+  }
+  if (filters.platform_category_leaf) {
+    q = q.ilike('platform_category_leaf', `%${String(filters.platform_category_leaf).trim()}%`)
+  }
+
+  const minSold =
+    filters.min_sold != null && filters.min_sold !== '' ? Number(filters.min_sold) : null
+  if (minSold != null && Number.isFinite(minSold)) {
+    q = q.gte('sold_count_lower_bound', minSold)
+  }
+
+  if (filters.seller_type) q = q.eq('seller_type', filters.seller_type)
+  if (filters.since) q = q.gte('crawled_at', filters.since)
+  if (filters.until) q = q.lte('crawled_at', filters.until)
+
+  return q
+}
+
+/**
+ * RP-5 — reshape rows for an LLM client.
+ *
+ * Two savings, both measured:
+ *  1. Columnar arrays remove the per-row repetition of every key. With 20
+ *     columns and 100 rows that is 2,000 redundant key strings.
+ *  2. Fields whose value is identical across the whole result (brand_key and
+ *     shop_username on a single-brand query, for instance) are hoisted into a
+ *     `constant` header and dropped from the rows entirely.
+ *
+ * @param {object[]} rows
+ * @param {string[]} fields
+ * @returns {{ columns: string[], constant: Record<string, any>, rows: any[][] }}
+ */
+export function toColumnar(rows, fields) {
+  const list = Array.isArray(rows) ? rows : []
+  if (!list.length) return { columns: fields, constant: {}, rows: [] }
+
+  const constant = {}
+  const varying = []
+  for (const f of fields) {
+    const first = list[0][f] ?? null
+    // Only hoist a value that is actually present — hoisting `null` would
+    // hide "this field is empty for every row", which is information.
+    const same = first != null && list.every((r) => (r[f] ?? null) === first)
+    if (same) constant[f] = first
+    else varying.push(f)
+  }
+
+  return {
+    columns: varying,
+    constant,
+    rows: list.map((r) => varying.map((f) => r[f] ?? null)),
+  }
+}
+
+/**
+ * Free-text search still runs in JS: it spans the listing title (a joined
+ * table) plus derived path text, which PostgREST cannot express as one
+ * predicate. Callers combining `q` with a narrow filter get correct results;
+ * `q` alone over a large table is best-effort and reported as such.
+ * @param {object[]} rows
+ * @param {string} [needle]
+ */
+function applyTextSearch(rows, needle) {
+  if (!needle) return rows
+  const n = String(needle).toLowerCase()
+  return rows.filter((r) =>
+    `${r.title || ''} ${r.brand_key || ''} ${r.shop_collection_name || ''} ${r.platform_category_path_text || ''}`
+      .toLowerCase()
+      .includes(n),
+  )
+}
+
+/**
+ * Query the latest-observation-per-listing view and return a brand-listing slice.
+ *
+ * Contract (Track RP):
+ *   row_count       rows in this response
+ *   total_matching  rows matching the filter in the database
+ *   complete        row_count === total_matching
+ *   next_offset     pass back as `offset` to page (null when complete)
+ *
+ * `complete` exists because the old path silently truncated: an agent had no
+ * way to know it was reasoning about a subset.
+ *
  * @param {any} db supabase client
  * @param {string} workspaceId
  * @param {object} filters
  */
 export async function queryBrandListings(db, workspaceId, filters = {}) {
-  const fetchLimit = Math.min(Math.max(Number(filters.fetch_limit) || 800, 50), 2000)
+  const offset = Math.max(Number(filters.offset) || 0, 0)
+  const hasTextSearch = Boolean(filters.q)
 
-  let q = db
-    .from('marketplace_listing_snapshots')
-    .select(
-      `
-      id,
-      listing_id,
-      crawled_at,
-      price,
-      currency,
-      rating,
-      review_count,
-      sold_label,
-      sold_count_lower_bound,
-      seller_type,
-      search_query,
-      signals,
-      marketplace_listings (
-        id,
-        shop_id,
-        item_id,
-        title,
-        shop_name,
-        listing_url,
-        seller_type,
-        category_path,
-        metadata
-      )
-    `,
-    )
-    .eq('workspace_id', workspaceId)
-    .order('crawled_at', { ascending: false })
-    .limit(fetchLimit)
+  // RP-7 — tier row access.
+  //
+  // An unfiltered row request is almost always the wrong call: it returns an
+  // arbitrary top-N of thousands of listings, which reads as an answer but is
+  // a sample. Rather than error (hostile for a reasonable-looking call), cap
+  // it hard and steer to the aggregate tool. Narrowed calls keep the full
+  // default. Paging past the first page counts as intent, not a blind dump.
+  const narrowed = Boolean(
+    filters.brand_key
+    || (Array.isArray(filters.brand_keys) && filters.brand_keys.length)
+    || filters.shop_username
+    || filters.shop_collection_name
+    || filters.platform_category_leaf
+    || filters.min_sold
+    || filters.q
+    || offset > 0,
+  )
+  const requestedLimit = Math.min(Math.max(Number(filters.limit) || 100, 1), 500)
+  const limit = narrowed ? requestedLimit : Math.min(requestedLimit, 25)
 
-  // Narrow in DB when possible (jsonb brand_key)
-  if (filters.brand_key) {
-    q = q.contains('signals', { brand_key: String(filters.brand_key).toLowerCase() })
-  }
-  if (filters.seller_type) q = q.eq('seller_type', filters.seller_type)
-  if (filters.since) q = q.gte('crawled_at', filters.since)
-  if (filters.until) q = q.lte('crawled_at', filters.until)
+  // One row per listing in SQL (mig 076 view) — no JS dedupe, no fetch window.
+  const base = () => applySqlFilters(
+    db.from('v_marketplace_listing_latest').select(SNAPSHOT_SELECT).eq('workspace_id', workspaceId),
+    filters,
+  )
 
-  const { data, error } = await q
+  // Exact count of what matches, independent of the page we return.
+  const { count: totalMatching, error: countErr } = await applySqlFilters(
+    db
+      .from('v_marketplace_listing_latest')
+      .select('listing_id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId),
+    filters,
+  )
+  if (countErr) throw new Error(countErr.message)
+
+  // Text search can only be evaluated after the join is materialised, so widen
+  // the page when it is in play and narrow back down afterwards.
+  const fetchSize = hasTextSearch ? Math.min(limit * 10, 2000) : limit
+
+  const { data, error } = await base()
+    .order('sold_count_lower_bound', { ascending: false, nullsFirst: false })
+    .order('listing_id', { ascending: true })
+    .range(offset, offset + fetchSize - 1)
+
   if (error) throw new Error(error.message)
 
-  const deduped = dedupeSnapshotsByListing(data || [])
-  let rows = deduped.map(snapshotToBrandListingRow)
-  rows = filterBrandListingRows(rows, filters)
+  const sourceRows = (data || []).map(snapshotToBrandListingRow)
+  let rows
+  let consumedSourceRows
+
+  if (hasTextSearch) {
+    // `offset` addresses the SQL candidate stream, not the filtered matches.
+    // Stop at the source row that produced the final returned match so the
+    // next page neither repeats candidates nor skips additional matches that
+    // were already fetched in this widened window.
+    rows = []
+    consumedSourceRows = 0
+    for (const sourceRow of sourceRows) {
+      consumedSourceRows++
+      if (applyTextSearch([sourceRow], filters.q).length) rows.push(sourceRow)
+      if (rows.length >= limit) break
+    }
+  } else {
+    rows = sourceRows.slice(0, limit)
+    consumedSourceRows = rows.length
+  }
+
+  const total = totalMatching ?? rows.length
+  const sourceExhausted =
+    offset + consumedSourceRows >= total
+    || (sourceRows.length < fetchSize && consumedSourceRows >= sourceRows.length)
+  const complete = hasTextSearch
+    ? sourceExhausted
+    : offset + rows.length >= total
+  const nextOffset = complete ? null : offset + consumedSourceRows
 
   const summary = summarizeBrandListings(rows)
+
+  // RP-7: when a response is partial, name the tool that answers the question
+  // completely. An agent should not have to infer that rows were the wrong
+  // shape of request.
+  const guidance = []
+  if (!narrowed) {
+    guidance.push(
+      `Unfiltered row request — capped at ${limit} of ${total} listings. This is a sample, not a ranking. For "which brands/shelves sell most" use market_brand_rollup (complete and ~10x cheaper); for specific SKUs pass brand_key or shop_collection_name.`,
+    )
+  } else if (!complete) {
+    guidance.push(
+      `Partial: ${rows.length} of ${total}. Page with offset=${nextOffset}, narrow the filter, or use market_brand_rollup if you only need totals.`,
+    )
+  }
+
+  const coverage = {
+    row_count: rows.length,
+    total_matching: total,
+    offset,
+    complete,
+    next_offset: nextOffset,
+    ...(guidance.length ? { guidance: guidance.join(' ') } : {}),
+    ...(hasTextSearch
+      ? {
+          note: `total_matching counts the SQL filters; q="${filters.q}" was applied to this page only. Combine q with brand_key or min_sold for exact counts.`,
+        }
+      : {}),
+  }
+
   const format = filters.format === 'csv' ? 'csv' : 'json'
 
   if (format === 'csv') {
-    // Ensure column order
     const ordered = rows.map((r) => {
       const o = {}
       for (const k of BRAND_LISTING_COLUMNS) o[k] = r[k] ?? ''
@@ -370,18 +605,36 @@ export async function queryBrandListings(db, workspaceId, filters = {}) {
     })
     return {
       format: 'csv',
-      row_count: ordered.length,
+      ...coverage,
       summary,
       csv: exportRowsToCsv(ordered),
       columns: BRAND_LISTING_COLUMNS,
     }
   }
 
+  // RP-5: columnar is the default for JSON because the consumer is a model.
+  // `shape: 'objects'` stays available for callers that want row objects
+  // (queryBrandSummary needs them internally, as does any UI table).
+  const shape = filters.shape === 'objects' ? 'objects' : 'columnar'
+  if (shape === 'objects') {
+    return { format: 'json', shape, ...coverage, summary, rows, columns: BRAND_LISTING_COLUMNS }
+  }
+
+  const requested = Array.isArray(filters.fields) && filters.fields.length
+    ? filters.fields.filter((f) => BRAND_LISTING_COLUMNS.includes(f))
+    : DEFAULT_LISTING_FIELDS
+  const fields = requested.length ? requested : DEFAULT_LISTING_FIELDS
+  const table = toColumnar(rows, fields)
+
   return {
     format: 'json',
-    row_count: rows.length,
+    shape,
+    ...coverage,
     summary,
-    rows,
-    columns: BRAND_LISTING_COLUMNS,
+    ...table,
+    ...(fields.includes('shop_id') && fields.includes('item_id')
+      ? { url_template: LISTING_URL_TEMPLATE }
+      : {}),
+    available_fields: BRAND_LISTING_COLUMNS,
   }
 }

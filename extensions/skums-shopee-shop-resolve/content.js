@@ -100,8 +100,6 @@
         a.parentElement
 
       const text = (card?.innerText || a.innerText || '').replace(/\s+/g, ' ').trim()
-      const soldMatch = text.match(/([0-9.,]+\s*[kKmM]?\+?\s*sold)/i)
-      const sold_label = soldMatch ? soldMatch[1].replace(/\s+/g, ' ').trim() : null
 
       let name =
         (a.getAttribute('title') || '').trim() ||
@@ -109,11 +107,30 @@
         productNameFromHref(href)
       if (name) name = name.replace(/\s+/g, ' ').trim()
 
+      // Match "sold" OUTSIDE the product title — some titles contain their own
+      // marketing copy ("…100M Sold Cleansing Balm") which parsed as a real
+      // sold count and dominated brand aggregates. Keep in sync with
+      // marketplace/mallHarvestWorker.mjs browserHarvestEvaluate.
+      const nameElText = card?.querySelector('[data-sqe="name"]')?.innerText || ''
+      let soldRegion = text
+      for (const strip of [nameElText, name]) {
+        if (strip && strip.length > 3) soldRegion = soldRegion.split(strip).join(' ')
+      }
+      const soldMatch = soldRegion.match(/([0-9.,]+\s*[kKmM]?\+?\s*sold)/i)
+      let sold_label = soldMatch ? soldMatch[1].replace(/\s+/g, ' ').trim() : null
+
+      let sold_parse_suspect = false
+      if (parseSoldLower(sold_label) > 10000000) {
+        sold_parse_suspect = true
+        sold_label = null
+      }
+
       const key = ids.shop_id + ':' + ids.item_id
       const row = {
         name,
         sold_label,
         sold_count_lower_bound: parseSoldLower(sold_label),
+        ...(sold_parse_suspect ? { sold_parse_suspect: true } : {}),
         category,
         shop_id: ids.shop_id,
         item_id: ids.item_id,

@@ -2,14 +2,14 @@
 
 **Date:** 2026-07-30  
 **Production:** https://fran-skums.vercel.app · POS https://fran-pos.vercel.app · CRM https://fran-crm-eight.vercel.app  
-**DB:** migrations **001–075** (… **073** workspace_crm_links · **074** Help crm-pos-skums-setup · **075** marketplace harvest notify policies **applied**).  
+**DB:** migrations **001–079 applied** (… **076** snapshot dimensions + latest-per-listing view · **077** brand rollup functions · **078** query cache · **079** read-path correctness follow-up).
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
 **Brand radar / Mall harvest:** Track **BR** — **MH-1–9 eng done** · **live bulk scrape paused 2026-07-29** (captcha; Chrome closed) · see **`docs/scrape-summary.md`** · next: warm CDP → resume queue · MH-4 deepen · distributors later  
 
 **Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · POS **Sync from SKUMS** shipped · CORS `x-pos-client` shipped · next: L-sim / Jan-1 / campaigns  
 **Fran product UX:** Track **F0** — **single-org Fran** chrome (hide multi-tenant SaaS UI); later **country = legal entity** under one org · see § Track F0 below  
 **Teammate / Kristle:** Track **TEAM** — **shipped + prod** (POS 00014 · CRM 0011 · SKUMS copy-link) · owner ops: invite Kristle via buttons · personal Gmail OK for test · Phase **S** = Workspace SSO + MFA later  
-**MCP read path:** Track **RP** — **active next eng** · design in **`docs/MCP_READ_PATH_DESIGN.md`** · start **RP-1** (silent truncation / push filters to SQL) · separate subagent OK  
+**MCP read path:** Track **RP** — **COMPLETE (RP-1…RP-8)**, mig **076–079 applied**. Filters in SQL · honest truncation (`complete`/`total_matching`/`next_offset`) · latest-per-listing view · **`market_brand_rollup`** SQL GROUP BY · metric definitions · columnar payload · row tiering · update-sensitive data-version cache. Aggregates **−93%**, rows **−80%** tokens, repeat reads **20x** faster. Design **`docs/MCP_READ_PATH_DESIGN.md`**
 **Demand forecast:** Track **FC** — **`docs/FORECASTING_ARCHITECTURE.md`** · **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
 **MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`)  
 **Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
@@ -72,7 +72,7 @@
 | **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
 | **G** | **Shopee / marketplace collect** | **Windows primary locked** · **G2 absorbed by MH-11** |
 | **BR** | **Weekly brand radar / Mall harvest** | **MH-1–9 done** · **bulk paused** · resume queue when ready |
-| **RP** | **MCP read path (agent analytics)** | **Next eng** · **RP-1** correctness gate · `docs/MCP_READ_PATH_DESIGN.md` |
+| **RP** | **MCP read path (agent analytics)** | **RP-1…RP-8 DONE** (mig **076–079 applied**). SQL filters · honest truncation **176→910** · `market_brand_rollup` · metric defs · columnar **−80%** · tiering · update-sensitive cache **20x** |
 | **WEB** | **Fran web → store** | **Parked in `TODO-WEB.md`** |
 
 ## Track L — Fran’s With Benefits (loyalty execution)

@@ -5,6 +5,33 @@
  * Pure orchestration — no browser.
  */
 
+import { isPlausibleSoldCount } from '../soldLabel.mjs'
+
+/**
+ * Track RP — derive the indexed filter dimensions from a card's signals.
+ *
+ * `signals` stays the source of truth; these columns exist only so the read
+ * path can filter and sort in SQL instead of pulling a recency window and
+ * filtering in JS (migration 076). Keep this in sync with
+ * scripts/backfill-snapshot-dimensions.mjs.
+ *
+ * @param {Record<string, any>} signals
+ */
+export function snapshotDimensions(signals) {
+  const s = signals && typeof signals === 'object' ? signals : {}
+  const str = (v) => {
+    const t = v == null ? '' : String(v).trim()
+    return t ? t : null
+  }
+  return {
+    brand_key: str(s.brand_key)?.toLowerCase() ?? null,
+    shop_username: str(s.shop_username)?.toLowerCase() ?? null,
+    // Harvest stamps the shelf as shop_collection_name; older rows used `category`.
+    shop_collection_name: str(s.shop_collection_name) ?? str(s.category),
+    platform_category_leaf: str(s.platform_category_leaf),
+  }
+}
+
 /**
  * @param {any} db Supabase service client
  * @param {{
@@ -105,6 +132,12 @@ export async function upsertObservationCards(db, input) {
       }
       result.listings_upserted++
 
+      // Last line of defence against a mis-parsed sold figure reaching the
+      // warehouse (see isPlausibleSoldCount). Keep the raw label for audit but
+      // drop the number, so one bad row cannot dominate every aggregate.
+      const soldOk = isPlausibleSoldCount(card.sold_count_lower_bound)
+      const suspectSold = !soldOk || card.sold_parse_suspect === true
+
       const snapshotRow = {
         workspace_id,
         listing_id: listing.id,
@@ -117,12 +150,19 @@ export async function upsertObservationCards(db, input) {
         rating: card.rating ?? null,
         review_count: card.review_count ?? null,
         sold_label: card.sold_label ?? null,
-        sold_count_lower_bound: card.sold_count_lower_bound ?? null,
+        sold_count_lower_bound: soldOk ? card.sold_count_lower_bound ?? null : null,
         availability: card.price != null ? 'in_stock' : 'unknown',
         rank_position: card.rank_position ?? null,
         search_query: card.search_query ?? null,
         seller_type,
-        signals: card.signals || {},
+        signals: {
+          ...(card.signals || {}),
+          ...(suspectSold
+            ? { sold_parse_suspect: true, sold_raw_rejected: card.sold_count_lower_bound ?? null }
+            : {}),
+        },
+        // Denormalised for indexed filtering — see snapshotDimensions (mig 076)
+        ...snapshotDimensions(card.signals),
         raw_observation: card.raw || card,
       }
 

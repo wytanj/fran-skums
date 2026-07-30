@@ -13,35 +13,35 @@ Composite-first (prefer ONE tool, then answer):
 | Catalog structure / “best products” / import readiness | catalog_health | multi-offset catalog_search |
 | Sample N products | catalog_sample | many sequential searches |
 | Category research (e.g. lipsticks) | catalog_search_summary | search + separate facet calls |
-| CSV / spreadsheet of filtered products | catalog_export_csv (max 200) | unbounded full-catalog dump |
-| Retail/POS empty intentional? + market seed ideas | catalog_data_ops | inventing demand; bi_upsert_seed on cloud |
-| **Shopee Mall harvest** — what sells on Shopee / brand radar / which masks sell well | market_brand_summary then market_brand_listings (brand_key slug e.g. beauty-of-joseon; q: mask) | market_search free text; catalog_search; inventing sold ranks |
+| CSV of filtered products | catalog_export_csv (max 200) | unbounded catalog dump |
+| Retail/POS empty intentional? + seed ideas | catalog_data_ops | inventing demand; bi_upsert_seed on cloud |
+| **Shopee Mall** — aggregate (which brands/shelves sell most, category mix) | **market_brand_rollup** (group_by: brand\|shelf\|platform_leaf\|shop) — SQL GROUP BY | adding up rows yourself; inventing sold ranks |
+| **Shopee Mall** — specific SKUs | market_brand_summary → market_brand_listings (brand_key slug) | market_search free text; catalog_search |
 | Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
-| **Our catalog** — do we stock X / brand in range | catalog_search_summary or catalog_search | market_brand_*; treating Mall sold as our stock |
-| Stock / “status of product X” / in transit / at Loft | product_inventory_status | product.stock_quantity; multi help+search; market sold |
-| ATS / inventory levels by location | inventory_ats | catalog stock fields; Shopee harvest |
-| Market vs us (demand + coverage) | (1) market_brand_* (2) catalog_search + inventory_ats — two sections | merging Mall sold into ATS |
-| What’s outstanding / transfers / queues | ops_snapshot | inventing empty as “settled” |
-| Can I invoice / order / what exists? / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
+| **Our catalog** — do we stock X | catalog_search_summary or catalog_search | market_brand_*; Mall sold as our stock |
+| Stock / status of product X / in transit / at Loft | product_inventory_status | product.stock_quantity; market sold |
+| ATS / inventory by location | inventory_ats | catalog stock fields; Shopee harvest |
+| Market vs us | (1) market_brand_* (2) catalog_search + inventory_ats — two sections | merging Mall sold into ATS |
+| Outstanding / transfers / queues | ops_snapshot | inventing empty as “settled” |
+| Can I invoice / order / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
-| POS + CRM + SKUMS **setup**, live loyalty, workspace key | help_resolve then **help_get slug=crm-pos-skums-setup** | inventing dual CRM keys on POS; CRM secrets in browser |
-| PO / transfer **statuses**, FOB, confirm, in transit rules | help_resolve then **help_get slug=po-transfer-lifecycle** | inventing statuses or merging Actions PO with Loft orders |
+| POS+CRM+SKUMS setup, live loyalty | help_get slug=crm-pos-skums-setup | dual CRM keys on POS; CRM secrets in browser |
+| PO / transfer statuses, FOB, in transit | help_get slug=po-transfer-lifecycle | inventing statuses; merging Actions PO with Loft orders |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe; claiming in transit |
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | inventing approve without scope |
-| One request context (lines + recommend + wave) | store_request_status (M1) | multi list+recommend+waves |
-| Pending floor damage/found/count queue | floor_adjustment_queue (M2) | inventing apply |
-| HQ verify receive exception | exception_verify (M3, store_ops:verify) | inventing resolve without scope |
-| HQ approve / reject / defer request | store_ops_decide (needs store_ops:approve) | calling without owner/admin key |
+| One request context (lines + recommend + wave) | store_request_status | multi list+recommend+waves |
+| Pending floor damage/found/count queue | floor_adjustment_queue | inventing apply |
+| HQ verify receive exception | exception_verify (store_ops:verify) | resolving without scope |
+| HQ approve / reject / defer | store_ops_decide (store_ops:approve) | calling without owner/admin key |
 | Expiry / exceptions / Loft health / attention | expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot | inventing fixes |
 | Low stock → request lines | low_stock_request_pack then draft request | auto-approve |
 | Draft ASN / floor adj | inbound_create_draft, floor_adjustment_create_draft (dry_run) | send Loft / apply ledger |
 | POS-off shortlist | pos_enable_proposal | bulk Activate for POS |
-| List report packs / digests | reports_list / reports_get (Rpt-4) | inventing digests |
-| Run a subscribed report pack | reports_run (enabled only; reports:run) | auto-approve / Loft / FOB |
+| Report packs: list / run | reports_list, reports_get, reports_run (enabled only; reports:run) | inventing digests; auto-approve |
 
 Two data buckets (do not mix):
-1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold labels = market signal · scrapes use search_query shop:{username} not free-text brand names.
-2) **Our catalog + stock** = catalog_* · inventory_ats · product_inventory_status · never use product.stock_quantity as ATS.
+1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = market signal, not our stock.
+2) **Our catalog + stock** = catalog_* · inventory_ats · product_inventory_status · never product.stock_quantity as ATS.
 `.trim()
 
 /**
@@ -54,6 +54,8 @@ Answer style:
 3. Prefer short markdown: bullets or one small table. Do not re-prove the same emptiness across multiple tools.
 4. Trust tool agent_hint / note / path_summary / attention — paraphrase, do not invent.
 5. Never invent product counts, sales rankings, or stock from product.stock_quantity.
+5b. Shopee sold = **cumulative lifetime, bucketed** (4k+ → 4000), not a rate; it favours older listings. Say "has sold ≥N since listing", never "selling well now".
+5c. On market_brand_* check **complete**; if false you have a subset — page with next_offset or narrow. Never present it as the whole.
 6. Empty open queues mean those objects are empty — not “all transfers settled.”
 7. After any draft (PO / pipeline propose): stop, give deep_link, tell human to use Actions or Store Ops UI.
 `.trim()
@@ -72,12 +74,12 @@ export function buildSafetyBlock(opts = {}) {
 Safety:
 - ${profileLine}
 - No invoices / AR in Fran (supplier AP-lite is design-target only; not customer billing).
-- Store Ops path: request → store_ops_decide (approve/reject/defer) → order → send Loft needs execute_3pl separately.
-- Approve ≠ send to Loft. Use store_ops_decide only with store_ops:approve; never invent approvals.
-- Credentials scopes never on cloud keys. Other privileged tools (PO decide, pipeline execute) only if scopes granted.
-- Draft PO = decision-layer planning artifact (Actions), not supplier order, not Loft store order, not stock on_hand.
-- Lifecycle (as of 2026-07-24): internal approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received. Supplier in_transit needs FOB document evidence. Prefer help_get slug=po-transfer-lifecycle for status questions.
-- POS live loyalty: SKUMS workspace key only; CRM linked on SKUMS HQ. help_get slug=crm-pos-skums-setup. Never put CRM service secrets on the register.
+- Store Ops path: request → store_ops_decide → order → send Loft needs execute_3pl separately.
+- Approve ≠ send to Loft. store_ops_decide needs store_ops:approve; never invent approvals.
+- Credentials scopes never on cloud keys. Privileged tools (PO decide, pipeline execute) only if scoped.
+- Draft PO = planning artifact (Actions), not a supplier order, Loft order, or on_hand stock.
+- Lifecycle: internal approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received. Supplier in_transit needs FOB evidence — help_get slug=po-transfer-lifecycle.
+- POS live loyalty: SKUMS workspace key only; CRM linked on SKUMS HQ (help_get slug=crm-pos-skums-setup). Never put CRM secrets on the register.
 - Prefer po_update_draft / add_lines / clone over recreate. Empty queues ≠ transfers settled.
 - Auth: cloud uses API key in URL (?api_key= / /mcp/c/…) or Bearer; tools/list and tools/call require key.
 `.trim()
@@ -104,7 +106,8 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     buildSafetyBlock({ cloud }),
     '',
-    'OK composites: capabilities, catalog_*, market_brand_summary/listings/export_csv, inventory_ats, product_inventory_status, ops_snapshot, store_request_status, floor_adjustment_queue, reports_list/get/run, expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot, low_stock_request_pack, pos_enable_proposal, help_*.',
+    // Read-only tools are already enumerated in the routing table above; this
+    // line only needs to name the write-side boundary.
     'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     cloud
       ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'

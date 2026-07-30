@@ -52,7 +52,15 @@ export default defineEventHandler(async (event) => {
       since: typeof query.since === 'string' ? query.since : undefined,
       until: typeof query.until === 'string' ? query.until : undefined,
       limit: Number(query.limit) || 100,
+      offset: query.offset != null && query.offset !== '' ? Number(query.offset) : undefined,
       format: query.format === 'csv' ? 'csv' : 'json',
+      // HTTP callers (n8n, curl, sheets) keep row objects unless they opt in.
+      // The columnar shape exists for LLM clients and is MCP's default.
+      shape: query.shape === 'columnar' ? 'columnar' : 'objects',
+      fields:
+        typeof query.fields === 'string'
+          ? query.fields.split(',').map((s) => s.trim()).filter(Boolean)
+          : undefined,
     })
 
     if (result.format === 'csv') {
@@ -69,6 +77,9 @@ export default defineEventHandler(async (event) => {
         format: 'csv',
         workspace_id: auth.workspaceId,
         row_count: result.row_count,
+        total_matching: result.total_matching,
+        complete: result.complete,
+        next_offset: result.next_offset,
         summary: result.summary,
         columns: result.columns,
         csv: result.csv,

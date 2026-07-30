@@ -101,18 +101,39 @@ export function browserHarvestEvaluate() {
       a.closest('[data-sqe="item"]') ||
       a.parentElement
     const text = (card?.innerText || a.innerText || '').replace(/\s+/g, ' ').trim()
-    const soldMatch = text.match(/([0-9.,]+\s*[kKmM]?\+?\s*sold)/i)
-    const sold_label = soldMatch ? soldMatch[1].replace(/\s+/g, ' ').trim() : null
     let name =
       (a.getAttribute('title') || '').trim() ||
       card?.querySelector('[data-sqe="name"]')?.textContent?.trim() ||
       nameFromHref(href)
     if (name) name = name.replace(/\s+/g, ' ').trim()
+
+    // Match "sold" OUTSIDE the product title. The card's innerText contains
+    // the name, and some titles carry their own marketing copy — a real
+    // listing, "Shopee x BANILA CO 7.7 Brand Box 100M Sold Cleansing Balm",
+    // parsed as 100,000,000 and topped every brand rollup. Strip the title
+    // before matching.
+    const nameElText = card?.querySelector('[data-sqe="name"]')?.innerText || ''
+    let soldRegion = text
+    for (const strip of [nameElText, name]) {
+      if (strip && strip.length > 3) soldRegion = soldRegion.split(strip).join(' ')
+    }
+    const soldMatch = soldRegion.match(/([0-9.,]+\s*[kKmM]?\+?\s*sold)/i)
+    let sold_label = soldMatch ? soldMatch[1].replace(/\s+/g, ' ').trim() : null
+
+    // Defence in depth: no single listing has a credible lifetime count this
+    // high. Drop the value rather than let it dominate every aggregate.
+    let sold_parse_suspect = false
+    if (soldLower(sold_label) > 10000000) {
+      sold_parse_suspect = true
+      sold_label = null
+    }
+
     const key = `${ids.shop_id}:${ids.item_id}`
     const row = {
       name,
       sold_label,
       sold_count_lower_bound: soldLower(sold_label),
+      ...(sold_parse_suspect ? { sold_parse_suspect: true } : {}),
       category: category,
       shop_id: ids.shop_id,
       item_id: ids.item_id,

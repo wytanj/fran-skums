@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { parseSoldLabel } from '../marketplace/soldLabel.mjs'
+import {
+  MAX_PLAUSIBLE_SOLD,
+  isPlausibleSoldCount,
+  parseSoldLabel,
+} from '../marketplace/soldLabel.mjs'
 import {
   deriveDropshipSignals,
   isTrustedSellerTier,
@@ -99,6 +103,49 @@ test('shared types export marketplace and study contracts', () => {
   assert.match(typesStudy, /export type PipelineCandidateKind/)
   assert.match(typesStudy, /export interface GroundedGrokResult/)
   assert.match(typesStudy, /numbers_from_model_only: false/)
+})
+
+test('sold extraction ignores "N Sold" inside the product title', () => {
+  // Real listing that reached the warehouse as 100,000,000 units and became
+  // the top seller in every brand rollup:
+  //   "Shopee x BANILA CO 7.7 Brand Box 100M Sold Cleansing Balm"
+  // The card's innerText contains the title, so the grid regex matched it.
+  // Both harvesters must now strip the title before matching.
+  for (const [label, file] of [
+    ['worker', '../marketplace/mallHarvestWorker.mjs'],
+    ['extension', '../extensions/skums-shopee-shop-resolve/content.js'],
+  ]) {
+    const src = readFileSync(new URL(file, import.meta.url), 'utf8')
+    assert.match(src, /soldRegion/, `${label} must match sold outside the title`)
+    assert.match(src, /sold_parse_suspect/, `${label} must flag implausible counts`)
+    // The name has to be resolved before the sold match, or there is nothing
+    // to strip.
+    assert.ok(
+      src.indexOf('let name =') < src.indexOf('soldRegion.match'),
+      `${label}: name must be computed before the sold match`,
+    )
+  }
+})
+
+test('isPlausibleSoldCount rejects title-parse garbage, allows real figures', () => {
+  assert.equal(isPlausibleSoldCount(100_000_000), false, '100M in a title is not a real count')
+  assert.equal(isPlausibleSoldCount(MAX_PLAUSIBLE_SOLD + 1), false)
+  assert.equal(isPlausibleSoldCount(MAX_PLAUSIBLE_SOLD), true)
+  assert.equal(isPlausibleSoldCount(300_000), true, 'cosrx top seller is legitimate')
+  assert.equal(isPlausibleSoldCount(0), true)
+  assert.equal(isPlausibleSoldCount(null), true, 'absent is not implausible')
+  assert.equal(isPlausibleSoldCount(-1), false)
+  assert.equal(isPlausibleSoldCount(Number.NaN), false)
+})
+
+test('the write path drops an implausible sold count but keeps it for audit', () => {
+  const src = readFileSync(
+    new URL('../marketplace/writers/upsertObservations.mjs', import.meta.url),
+    'utf8',
+  )
+  assert.match(src, /isPlausibleSoldCount/)
+  assert.match(src, /sold_count_lower_bound: soldOk \?/)
+  assert.match(src, /sold_raw_rejected/)
 })
 
 test('parseSoldLabel handles buckets and exact counts', () => {

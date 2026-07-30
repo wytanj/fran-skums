@@ -5,6 +5,7 @@ import {
   queryBrandListings,
   queryBrandSummary,
 } from '../../../marketplace/brandListingsQuery.mjs'
+import { queryBrandRollup } from '../../../marketplace/brandRollupQuery.mjs'
 import {
   buildExportTable,
   computeSellerMixMetrics,
@@ -282,8 +283,23 @@ export async function brandListings(workspaceId, filters = {}) {
     since: filters.since,
     until: filters.until,
     limit: filters.limit ?? 100,
+    offset: filters.offset,
     format: filters.format === 'csv' ? 'csv' : 'json',
+    // RP-5: the consumer here is a model — columnar + default projection.
+    shape: filters.shape === 'objects' ? 'objects' : 'columnar',
+    fields: filters.fields,
   })
+}
+
+/**
+ * RP-4 — grouped aggregates over the Mall harvest.
+ * Aggregation runs in Postgres; payload stays roughly constant as data grows.
+ * @param {string} workspaceId
+ * @param {object} opts group_by, metrics, limit + the usual filters
+ */
+export async function brandRollup(workspaceId, opts = {}) {
+  const db = getDb()
+  return queryBrandRollup(db, workspaceId, opts)
 }
 
 /**
