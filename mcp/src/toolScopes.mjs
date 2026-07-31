@@ -114,6 +114,10 @@ export const TOOL_SCOPE_CATALOG = {
     scope: 'intel:read',
     action: 'Export brand-radar listings as CSV for spreadsheets',
   },
+  market_brand_export_full: {
+    scope: 'intel:read',
+    action: 'Export full multi-sheet Excel (one sheet per brand)',
+  },
   market_brand_summary: {
     scope: 'intel:read',
     action: 'Brand-radar summary: sold bands, top SKUs, shelf/platform mix',

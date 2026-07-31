@@ -303,6 +303,26 @@ export async function brandRollup(workspaceId, opts = {}) {
 }
 
 /**
+ * Recipe **full** — multi-sheet .xlsx (one sheet per brand + _index).
+ * Returns metadata + buffer; HTTP route streams the file; MCP returns download info.
+ */
+export async function brandWorkbookFull(workspaceId, filters = {}) {
+  const { buildBrandWorkbook } = await import('../../../marketplace/exportBrandWorkbook.mjs')
+  const db = getDb()
+  return buildBrandWorkbook(db, workspaceId, {
+    recipe: filters.recipe || 'full',
+    brand_key: filters.brand_key,
+    brand_keys: filters.brand_keys,
+    min_sold: filters.min_sold,
+    shop_username: filters.shop_username,
+    seller_type: filters.seller_type,
+    since: filters.since,
+    until: filters.until,
+    max_brands: filters.max_brands,
+  })
+}
+
+/**
  * Brand-radar summary (sold bands, top SKUs, shelf mix) for agents.
  */
 export async function brandSummary(workspaceId, filters = {}) {

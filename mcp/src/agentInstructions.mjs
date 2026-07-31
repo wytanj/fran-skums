@@ -18,6 +18,7 @@ Composite-first (prefer ONE tool, then answer):
 | **Shopee Mall** — aggregate (which brands/shelves sell most, category mix) | **market_brand_rollup** (group_by: brand\|shelf\|platform_leaf\|shop) — SQL GROUP BY | adding up rows yourself; inventing sold ranks |
 | **Shopee Mall** — specific SKUs | market_brand_summary → market_brand_listings (brand_key slug) | market_search free text; catalog_search |
 | Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
+| Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** (recipe full) → give download_url | summing listings in chat; market_brand_listings dump |
 | **Our catalog** — do we stock X | catalog_search_summary or catalog_search | market_brand_*; Mall sold as our stock |
 | Stock / status of product X / in transit / at Loft | product_inventory_status | product.stock_quantity; market sold |
 | ATS / inventory by location | inventory_ats | catalog stock fields; Shopee harvest |

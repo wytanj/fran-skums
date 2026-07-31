@@ -266,6 +266,38 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'market_brand_export_full',
+    description:
+      'Recipe **full**: multi-sheet .xlsx of the Mall harvest — one worksheet per brand_key plus leading _index (sku_count, sold_sum, sold_max). SQL builds the data; do NOT re-sum rows in the model. Prefer the download_url / HTTP GET with intel:read key to save the file. Optional include_base64=true only for small subsets (token-heavy). For a single brand CSV use market_brand_export_csv instead.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        recipe: {
+          type: 'string',
+          enum: ['full'],
+          description: 'Only full is supported today (one sheet per brand).',
+        },
+        brand_keys: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional subset of brand slugs. Omit for all brands with harvest data (capped by max_brands).',
+        },
+        brand_key: { type: 'string', description: 'Single brand (same as brand_keys of one).' },
+        min_sold: { type: 'number' },
+        shop_username: { type: 'string' },
+        max_brands: {
+          type: 'number',
+          description: 'Max brand sheets 1–200 (default 120). Top by sold_sum.',
+        },
+        include_base64: {
+          type: 'boolean',
+          description:
+            'If true and file is small enough, attach xlsx_base64 for clients that cannot call the download URL. Default false.',
+        },
+      },
+    },
+  },
+  {
     name: 'market_brand_summary',
     description:
       'Brand-radar overview for planning sheets: SKU counts, sold bands, marketing shelf mix, platform leaf mix, top products by sold. Use before export_csv to choose filters.',
@@ -1546,6 +1578,59 @@ export async function handleTool(name, args = {}) {
           format: 'csv',
         })
         return jsonResult(result)
+      }
+      case 'market_brand_export_full': {
+        requireScope('intel:read')
+        const ws = requireWorkspaceId()
+        const built = await bi.brandWorkbookFull(ws, {
+          recipe: a.recipe || 'full',
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          min_sold: a.min_sold,
+          shop_username: a.shop_username,
+          max_brands: a.max_brands,
+        })
+        const baseUrl = (
+          process.env.SKUMS_API_BASE ||
+          process.env.NUXT_PUBLIC_SITE_URL ||
+          'https://fran-skums.vercel.app'
+        ).replace(/\/$/, '')
+        const q = new URLSearchParams({ recipe: 'full' })
+        if (a.min_sold != null) q.set('min_sold', String(a.min_sold))
+        if (a.max_brands != null) q.set('max_brands', String(a.max_brands))
+        if (a.brand_key) q.set('brand_key', String(a.brand_key))
+        if (Array.isArray(a.brand_keys) && a.brand_keys.length) {
+          q.set('brand_keys', a.brand_keys.join(','))
+        }
+        const download_url = `${baseUrl}/api/v1/marketplace/brand-workbook?${q.toString()}`
+        const payload = {
+          recipe: built.recipe,
+          filename: built.filename,
+          sheet_count: built.sheet_count,
+          row_count: built.row_count,
+          brands: built.brands,
+          generated_at: built.generated_at,
+          note: built.note,
+          download_url,
+          download: {
+            method: 'GET',
+            url: download_url,
+            auth: 'Authorization: Bearer <api_key with intel:read>',
+            content_type: built.content_type,
+          },
+          agent_hint:
+            'Tell the user to download via download_url with their API key (do not paste the xlsx into chat). One sheet per brand; _index has totals. sold is cumulative lifetime, not a rate.',
+          bytes: built.buffer.length,
+        }
+        const maxB64 = 2_500_000
+        if (a.include_base64 === true && built.buffer.length <= maxB64) {
+          payload.xlsx_base64 = built.buffer.toString('base64')
+          payload.encoding = 'base64'
+        } else if (a.include_base64 === true) {
+          payload.base64_skipped = true
+          payload.base64_skip_reason = `File is ${built.buffer.length} bytes (cap ${maxB64}). Use download_url instead.`
+        }
+        return jsonResult(payload)
       }
       case 'market_brand_summary': {
         requireScope('intel:read')
