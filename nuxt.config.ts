@@ -66,11 +66,14 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // SheetJS full.min is a side-effectful UMD-style bundle; keep it intact.
+    moduleSideEffects: ['xlsx', 'xlsx/dist/xlsx.full.min.js'],
     externals: {
       // Puppeteer is dev-only (local crawling); exclude from serverless bundle
       external: ['puppeteer', 'puppeteer-core', 'chromium-bidi'],
       // Bundle our own .mjs layers — see inlineProjectMjs above (Windows dev fix)
-      inline: inlineProjectMjs,
+      // Inline xlsx full.min so the lambda does not chase missing cpexcel.js
+      inline: [...inlineProjectMjs, 'xlsx', 'xlsx/dist/xlsx.full.min.js'],
     },
   },
 

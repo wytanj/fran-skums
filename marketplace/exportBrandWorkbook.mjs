@@ -8,7 +8,10 @@
  * MCP should return a download handle (API URL or base64), not invent rows.
  */
 
-import * as XLSX from 'xlsx'
+// Full min build embeds codepages — avoids runtime `require('…/dist/cpexcel.js')`
+// which breaks under Nitro/Vercel bundling (module not traced into the lambda).
+// Default import: the full.min UMD/CJS interop exposes utils on the default export.
+import XLSX from 'xlsx/dist/xlsx.full.min.js'
 import {
   BRAND_LISTING_COLUMNS,
   queryBrandListings,
