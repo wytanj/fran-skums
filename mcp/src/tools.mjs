@@ -858,11 +858,16 @@ export const toolDefinitions = [
   },
   {
     name: 'po_suggest_qty',
-    description: 'Non-binding quantity suggestion from sold lower bounds or weekly units.',
+    description:
+      'Non-binding quantity suggestion from Shopee sold lower bounds and/or units_per_week_high. Heuristic only — not true monthly sales, not an order. intel:read.',
     inputSchema: {
       type: 'object',
       properties: {
-        sold_lower_bounds: { type: 'array', items: { type: 'number' } },
+        sold_lower_bounds: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Lifetime sold lower bounds from market_brand_listings (not monthly units)',
+        },
         units_per_week_high: { type: 'number' },
         cover_weeks: { type: 'number' },
       },
@@ -894,7 +899,8 @@ export const toolDefinitions = [
   },
   {
     name: 'po_get',
-    description: 'Get internal PO with lines.',
+    description:
+      'Get one internal PO with lines. Draft/approved = planning status in Actions UI, not warehouse on_hand. Prefer after po_list.',
     inputSchema: {
       type: 'object',
       properties: { po_id: { type: 'string' } },
@@ -903,18 +909,23 @@ export const toolDefinitions = [
   },
   {
     name: 'po_list',
-    description: 'List internal purchase orders.',
+    description:
+      'List internal purchase orders (Actions decision-layer IPOs — not Loft/3PL orders). Filter by status e.g. draft, pending_approval, approved, rejected. intel:read.',
     inputSchema: {
       type: 'object',
       properties: {
-        status: { type: 'string' },
+        status: {
+          type: 'string',
+          description: 'e.g. draft | pending_approval | approved | rejected',
+        },
         limit: { type: 'number' },
       },
     },
   },
   {
     name: 'po_export',
-    description: 'Export internal PO as flat sheet-ready payload.',
+    description:
+      'Export internal PO as flat sheet-ready payload (lines + header). Not a supplier send. intel:read.',
     inputSchema: {
       type: 'object',
       properties: { po_id: { type: 'string' } },

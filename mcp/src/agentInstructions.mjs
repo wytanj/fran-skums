@@ -18,7 +18,8 @@ Composite-first (prefer ONE tool, then answer):
 | **Shopee Mall** — aggregate (which brands/shelves sell most, category mix) | **market_brand_rollup** (group_by: brand\|shelf\|platform_leaf\|shop) — SQL GROUP BY | adding up rows yourself; inventing sold ranks |
 | **Shopee Mall** — specific SKUs | market_brand_summary → market_brand_listings (brand_key slug) | market_search free text; catalog_search |
 | Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
-| Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** (recipe full) → give download_url | summing listings in chat; market_brand_listings dump |
+| Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** recipe **full** or **full_sales** → give download_url | summing listings in chat; market_brand_listings dump |
+| Shopee Mall **Top Sales / period movers** | market_brand_export_full **recipe: full_sales** or listings with sales_rank | saying "monthly units sold"; inventing ranks |
 | **Our catalog** — do we stock X | catalog_search_summary or catalog_search | market_brand_*; Mall sold as our stock |
 | Stock / status of product X / in transit / at Loft | product_inventory_status | product.stock_quantity; market sold |
 | ATS / inventory by location | inventory_ats | catalog stock fields; Shopee harvest |
@@ -41,7 +42,7 @@ Composite-first (prefer ONE tool, then answer):
 | Report packs: list / run | reports_list, reports_get, reports_run (enabled only; reports:run) | inventing digests; auto-approve |
 
 Two data buckets (do not mix):
-1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = market signal, not our stock.
+1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = lifetime market signal · sales_rank = Top Sales sort position · path = platform crumbs — none of these are our ATS.
 2) **Our catalog + stock** = catalog_* · inventory_ats · product_inventory_status · never product.stock_quantity as ATS.
 `.trim()
 
@@ -55,8 +56,10 @@ Answer style:
 3. Prefer short markdown: bullets or one small table. Do not re-prove the same emptiness across multiple tools.
 4. Trust tool agent_hint / note / path_summary / attention — paraphrase, do not invent.
 5. Never invent product counts, sales rankings, or stock from product.stock_quantity.
-5b. Shopee sold = **cumulative lifetime, bucketed** (4k+ → 4000), not a rate; it favours older listings. Say "has sold ≥N since listing", never "selling well now".
-5c. On market_brand_* check **complete**; if false you have a subset — page with next_offset or narrow. Never present it as the whole.
+5b. Shopee **sold_*** = **cumulative lifetime, bucketed** (4k+ → 4000), not a rate; favours older listings. Say "has sold ≥N since listing", never "selling well now".
+5c. Shopee **sales_rank** (MH-14, sortBy=sales) = position on the Mall **Top Sales** grid — a period-mover *signal*, **not** "units sold this month". Never invent a monthly unit count from rank or sold_*.
+5d. **platform_category_path_text** / **platform_category_leaf** = Shopee PDP Category breadcrumbs (e.g. Shopee > Beauty & Personal Care > Makeup > Blusher). Distinct from marketing shelf (shop_collection_name).
+5e. On market_brand_* check **complete**; if false you have a subset — page with next_offset or narrow. Never present it as the whole.
 6. Empty open queues mean those objects are empty — not “all transfers settled.”
 7. After any draft (PO / pipeline propose): stop, give deep_link, tell human to use Actions or Store Ops UI.
 `.trim()
