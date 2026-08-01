@@ -13,8 +13,16 @@ test('All Products URL uses sortBy=pop and product_list hash', () => {
   const url = shopCollectionListUrl('beautyofjoseonsg', { page: 0, sort_by: 'pop' })
   assert.match(url, /beautyofjoseonsg/)
   assert.match(url, /sortBy=pop/)
+  assert.match(url, /page=0/)
   assert.match(url, /#product_list/)
   assert.ok(!url.includes('shopCollection='))
+})
+
+test('All Products sales sort uses sortBy=sales and tab=0', () => {
+  const url = shopCollectionListUrl('beautyofjoseonsg', { page: 0, sort_by: 'sales', tab: 0 })
+  assert.match(url, /sortBy=sales/)
+  assert.match(url, /tab=0/)
+  assert.match(url, /page=0/)
 })
 
 test('page>0 includes page param', () => {

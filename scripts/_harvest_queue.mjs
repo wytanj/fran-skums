@@ -3,6 +3,12 @@
  * Silent success; only prints errors. Log: .harvest-queue.log
  *
  *   node scripts/_harvest_queue.mjs -w <uuid> --connect
+ *   node scripts/_harvest_queue.mjs -w <uuid> --connect --sort-by sales
+ *   node scripts/_harvest_queue.mjs -w <uuid> --connect --sort-by sales --babysit
+ *
+ * sortBy=pop (default): list_ok + mh4_ok (lifetime popular + breadcrumbs)
+ * sortBy=sales (MH-14): list_sales_ok + mh4_ok (Top Sales rank + breadcrumbs)
+ *   Lifetime sold badge still on cards; ranks are sales-sort position, not monthly units.
  */
 import { createClient } from '@supabase/supabase-js'
 import { spawn, execSync } from 'node:child_process'
@@ -55,7 +61,9 @@ function parseArgs(argv) {
     // Balanced overnight: All Products list (faster) + full MH-4 PDPs.
     // Use --list-mode both when shelf stamps matter more than speed.
     listMode: 'all',
-    maxPages: 2,
+    // Default deep enough for full Mall catalogs (stop-on-empty in worker).
+    // Overnight MH-14 sales runs may still pass --max-pages 2 explicitly.
+    maxPages: 12,
     // PDP platform-category / price / rating sample (keep — needed).
     mh4Top: 40,
     // Page/PDP gap base (cycle default 11000). Use --babysit / --fast when human is watching.
@@ -72,6 +80,8 @@ function parseArgs(argv) {
     // Default: only official single-brand Malls (skip multi-brand distributors).
     singleBrandOnly: true,
     skipMh4: false,
+    // MH-14: pop = lifetime popular (default); sales = Top Sales sort ranks
+    sortBy: 'pop',
     // When set, start with SAFE pacing until first successful brand, then switch
     // to these faster timings (captcha must be clear / session warm first).
     speedAfterWarm: null,
@@ -82,7 +92,7 @@ function parseArgs(argv) {
     else if (a === '--connect') {
       if (argv[i + 1] && !String(argv[i + 1]).startsWith('--')) opts.cdp = argv[++i]
     } else if (a === '--list-mode') opts.listMode = argv[++i]
-    else if (a === '--max-pages') opts.maxPages = Number(argv[++i]) || 2
+    else if (a === '--max-pages') opts.maxPages = Number(argv[++i]) || 12
     else if (a === '--mh4-top') opts.mh4Top = Number(argv[++i]) || 40
     else if (a === '--delay-ms') opts.delayMs = Math.max(Number(argv[++i]) || 7000, 1200)
     else if (a === '--brand-gap-min-sec') opts.brandGapMinSec = Math.max(Number(argv[++i]) || 8, 0)
@@ -95,7 +105,10 @@ function parseArgs(argv) {
     else if (a === '--include-distributors') opts.singleBrandOnly = false
     else if (a === '--single-brand-only') opts.singleBrandOnly = true
     else if (a === '--skip-mh4') opts.skipMh4 = true
-    else if (a === '--babysit') {
+    else if (a === '--sort-by') {
+      const v = String(argv[++i] || 'pop').toLowerCase()
+      opts.sortBy = v === 'sales' ? 'sales' : 'pop'
+    } else if (a === '--babysit') {
       // Fast pacing ONLY after first successful brand (post-captcha / warm session).
       // Cold start keeps safer overnight-ish delays so first nav does not re-wall.
       opts.speedAfterWarm = {
@@ -181,13 +194,18 @@ function isCycleRunning() {
  *
  * PDP / platform category (MH-4) placement:
  *  1. Same brand visit as list for new shops (full = list → MH-4) — warm session + candidates.
- *  2. MH-4 backlog for list_ok && !mh4_ok (queue used to skip these forever after list_ok).
+ *  2. MH-4 backlog for listed && !mh4_ok (queue used to skip these forever after list).
  *
  * Order: MH-4 backlog first (category data on brands we already listed), then full list+MH-4.
+ *
+ * List state keys depend on sortBy:
+ *  - pop: list_ok / list_products
+ *  - sales (MH-14): list_sales_ok / list_sales_products
  *
  * @returns {Promise<Array<{ brand_key: string, phase: 'mh4' | 'full' }>>}
  */
 function brandsNeedingHarvest(db, workspaceId, statePath, opts = {}) {
+  const salesMode = opts.sortBy === 'sales'
   return db
     .from('marketplace_brand_universe')
     .select('brand_key, shop_username, shop_kind, metadata')
@@ -227,11 +245,13 @@ function brandsNeedingHarvest(db, workspaceId, statePath, opts = {}) {
         const st = state.brands?.[b.brand_key]
         if (st?.cooldown_until && new Date(st.cooldown_until).getTime() > now) continue
 
-        const hasList = Boolean(st?.list_ok && (st.list_products || 0) > 0)
-        // mh4_ok true covers real PDPs and explicit no_candidates clear
+        const hasList = salesMode
+          ? Boolean(st?.list_sales_ok && (st.list_sales_products || 0) > 0)
+          : Boolean(st?.list_ok && (st.list_products || 0) > 0)
+        // mh4_ok true covers real PDPs and explicit no_candidates clear (shared across sorts)
         const hasMh4 = Boolean(st?.mh4_ok)
 
-        if (hasList && hasMh4) continue
+        if (hasList && (hasMh4 || opts.skipMh4)) continue
 
         // Already listed but missing platform category PDPs → MH-4 only
         if (hasList && !hasMh4 && !opts.skipMh4) {
@@ -245,8 +265,14 @@ function brandsNeedingHarvest(db, workspaceId, statePath, opts = {}) {
         }
       }
       if (skippedDist) log(`filter single-brand: skipped ${skippedDist} distributor-linked brand row(s)`)
-      if (mh4Backlog.length) log(`mh4 backlog: ${mh4Backlog.length} brand(s) list_ok without category PDPs`)
-      if (fullNeed.length) log(`full harvest need: ${fullNeed.length} brand(s)`)
+      if (mh4Backlog.length) {
+        log(
+          `mh4 backlog: ${mh4Backlog.length} brand(s) ${salesMode ? 'list_sales' : 'list'}_ok without category PDPs`,
+        )
+      }
+      if (fullNeed.length) {
+        log(`full harvest need: ${fullNeed.length} brand(s) sortBy=${salesMode ? 'sales' : 'pop'}`)
+      }
       // Category first on known listings, then expand list+MH-4 for the rest
       return [...mh4Backlog, ...fullNeed]
     })
@@ -305,8 +331,9 @@ function runOneBrand(opts, brandKey, phase = 'full') {
     ]
     if (mh4Only) args.push('--skip-list')
     if (opts.skipMh4) args.push('--skip-mh4')
+    if (opts.sortBy === 'sales') args.push('--sort-by', 'sales')
     log(
-      `spawn ${brandKey} phase=${phase} delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s`,
+      `spawn ${brandKey} phase=${phase} sortBy=${opts.sortBy || 'pop'} delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s`,
     )
     let settled = false
     let killReason = null
@@ -376,6 +403,9 @@ function runOneBrand(opts, brandKey, phase = 'full') {
           // Real category enrichment, or explicit "no candidates left" clear
           if (b?.mh4_ok && (b.mh4_count || 0) > 0) stateOk = true
           else if (b?.mh4_ok && b?.mh4_error === 'no_candidates') stateOk = true
+        } else if (opts.sortBy === 'sales') {
+          // MH-14 sales-sort list success (MH-4 may still backlog)
+          if (b?.list_sales_ok && (b.list_sales_products || 0) > 0) stateOk = true
         } else if (b?.list_ok && (b.list_products || 0) > 0) {
           // Full phase: list success counts even if MH-4 later captcha'd
           // (mh4 backlog will pick up category PDPs)
@@ -418,7 +448,10 @@ async function main() {
 
   const hasWarmSpeed = Boolean(opts.speedAfterWarm)
   log(
-    `queue up workspace=${opts.workspace} cdp=${opts.cdp} singleBrandOnly=${opts.singleBrandOnly !== false} listMode=${opts.listMode} mh4=${opts.skipMh4 ? 0 : opts.mh4Top} delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s brandGap=${opts.brandGapMinSec}-${opts.brandGapMaxSec}s recovery=${opts.recoveryMinutes}m warmSpeed=${hasWarmSpeed ? 'after-first-ok' : 'off'}`,
+    `queue up workspace=${opts.workspace} cdp=${opts.cdp} sortBy=${opts.sortBy || 'pop'} singleBrandOnly=${opts.singleBrandOnly !== false} listMode=${opts.listMode} mh4=${opts.skipMh4 ? 0 : opts.mh4Top} delayMs=${opts.delayMs} preNav=${opts.preNavMinSec}-${opts.preNavMaxSec}s brandGap=${opts.brandGapMinSec}-${opts.brandGapMaxSec}s recovery=${opts.recoveryMinutes}m warmSpeed=${hasWarmSpeed ? 'after-first-ok' : 'off'}`,
+  )
+  console.error(
+    `[queue] sortBy=${opts.sortBy || 'pop'} · listMode=${opts.listMode} · mh4=${opts.skipMh4 ? 0 : opts.mh4Top}`,
   )
   if (hasWarmSpeed) {
     console.error(
@@ -447,8 +480,12 @@ async function main() {
     }
 
     if (!need.length) {
-      log('queue empty — all linked brands harvested (list + MH-4)')
-      console.error('[queue] done — no brands left needing harvest')
+      const doneLabel =
+        opts.sortBy === 'sales'
+          ? 'all linked brands harvested (list_sales + MH-4)'
+          : 'all linked brands harvested (list + MH-4)'
+      log(`queue empty — ${doneLabel}`)
+      console.error(`[queue] done — no brands left needing harvest (sortBy=${opts.sortBy || 'pop'})`)
       process.exitCode = 0
       return
     }

@@ -47,8 +47,14 @@ export function shopCollectionListUrl(shopUsername, opts = {}) {
   const host = opts.country === 'sg' || !opts.country ? 'shopee.sg' : `shopee.${opts.country}`
   const params = new URLSearchParams()
   if (opts.shop_collection_id) params.set('shopCollection', String(opts.shop_collection_id))
-  if (opts.page != null && Number(opts.page) > 0) params.set('page', String(opts.page))
-  params.set('sortBy', opts.sort_by || 'pop')
+  // Shopee pages are 0-based; always send page for stable sort URLs
+  if (opts.page != null && Number(opts.page) >= 0) params.set('page', String(Number(opts.page) || 0))
+  const sortBy = String(opts.sort_by || 'pop').toLowerCase()
+  params.set('sortBy', sortBy === 'sales' ? 'sales' : sortBy || 'pop')
+  // Top Sales UI uses tab=0; harmless on pop
+  if (opts.tab != null || sortBy === 'sales') {
+    params.set('tab', String(opts.tab != null ? opts.tab : 0))
+  }
   const q = params.toString()
   return `https://${host}/${user}${q ? `?${q}` : ''}#product_list`
 }

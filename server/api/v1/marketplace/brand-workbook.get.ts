@@ -3,11 +3,13 @@
  * One sheet per brand_key + leading `_index`.
  *
  * GET /api/v1/marketplace/brand-workbook
- *   ?recipe=full
+ *   ?recipe=full | full_sales
  *   &min_sold=0
  *   &brand_keys=biodance,cosrx
  *   &max_brands=120
  *   &meta=1   → JSON only (no file body)
+ *
+ * full_sales (MH-14): rows from sortBy=sales harvest; sales_rank ≠ monthly units.
  *
  * Scope: intel:read
  *
@@ -35,7 +37,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const built = await buildBrandWorkbook(db, auth.workspaceId, {
-      recipe: typeof query.recipe === 'string' ? query.recipe : 'full',
+      recipe:
+        typeof query.recipe === 'string' ? String(query.recipe).toLowerCase() : 'full',
       brand_key:
         typeof query.brand_key === 'string' ? query.brand_key.toLowerCase().trim() : undefined,
       brand_keys,

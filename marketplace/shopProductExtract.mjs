@@ -274,9 +274,14 @@ export function harvestToObservationCards(harvest, opts = {}) {
         shop_collection_name: collName,
         shop_collection_id: collId,
         harvest_source: source,
-        sort_by: harvest.sort_by || null,
-        page: harvest.page ?? null,
+        sort_by: harvest.sort_by || p.sort_by || null,
+        page: harvest.page ?? p.sales_rank_page ?? null,
         shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
+        ...(p.sales_rank != null ? { sales_rank: p.sales_rank } : {}),
+        ...(p.sales_rank_page != null ? { sales_rank_page: p.sales_rank_page } : {}),
+        ...(p.sales_rank_on_page != null
+          ? { sales_rank_on_page: p.sales_rank_on_page }
+          : {}),
         ...(brand_key ? { brand_key } : {}),
         ...(attr
           ? {

@@ -1,18 +1,19 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-07-30  
+**Date:** 2026-07-31  
 **Production:** https://fran-skums.vercel.app · POS https://fran-pos.vercel.app · CRM https://fran-crm-eight.vercel.app  
-**DB:** migrations **001–079 applied** (… **076** snapshot dimensions + latest-per-listing view · **077** brand rollup functions · **078** query cache · **079** read-path correctness follow-up).
+**DB:** migrations **001–079 applied** (… **075** harvest notify · **076** snapshot dimensions + latest-per-listing · **077** brand rollup · **078** query cache · **079** read-path correctness).  
 **Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
-**Brand radar / Mall harvest:** Track **BR** — **MH-1–9 eng done** · **live bulk scrape paused 2026-07-29** (captcha; Chrome closed) · see **`docs/scrape-summary.md`** · next: warm CDP → resume queue · MH-4 deepen · distributors later  
 
-**Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · POS **Sync from SKUMS** shipped · CORS `x-pos-client` shipped · next: L-sim / Jan-1 / campaigns  
-**Fran product UX:** Track **F0** — **single-org Fran** chrome (hide multi-tenant SaaS UI); later **country = legal entity** under one org · see § Track F0 below  
-**Teammate / Kristle:** Track **TEAM** — **shipped + prod** (POS 00014 · CRM 0011 · SKUMS copy-link) · owner ops: invite Kristle via buttons · personal Gmail OK for test · Phase **S** = Workspace SSO + MFA later  
-**MCP read path:** Track **RP** — **COMPLETE (RP-1…RP-8)**, mig **076–079 applied**. Filters in SQL · honest truncation (`complete`/`total_matching`/`next_offset`) · latest-per-listing view · **`market_brand_rollup`** SQL GROUP BY · metric definitions · columnar payload · row tiering · update-sensitive data-version cache. Aggregates **−93%**, rows **−80%** tokens, repeat reads **20x** faster. Design **`docs/MCP_READ_PATH_DESIGN.md`**
-**Demand forecast:** Track **FC** — **`docs/FORECASTING_ARCHITECTURE.md`** · **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
-**MCP agent routing:** **two buckets shipped** (Shopee Mall `market_brand_*` vs catalog/stock `inventory_ats`)  
-**Web / store-routing site:** **`TODO-WEB.md`** (GEO/SEO, offer ladder, yuu → outlets first)
+**Brand radar / Mall harvest:** Track **BR** — **MH-1–9 eng done** · mono pop+MH-4 first pass largely done · **MH-14 S-A/S-B done** · **S1 sales queue overnight 2026-07-31** · **S-C** recipe **`full_sales`** + sales_rank columns · queue default **max_pages 12** (S1 still uses `--max-pages 2`) · leftovers = cool-downs · distributors · deep catalog re-list for page-capped brands · **`market_brand_export_full`** recipes **full** | **full_sales**
+
+**MCP read path:** Track **RP** — **COMPLETE (RP-1…RP-8)** · next product layer = **named report recipes** (not free-form row math) · `market_brand_rollup` / export_csv / **export_full** · design **`docs/MCP_READ_PATH_DESIGN.md`**  
+**Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · next: L-sim / Jan-1 / campaigns  
+**Fran product UX:** Track **F0** — single-org chrome · see § Track F0  
+**Teammate / Kristle:** Track **TEAM** — **shipped + prod** · owner ops invite · Phase **S** = Workspace SSO + MFA later  
+**Demand forecast:** Track **FC** — **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
+**MCP agent routing:** **two buckets shipped** (Mall `market_brand_*` vs catalog/stock)  
+**Web / store-routing site:** **`TODO-WEB.md`**
 
 **Plans (do not lose track):**
 
@@ -40,40 +41,78 @@
 
 ## Start here next
 
-**Shipped (recent):** Loft P–F · MCP #1–8 · BR MH-1–9 · CRM/POS/SKUMS loyalty facade · POS catalog `pos_enabled` DB filter · POS **Sync from SKUMS** · CRM nav cleanup · mig **075** · **TEAM-1/2/3/4** (invites + copy-link + `docs/TEAMMATE_ONBOARDING.md`) · POS **00014** + CRM **0011** **applied** · **prod deploy** POS + CRM + SKUMS (2026-07-30).  
-**Loyalty triangle (test):** SKUMS WS `c21c057f-…` · CRM linked · policy OK · POS key + sync product(s) · smoke FRAN-0001.  
-**Owner ops now:** Invite Kristle (personal Gmail) via Settings → Team on SKUMS / POS / CRM — **no SQL** · full click path in session notes + **`docs/TEAMMATE_ONBOARDING.md`**.  
-**Next eng (MCP subagent):** Track **RP** — **`docs/MCP_READ_PATH_DESIGN.md`** · **RP-1 first** (push `min_sold` etc. into SQL + honest `complete` / `total_matching`) · then RP-2 denorm · RP-3 latest-per-listing · RP-4 `market_brand_rollup`.  
-**Next product (Fran UX):** Track **F0** single-org chrome (can parallel RP).  
-**Parallel eng:** **FC-2/3** · **BR** resume harvest when captcha-ready · Loft Phase 0 · **J** when buying.  
-**Shopee / BR:** **Paused captcha** — resume single-brand queue only; see **`docs/scrape-summary.md`**.  
+### What’s done (recent, 2026-07-29 → 07-31)
 
-**Brand radar (Claude):** `market_brand_summary` / `market_brand_listings` with **brand_key slug**.  
-**Our stock (Claude):** `inventory_ats` / `product_inventory_status` / `catalog_*` — never Mall as ATS.  
-**POS:** Sync from SKUMS · FWB `fwb-earn.ts` · Live = SKUMS key only.
+| Area | Outcome |
+|------|---------|
+| **BR mono-brand harvest** | First pass **largely complete** (~**64** brands list+MH-4) · queue hot-path **empty** · leftovers = cool-downs + distributors + house-of-hur |
+| **Harvest ops** | `_harvest_queue`: MH-4 backlog · cold→**babysit** after first OK · no hard-stop on 5 stalls · **Chrome bounce off** by default (captcha safe) |
+| **Data quality** | Sold parse no longer takes “100M Sold” from **titles** · implausible sold capped · snapshot dimensions on list + MH-4 writes |
+| **RP** | **RP-1…RP-8 done** · mig **076–079** applied + prod |
+| **MCP export** | **`market_brand_export_full`** recipe **full** (xlsx, one sheet/brand + `_index`) · `GET /api/v1/marketplace/brand-workbook` · local `scripts/export-brand-workbook.mjs` · **prod deploy** 2026-07-31 |
+| **TEAM / L / Loft** | Prior shipped state unchanged — invites, loyalty live wire, Loft P–F |
+
+### Layout — what to do next (ordered)
+
+```text
+1. BR — MH-14 (in progress)
+   · S-A/S-B eng ✅ · S1 mono sales harvest overnight (running)
+   · S-C export recipe full_sales ✅ (local) · deploy when convenient
+   · Morning: verify list_sales_ok · finish remaining mono · smoke top ranks vs live
+   · Next ops: deep All-Products max_pages=12 on thin brands (anua/celimax/otwoo…) — not S1
+
+2. BR finish line (ops, short)
+   · Retry cooled fails · house-of-hur after Aug 5 · optional dimension backfill
+
+3. MCP report recipes (product, high leverage)
+   · Named recipes: top_brands_weekly · top_sales_by_brand (post MH-14) · shelf_mix · mh4_coverage
+   · market_report_run · Airtable/Sheets push · K weekly pack
+
+4. K + FC (HQ demand loop)
+   · FC-2/3 · demand pack seed
+
+5. F0 Fran single-org UX
+
+6. Parallel when blocked
+   · Loft Phase 0 · J · L campaigns · TEAM-0 Kristle invite
+```
+
+### Claude / MCP cheat sheet
+
+```text
+# Aggregates (cheap) — do NOT sum rows in chat
+market_brand_rollup   group_by: brand | shelf | platform_leaf | shop
+
+# Full Excel — one sheet per brand
+market_brand_export_full   recipe: full
+# or HTTP: GET /api/v1/marketplace/brand-workbook?recipe=full  (Bearer intel:read)
+
+# Single-brand CSV / sample SKUs
+market_brand_export_csv / market_brand_listings   brand_key: biodance
+
+# Our stock (never Mall sold as ATS)
+inventory_ats · product_inventory_status · catalog_*
+```
+
+**Refresh MCP tool list** after deploys so `market_brand_rollup` + `market_brand_export_full` appear.
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
 | **A** | MCP composites #1–8 | **Done** |
 | **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
+| **BR** | **Weekly brand radar / Mall harvest** | **Mono-brand pop+MH-4 first pass ~done** · next **MH-14 sales-sort** when decided · cool-downs · MH-10–13 later |
+| **RP+** | **MCP report recipes / BI handoff** | **Next eng** — named recipes + Airtable/Sheets push · `top_sales_by_brand` after MH-14 |
+| **RP** | **MCP read path** | **RP-1…RP-8 DONE** |
+| **K** | **Agentic report registry** | **Rpt-0–6 done** · seed Mall weekly pack sections |
+| **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2/3 |
+| **F0** | **Fran single-org UX** | **Next product chrome** |
+| **L** | **Loyalty FWB** | **Live wire shipped** · Jan-1 / campaigns |
 | **B** | Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
-| **C** | Phase N | **N1–N4 done** — N6 email later |
-| **D** | Phase P remaining | **Empty key ≠ full** shipped; install UI / R2 still open |
-| **E** | Phase R / Claude pilot | **Done (tools live)** · R2 OAuth held |
-| **H** | HQ schemas | **Done** — Inventory Manager (mig **065** applied) |
-| **I** | MCP M1–M3 packs | **Shipped** |
-| **J** | **Supplier order lifecycle (KR/HK)** | **Design + Help 072 done** · next Phase 0 actors / J1 product |
-| **K** | **Agentic report registry** | **Rpt-0–6 done** · hybrid live sections · next HQ demand pack seed optional |
-| **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2 runs / FC-3 path A/B drafts |
-| **L** | **Loyalty FWB (POS + SKUMS + CRM)** | **Live wire + Sync catalog shipped** · next Jan-1 / campaigns (sim brief deferred) |
-| **F0** | **Fran single-org UX** | **Next product** — hide multi-tenant SaaS chrome; country later |
-| **TEAM** | **Teammate invite (buttons, no SQL)** | **Shipped + prod** · **TEAM-0** Kristle invite = owner ops |
-| **S** | **Login MFA = Google Workspace** | **Planned (ops)** — test may use personal Gmail |
-| **F** | M6.5 audit explorer | Filter mcp / store_ops / api_key |
-| **G** | **Shopee / marketplace collect** | **Windows primary locked** · **G2 absorbed by MH-11** |
-| **BR** | **Weekly brand radar / Mall harvest** | **MH-1–9 done** · **bulk paused** · resume queue when ready |
-| **RP** | **MCP read path (agent analytics)** | **RP-1…RP-8 DONE** (mig **076–079 applied**). SQL filters · honest truncation **176→910** · `market_brand_rollup` · metric defs · columnar **−80%** · tiering · update-sensitive cache **20x** |
-| **WEB** | **Fran web → store** | **Parked in `TODO-WEB.md`** |
+| **J** | **Supplier order lifecycle (KR/HK)** | Design + Help 072 · Phase 0 actors |
+| **TEAM** | **Teammate invite** | **Shipped + prod** · Kristle = owner ops |
+| **S** | **Login MFA = Google Workspace** | Planned |
+| **G** | **Shopee collect** | Windows primary · G2 → MH-11 |
+| **WEB** | **Fran web → store** | Parked in `TODO-WEB.md` |
 
 ## Track L — Fran’s With Benefits (loyalty execution)
 
@@ -745,29 +784,82 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 **Design (overview):** `docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`  
 **Samples:** `extensions/sample-beauty-of-joseon/` (Mall grid) · `extensions/sample-serum-joseon.html` (PDP breadcrumb)  
 **Workspace pilot:** `c21c057f-ea01-4e19-bc79-fafcf2626b19` (125 brands imported; BOJ shop confirmed)  
-**Live scrape snapshot (2026-07-28):** **`docs/scrape-summary.md`** · local state `.mall-cycle-state.json` · MH-4 redo `.mh4-redo.json` · queue `scripts/_harvest_queue.mjs`
+**Live scrape / export (2026-07-31):** `.mall-cycle-state.json` · `scripts/_harvest_queue.mjs` · **`market_brand_export_full`** / `scripts/export-brand-workbook.mjs` · older note `docs/scrape-summary.md`
 
-### Live bulk scrape — paused 2026-07-28 (captcha)
+### Live bulk scrape — status 2026-07-31
 
 | | |
 |--|--|
-| **Status** | **Stopped for day** — captcha triggered mid **beauty-of-joseon**; harvest processes killed |
-| **List OK** | **~12** brands (see scrape-summary table) |
-| **Still need (single-brand)** | **~65** |
-| **Deferred** | Multi-brand distributors (`beautyhaussg`, `younfamily.sg`) via `--single-brand-only` |
-| **Cooldown / stuck** | amuse, anua, banila-co (retry later) |
-| **MH-4** | Most done brands only top **10** PDPs; queue later set **mh4-top 40** — **deepen all list-OK via redo list** |
-| **Cadence learned** | Warm CDP session ≈ one captcha then OK; humanize short gaps when warm; machine **sleep freezes** CDP; stall kill advances queue |
-| **Next ops** | Fresh day → warm Chrome → resume queue (cmd in scrape-summary) → finish single-brand → optional distributors → MH-4 redo pass |
+| **Status** | **Mono-brand first pass essentially complete** — hot-path empty (~**64** brands list+MH-4) |
+| **Leftovers** | Cooldown retries · list-only MH-4 · distributors (aplb) · house-of-hur skip ~Aug 5 |
+| **Ops defaults** | `--single-brand-only` · `--babysit` cold→warm · **no Chrome bounce** · `--mh4-top 40` |
+| **Cadence learned** | Warm CDP ≈ one captcha then OK; sleep freezes CDP; bounce kills solved captchas (disabled by default) |
+| **Export** | Recipe **full** xlsx one sheet/brand + `_index` · MCP + HTTP · prod |
+| **Next** | **MH-14 sales-sort pass** (below) · cool-down retries · optional distributors · report recipes |
+
+### MH-14 — Top sales / month pass (`sortBy=sales`) — planned
+
+**Operator ask:** rank by Shopee **Top Sales** (period movers), not lifetime popularity:
+
+```text
+https://shopee.sg/{shop}?page=0&sortBy=sales&tab=0
+```
+
+**Today:** list harvest is hard-coded **`sortBy=pop`** · badge is **cumulative lifetime** sold · no monthly units column · MH-4 = platform category only.
+
+**Honest v1 product:** “Top sales (Shopee sales sort)” = **grid rank under `sortBy=sales`**, plus lifetime `sold_*` as context. **Do not** label as “monthly units sold” until XHR proves a period field (S-E).
+
+| | |
+|--|--|
+| **Goal** | Linked brands (confirmed `shop_username`): All Products under **sales** sort |
+| **Non-goals v1** | Exact calendar-month integer · replace pop history · distributors first · full MH-4 every sales run |
+| **Scope S0** | Smoke 3 shops (e.g. pyunkang-yul, cosrx, biodance) · pages 1–2 · `--skip-mh4` |
+| **Scope S1** | All linked mono-brand · `--single-brand-only` · `--sort-by sales` · max-pages 2 · (overnight may still run MH-4 full phase) |
+| **Scope S2** | Distributors (allowlist) optional |
+| **Scope S3** | Weekly sales-only refresh (lighter than pop+MH-4) |
+
+**Stamps (signals):**
+
+```text
+sort_by: 'sales' | 'pop'
+sales_rank · sales_rank_page · sales_rank_on_page
+harvest_source: mall_all_products_sales | mall_collection_sales
+tab: 0
+```
+
+Keep **separate cycle state** from pop: `list_sales_ok` / `list_sales_at` / `list_sales_products` (do not reuse `list_ok`).
+
+**Eng slices:**
+
+| Slice | Work | Effort |
+|-------|------|--------|
+| **S-A** | URL + extract: pass `sort_by` through `shopCollectionListUrl` / `harvestBrandShelf` (stop hardcoding `pop`); stamp ranks | **Done** |
+| **S-B** | Queue/cycle: `--sort-by sales` · sales cycle state `list_sales_*` | **Done** |
+| **S-C** | Export: recipe **`full_sales`** · columns `sort_by` / `sales_rank*` · MCP enum · note “not monthly units” | **Done** (deploy pending) |
+| **S-D** | Runbook + smoke vs live page order | ops — morning after S1 |
+| **S-E** | Optional MH-10 intercept on sales page for true period units | spike later |
+
+**Ops command (target, after S-A/B):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-shopee-chrome-cdp.ps1
+node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connect --babysit `
+  --list-mode all --sort-by sales --skip-mh4 --max-pages 2 --single-brand-only
+```
+
+**Success:** sales URLs in harvest · ranks stored · pyunkangyul top-10 matches live `sortBy=sales` · pop pass untouched · reports say “sales sort” not “monthly units.”
+
+**Status:** **S1 ops running overnight 2026-07-31** · eng S-A/B/C in tree · default queue `max_pages` now **12** for next deep pass (S1 still passes `--max-pages 2`).
 
 ### Goal (operator-facing)
 
-For official **Shopee Mall** shops (e.g. `https://shopee.sg/beautyofjoseonsg?page=0&sortBy=pop`), capture:
+For official **Shopee Mall** shops (e.g. `https://shopee.sg/beautyofjoseonsg?page=0&sortBy=pop` **and** later `sortBy=sales`), capture:
 
 | Field | Why |
 |-------|-----|
 | **Product name** | What SKU |
-| **Sold** (`sold_label` + lower bound) | Popularity / movers |
+| **Sold** (`sold_label` + lower bound) | Lifetime popularity (not monthly units) |
+| **Sales rank** (MH-14) | Position under `sortBy=sales` ≈ period movers |
 | **Category** | Two layers — see dual taxonomy below |
 
 **Non-goal for this track:** SERP reseller mix as primary; cold Browserbase; 10×125 manual clicks.
@@ -844,7 +936,8 @@ sold_label · sold_count_lower_bound · title
 | **MH-7** | **Multi-brand distributor Malls** — `shop_kind`, resolve-distributor-shop API, title attribution, ext v0.6 flag + multi-select | **Done** |
 | **MH-8** | **Fix the hang + isolate failure** — `pdpEnrich` stale `health`/`breadcrumb` retry loop; per-brand `stop_batch` isolation + cooldown in `mall-brand-cycle`; tighten `detectSessionHealth` (unknown ≠ ok; drop `robot`/`try again` substrings; `productCount` corroboration) | **Done** (2026-07-27) |
 | **MH-9** | **Poll-for-recovery + notify** — `waitForRecovery({probe, deadlineMs})` replaces the blocking `waitForEnter` in list + PDP paths; TTY Enter is an accelerator; Phase N `marketplace.harvest.blocked/recovered` (mig **075**) via `POST /api/internal/marketplace/harvest-event`. **Unlocks cron** | **Done** (2026-07-27) — mig 075 **pending apply** |
-| **MH-10** | **Item endpoint investigation** — wire existing `page.on('response')` interceptor into Mall path **log-only**; record real endpoints/params/shape; then decide on in-page `fetch()` pagination (DOM stays fallback) | Next (zero-risk step 1) |
+| **MH-10** | **Item endpoint investigation** — wire existing `page.on('response')` interceptor into Mall path **log-only**; record real endpoints/params/shape; then decide on in-page `fetch()` pagination (DOM stays fallback) | Planned (pairs with MH-14 S-E) |
+| **MH-14** | **Top sales / month pass** — `sortBy=sales` · `sales_rank` · `list_sales_*` · recipe **full_sales** — **§ MH-14 above** | **S-A/B/C eng done** · **S1 harvest overnight** · S-D morning smoke · S-E later |
 | **MH-11** | **Persist harvest health + adaptive pacing** — reuse `marketplace_crawl_seeds` `last_error`/`consecutive_failures`/`next_run_at`; per-shop cooldown + backoff + jitter; daily nav cap; brands spread ~18/day. **Closes G2** | Planned |
 | **MH-12** | **Completeness on writes** — `pages_fetched` / `harvest_complete` / `stopped_reason` in snapshot `signals`; `brand-listings` / `market_brand_summary` / PR-4 WoW flag or exclude truncated runs | Planned (cheap; do early) |
 | **MH-13** | **Schedule it** (delivers MH-5) — Task Scheduler → `mall-brand-cycle --connect --skip-done` on the MH-11 daily slice | Planned |
@@ -1126,7 +1219,8 @@ Next eng:
 2. **RP-1** — MCP read path correctness: SQL filters + honest truncation (`docs/MCP_READ_PATH_DESIGN.md`) ← **MCP subagent**  
 3. **RP-2 / RP-3 / RP-4** — denorm + latest-per-listing + `market_brand_rollup`  
 4. **F0.0–F0.3** — single-org chrome flags (hide org switcher / billing / create-tenant when alone)  
-5. ~~**BR MH-1–3 + Mode B + ext Link**~~ — ops: resume harvest when captcha-ready  
+5. ~~**BR MH-1–9 + mono-brand first pass**~~ — leftovers/cool-downs ops; **report recipes** next  
+6. ~~**RP-1…RP-8 + export_full**~~ — next `market_report_run` recipes + Airtable/Sheets push
 6. **BR MH-8–13** / PR-4+ — unattended harvest + metrics (**after** stable list harvest)  
 7. ~~**K Rpt-6**~~ · ~~**FC-1**~~ — next **FC-2/3** (forecast runs + path A/B drafts)  
 8. **M4** after Loft Phase 0 dictionary IDs — send-to-Loft tool  

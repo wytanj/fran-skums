@@ -12,6 +12,11 @@
  *   &format=json|csv
  *   &raw=1   (csv body only when format=csv)
  *
+ * Rows include platform breadcrumbs when MH-4 data exists:
+ *   platform_category_path_text  e.g. "Shopee > Beauty & Personal Care > Makeup > Blusher"
+ *   platform_category_leaf       e.g. "Blusher"
+ * (Merged from any snap if the latest row is sales-only.)
+ *
  * Scope: intel:read
  */
 import { requireApiKey } from '../../../utils/apiAuth'

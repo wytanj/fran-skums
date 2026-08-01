@@ -2,7 +2,7 @@
  * MH-2 — All Products Mall harvest (name + sold + shop shelf category).
  *
  * Opens official storefront product lists:
- *   https://shopee.sg/{username}?page=N&sortBy=pop#product_list
+ *   https://shopee.sg/{username}?page=N&sortBy=pop|sales&tab=0#product_list
  *
  * Uses Puppeteer + warm Chrome userDataDir (same Track G pattern).
  * Writes via harvestToObservationCards → upsertObservationCards.
@@ -233,19 +233,45 @@ export async function openAndHarvestPage(page, url, opts = {}) {
 }
 
 /**
- * Merge product lists by shop_id:item_id (prefer rows with sold_label).
+ * Merge product lists by shop_id:item_id.
+ * Prefer sold_label when present; for sales-sort keep lower sales_rank.
  * @param {Array} pages  harvest.products arrays
+ * @param {{ preferLowerSalesRank?: boolean }} [opts]
  */
-export function mergeHarvestProducts(pages) {
+export function mergeHarvestProducts(pages, opts = {}) {
   const byKey = new Map()
   for (const list of pages) {
     for (const p of list || []) {
       const key = `${p.shop_id}:${p.item_id}`
       const prev = byKey.get(key)
-      if (!prev || (!prev.sold_label && p.sold_label)) byKey.set(key, p)
+      if (!prev) {
+        byKey.set(key, p)
+        continue
+      }
+      if (opts.preferLowerSalesRank) {
+        const pr = Number(prev.sales_rank ?? prev.rank_position ?? 99999)
+        const nr = Number(p.sales_rank ?? p.rank_position ?? 99999)
+        if (nr < pr) byKey.set(key, { ...p, sold_label: p.sold_label || prev.sold_label })
+        else if (!prev.sold_label && p.sold_label) byKey.set(key, { ...prev, sold_label: p.sold_label, sold_count_lower_bound: p.sold_count_lower_bound })
+        continue
+      }
+      if (!prev.sold_label && p.sold_label) byKey.set(key, p)
     }
   }
-  return [...byKey.values()].map((p, i) => ({ ...p, rank_position: i + 1 }))
+  const rows = [...byKey.values()]
+  if (opts.preferLowerSalesRank) {
+    rows.sort(
+      (a, b) =>
+        (Number(a.sales_rank ?? a.rank_position) || 0) -
+        (Number(b.sales_rank ?? b.rank_position) || 0),
+    )
+    return rows.map((p, i) => ({
+      ...p,
+      rank_position: p.sales_rank ?? i + 1,
+      sales_rank: p.sales_rank ?? i + 1,
+    }))
+  }
+  return rows.map((p, i) => ({ ...p, rank_position: i + 1 }))
 }
 
 /**
@@ -348,19 +374,22 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
   const delayMs = opts.delay_ms ?? 4000
   const collId = shelf.shop_collection_id || null
   const collName = shelf.name || (collId ? 'Collection' : 'All Products')
+  const sortBy = String(opts.sort_by || 'pop').toLowerCase() === 'sales' ? 'sales' : 'pop'
   const pageHarvests = []
   let stop_batch = false
   let stop_reason = null
+  let globalSalesRank = 0
 
   for (let pageIdx = 0; pageIdx < maxPages; pageIdx++) {
     const url = shopCollectionListUrl(username, {
       shop_collection_id: collId,
       page: pageIdx,
-      sort_by: 'pop',
+      sort_by: sortBy,
+      tab: sortBy === 'sales' ? 0 : undefined,
       country: 'sg',
     })
     console.error(
-      `[mall-harvest] ${brand.brand_key} shelf="${collName}" coll=${collId || 'all'} page=${pageIdx}`,
+      `[mall-harvest] ${brand.brand_key} shelf="${collName}" coll=${collId || 'all'} page=${pageIdx} sortBy=${sortBy}`,
     )
 
     const { harvest, session_health } = await openAndHarvestPage(page, url, {
@@ -369,7 +398,7 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
       computer: opts.computer,
       step: opts.step,
       pauseAfterLoad: opts.pauseAfterLoad,
-      label: `${brand.brand_key} / ${collName} p${pageIdx}`,
+      label: `${brand.brand_key} / ${collName} p${pageIdx} ${sortBy}`,
       recoveryDeadlineMs: opts.recoveryDeadlineMs,
       recoveryPollMs: opts.recoveryPollMs,
       preNavMinMs: opts.preNavMinMs,
@@ -377,6 +406,8 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
       skipPreNavPause: opts.skipPreNavPause,
       onBlocked: opts.onBlocked,
       onResolved: opts.onResolved,
+      bounceChromeOnCaptcha: opts.bounceChromeOnCaptcha,
+      pageBag: opts.pageBag,
     })
 
     if (session_health === 'blocked' || session_health === 'login_required') {
@@ -386,12 +417,20 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
       break
     }
 
-    // Force shelf category on products (page may say All Products even on collection URL)
-    const products = (harvest.products || []).map((p) => ({
-      ...p,
-      category: collName,
-    }))
-    pageHarvests.push({ ...harvest, products, active_category: collName })
+    // Force shelf category; stamp sales-sort ranks (page order = Shopee rank)
+    const products = (harvest.products || []).map((p, i) => {
+      globalSalesRank += 1
+      return {
+        ...p,
+        category: collName,
+        sort_by: sortBy,
+        sales_rank: sortBy === 'sales' ? globalSalesRank : p.rank_position ?? globalSalesRank,
+        sales_rank_page: pageIdx,
+        sales_rank_on_page: i + 1,
+        rank_position: sortBy === 'sales' ? globalSalesRank : p.rank_position ?? i + 1,
+      }
+    })
+    pageHarvests.push({ ...harvest, products, active_category: collName, sort_by: sortBy })
 
     if (!products.length) {
       console.error(`[mall-harvest] empty page ${pageIdx} on ${collName} — stop paging`)
@@ -406,24 +445,41 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
     }
   }
 
-  const products = mergeHarvestProducts(pageHarvests.map((h) => h.products)).map((p) => ({
+  // Prefer lower sales_rank when merging dupes across pages
+  const products = mergeHarvestProducts(
+    pageHarvests.map((h) => h.products),
+    { preferLowerSalesRank: sortBy === 'sales' },
+  ).map((p) => ({
     ...p,
     category: collName,
+    sort_by: sortBy,
   }))
+
+  const harvestSource =
+    opts.harvest_source ||
+    (sortBy === 'sales'
+      ? collId
+        ? 'mall_collection_sales'
+        : 'mall_all_products_sales'
+      : collId
+        ? 'mall_collection_harvest'
+        : 'mall_all_products_harvest')
 
   const merged = {
     shop_username: username,
     shop_id: products[0]?.shop_id || null,
     page_url: shopCollectionListUrl(username, {
       shop_collection_id: collId,
-      sort_by: 'pop',
+      page: 0,
+      sort_by: sortBy,
+      tab: sortBy === 'sales' ? 0 : undefined,
     }),
     page: 0,
-    sort_by: 'pop',
+    sort_by: sortBy,
     active_category: collName,
     shop_collection_name: collName,
     shop_collection_id: collId,
-    harvest_source: opts.harvest_source || 'mall_shelf_harvest',
+    harvest_source: harvestSource,
     product_count: products.length,
     products,
     harvested_at: new Date().toISOString(),
@@ -483,6 +539,8 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
         shop_collection_id: collId,
         category: collName,
         shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
+        sort_by: sortBy,
+        harvest_source: harvestSource,
       },
     }))
 
@@ -528,12 +586,19 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
  * Harvest All Products pages for one brand universe row (MH-2).
  */
 export async function harvestBrandAllProducts(page, brand, db, opts) {
+  const sortBy = String(opts.sort_by || 'pop').toLowerCase() === 'sales' ? 'sales' : 'pop'
   return harvestBrandShelf(
     page,
     brand,
     db,
     { name: 'All Products', shop_collection_id: null, is_all_products: true },
-    { ...opts, harvest_source: 'mall_all_products_harvest' },
+    {
+      ...opts,
+      sort_by: sortBy,
+      harvest_source:
+        opts.harvest_source ||
+        (sortBy === 'sales' ? 'mall_all_products_sales' : 'mall_all_products_harvest'),
+    },
   )
 }
 
@@ -570,11 +635,17 @@ export async function harvestBrandCollections(page, brand, db, opts) {
 
   for (let i = 0; i < shelves.length; i++) {
     const shelf = shelves[i]
+    const sortBy = String(opts.sort_by || 'pop').toLowerCase() === 'sales' ? 'sales' : 'pop'
     const result = await harvestBrandShelf(page, brand, db, shelf, {
       ...opts,
+      sort_by: sortBy,
       harvest_source: shelf.is_all_products
-        ? 'mall_all_products_harvest'
-        : 'mall_collection_harvest',
+        ? sortBy === 'sales'
+          ? 'mall_all_products_sales'
+          : 'mall_all_products_harvest'
+        : sortBy === 'sales'
+          ? 'mall_collection_sales'
+          : 'mall_collection_harvest',
     })
     shelfResults.push(result)
     product_count += result.product_count || 0

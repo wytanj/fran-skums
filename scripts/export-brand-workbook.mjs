@@ -3,6 +3,7 @@
  * Local export of recipe **full** (one Excel sheet per brand).
  *
  *   node scripts/export-brand-workbook.mjs -w <uuid> [--out path.xlsx] [--min-sold N]
+ *   node scripts/export-brand-workbook.mjs -w <uuid> --recipe full_sales
  *
  * Uses SUPABASE_URL + SERVICE_ROLE from .env (same as harvest scripts).
  */
@@ -38,6 +39,7 @@ function parseArgs(argv) {
     minSold: undefined,
     maxBrands: 120,
     brandKeys: null,
+    recipe: 'full',
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -45,13 +47,17 @@ function parseArgs(argv) {
     else if (a === '--out' || a === '-o') opts.out = argv[++i]
     else if (a === '--min-sold') opts.minSold = Number(argv[++i])
     else if (a === '--max-brands') opts.maxBrands = Number(argv[++i]) || 120
-    else if (a === '--brand-keys') {
+    else if (a === '--recipe') {
+      const r = String(argv[++i] || 'full').toLowerCase()
+      opts.recipe = r === 'full_sales' ? 'full_sales' : 'full'
+    } else if (a === '--brand-keys') {
       opts.brandKeys = String(argv[++i] || '')
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean)
     } else if (a === '--help' || a === '-h') {
       console.log(`Usage: node scripts/export-brand-workbook.mjs -w <uuid> [-o out.xlsx]
+  --recipe full|full_sales   (full_sales = MH-14 sales ranks, not monthly units)
   --min-sold N
   --max-brands N   (default 120)
   --brand-keys a,b,c`)
@@ -74,9 +80,9 @@ if (!url || !key) {
 }
 
 const db = createClient(url, key, { auth: { persistSession: false } })
-console.error('[export] building full workbook…')
+console.error(`[export] building recipe=${opts.recipe} workbook…`)
 const built = await buildBrandWorkbook(db, opts.workspace, {
-  recipe: 'full',
+  recipe: opts.recipe,
   min_sold: opts.minSold,
   max_brands: opts.maxBrands,
   brand_keys: opts.brandKeys,

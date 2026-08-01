@@ -20,18 +20,27 @@ test('parseShopCollectionId', () => {
 })
 
 test('shopCollectionListUrl', () => {
+  // page>=0 is always stamped (MH-14 sales grid needs page=0 explicitly)
   assert.equal(
     shopCollectionListUrl('beautyofjoseonsg', {
       shop_collection_id: '248405931',
       page: 0,
       sort_by: 'pop',
     }),
-    'https://shopee.sg/beautyofjoseonsg?shopCollection=248405931&sortBy=pop#product_list',
+    'https://shopee.sg/beautyofjoseonsg?shopCollection=248405931&page=0&sortBy=pop#product_list',
   )
   assert.match(
     shopCollectionListUrl('beautyofjoseonsg', { page: 2 }),
     /page=2/,
   )
+  const sales = shopCollectionListUrl('beautyofjoseonsg', {
+    page: 0,
+    sort_by: 'sales',
+    tab: 0,
+  })
+  assert.match(sales, /sortBy=sales/)
+  assert.match(sales, /tab=0/)
+  assert.match(sales, /page=0/)
 })
 
 test('extract collections from BOJ mall sample HTML', () => {

@@ -322,6 +322,11 @@ export async function brandWorkbookFull(workspaceId, filters = {}) {
   })
 }
 
+/** @deprecated alias — prefer brandWorkbookFull({ recipe: 'full_sales' }) */
+export async function brandWorkbookFullSales(workspaceId, filters = {}) {
+  return brandWorkbookFull(workspaceId, { ...filters, recipe: 'full_sales' })
+}
+
 /**
  * Brand-radar summary (sold bands, top SKUs, shelf mix) for agents.
  */

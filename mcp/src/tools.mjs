@@ -206,7 +206,7 @@ export const toolDefinitions = [
   {
     name: 'market_brand_listings',
     description:
-      'Brand-radar rows: official Mall harvest, one row per listing. Returns COLUMNAR data — read `columns` for the field order, `rows` as arrays in that order, and `constant` for fields identical across every row (they are hoisted out, not missing). Build URLs from url_template + shop_id/item_id. ALWAYS check `complete`: when false, `total_matching` is the real count and you have only `row_count` of them — page with `offset: next_offset` or narrow first. For aggregate questions use market_brand_rollup instead; this is the token-heavy path.',
+      'Brand-radar rows: official Mall harvest, one row per listing. Default fields include platform breadcrumbs (platform_category_path_text full trail e.g. "Shopee > Beauty & Personal Care > Makeup > Blusher", platform_category_leaf) plus sales_rank/sort_by when MH-14 sales harvest exists. Returns COLUMNAR data — read `columns`, `rows` arrays, `constant` for hoisted fields. Build URLs from url_template + shop_id/item_id. ALWAYS check `complete`. For aggregates use market_brand_rollup.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -226,10 +226,14 @@ export const toolDefinitions = [
         },
         platform_category_leaf: {
           type: 'string',
-          description: 'Shopee platform leaf e.g. Eye Care, Face Mask (after MH-4)',
+          description:
+            'Shopee Category breadcrumb leaf (MH-4) e.g. Blusher, Mask, Serum & Treatment',
         },
         min_sold: { type: 'number', description: 'Minimum sold_count_lower_bound' },
-        q: { type: 'string', description: 'Title / brand / path text search' },
+        q: {
+          type: 'string',
+          description: 'Title / brand / breadcrumb path text search',
+        },
         seller_type: { type: 'string' },
         limit: { type: 'number', description: 'Max rows 1–500 (default 100)' },
         offset: {
@@ -240,7 +244,7 @@ export const toolDefinitions = [
           type: 'array',
           items: { type: 'string' },
           description:
-            'Extra columns beyond the default projection (title, sold, shelf, platform leaf, price, brand, shop_id, item_id). See available_fields in the response. Only ask for what you will use — every column costs tokens. Listing URLs are reconstructible via url_template.',
+            'Override default columns. Defaults already include platform_category_path_text + platform_category_leaf (PDP breadcrumbs) and sales_rank. See available_fields. Listing URLs via url_template.',
         },
         since: { type: 'string' },
         until: { type: 'string' },
@@ -250,7 +254,7 @@ export const toolDefinitions = [
   {
     name: 'market_brand_export_csv',
     description:
-      'Same as market_brand_listings but returns CSV text for Google Sheets / Excel. Columns: brand_key, shop, title, sold, shelf, platform path, price, url, …',
+      'Same as market_brand_listings but returns CSV text for Google Sheets / Excel. Includes platform_category_path_text (full Shopee Category breadcrumb) + platform_category_leaf, sales_rank when present, sold, shelf, url, …',
     inputSchema: {
       type: 'object',
       properties: {
@@ -268,14 +272,15 @@ export const toolDefinitions = [
   {
     name: 'market_brand_export_full',
     description:
-      'Recipe **full**: multi-sheet .xlsx of the Mall harvest — one worksheet per brand_key plus leading _index (sku_count, sold_sum, sold_max). SQL builds the data; do NOT re-sum rows in the model. Prefer the download_url / HTTP GET with intel:read key to save the file. Optional include_base64=true only for small subsets (token-heavy). For a single brand CSV use market_brand_export_csv instead.',
+      'Multi-sheet .xlsx of the Mall harvest — one worksheet per brand_key plus leading _index. Each sheet includes platform_category_path_text (Shopee PDP Category breadcrumb trail) + platform_category_leaf when MH-4 data exists (merged even onto sales-sort rows). Recipes: **full** (latest/best sold per listing) · **full_sales** (MH-14 Top Sales rank; NOT monthly units — sold_* is cumulative lifetime). Prefer download_url. Do NOT re-sum in the model.',
     inputSchema: {
       type: 'object',
       properties: {
         recipe: {
           type: 'string',
-          enum: ['full'],
-          description: 'Only full is supported today (one sheet per brand).',
+          enum: ['full', 'full_sales'],
+          description:
+            'full = lifetime/latest harvest sheets. full_sales = MH-14 sales-sort ranks (not monthly unit counts).',
         },
         brand_keys: {
           type: 'array',
@@ -1595,7 +1600,9 @@ export async function handleTool(name, args = {}) {
           process.env.NUXT_PUBLIC_SITE_URL ||
           'https://fran-skums.vercel.app'
         ).replace(/\/$/, '')
-        const q = new URLSearchParams({ recipe: 'full' })
+        const q = new URLSearchParams({
+          recipe: String(a.recipe || built.recipe || 'full'),
+        })
         if (a.min_sold != null) q.set('min_sold', String(a.min_sold))
         if (a.max_brands != null) q.set('max_brands', String(a.max_brands))
         if (a.brand_key) q.set('brand_key', String(a.brand_key))

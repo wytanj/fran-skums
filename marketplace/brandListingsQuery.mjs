@@ -23,11 +23,16 @@ export const DEFAULT_LISTING_FIELDS = [
   'sold_label',
   'sold_count_lower_bound',
   'shop_collection_name',
+  // Platform PDP breadcrumbs (MH-4): full trail + leaf
+  // e.g. "Shopee > Beauty & Personal Care > Makeup > Blusher"
+  'platform_category_path_text',
   'platform_category_leaf',
   'price',
   'brand_key',
   'shop_id',
   'item_id',
+  'sort_by',
+  'sales_rank',
 ]
 
 /** Reconstructs a listing URL from the ids kept in the default projection. */
@@ -40,6 +45,11 @@ export const BRAND_LISTING_COLUMNS = [
   'title',
   'sold_label',
   'sold_count_lower_bound',
+  // MH-14: grid rank under sortBy=sales (not calendar-month units)
+  'sort_by',
+  'sales_rank',
+  'sales_rank_page',
+  'sales_rank_on_page',
   'shop_collection_name',
   'shop_collection_id',
   'platform_category_path_text',
@@ -71,6 +81,19 @@ export function snapshotToBrandListingRow(snap) {
     L.category_path ||
     null
 
+  const sortBy =
+    s.sort_by != null
+      ? String(s.sort_by).toLowerCase()
+      : snap.sort_by != null
+        ? String(snap.sort_by).toLowerCase()
+        : null
+  const salesRank =
+    s.sales_rank != null
+      ? Number(s.sales_rank)
+      : snap.rank_position != null && sortBy === 'sales'
+        ? Number(snap.rank_position)
+        : null
+
   return {
     brand_key: s.brand_key || L.metadata?.brand_key || null,
     shop_username: s.shop_username || L.shop_name || null,
@@ -78,6 +101,12 @@ export function snapshotToBrandListingRow(snap) {
     sold_label: snap.sold_label ?? null,
     sold_count_lower_bound:
       snap.sold_count_lower_bound != null ? Number(snap.sold_count_lower_bound) : null,
+    sort_by: sortBy || null,
+    sales_rank: Number.isFinite(salesRank) ? salesRank : null,
+    sales_rank_page:
+      s.sales_rank_page != null ? Number(s.sales_rank_page) : null,
+    sales_rank_on_page:
+      s.sales_rank_on_page != null ? Number(s.sales_rank_on_page) : null,
     shop_collection_name: s.shop_collection_name || s.category || null,
     shop_collection_id: s.shop_collection_id != null ? String(s.shop_collection_id) : null,
     platform_category_path_text: pathText,
@@ -95,6 +124,87 @@ export function snapshotToBrandListingRow(snap) {
     crawled_at: snap.crawled_at || null,
     listing_id: snap.listing_id || L.id || null,
   }
+}
+
+/** True if this sheet row came from (or carries) MH-14 sales-sort harvest. */
+export function rowLooksLikeSalesSort(row) {
+  if (!row || typeof row !== 'object') return false
+  if (String(row.sort_by || '').toLowerCase() === 'sales') return true
+  if (row.sales_rank != null && Number.isFinite(Number(row.sales_rank))) return true
+  const src = String(row.harvest_source || '')
+  return /_sales$|sales/i.test(src) && /mall_/i.test(src)
+}
+
+/**
+ * Fill platform breadcrumbs (MH-4) onto rows missing path/leaf by looking up
+ * any snapshot for the same listing_id that has platform_category_leaf.
+ *
+ * Needed after sales-sort re-list: the "latest" snap may be mall_all_products_sales
+ * without PDP path stamps, even though an older MH-4 snap still has the trail.
+ *
+ * Mutates and returns the same rows array.
+ *
+ * @param {any} db
+ * @param {string} workspaceId
+ * @param {object[]} rows  brand listing rows
+ */
+export async function enrichRowsWithPlatformBreadcrumbs(db, workspaceId, rows) {
+  const list = Array.isArray(rows) ? rows : []
+  if (!list.length || !db) return list
+
+  const missingIds = [
+    ...new Set(
+      list
+        .filter((r) => r?.listing_id && !r.platform_category_leaf && !r.platform_category_path_text)
+        .map((r) => r.listing_id),
+    ),
+  ]
+  if (!missingIds.length) return list
+
+  /** @type {Map<string, { leaf: string|null, path: string|null }>} */
+  const byListing = new Map()
+
+  for (let i = 0; i < missingIds.length; i += 100) {
+    const chunk = missingIds.slice(i, i + 100)
+    const { data, error } = await db
+      .from('marketplace_listing_snapshots')
+      .select('listing_id, platform_category_leaf, signals, crawled_at')
+      .eq('workspace_id', workspaceId)
+      .in('listing_id', chunk)
+      .not('platform_category_leaf', 'is', null)
+      .order('crawled_at', { ascending: false })
+
+    if (error) {
+      // Non-fatal: leave rows without crumbs rather than failing the whole export
+      console.error('[brand-listings] breadcrumb enrich:', error.message)
+      break
+    }
+
+    for (const snap of data || []) {
+      const id = snap.listing_id
+      if (!id || byListing.has(id)) continue
+      const s = snap.signals && typeof snap.signals === 'object' ? snap.signals : {}
+      const pathArr = Array.isArray(s.platform_category_path) ? s.platform_category_path : []
+      const pathText =
+        s.platform_category_path_text ||
+        (pathArr.length ? pathArr.join(' > ') : null)
+      byListing.set(id, {
+        leaf: snap.platform_category_leaf || s.platform_category_leaf || null,
+        path: pathText,
+      })
+    }
+  }
+
+  if (!byListing.size) return list
+
+  for (const r of list) {
+    if (r.platform_category_leaf || r.platform_category_path_text) continue
+    const hit = byListing.get(r.listing_id)
+    if (!hit) continue
+    if (hit.leaf) r.platform_category_leaf = hit.leaf
+    if (hit.path) r.platform_category_path_text = hit.path
+  }
+  return list
 }
 
 /**
@@ -554,6 +664,11 @@ export async function queryBrandListings(db, workspaceId, filters = {}) {
   } else {
     rows = sourceRows.slice(0, limit)
     consumedSourceRows = rows.length
+  }
+
+  // Merge MH-4 path/leaf from any snap for the listing (sales latest may lack crumbs)
+  if (filters.enrich_breadcrumbs !== false) {
+    rows = await enrichRowsWithPlatformBreadcrumbs(db, workspaceId, rows)
   }
 
   const total = totalMatching ?? rows.length

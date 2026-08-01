@@ -76,7 +76,8 @@ function parseArgs(argv) {
     brandKeys: null,
     pilotOnly: false,
     listMode: 'both', // all | collections | both | skip
-    maxPages: 2,
+    // Default 12 pages (~full mono catalog); worker stops on empty page (cap 15).
+    maxPages: 12,
     mh4Top: 20,
     skipList: false,
     skipMh4: false,
@@ -96,6 +97,8 @@ function parseArgs(argv) {
     // NEVER default-kill Chrome on captcha when --connect (wipes human solves).
     // Opt in with --bounce-on-captcha for unattended-only experiments.
     bounceOnCaptcha: false,
+    // MH-14: pop = lifetime popular; sales = Top Sales sort (period movers)
+    sortBy: 'pop',
     // Humanize: pre-nav settle + gap between brands (ms)
     preNavMinMs: 5000,
     preNavMaxMs: 15000,
@@ -112,9 +115,12 @@ function parseArgs(argv) {
         .filter(Boolean)
     } else if (a === '--pilot-only') opts.pilotOnly = true
     else if (a === '--list-mode') opts.listMode = String(argv[++i] || 'both').toLowerCase()
-    else if (a === '--max-pages') opts.maxPages = Number(argv[++i]) || 2
+    else if (a === '--max-pages') opts.maxPages = Number(argv[++i]) || 12
     else if (a === '--mh4-top') opts.mh4Top = Number(argv[++i]) || 20
-    else if (a === '--skip-list') opts.skipList = true
+    else if (a === '--sort-by') {
+      const v = String(argv[++i] || 'pop').toLowerCase()
+      opts.sortBy = v === 'sales' ? 'sales' : 'pop'
+    } else if (a === '--skip-list') opts.skipList = true
     else if (a === '--skip-mh4') opts.skipMh4 = true
     else if (a === '--skip-done') opts.skipDone = true
     else if (a === '--dry-run') opts.dryRun = true
@@ -157,9 +163,10 @@ Runs per brand: MH-2/3 list harvest → MH-4 top-N PDP platform path.
   --list-mode both|all|collections|skip
   --max-pages N        List harvest pages (default 2)
   --mh4-top N          PDP enrich count (default 20)
+  --sort-by pop|sales  pop=lifetime popular (default); sales=Top Sales sort (MH-14)
   --skip-list          MH-4 only
   --skip-mh4           List only
-  --skip-done          Skip brands with list+mh4 in .mall-cycle-state.json
+  --skip-done          Skip done brands (pop: list+mh4; sales: list_sales + mh4 unless --skip-mh4)
   --connect [url]      Attach Chrome (recommended)
   --pause-load         Enter after every nav (default: captcha-only)
   --dry-run            Plan only
@@ -240,6 +247,12 @@ async function main() {
   if (opts.skipDone) {
     brands = brands.filter((t) => {
       const s = state.brands[t.brand_key]
+      if (opts.sortBy === 'sales') {
+        const salesListOk = Boolean(s?.list_sales_ok && (s.list_sales_products || 0) > 0)
+        if (!salesListOk) return true
+        if (opts.skipMh4) return false
+        return !s?.mh4_ok
+      }
       return !(s?.list_ok && s?.mh4_ok)
     })
   }
@@ -285,6 +298,7 @@ async function main() {
         dry_run: opts.dryRun,
         connect: opts.connect,
         list_mode: opts.skipList ? 'skip' : opts.listMode,
+        sort_by: opts.sortBy || 'pop',
         mh4_top: opts.skipMh4 ? 0 : opts.mh4Top,
         pause_after_load: opts.pauseAfterLoad,
         skip_done: opts.skipDone,
@@ -454,6 +468,7 @@ async function main() {
     let harvestOpts = {
       workspace_id: opts.workspace,
       max_pages: opts.maxPages,
+      sort_by: opts.sortBy || 'pop',
       interactive: true,
       computer: true,
       step: opts.step,
@@ -521,7 +536,9 @@ async function main() {
       try {
         // —— MH-2 / MH-3 ——
         if (!opts.skipList) {
-          console.error(`[cycle] list harvest mode=${opts.listMode} max_pages=${opts.maxPages}`)
+          console.error(
+            `[cycle] list harvest mode=${opts.listMode} max_pages=${opts.maxPages} sortBy=${opts.sortBy || 'pop'}`,
+          )
           let listResult
           page = pageBag.current || page
           if (opts.listMode === 'all') {
@@ -539,15 +556,28 @@ async function main() {
             stop_batch: listResult.stop_batch,
             stop_reason: listResult.stop_reason,
             error: listResult.error,
+            sort_by: opts.sortBy || 'pop',
           }
           summary.list_products += listResult.product_count || 0
-          patchBrandState(state, brand.brand_key, {
-            list_ok: (listResult.product_count || 0) > 0,
-            list_products: listResult.product_count || 0,
-            list_at: new Date().toISOString(),
-            list_error: listResult.error || listResult.stop_reason || null,
-            shop_username: brand.shop_username,
-          })
+          const listOk = (listResult.product_count || 0) > 0
+          const listPatch =
+            opts.sortBy === 'sales'
+              ? {
+                  list_sales_ok: listOk,
+                  list_sales_products: listResult.product_count || 0,
+                  list_sales_at: new Date().toISOString(),
+                  list_sales_error: listResult.error || listResult.stop_reason || null,
+                  // Keep pop list_ok if already set; do not wipe lifetime pass
+                  shop_username: brand.shop_username,
+                }
+              : {
+                  list_ok: listOk,
+                  list_products: listResult.product_count || 0,
+                  list_at: new Date().toISOString(),
+                  list_error: listResult.error || listResult.stop_reason || null,
+                  shop_username: brand.shop_username,
+                }
+          patchBrandState(state, brand.brand_key, listPatch)
           saveCycleState(opts.statePath, state)
 
           if (listResult.stop_batch) {
@@ -601,17 +631,31 @@ async function main() {
           let mh4Fail = 0
           const paths = {}
           if (candidates.length === 0) {
-            // Clear MH-4 backlog: nothing left to enrich for this brand
-            patchBrandState(state, brand.brand_key, {
-              mh4_ok: true,
-              mh4_count: 0,
-              mh4_at: new Date().toISOString(),
-              mh4_paths: {},
-              mh4_error: 'no_candidates',
-            })
-            saveCycleState(opts.statePath, state)
-            brandResult.mh4 = { ok: 0, failed: 0, paths: {}, note: 'no_candidates' }
-            console.error('[cycle] MH-4: no candidates — marked complete (no_candidates)')
+            // Clear MH-4 backlog: nothing left to enrich. Preserve prior mh4_*
+            // if we already completed (e.g. sales re-list after pop MH-4).
+            const prior = state.brands?.[brand.brand_key]
+            if (prior?.mh4_ok && (prior.mh4_count || 0) > 0) {
+              brandResult.mh4 = {
+                ok: prior.mh4_count,
+                failed: 0,
+                paths: prior.mh4_paths || {},
+                note: 'already_enriched',
+              }
+              console.error(
+                `[cycle] MH-4: no missing candidates — keeping prior mh4_count=${prior.mh4_count}`,
+              )
+            } else {
+              patchBrandState(state, brand.brand_key, {
+                mh4_ok: true,
+                mh4_count: 0,
+                mh4_at: new Date().toISOString(),
+                mh4_paths: {},
+                mh4_error: 'no_candidates',
+              })
+              saveCycleState(opts.statePath, state)
+              brandResult.mh4 = { ok: 0, failed: 0, paths: {}, note: 'no_candidates' }
+              console.error('[cycle] MH-4: no candidates — marked complete (no_candidates)')
+            }
           }
           for (let i = 0; i < candidates.length; i++) {
             const c = candidates[i]
