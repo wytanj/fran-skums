@@ -265,12 +265,6 @@ const floorForm = ref({
   notes: '',
 })
 
-const storeLocations = computed(() =>
-  (locations.value || []).filter((l: InventoryLocation) =>
-    ['store', 'warehouse', '3pl'].includes(String(l.location_type || '')),
-  ),
-)
-
 async function loadFloorAdjustments() {
   if (!currentWorkspace.value?.id) return
   floorLoading.value = true
