@@ -33,8 +33,8 @@ Composite-first (prefer ONE tool, then answer):
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | inventing approve without scope |
 | One request context (lines + recommend + wave) | store_request_status | multi list+recommend+waves |
 | Pending floor damage/found/count queue | floor_adjustment_queue | inventing apply |
-| **“Found N damaged of SKU X” / write-off / found stock** | **floor_adjustment_create_draft** (sku + quantity + adjustment_type=damage\|found; dry_run first; submit defaults pending) | claiming ATS already changed; inventing ledger move |
-| Apply pending floor adj to ledger | floor_adjustment_apply (inventory:write) or HQ Store Ops → Floor | apply without queue review when unsure |
+| **“Found N damaged of SKU X” / write-off / found stock** | **floor_adjustment_create_draft** → HQ **Actions → Floor / POS signals** (/actions?tab=floor) | claiming ATS already changed; inventing ledger move |
+| Apply pending floor adj to ledger | floor_adjustment_apply (inventory:write) or HQ **Actions** Apply (same as Store Ops Floor) | apply without review when unsure |
 | HQ verify receive exception | exception_verify (store_ops:verify) | resolving without scope |
 | HQ approve / reject / defer | store_ops_decide (store_ops:approve) | calling without owner/admin key |
 | Expiry / exceptions / Loft health / attention | expiry_snapshot, exceptions_snapshot, integrations_health, attention_snapshot | inventing fixes |
@@ -116,7 +116,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     // Read-only tools are already enumerated in the routing table above; this
     // line only needs to name the write-side boundary.
     'OK drafts: po_* draft/clone, study_start/note (no crawl), store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
-    'Floor damage path: floor_adjustment_create_draft → deep_link /store-ops?tab=floor → floor_adjustment_apply only with inventory:write. Never say stock moved at draft/pending.',
+    'Floor damage path: floor_adjustment_create_draft → HQ sees it on Actions (/actions?tab=floor) and Store Ops Floor → floor_adjustment_apply only with inventory:write. Never say stock moved at draft/pending. POS damage events also create pending adjustments for the same Actions queue.',
     cloud
       ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'
       : 'Local safe mode blocks privileged scopes unless FRAN_MCP_MODE=full / full scopes.',

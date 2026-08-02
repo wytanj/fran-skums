@@ -1,5 +1,7 @@
 /**
- * Actions inbox: internal POs + pipeline candidates (M3 / M3.5 / M4).
+ * Actions inbox: internal POs + pipeline candidates + POS/MCP floor signals (M3 / M3.5 / M4).
+ * Floor damage/found/count from POS or MCP land as inventory_adjustments status=pending
+ * and must be Applied/Rejected by HQ before ledger changes.
  */
 export function useActions() {
   const client = useSupabaseClient()
@@ -14,6 +16,9 @@ export function useActions() {
   const proposedPipeline = ref<any[]>([])
   const acceptedPipeline = ref<any[]>([])
   const recentPipeline = ref<any[]>([])
+  /** POS / MCP floor damage, found stock, cycle counts awaiting HQ Apply */
+  const pendingFloor = ref<any[]>([])
+  const floorActing = ref<string | null>(null)
   /** entity_id → { channel, tool_name } from latest create audit */
   const channelByEntity = ref<Record<string, { channel: string, tool_name?: string }>>({})
 
@@ -22,11 +27,13 @@ export function useActions() {
     pendingPos: pendingPos.value.length,
     proposedPipeline: proposedPipeline.value.length,
     acceptedPipeline: acceptedPipeline.value.length,
+    pendingFloor: pendingFloor.value.length,
     openActions:
       draftPos.value.length +
       pendingPos.value.length +
       proposedPipeline.value.length +
-      acceptedPipeline.value.length,
+      acceptedPipeline.value.length +
+      pendingFloor.value.length,
   }))
 
   /** M4: owner/admin can approve/reject POs and pipeline; members draft/submit */
@@ -71,7 +78,7 @@ export function useActions() {
     error.value = ''
     const ws = currentWorkspace.value.id
     try {
-      const [drafts, pending, decided, proposed, accepted, recent] = await Promise.all([
+      const [drafts, pending, decided, proposed, accepted, recent, floor] = await Promise.all([
         client
           .from('internal_purchase_orders')
           .select('*')
@@ -114,6 +121,20 @@ export function useActions() {
           .in('status', ['executed', 'rejected', 'failed'])
           .order('updated_at', { ascending: false })
           .limit(30),
+        client
+          .from('inventory_adjustments')
+          .select(`
+            *,
+            location:inventory_locations(id, code, name, location_type),
+            lines:inventory_adjustment_lines(
+              id, product_id, system_qty, counted_qty, reason,
+              product:products(id, sku, title)
+            )
+          `)
+          .eq('workspace_id', ws)
+          .in('status', ['pending', 'approved'])
+          .order('created_at', { ascending: false })
+          .limit(50),
       ])
 
       draftPos.value = drafts.data || []
@@ -122,6 +143,21 @@ export function useActions() {
       proposedPipeline.value = proposed.data || []
       acceptedPipeline.value = accepted.data || []
       recentPipeline.value = recent.data || []
+      pendingFloor.value = floor.data || []
+
+      // Channel badges: POS-prefixed adj numbers → api/pos; HQ- → ui; MCP audits → mcp
+      const map = { ...channelByEntity.value }
+      for (const adj of pendingFloor.value) {
+        const num = String(adj.adjustment_number || '')
+        if (num.startsWith('POS-')) {
+          map[adj.id] = { channel: 'api', tool_name: 'fran-pos inventory event' }
+        } else if (num.startsWith('HQ-')) {
+          map[adj.id] = { channel: 'ui', tool_name: 'store-ops floor report' }
+        } else if (!map[adj.id]) {
+          map[adj.id] = { channel: 'mcp', tool_name: 'floor_adjustment_create_draft' }
+        }
+      }
+      channelByEntity.value = map
 
       const ids = [
         ...draftPos.value,
@@ -130,6 +166,7 @@ export function useActions() {
         ...proposedPipeline.value,
         ...acceptedPipeline.value,
         ...recentPipeline.value,
+        ...pendingFloor.value,
       ].map((r) => r.id)
       await enrichChannelsFromAudit(ids)
 
@@ -139,12 +176,75 @@ export function useActions() {
         decided.error ||
         proposed.error ||
         accepted.error ||
-        recent.error
+        recent.error ||
+        floor.error
       if (firstErr) error.value = firstErr.message
     } catch (e: any) {
       error.value = e?.message || 'Failed to load actions'
     } finally {
       loading.value = false
+    }
+  }
+
+  function floorVariance(adj: any) {
+    const lines = Array.isArray(adj?.lines) ? adj.lines : []
+    return lines.reduce((sum: number, line: any) => {
+      const sys = line.system_qty == null ? 0 : Number(line.system_qty)
+      return sum + (Number(line.counted_qty || 0) - sys)
+    }, 0)
+  }
+
+  function floorLineSummary(adj: any) {
+    const lines = Array.isArray(adj?.lines) ? adj.lines : []
+    return lines
+      .map((line: any) => {
+        const sku = line.product?.sku || line.product_id?.slice?.(0, 8) || '?'
+        const delta = Number(line.counted_qty || 0) - Number(line.system_qty || 0)
+        const sign = delta > 0 ? '+' : ''
+        return `${sku} ${sign}${delta}`
+      })
+      .join(' · ')
+  }
+
+  async function applyFloorAdjustment(adj: any, note?: string) {
+    if (!currentWorkspace.value?.id || !adj?.id) return
+    floorActing.value = adj.id
+    error.value = ''
+    try {
+      await $fetch(`/api/store-ops/adjustments/${adj.id}/apply`, {
+        method: 'POST',
+        body: {
+          workspace_id: currentWorkspace.value.id,
+          note: note || `Applied from Actions (${adj.adjustment_number})`,
+        },
+      })
+      await loadInbox()
+    } catch (e: any) {
+      error.value = e?.data?.statusMessage || e?.message || 'Apply failed'
+      throw e
+    } finally {
+      floorActing.value = null
+    }
+  }
+
+  async function rejectFloorAdjustment(adj: any, note?: string) {
+    if (!currentWorkspace.value?.id || !adj?.id) return
+    floorActing.value = adj.id
+    error.value = ''
+    try {
+      await $fetch(`/api/store-ops/adjustments/${adj.id}/reject`, {
+        method: 'POST',
+        body: {
+          workspace_id: currentWorkspace.value.id,
+          note: note || `Rejected from Actions (${adj.adjustment_number})`,
+        },
+      })
+      await loadInbox()
+    } catch (e: any) {
+      error.value = e?.data?.statusMessage || e?.message || 'Reject failed'
+      throw e
+    } finally {
+      floorActing.value = null
     }
   }
 
@@ -496,6 +596,8 @@ export function useActions() {
     proposedPipeline,
     acceptedPipeline,
     recentPipeline,
+    pendingFloor,
+    floorActing,
     counts,
     channelByEntity,
     canApprove,
@@ -509,6 +611,10 @@ export function useActions() {
     submitPo,
     decidePo,
     decidePipeline,
+    applyFloorAdjustment,
+    rejectFloorAdjustment,
+    floorVariance,
+    floorLineSummary,
     channelFromMeta,
     toolNameFor,
     statusClass,

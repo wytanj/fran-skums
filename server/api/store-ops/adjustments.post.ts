@@ -152,8 +152,9 @@ export default defineEventHandler(async (event) => {
       variance: countedQty - systemQty,
       ledger_pending: true,
       message:
-        'Floor adjustment created as pending. Stock does not change until Apply on Store Ops → Floor.',
-      deep_link: '/store-ops?tab=floor',
+        'Floor adjustment created as pending. HQ confirms on Actions → Floor / POS signals (or Store Ops → Floor). Stock does not change until Apply.',
+      deep_link: '/actions?tab=floor',
+      store_ops_link: '/store-ops?tab=floor',
     }
   } catch (e: any) {
     throw createError({

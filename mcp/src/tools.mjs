@@ -1207,8 +1207,8 @@ export const toolDefinitions = [
       'Natural language: "found 2 damaged of SKU X" → sku + quantity=2 + adjustment_type=damage. ' +
       'Also accepts lines[{sku,quantity}] or lines[{sku,counted_qty,system_qty}]. ' +
       'Computes system_qty from inventory_levels; damage reduces counted, found increases. ' +
-      'NEVER changes ATS until floor_adjustment_apply or HQ Apply in Store Ops → Floor. ' +
-      'Prefer dry_run first. store_ops:write / safe / cloud.',
+      'Creates pending HQ work visible on Actions → Floor / POS signals (and Store Ops → Floor). ' +
+      'NEVER changes ATS until floor_adjustment_apply or HQ Apply. Prefer dry_run first. store_ops:write / safe / cloud.',
     inputSchema: {
       type: 'object',
       properties: {

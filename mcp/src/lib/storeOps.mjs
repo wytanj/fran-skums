@@ -695,10 +695,10 @@ export async function createFloorAdjustmentDraft(opts = {}) {
         lines: resolvedLines,
       },
       message:
-        'Dry run — no write. Stock does NOT change until HQ Applies in Store Ops → Floor (or floor_adjustment_apply).',
-      deep_link: '/store-ops?tab=floor',
+        'Dry run — no write. Stock does NOT change until HQ Applies on Actions → Floor / POS signals (or Store Ops → Floor / floor_adjustment_apply).',
+      deep_link: '/actions?tab=floor',
       agent_hint:
-        'For "found 2 damaged of SKU X": adjustment_type=damage, sku=X, quantity=2, submit=true. Never claim ATS changed until apply.',
+        'For "found 2 damaged of SKU X": adjustment_type=damage, sku=X, quantity=2, submit=true. Tell HQ to open Actions. Never claim ATS changed until apply.',
     }
   }
 
@@ -735,12 +735,13 @@ export async function createFloorAdjustmentDraft(opts = {}) {
       counted_qty: l.counted_qty,
       variance: l.variance,
     })),
-    deep_link: '/store-ops?tab=floor',
-    message: `Floor adjustment ${adj.adjustment_number} created as ${status}. Ledger unchanged until Apply.`,
+    deep_link: '/actions?tab=floor',
+    store_ops_link: '/store-ops?tab=floor',
+    message: `Floor adjustment ${adj.adjustment_number} created as ${status}. HQ confirms on Actions → Floor / POS signals (or Store Ops → Floor). Ledger unchanged until Apply.`,
     agent_hint:
       status === 'pending'
-        ? 'Pending in Store Ops Floor queue. Call floor_adjustment_apply (inventory:write) or have HQ Apply in UI. Do not claim stock moved yet.'
-        : 'Draft only. Set submit=true for pending queue, then Apply to change ATS.',
+        ? 'Pending HQ confirmation on Actions (/actions?tab=floor). Call floor_adjustment_apply (inventory:write) or have owner Apply. Never claim ATS changed at create.'
+        : 'Draft only. Set submit=true for pending HQ queue on Actions, then Apply to change ATS.',
   }
 }
 

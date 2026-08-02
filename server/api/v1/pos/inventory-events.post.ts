@@ -139,6 +139,11 @@ export default defineEventHandler(async (event) => {
 
         const adjustmentNumber = newAdjustmentNumber(numberPrefix)
 
+        const notes =
+          body.note
+          || body.notes
+          || `POS ${adjustmentType}: ${quantity} unit(s) of ${sku || productId} — HQ confirm in Actions`
+
         const { data: adjustment, error: adjustmentError } = await client
           .from('inventory_adjustments')
           .insert({
@@ -147,7 +152,7 @@ export default defineEventHandler(async (event) => {
             location_id: inventoryLocationId,
             adjustment_type: adjustmentType,
             status: 'pending',
-            notes: body.note || body.notes || null,
+            notes,
           })
           .select('id, adjustment_number, status')
           .single()
@@ -174,6 +179,38 @@ export default defineEventHandler(async (event) => {
           system_qty: systemQty,
           counted_qty: countedQty,
           ledger_pending: true,
+          hq_action: 'Review and Apply on SKUMS Actions → Floor / POS signals (or Store Ops → Floor). Stock unchanged until Apply.',
+          deep_link: '/actions?tab=floor',
+        }
+
+        // Audit so Actions channel badge shows POS/API
+        try {
+          await recordApiAudit(client, {
+            workspace_id: ctx.workspaceId,
+            entity_type: 'inventory_adjustment',
+            entity_id: adjustment.id,
+            event_type: 'inventory.adjustment.created',
+            operation: 'INSERT',
+            client_name: 'fran-pos',
+            tool_name: eventType,
+            api_key_id: ctx.keyId || null,
+            after_data: {
+              adjustment,
+              lines: { product_id: productId, system_qty: systemQty, counted_qty: countedQty },
+            },
+            metadata: {
+              source: 'fran-pos',
+              event_type: eventType,
+              sku: sku || null,
+              quantity,
+              deep_link: '/actions?tab=floor',
+            },
+            idempotency_key: idempotencyKey
+              ? `pos_inv_adj:${idempotencyKey}`
+              : `pos_inv_adj:${adjustment.id}:created`,
+          })
+        } catch {
+          /* non-fatal */
         }
       }
     }
