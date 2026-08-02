@@ -75,6 +75,7 @@ export const MCP_SCOPE_PROFILES = {
     'projection:run',
     'reports:read',
     'reports:run',
+    'roster:read',
   ],
   /** Explicit list for docs/tests; runtime "full" means unrestricted null */
   full: [
@@ -99,6 +100,8 @@ export const MCP_SCOPE_PROFILES = {
     'reports:write',
     'reports:admin',
     'automations:webhook',
+    'roster:read',
+    'roster:write',
   ],
 }
 

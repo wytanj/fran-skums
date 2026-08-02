@@ -30,6 +30,7 @@ const navigation = [
   { name: 'Products', href: '/products', icon: 'cube' },
   { name: 'Inventory', href: '/inventory', icon: 'warehouse' },
   { name: 'Store Ops', href: '/store-ops', icon: 'arrows' },
+  { name: 'Roster', href: '/roster', icon: 'users' },
   { name: 'Expiry', href: '/expiry', icon: 'clock' },
   { name: 'Forecasting', href: '/forecasting', icon: 'chart' },
   { name: 'Reports', href: '/reports', icon: 'chart' },

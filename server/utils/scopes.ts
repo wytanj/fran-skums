@@ -18,6 +18,7 @@ export const MCP_CLOUD_SAFE_SCOPES: string[] = [
   'pipeline:propose',
   'po:draft',
   'projection:run',
+  'roster:read',
 ]
 
 /**
@@ -45,6 +46,7 @@ export const MCP_OPS_ELEVATED_SCOPES: string[] = [
   'reports:write',
   'reports:admin',
   'automations:webhook',
+  'roster:write',
 ]
 
 /** Track K — agentic report registry + n8n-style automations */
@@ -65,6 +67,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'store_ops:read',
     'store_ops:write',
     'products:read',
+    'roster:read',
   ],
   worldsyntech_ofs: [
     'inventory:read',
@@ -84,6 +87,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'store_ops:read',
     'store_ops:write',
     'products:read',
+    'roster:read',
   ],
   /** MCP templates (A2) — role-aligned connector packages */
   'mcp:viewer': [
@@ -95,6 +99,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'categories:read',
     'actions:read',
     'reports:read',
+    'roster:read',
   ],
   'mcp:member': [
     ...MCP_CLOUD_SAFE_SCOPES,
@@ -107,6 +112,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'actions:submit',
     'reports:read',
     'reports:run',
+    'roster:write',
   ],
   'mcp:ops_safe': [
     ...MCP_CLOUD_SAFE_SCOPES,
@@ -122,6 +128,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'reports:read',
     'reports:run',
     'reports:write',
+    'roster:write',
   ],
   'mcp:store': [
     'products:read',
@@ -131,6 +138,7 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'pos:read',
     'pos:write',
     'intel:read',
+    'roster:read',
   ],
   'mcp:buyer': [
     'products:read',
@@ -206,6 +214,8 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'reports:read',
     'reports:run',
     'reports:write',
+    'roster:read',
+    'roster:write',
   ],
   /** Alias for inventory_ops (HQ inventory manager seat) */
   inventory_manager: [
@@ -240,6 +250,8 @@ export const SCOPE_PACKAGES: Record<string, string[]> = {
     'reports:read',
     'reports:run',
     'reports:write',
+    'roster:read',
+    'roster:write',
   ],
   /** MCP package for inventory manager web role */
   'mcp:inventory_manager': [
@@ -334,6 +346,14 @@ export function bridgeWebScopesToMcp(webScopes: string[]): string[] {
       out.add('po:draft')
       out.add('pipeline:propose')
       out.add('study:write')
+      out.add('roster:write')
+    }
+    if (s === 'store_ops:read' || s === 'pos:read') {
+      out.add('roster:read')
+    }
+    if (s === 'store_ops:write') {
+      out.add('roster:write')
+      out.add('roster:read')
     }
     if (s === 'actions:approve') {
       out.add('po:submit')

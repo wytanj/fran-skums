@@ -101,6 +101,17 @@ export const TOOL_SCOPE_CATALOG = {
   study_match_catalog: { scope: 'study:write', action: 'Match study to catalog' },
   study_propose: { scope: 'study:write', action: 'Propose pipeline from study' },
 
+  // Roster (hourly + zone)
+  roster_list_zones: { scope: 'roster:read', action: 'List floor zones' },
+  roster_list_employees: { scope: 'roster:read', action: 'List roster employees' },
+  roster_upsert_employee: { scope: 'roster:write', action: 'Create/update roster employee' },
+  roster_import_rippling: { scope: 'roster:write', action: 'Import employees (Rippling-shaped)' },
+  roster_list_shifts: { scope: 'roster:read', action: 'List hourly shifts' },
+  roster_upsert_shift: { scope: 'roster:write', action: 'Create/update shift' },
+  roster_cancel_shift: { scope: 'roster:write', action: 'Cancel shift' },
+  roster_board: { scope: 'roster:read', action: 'Day board by zone' },
+  roster_my_assignment: { scope: 'roster:read', action: 'Current zone for staff' },
+
   // Market / BI read
   market_search: { scope: 'intel:read', action: 'Search market warehouse' },
   market_seller_mix: { scope: 'intel:read', action: 'Seller mix summary' },

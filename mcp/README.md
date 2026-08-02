@@ -222,6 +222,16 @@ Notebooks park product/brand ideas (**no Shopee crawl**). UI: `/research`. Pipel
 | `study_propose` | pipeline:propose |
 | `market_search` / `market_seller_mix` / `market_listing_history` | intel:read |
 
+### Roster (hourly + zone)
+UI: `/roster`. POS badge: `GET /fran/pos/roster/me?pos_staff_ref=`.
+
+| Tool | Scope |
+|------|--------|
+| `roster_list_zones` / `roster_board` / `roster_list_employees` / `roster_list_shifts` / `roster_my_assignment` | roster:read |
+| `roster_upsert_employee` / `roster_import_rippling` / `roster_upsert_shift` / `roster_cancel_shift` | roster:write |
+
+Zones default: Zone 1, Zone 2, Zone 3, Cashier, Back of House. Seed sample: `node scripts/_seed_roster_sample.mjs`.
+
 ### Pipeline
 | Tool | Scope |
 |------|--------|
