@@ -46,16 +46,17 @@ if (!process.env.SUPABASE_DB_URL) {
 const sql = postgres(process.env.SUPABASE_DB_URL, { ssl: 'require', max: 1 })
 const todaySgt = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' })
 
+// name, email, role, source, external_id, pos_staff_ref, zone, start_hour SGT, duration_h
 const PEOPLE = [
-  ['Aisyah Rahman', 'aisyah@fran.demo', 'cashier', 'manual', null, 'demo-staff-aisyah', 'cashier', 10, 6],
-  ['Daniel Wong', 'daniel@fran.demo', 'manager', 'manual', null, 'demo-staff-daniel', 'zone_1', 9, 8],
-  ['Mei Lin Tan', 'meilin@fran.demo', 'associate', 'rippling', 'rippling-worker-1001', 'demo-staff-meilin', 'zone_1', 11, 5],
-  ['Jordan Lee', 'jordan@fran.demo', 'associate', 'rippling', 'rippling-worker-1002', 'demo-staff-jordan', 'zone_2', 10, 6],
-  ['Priya Nair', 'priya@fran.demo', 'associate', 'rippling', 'rippling-worker-1003', 'demo-staff-priya', 'zone_2', 12, 4],
-  ['Kenji Sato', 'kenji@fran.demo', 'associate', 'manual', null, 'demo-staff-kenji', 'zone_3', 10, 5],
-  ['Sofia Reyes', 'sofia@fran.demo', 'associate', 'rippling', 'rippling-worker-1004', 'demo-staff-sofia', 'zone_3', 14, 4],
-  ['Marcus Ong', 'marcus@fran.demo', 'stock', 'manual', null, 'demo-staff-marcus', 'back_of_house', 8, 8],
-  ['Hana Kim', 'hana@fran.demo', 'cashier', 'rippling', 'rippling-worker-1005', 'demo-staff-hana', 'cashier', 14, 5],
+  ['Tiffany', 'tiffany@fran.demo', 'cashier', 'manual', null, 'demo-staff-tiffany', 'cashier', 10, 6],
+  ['Jarrell', 'jarrell@fran.demo', 'manager', 'manual', null, 'demo-staff-jarrell', 'zone_1', 9, 8],
+  ['Jazelle', 'jazelle@fran.demo', 'associate', 'rippling', 'rippling-worker-1001', 'demo-staff-jazelle', 'zone_1', 11, 5],
+  ['Jeremy', 'jeremy@fran.demo', 'associate', 'rippling', 'rippling-worker-1002', 'demo-staff-jeremy', 'zone_2', 10, 6],
+  ['Fern', 'fern@fran.demo', 'associate', 'rippling', 'rippling-worker-1003', 'demo-staff-fern', 'zone_2', 12, 4],
+  ['Kristle', 'kristle@fran.demo', 'associate', 'manual', null, 'demo-staff-kristle', 'zone_3', 10, 5],
+  ['MJ', 'mj@fran.demo', 'associate', 'rippling', 'rippling-worker-1004', 'demo-staff-mj', 'zone_3', 14, 4],
+  ['Soobin', 'soobin@fran.demo', 'stock', 'manual', null, 'demo-staff-soobin', 'back_of_house', 8, 8],
+  ['Hiok', 'hiok@fran.demo', 'cashier', 'rippling', 'rippling-worker-1005', 'demo-staff-hiok', 'cashier', 14, 5],
 ]
 
 console.log(`Workspace ${WS}${dryRun ? ' (dry-run)' : ''}`)
@@ -115,4 +116,4 @@ const counts = await sql`
 `
 console.log(counts[0])
 await sql.end()
-console.log('Done. POS: GET /fran/pos/roster/me?pos_staff_ref=demo-staff-aisyah')
+console.log('Done. POS: GET /fran/pos/roster/me?pos_staff_ref=demo-staff-tiffany')

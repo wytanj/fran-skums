@@ -73,9 +73,10 @@ test('Roster nav and page exist', () => {
 
 test('seed script covers 9 people and 5 zones', () => {
   const seed = readFileSync(new URL('../scripts/_seed_roster_sample.mjs', import.meta.url), 'utf8')
-  assert.match(seed, /Aisyah Rahman/)
-  assert.match(seed, /Hana Kim/)
-  assert.match(seed, /demo-staff-aisyah/)
+  assert.match(seed, /Tiffany/)
+  assert.match(seed, /Hiok/)
+  assert.match(seed, /demo-staff-tiffany/)
+  assert.match(seed, /Soobin/)
   assert.match(seed, /back_of_house/)
   assert.match(seed, /cashier/)
 })
