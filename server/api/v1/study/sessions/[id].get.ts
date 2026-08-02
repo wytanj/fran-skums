@@ -1,9 +1,9 @@
 /**
- * Get study session + artifacts.
+ * Get research notebook (study session) + artifacts.
  * GET /api/v1/study/sessions/:id
  */
 import { requireApiKey } from '../../../../utils/apiAuth'
-import { getStudySession } from '../../../../utils/marketplaceStudy'
+import { getStudySession, researchDeepLink } from '../../../../utils/marketplaceStudy'
 
 export default defineEventHandler(async (event) => {
   const auth = await requireApiKey(event, 'intel:read')
@@ -12,5 +12,8 @@ export default defineEventHandler(async (event) => {
 
   const pack = await getStudySession(auth.workspaceId, id)
   if (!pack) throw createError({ statusCode: 404, statusMessage: 'Study session not found' })
-  return pack
+  return {
+    ...pack,
+    deep_link: researchDeepLink(id),
+  }
 })

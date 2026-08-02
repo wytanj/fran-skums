@@ -1,5 +1,6 @@
 /**
- * Study sessions: open, load evidence from warehouse, brief (Grok or offline), catalog match.
+ * Study sessions: notebook cover + artifacts (notes, brief, match).
+ * Opening a session does NOT enqueue Shopee crawls.
  */
 
 import { buildOfflineStudyBrief } from '../../intelligence/grok/contracts.mjs'
@@ -8,9 +9,81 @@ import { matchCatalogCandidates } from '../../intelligence/match/catalogMatch.mj
 import { buildExportTable, computeSellerMixMetrics } from '../../marketplace/normalize/metrics.mjs'
 import { getServiceClient } from './supabase'
 
+const ARTIFACT_TYPES = new Set([
+  'serp_table',
+  'brief',
+  'match',
+  'chart_spec',
+  'raw_job',
+  'export_table',
+  'note',
+  'other',
+])
+
+const SESSION_STATUSES = new Set(['open', 'briefed', 'proposed', 'closed', 'cancelled'])
+
 function getXaiKey(): string {
   const config = useRuntimeConfig()
   return config.xaiApiKey || process.env.XAI_API_KEY || ''
+}
+
+export function normalizeNotebookMetadata(
+  raw: Record<string, unknown> = {},
+  extras: {
+    subject_kind?: string
+    brand_key?: string
+    crawl_intent?: string
+    discovery?: unknown
+  } = {},
+): Record<string, unknown> {
+  const meta: Record<string, unknown> =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {}
+
+  const subject =
+    extras.subject_kind ||
+    meta.subject_kind ||
+    (meta.discovery || meta.discovery_url ? 'product' : null)
+  if (subject && ['product', 'brand', 'other'].includes(String(subject))) {
+    meta.subject_kind = String(subject)
+  }
+
+  if (extras.brand_key || meta.brand_key) {
+    meta.brand_key = String(extras.brand_key || meta.brand_key)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+  }
+
+  const crawl = extras.crawl_intent || meta.crawl_intent || 'none'
+  meta.crawl_intent = ['none', 'later', 'active'].includes(String(crawl)) ? String(crawl) : 'none'
+
+  if (!Array.isArray(meta.discovery)) meta.discovery = []
+  if (extras.discovery) {
+    if (Array.isArray(extras.discovery)) {
+      meta.discovery = [...(meta.discovery as unknown[]), ...extras.discovery]
+    } else if (typeof extras.discovery === 'object') {
+      meta.discovery = [...(meta.discovery as unknown[]), extras.discovery]
+    }
+  }
+  if (meta.discovery_url && typeof meta.discovery_url === 'string') {
+    const url = meta.discovery_url
+    const list = meta.discovery as Array<{ url?: string }>
+    if (!list.some((d) => d && d.url === url)) {
+      list.push({
+        channel: (meta.discovery_channel as string) || 'external',
+        url,
+        note: (meta.discovery_note as string) || undefined,
+      } as any)
+    }
+  }
+  meta.discovery = (meta.discovery as unknown[]).filter((d) => d && typeof d === 'object')
+
+  return meta
+}
+
+export function researchDeepLink(sessionId: string) {
+  return `/research/${sessionId}`
 }
 
 export async function createStudySession(input: {
@@ -21,10 +94,21 @@ export async function createStudySession(input: {
   query?: string | null
   opened_by?: string | null
   metadata?: Record<string, unknown>
+  subject_kind?: string
+  brand_key?: string
+  crawl_intent?: string
+  discovery?: unknown
 }) {
   const db = getServiceClient()
   const hypothesis = String(input.hypothesis || '').trim()
   if (!hypothesis) throw new Error('hypothesis is required')
+
+  const metadata = normalizeNotebookMetadata(input.metadata || {}, {
+    subject_kind: input.subject_kind,
+    brand_key: input.brand_key,
+    crawl_intent: input.crawl_intent,
+    discovery: input.discovery,
+  })
 
   const row = {
     workspace_id: input.workspace_id,
@@ -32,14 +116,198 @@ export async function createStudySession(input: {
     hypothesis,
     marketplace: input.marketplace || 'shopee',
     country: String(input.country || 'sg').toLowerCase(),
-    query: input.query?.trim() || null,
+    query: input.query != null && String(input.query).trim() ? String(input.query).trim() : null,
     opened_by: input.opened_by || null,
-    metadata: input.metadata || {},
+    metadata,
   }
 
   const { data, error } = await db.from('study_sessions').insert(row).select('*').single()
   if (error) throw new Error(error.message)
+
+  if (Array.isArray(metadata.discovery) && (metadata.discovery as unknown[]).length) {
+    try {
+      await addStudyArtifact({
+        workspace_id: input.workspace_id,
+        session_id: data.id,
+        artifact_type: 'note',
+        title: 'Discovery sources',
+        body: (metadata.discovery as Array<{ channel?: string; url?: string; note?: string }>)
+          .map((d) => {
+            const ch = d.channel ? `[${d.channel}] ` : ''
+            const note = d.note ? ` — ${d.note}` : ''
+            return `${ch}${d.url || ''}${note}`.trim()
+          })
+          .filter(Boolean)
+          .join('\n'),
+        payload: { discovery: metadata.discovery, source: 'study_start' },
+        evidence_refs: (metadata.discovery as Array<{ url?: string }>)
+          .map((d) => (d.url ? `discovery:${d.url}` : null))
+          .filter(Boolean) as string[],
+      })
+    } catch {
+      // non-fatal
+    }
+  }
+
   return data
+}
+
+export async function addStudyArtifact(input: {
+  workspace_id: string
+  session_id: string
+  artifact_type?: string
+  title?: string | null
+  body?: string | null
+  url?: string | null
+  channel?: string | null
+  payload?: Record<string, unknown>
+  evidence_refs?: string[]
+  grok_model?: string | null
+  allow_system_types?: boolean
+}) {
+  const db = getServiceClient()
+  const sessionId = String(input.session_id || '').trim()
+  if (!sessionId) throw new Error('session_id is required')
+
+  const pack = await getStudySession(input.workspace_id, sessionId)
+  if (!pack) throw new Error('Study session not found')
+
+  let artifact_type = String(input.artifact_type || 'note').trim()
+  if (!ARTIFACT_TYPES.has(artifact_type)) {
+    throw new Error(`Invalid artifact_type: ${artifact_type}`)
+  }
+  if (['brief', 'match', 'serp_table'].includes(artifact_type) && !input.allow_system_types) {
+    throw new Error(`Use study brief / match endpoints for artifact_type=${artifact_type}`)
+  }
+
+  const title =
+    input.title != null
+      ? String(input.title).slice(0, 200)
+      : artifact_type === 'note'
+        ? 'Note'
+        : artifact_type
+
+  const payload: Record<string, unknown> =
+    input.payload && typeof input.payload === 'object' && !Array.isArray(input.payload)
+      ? { ...input.payload }
+      : {}
+  if (input.body != null && String(input.body).trim()) payload.body = String(input.body)
+  if (input.url != null && String(input.url).trim()) payload.url = String(input.url).trim()
+  if (input.channel != null) payload.channel = String(input.channel)
+
+  const evidence_refs = Array.isArray(input.evidence_refs)
+    ? input.evidence_refs.map(String)
+    : payload.url
+      ? [`discovery:${payload.url}`]
+      : []
+
+  const { data, error } = await db
+    .from('study_artifacts')
+    .insert({
+      workspace_id: input.workspace_id,
+      session_id: sessionId,
+      artifact_type,
+      title,
+      payload,
+      evidence_refs,
+      grok_model: input.grok_model || null,
+    })
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function updateStudySession(input: {
+  workspace_id: string
+  session_id: string
+  hypothesis?: string
+  query?: string | null
+  status?: string
+  linked_product_id?: string | null
+  metadata?: Record<string, unknown>
+  subject_kind?: string
+  brand_key?: string
+  crawl_intent?: string
+  discovery?: unknown
+}) {
+  const db = getServiceClient()
+  const sessionId = String(input.session_id || '').trim()
+  if (!sessionId) throw new Error('session_id is required')
+
+  const pack = await getStudySession(input.workspace_id, sessionId)
+  if (!pack) throw new Error('Study session not found')
+
+  const patch: Record<string, unknown> = {}
+  if (input.hypothesis != null) {
+    const h = String(input.hypothesis).trim()
+    if (!h) throw new Error('hypothesis cannot be empty')
+    patch.hypothesis = h
+  }
+  if (input.query !== undefined) {
+    patch.query =
+      input.query != null && String(input.query).trim() ? String(input.query).trim() : null
+  }
+  if (input.status != null) {
+    const s = String(input.status)
+    if (!SESSION_STATUSES.has(s)) throw new Error(`Invalid status: ${s}`)
+    patch.status = s
+    if (s === 'closed' || s === 'cancelled') {
+      patch.closed_at = new Date().toISOString()
+    }
+  }
+  if (input.linked_product_id !== undefined) {
+    patch.linked_product_id = input.linked_product_id || null
+  }
+  if (
+    input.metadata != null ||
+    input.subject_kind != null ||
+    input.brand_key != null ||
+    input.crawl_intent != null ||
+    input.discovery != null
+  ) {
+    patch.metadata = normalizeNotebookMetadata(
+      {
+        ...((pack.session.metadata as Record<string, unknown>) || {}),
+        ...(input.metadata && typeof input.metadata === 'object' ? input.metadata : {}),
+      },
+      {
+        subject_kind: input.subject_kind,
+        brand_key: input.brand_key,
+        crawl_intent: input.crawl_intent,
+        discovery: input.discovery,
+      },
+    )
+  }
+
+  if (!Object.keys(patch).length) throw new Error('No fields to update')
+
+  const { data, error } = await db
+    .from('study_sessions')
+    .update(patch)
+    .eq('id', sessionId)
+    .eq('workspace_id', input.workspace_id)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function listStudySessions(
+  workspaceId: string,
+  filters: { status?: string; limit?: number } = {},
+) {
+  const db = getServiceClient()
+  let q = db
+    .from('study_sessions')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(Math.min(Math.max(filters.limit ?? 50, 1), 200))
+  if (filters.status) q = q.eq('status', filters.status)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return data ?? []
 }
 
 export async function getStudySession(workspaceId: string, sessionId: string) {

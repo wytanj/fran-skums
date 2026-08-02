@@ -70,14 +70,34 @@ export const toolDefinitions = [
   {
     name: 'study_start',
     description:
-      'Open a Fran marketplace study session for a product/brand hypothesis. Use before brief/match/propose.',
+      'Open a product/brand research notebook (study session). Does NOT start Shopee crawl. Park discovery URLs (e.g. Sephora) in metadata/discovery; crawl only later via pipeline watchlist_seed after human approve. deep_link → /research/{id}.',
     inputSchema: {
       type: 'object',
       properties: {
         hypothesis: { type: 'string', description: 'What we are studying and why' },
-        query: { type: 'string', description: 'Shopee/search query e.g. anua official' },
+        query: {
+          type: 'string',
+          description: 'Optional Shopee/search query for later warehouse match — omit for notebook-only',
+        },
         marketplace: { type: 'string', default: 'shopee' },
         country: { type: 'string', default: 'sg' },
+        subject_kind: {
+          type: 'string',
+          enum: ['product', 'brand', 'other'],
+          description: 'Notebook subject type (default inferred)',
+        },
+        brand_key: { type: 'string', description: 'Slug e.g. olaplex' },
+        crawl_intent: {
+          type: 'string',
+          enum: ['none', 'later', 'active'],
+          description: 'none = park only (default); later = may seed; active = already watching',
+        },
+        discovery: {
+          type: 'array',
+          description: 'External discovery sources [{channel,url,note}] — not crawl targets',
+          items: { type: 'object' },
+        },
+        discovery_url: { type: 'string', description: 'Shortcut single external URL (e.g. Sephora PDP)' },
         metadata: { type: 'object' },
       },
       required: ['hypothesis'],
@@ -85,7 +105,8 @@ export const toolDefinitions = [
   },
   {
     name: 'study_get',
-    description: 'Get a study session and its artifacts (brief, match, serp table).',
+    description:
+      'Get a research notebook (study session) + artifacts (notes, brief, match, serp). deep_link /research/{id}.',
     inputSchema: {
       type: 'object',
       properties: { session_id: { type: 'string' } },
@@ -94,19 +115,81 @@ export const toolDefinitions = [
   },
   {
     name: 'study_list',
-    description: 'List recent study sessions.',
+    description: 'List research notebooks (study sessions). Prefer status=open for the research queue.',
     inputSchema: {
       type: 'object',
       properties: {
-        status: { type: 'string' },
+        status: { type: 'string', description: 'open | briefed | proposed | closed | cancelled' },
         limit: { type: 'number' },
       },
     },
   },
   {
+    name: 'study_add_note',
+    description:
+      'Append a notebook note page (body, optional URL). Does NOT crawl. Prefer this for scrapbook / Sephora / buyer notes. study:write / safe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        session_id: { type: 'string' },
+        body: { type: 'string', description: 'Note text' },
+        title: { type: 'string' },
+        url: { type: 'string', description: 'Optional external URL for this note' },
+        channel: { type: 'string', description: 'e.g. sephora, buyer, social' },
+        evidence_refs: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['session_id', 'body'],
+    },
+  },
+  {
+    name: 'study_add_artifact',
+    description:
+      'Append a notebook artifact (note|other|export_table|…). Not for brief/match (use study_brief / study_match_catalog). Does NOT crawl.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        session_id: { type: 'string' },
+        artifact_type: {
+          type: 'string',
+          enum: ['note', 'other', 'export_table', 'chart_spec', 'raw_job'],
+        },
+        title: { type: 'string' },
+        body: { type: 'string' },
+        url: { type: 'string' },
+        payload: { type: 'object' },
+        evidence_refs: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['session_id'],
+    },
+  },
+  {
+    name: 'study_update',
+    description:
+      'Update notebook cover: hypothesis, query, status, crawl_intent, brand_key, metadata merge. Does NOT start crawl. Close with status=closed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        session_id: { type: 'string' },
+        hypothesis: { type: 'string' },
+        query: { type: 'string' },
+        status: {
+          type: 'string',
+          enum: ['open', 'briefed', 'proposed', 'closed', 'cancelled'],
+        },
+        subject_kind: { type: 'string', enum: ['product', 'brand', 'other'] },
+        brand_key: { type: 'string' },
+        crawl_intent: { type: 'string', enum: ['none', 'later', 'active'] },
+        linked_product_id: { type: 'string' },
+        metadata: { type: 'object' },
+        discovery: { type: 'array', items: { type: 'object' } },
+      },
+      required: ['session_id'],
+    },
+  },
+  {
     name: 'study_brief',
     description:
-      'Generate a grounded study brief (Grok if XAI_API_KEY set, else offline metrics-based). Stores artifact.',
+      'Generate a grounded study brief (Grok if XAI_API_KEY set, else offline). Uses warehouse SERP if query has harvest data; empty warehouse is OK (honest unknowns). Does NOT start crawl.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -118,7 +201,7 @@ export const toolDefinitions = [
   },
   {
     name: 'study_match_catalog',
-    description: 'Match study query/listings to Fran catalog products (rules + optional Grok rerank).',
+    description: 'Match study query/listings to Fran catalog products (rules + optional Grok rerank). Does NOT start crawl.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -131,7 +214,7 @@ export const toolDefinitions = [
   {
     name: 'study_propose',
     description:
-      'From latest brief, propose pipeline candidates (watchlist_seed and/or catalog_product).',
+      'From latest brief, propose pipeline candidates (watchlist_seed and/or catalog_product). Propose only — human decides in /actions. Prefer crawl_intent later/active before watchlist_seed.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1365,14 +1448,25 @@ export async function handleTool(name, args = {}) {
       case 'study_start': {
         requireScope('study:write')
         const workspace_id = requireWorkspaceId()
+        const meta =
+          a.metadata && typeof a.metadata === 'object' && !Array.isArray(a.metadata)
+            ? { ...a.metadata }
+            : {}
+        if (a.discovery_url) meta.discovery_url = String(a.discovery_url)
+        if (a.discovery_channel) meta.discovery_channel = String(a.discovery_channel)
         const session = await study.createStudySession({
           workspace_id,
           hypothesis: a.hypothesis,
           query: a.query ?? null,
           marketplace: a.marketplace,
           country: a.country,
-          metadata: a.metadata,
+          metadata: meta,
+          subject_kind: a.subject_kind,
+          brand_key: a.brand_key,
+          crawl_intent: a.crawl_intent,
+          discovery: a.discovery,
         })
+        const deep_link = study.researchDeepLink(session.id)
         return withMcpAudit(
           name,
           requestId,
@@ -1382,15 +1476,25 @@ export async function handleTool(name, args = {}) {
             status: session.status || 'open',
             operation: 'INSERT',
             after_data: session,
+            metadata: { deep_link_hint: deep_link },
           },
-          { session },
+          {
+            session,
+            deep_link,
+            is_draft: true,
+            note: 'Research notebook opened — no Shopee crawl. Add notes with study_add_note; open deep_link in SKUMS Research UI. Propose watchlist only when ready.',
+            next_allowed_actions: ['study_add_note', 'study_get', 'study_match_catalog', 'study_brief'],
+          },
         )
       }
       case 'study_get': {
         requireScope('intel:read')
         const pack = await study.getStudySession(requireWorkspaceId(), String(a.session_id))
         if (!pack) throw new Error('Study session not found')
-        return jsonResult(pack)
+        return jsonResult({
+          ...pack,
+          deep_link: study.researchDeepLink(String(a.session_id)),
+        })
       }
       case 'study_list': {
         requireScope('intel:read')
@@ -1398,7 +1502,95 @@ export async function handleTool(name, args = {}) {
           status: a.status,
           limit: a.limit,
         })
-        return jsonResult({ sessions })
+        return jsonResult({
+          sessions,
+          deep_link: '/research',
+          note: 'Notebooks are product/brand research — not crawl jobs. Open /research in SKUMS.',
+        })
+      }
+      case 'study_add_note': {
+        requireScope('study:write')
+        const artifact = await study.addStudyArtifact({
+          workspace_id: requireWorkspaceId(),
+          session_id: String(a.session_id),
+          artifact_type: 'note',
+          title: a.title,
+          body: a.body,
+          url: a.url,
+          channel: a.channel,
+          evidence_refs: a.evidence_refs,
+        })
+        const deep_link = study.researchDeepLink(String(a.session_id))
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'study_artifacts',
+            entity_id: artifact.id,
+            status: 'note',
+            operation: 'INSERT',
+            after_data: artifact,
+            metadata: { session_id: a.session_id, deep_link_hint: deep_link },
+          },
+          { artifact, deep_link, note: 'Note page added — no crawl.' },
+        )
+      }
+      case 'study_add_artifact': {
+        requireScope('study:write')
+        const artifact = await study.addStudyArtifact({
+          workspace_id: requireWorkspaceId(),
+          session_id: String(a.session_id),
+          artifact_type: a.artifact_type || 'other',
+          title: a.title,
+          body: a.body,
+          url: a.url,
+          payload: a.payload,
+          evidence_refs: a.evidence_refs,
+        })
+        const deep_link = study.researchDeepLink(String(a.session_id))
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'study_artifacts',
+            entity_id: artifact.id,
+            status: artifact.artifact_type,
+            operation: 'INSERT',
+            after_data: artifact,
+            metadata: { session_id: a.session_id, deep_link_hint: deep_link },
+          },
+          { artifact, deep_link },
+        )
+      }
+      case 'study_update': {
+        requireScope('study:write')
+        const session = await study.updateStudySession({
+          workspace_id: requireWorkspaceId(),
+          session_id: String(a.session_id),
+          hypothesis: a.hypothesis,
+          query: a.query,
+          status: a.status,
+          linked_product_id: a.linked_product_id,
+          metadata: a.metadata,
+          subject_kind: a.subject_kind,
+          brand_key: a.brand_key,
+          crawl_intent: a.crawl_intent,
+          discovery: a.discovery,
+        })
+        const deep_link = study.researchDeepLink(session.id)
+        return withMcpAudit(
+          name,
+          requestId,
+          {
+            object_type: 'study_sessions',
+            entity_id: session.id,
+            status: session.status,
+            operation: 'UPDATE',
+            after_data: session,
+            metadata: { deep_link_hint: deep_link },
+          },
+          { session, deep_link, note: 'Notebook updated — no crawl.' },
+        )
       }
       case 'study_brief': {
         requireScope('study:write')
@@ -1417,7 +1609,10 @@ export async function handleTool(name, args = {}) {
             operation: 'UPDATE',
             after_data: result,
           },
-          result,
+          {
+            ...result,
+            deep_link: study.researchDeepLink(String(a.session_id)),
+          },
         )
       }
       case 'study_match_catalog': {
@@ -1437,7 +1632,10 @@ export async function handleTool(name, args = {}) {
             operation: 'UPDATE',
             after_data: result,
           },
-          result,
+          {
+            ...result,
+            deep_link: study.researchDeepLink(String(a.session_id)),
+          },
         )
       }
       case 'study_propose': {

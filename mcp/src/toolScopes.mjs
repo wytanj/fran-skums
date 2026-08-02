@@ -90,10 +90,13 @@ export const TOOL_SCOPE_CATALOG = {
     action: 'Create floor adjustment draft/pending (never apply ledger)',
   },
 
-  // Study
-  study_start: { scope: 'study:write', action: 'Start study session' },
-  study_get: { scope: 'intel:read', action: 'Get study session' },
-  study_list: { scope: 'intel:read', action: 'List study sessions' },
+  // Study / Research notebooks
+  study_start: { scope: 'study:write', action: 'Open research notebook (no crawl)' },
+  study_get: { scope: 'intel:read', action: 'Get research notebook' },
+  study_list: { scope: 'intel:read', action: 'List research notebooks' },
+  study_add_note: { scope: 'study:write', action: 'Add notebook note page' },
+  study_add_artifact: { scope: 'study:write', action: 'Add notebook artifact page' },
+  study_update: { scope: 'study:write', action: 'Update notebook cover / status' },
   study_brief: { scope: 'study:write', action: 'Run study brief' },
   study_match_catalog: { scope: 'study:write', action: 'Match study to catalog' },
   study_propose: { scope: 'study:write', action: 'Propose pipeline from study' },

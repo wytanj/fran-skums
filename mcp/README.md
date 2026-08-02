@@ -208,11 +208,15 @@ Env vars can also come from the shell that launches the MCP process; the server 
 | `catalog_search` | intel:read |
 | `catalog_get` | intel:read |
 
-### Study
+### Study / Research notebooks
+Notebooks park product/brand ideas (**no Shopee crawl**). UI: `/research`. Pipeline still lands in `/actions`.
+
 | Tool | Scope |
 |------|--------|
-| `study_start` | study:write |
-| `study_get` / `study_list` | intel:read |
+| `study_start` | study:write — open notebook; optional `discovery_url` / `crawl_intent=none` |
+| `study_get` / `study_list` | intel:read — deep_link `/research/{id}` |
+| `study_add_note` / `study_add_artifact` | study:write — notebook pages |
+| `study_update` | study:write — cover fields / close |
 | `study_brief` | study:write |
 | `study_match_catalog` | study:write |
 | `study_propose` | pipeline:propose |
@@ -249,6 +253,13 @@ Env vars can also come from the shell that launches the MCP process; the server 
 ### Safe (default)
 
 ```text
+# Research notebook (no crawl)
+study_start(hypothesis, discovery_url, crawl_intent=none)
+  → study_add_note → deep_link /research/{id}
+  → (optional) study_match_catalog / study_brief when warehouse has data
+  → study_propose only when ready for watchlist/catalog draft
+  → human Actions UI for decide/execute
+
 study_start → study_brief → study_match_catalog → study_propose
 po_create_draft / po_add_lines   # status stays draft
 po_list / po_get                 # show human the draft id
@@ -304,6 +315,7 @@ po_list / po_get
 - **Actions** inbox: `/actions`
 - Internal PO detail: `/actions/internal-pos/:id`
 - Pipeline candidate: `/actions/pipeline/:id`
+- **Research** notebooks: `/research` · `/research/:id`
 
 ## Not in MCP yet
 

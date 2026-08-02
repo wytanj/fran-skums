@@ -79,7 +79,10 @@ export function defaultNextActions(objectType, status) {
     return ['review_in_ui']
   }
   if (objectType === 'study_session' || objectType === 'study_sessions') {
-    return ['study_get', 'study_brief', 'study_propose']
+    return ['study_get', 'study_add_note', 'study_brief', 'study_match_catalog', 'study_propose']
+  }
+  if (objectType === 'study_artifact' || objectType === 'study_artifacts') {
+    return ['study_get']
   }
   return []
 }

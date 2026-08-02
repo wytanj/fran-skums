@@ -38,7 +38,8 @@ test('getCloudMcpInstructions is composite-first and short-answer', () => {
   assert.match(text, /invoice/i)
   assert.match(text, /cloud-safe|CLOUD|cloud/i)
   assert.ok(text.length > 400)
-  assert.ok(text.length < 7500, 'initialize.instructions should stay reasonably compact')
+  // Research notebook routing added ~2026-08; keep under ~8k for initialize.instructions
+  assert.ok(text.length < 8000, 'initialize.instructions should stay reasonably compact')
   assert.match(text, /sales_rank|Top Sales/)
 })
 

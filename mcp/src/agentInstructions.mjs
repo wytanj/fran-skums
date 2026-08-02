@@ -42,6 +42,7 @@ Composite-first (prefer ONE tool, then answer):
 | Draft ASN / floor adj | inbound_create_draft, floor_adjustment_create_draft (dry_run) | send Loft / apply ledger |
 | POS-off shortlist | pos_enable_proposal | bulk Activate for POS |
 | Report packs: list / run | reports_list, reports_get, reports_run (enabled only; reports:run) | inventing digests; auto-approve |
+| Research notebook (park URL/idea; no crawl) | study_start + study_add_note → **/research/{id}**; later study_propose → **/actions** | bi_upsert_seed; auto watchlist |
 
 Two data buckets (do not mix):
 1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = lifetime market signal · sales_rank = Top Sales sort position · path = platform crumbs — none of these are our ATS.
@@ -63,7 +64,7 @@ Answer style:
 5d. **platform_category_path_text** / **platform_category_leaf** = Shopee PDP Category breadcrumbs (e.g. Shopee > Beauty & Personal Care > Makeup > Blusher). Distinct from marketing shelf (shop_collection_name).
 5e. On market_brand_* check **complete**; if false you have a subset — page with next_offset or narrow. Never present it as the whole.
 6. Empty open queues mean those objects are empty — not “all transfers settled.”
-7. After any draft (PO / pipeline propose): stop, give deep_link, tell human to use Actions or Store Ops UI.
+7. After any draft (PO / pipeline propose / study_start): stop, give deep_link (/actions or /research/{id}).
 `.trim()
 
 /**
@@ -114,7 +115,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     // Read-only tools are already enumerated in the routing table above; this
     // line only needs to name the write-side boundary.
-    'OK drafts: po_* draft/clone, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run; sku+quantity ok for damage/found).',
+    'OK drafts: po_* draft/clone, study_start/note (no crawl), store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
     'Floor damage path: floor_adjustment_create_draft → deep_link /store-ops?tab=floor → floor_adjustment_apply only with inventory:write. Never say stock moved at draft/pending.',
     cloud
       ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'
