@@ -12,6 +12,7 @@
 **Fran product UX:** Track **F0** — single-org chrome · see § Track F0  
 **Teammate / Kristle:** Track **TEAM** — **shipped + prod** · owner ops invite · Phase **S** = Workspace SSO + MFA later  
 **Demand forecast:** Track **FC** — **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
+**Near-expiry / Loft gate:** Track **EX** — schema + B.4 code exist; **ops path not wired** · review before build · see § Track EX  
 **MCP agent routing:** **two buckets shipped** (Mall `market_brand_*` vs catalog/stock)  
 **Web / store-routing site:** **`TODO-WEB.md`**
 
@@ -67,12 +68,17 @@
    · Named recipes: top_brands_weekly · top_sales_by_brand · shelf_mix · mh4_coverage
    · market_report_run · Airtable/Sheets push · K weekly pack
 
-2. K + FC (HQ demand loop)
+2. EX — Near-expiry / Loft gate (when scheduling Loft-facing work)
+   · P0: real Send-to-Loft UI + override · inbound expiry capture
+   · P1: fix expiry_snapshot · recommend preflight
+   · Do NOT rebuild /expiry app — see § Track EX recommendation
+
+3. K + FC (HQ demand loop)
    · FC-2/3 · demand pack seed
 
-3. F0 Fran single-org UX
+4. F0 Fran single-org UX
 
-4. Parallel when blocked
+5. Parallel when blocked
    · Loft Phase 0 · J · L campaigns
 ```
 
@@ -116,11 +122,76 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 | **F0** | **Fran single-org UX** | **Next product chrome** |
 | **L** | **Loyalty FWB** | **Live wire shipped** · Jan-1 / campaigns |
 | **B** | Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
+| **EX** | **Near-expiry / FEFO policy (Loft gate)** | **Review before build** · P0 wire send + data · see § Track EX |
 | **J** | **Supplier order lifecycle (KR/HK)** | Design + Help 072 · Phase 0 actors |
 | **TEAM** | **Teammate invite** | **Shipped + prod** · Kristle = owner ops |
 | **S** | **Login MFA = Google Workspace** | Planned |
 | **G** | **Shopee collect** | Windows primary · G2 → MH-11 |
 | **WEB** | **Fran web → store** | Parked in `TODO-WEB.md` |
+
+## Track EX — Near-expiry / Loft short-date gate (ops wiring)
+
+**Date audited:** 2026-08-02  
+**Sources:** `TODO-LOFT.md` (B.4, D.2) · `docs/LOFT_SOW_KIV.md` · `docs/SKUMS_OPERATOR_RUNBOOK.md` · `docs/MCP_ACTION_BACKLOG.md` · code: `storeReplenishment.checkNearExpiryGate`, `inboundShipment.confirmInboundAndPromote`, `core/ops/composites.expirySnapshot`, `/expiry` UI  
+**Ownership:** SKUMS = short-date **policy gate** + batch data · Loft WMS = **FEFO pick** · POS = no pick batch · MCP = read/preflight only (no silent send/override)
+
+### Verdict (do not re-scope)
+
+| Need new expiry app / tables? | **No** |
+|-------------------------------|--------|
+| Schema + `/expiry` + LIFO/microsites | Already shipped (`011`) |
+| B.4 gate (default **9 months**) on `sendOrderToLoft` | **Code exists** |
+| Scopes `expiry:*`, `inventory:override_expiry` | Seeded |
+| MCP `expiry_snapshot` (#8) | Tool exists; **nearest-batch path wrong shape** |
+| Production data (Fran Demo) | **0** `expiry_batches` / `expiry_items` → gate always passes |
+
+**Problem is wiring + data feed, not a missing product domain.**
+
+### Priorities
+
+| P | Slice | Work | Why |
+|---|-------|------|-----|
+| **P0** | **EX-1 Send path** | Store Ops “Send to Loft” must call `POST /api/store-ops/orders/:id/send-to-loft` (not status-only `sent_to_3pl` patch). Surface 409 `near_expiry` + **override + reason** when `inventory:override_expiry`. Wave release must use same API. | Gate is dead code on the HQ UI path today |
+| **P0** | **EX-2 Inbound capture** | Inbound ASN line + **LISE confirm** UI: optional `expiry_year` / `expiry_month` / `expiry_day`. Confirm already writes batches when present (`inboundShipment`) — UI never sends fields. | Only durable feed into gate + MCP |
+| **P1** | **EX-3 Snapshot fix** | `expiry_snapshot` / assistant twin: read **`expiry_items`** (or `expiry_lifo` / `v_expiry_risk`), not wrong `product_expiry_batches` / `expiry_batches.expiry_date` columns. Keep `expiry_summary` RPC. | #8 triage useless without real nearest lots |
+| **P1** | **EX-4 Decide preflight** | Add near-expiry preflight (blocked SKU count / sample) on `store_ops_recommend` and/or request/order pack. Read-only. Still no MCP auto-send. | HQ sees short-date risk before approve_now |
+| **P2** | **EX-5 Lifecycle** | Optional: draw down `remaining_qty` on POS sale when `batch_id` present; document “no expiry rows ⇒ gate passes”. | Keeps snapshots honest over time |
+| **P2** | **EX-6 Doc hygiene** | Mark B.4 honestly in `TODO-LOFT.md` (code ✅ UI ❌); operator runbook pilot checkbox when EX-1/2 smoke. | Avoid re-building expiry from scratch |
+
+### Explicit non-goals (v1)
+
+- New FEFO engine in SKUMS (Loft picks)
+- POS choosing pick batch / short-date UI on register
+- Cloud MCP auto-send or auto-override
+- Rebuilding `/expiry` microsites before data exists
+- Blocking send when **no** expiry data (unknown ≠ short-dated)
+
+### Recommendation (review before build queue)
+
+```text
+Schedule EX only when Loft-facing send is next on the plate.
+Do not jump to EX mid–report-recipe sprint unless a pilot
+needs short-date block on a live Send-to-Loft.
+
+Recommended order when you start EX:
+  EX-1  →  EX-2  →  EX-3  →  EX-4   (P2 only if data is live)
+
+Minimum ship for “gate is real”:
+  EX-1 + EX-2  (wire + one data path)
+  EX-3 same PR or immediately after (so MCP matches UI)
+
+Skip for now:
+  EX-5 sale drawdown, M4 full store_ops_send_to_loft, new expiry UX
+```
+
+**Why this order:** without EX-1 the policy never runs in ops; without EX-2 the gate never has rows to block; EX-3/4 make agents and HQ decide paths honest. Everything else is polish.
+
+**Smoke after EX-1/2:** one SKU with short-dated `expiry_items` → send blocked → override with reason → order metadata `near_expiry_gate` · confirm inbound with Y/M → batch+item rows · `expiry_snapshot` counts non-zero.
+
+**Depends on:** Loft P–F code (shipped) · scopes (shipped) · live Loft credentials only for end-to-end OFS (gate itself is SKUMS-local).  
+**Related:** `TODO-LOFT.md` B.4 / D.2 · M4 `store_ops_send_to_loft` stays optional until Phase 0 IDs + EX-1 UI.
+
+---
 
 ## Track L — Fran’s With Benefits (loyalty execution)
 
@@ -689,6 +760,8 @@ Living detail + optional later work: **`docs/MCP_ACTION_BACKLOG.md`**.
 
 **Optional leftovers** (see backlog file): forecast summary, import job status, bind key to *other* user UI, full `execute_3pl` send-to-Loft tool with shipping payload.
 
+**Expiry note:** `expiry_snapshot` is shipped as #8 but nearest-batch query needs **EX-3** (Track EX). Gate/override is not MCP — HQ UI **EX-1**.
+
 ---
 
 ## Quick smoke
@@ -724,7 +797,8 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 ## North star
 
 **Agents draft and, when scoped, HQ-approve; humans still own Loft send and credentials.**  
-**v3 Loft retail:** POS = signal · HQ decide (UI or MCP with `store_ops:approve`) · Loft warehouse · receive + exception · floor apply (UI or MCP with `inventory:write`).
+**v3 Loft retail:** POS = signal · HQ decide (UI or MCP with `store_ops:approve`) · Loft warehouse · receive + exception · floor apply (UI or MCP with `inventory:write`).  
+**Near-expiry:** SKUMS blocks short-dated **outbound** when batch data exists; Loft still owns FEFO pick; override is human + `inventory:override_expiry` only (Track **EX**).
 
 ---
 
