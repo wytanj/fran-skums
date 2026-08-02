@@ -6,6 +6,7 @@
 import { getDb, getMcpActorUserId, requireWorkspaceId } from '../context.mjs'
 import { isSubscriptionDue } from '../../../core/reports/schedule.mjs'
 import { runReportSections } from '../../../core/reports/sections.mjs'
+import { ensureDefaultSubscriptions } from '../../../core/reports/seed.mjs'
 
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -35,6 +36,9 @@ export async function listReports(args = {}) {
   const db = getDb()
   const workspaceId = requireWorkspaceId()
   const enabledOnly = Boolean(args.enabled_only)
+
+  // Same as GUI: ensure seed packs (incl. daily-stockout) have subscriptions
+  await ensureDefaultSubscriptions(db, workspaceId, getMcpActorUserId() || null)
 
   const { data: subs, error } = await db
     .from('report_subscriptions')
@@ -113,6 +117,10 @@ export async function getReport(args = {}) {
   const runId = trimString(args.run_id)
   const subscriptionId = trimString(args.subscription_id)
   const slug = trimString(args.template_slug)
+
+  if (!runId) {
+    await ensureDefaultSubscriptions(db, workspaceId, getMcpActorUserId() || null)
+  }
 
   if (runId) {
     const { data, error } = await db
@@ -195,6 +203,9 @@ export async function runReport(args = {}) {
   const subscriptionId = trimString(args.subscription_id)
   const slug = trimString(args.template_slug)
   const force = Boolean(args.force)
+
+  // Ensure seed packs exist before slug lookup (daily-stockout etc.)
+  await ensureDefaultSubscriptions(db, workspaceId, getMcpActorUserId() || null)
 
   let subId = subscriptionId
   let sub = null
@@ -287,8 +298,8 @@ export async function runReport(args = {}) {
   return {
     run: done,
     deep_link: `/reports?run=${done.id}`,
-    markdown_summary: stub.markdown,
+    markdown_summary: result.markdown,
     agent_hint:
-      'Suggest-only. Share summary with human; do not invent stock actions. Full Phase N deliver happens on UI/API/cron path.',
+      'Suggest-only. Share summary with human; do not invent stock actions. Full Phase N deliver happens on UI/API/cron path. For stockouts use template_slug=daily-stockout.',
   }
 }

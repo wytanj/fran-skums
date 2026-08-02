@@ -113,10 +113,12 @@ function statusClass(status: string | undefined) {
           Agentic reports
         </h1>
         <p class="mt-1 max-w-2xl text-sm text-gray-400">
-          Subscribe to sectionized packs (marketing, warehouse, finance).
+          Subscribe to sectionized packs (daily stockout, marketing, warehouse, finance).
           Toggle on/off per workspace. Reports
           <strong class="font-medium text-gray-300">suggest only</strong>
           — they never auto-approve, send to Loft, or mark FOB.
+          MCP: <code class="text-gray-500">reports_run</code> with
+          <code class="text-gray-500">template_slug=daily-stockout</code>.
         </p>
       </div>
       <button

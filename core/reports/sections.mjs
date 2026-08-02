@@ -65,6 +65,7 @@ export async function runReportSections(client, workspaceId, sections, opts = {}
         status: result.status || 'ok',
         summary: result.summary,
         data: result.data ?? {},
+        detail_markdown: result.detail_markdown || null,
         suggest_only: true,
       })
     } catch (e) {
@@ -93,6 +94,12 @@ export async function runReportSections(client, workspaceId, sections, opts = {}
     }),
   ]
 
+  for (const s of out) {
+    if (s.detail_markdown) {
+      lines.push('', s.detail_markdown)
+    }
+  }
+
   return {
     sections: out,
     markdown: lines.join('\n'),
@@ -109,6 +116,7 @@ const HANDLERS = {
   'sales.category_rollup': salesCategoryRollup,
   'inventory.ats_by_location': inventoryAtsByLocation,
   'inventory.cover_days': inventoryCoverDays,
+  'inventory.store_stockouts': inventoryStoreStockouts,
   'ops.open_queues': opsOpenQueues,
   'ops.wave_baseline': opsWaveBaseline,
   'finance.stock_position': financeStockPosition,
@@ -457,6 +465,219 @@ async function inventoryCoverDays({ client, workspaceId, limit }) {
       critical_count: critical,
       overstock_count: overstock,
     },
+  }
+}
+
+/**
+ * Per store-type location: catalog SKUs with ATS (on_hand - reserved) <= 0.
+ * Primary signal for the daily-stockout pack. Suggest-only.
+ */
+async function inventoryStoreStockouts({ client, workspaceId, limit }) {
+  const perStoreCap = Math.min(Math.max(limit, 10), 80)
+
+  const { data: locs, error: lErr } = await client
+    .from('inventory_locations')
+    .select('id, name, code, location_type')
+    .eq('workspace_id', workspaceId)
+    .eq('is_active', true)
+    .in('location_type', [...STORE_TYPES])
+    .order('name', { ascending: true })
+
+  if (lErr) throw new Error(lErr.message)
+  // Defensive: only store-type (some clients ignore .in filters)
+  const stores = (locs || []).filter((l) => STORE_TYPES.has(l.location_type))
+  if (!stores.length) {
+    return {
+      status: 'ok',
+      summary: 'No active store locations — cannot compute per-store stockouts.',
+      data: { stores: [], total_stockout_lines: 0, method: 'inventory_levels ATS<=0 at store' },
+      detail_markdown: '### Per-store stockouts\n\n_No active store locations._',
+    }
+  }
+
+  const storeIds = new Set(stores.map((s) => s.id))
+  const storeById = new Map(stores.map((s) => [s.id, s]))
+
+  // Pull levels at stores; filter ATS<=0 in app (on_hand - reserved).
+  const { data: levels, error } = await client
+    .from('inventory_levels')
+    .select('product_id, location_id, on_hand, reserved, on_order')
+    .eq('workspace_id', workspaceId)
+    .in('location_id', [...storeIds])
+    .limit(8000)
+
+  if (error) throw new Error(error.message)
+
+  const zeroLines = []
+  for (const row of levels || []) {
+    if (!storeIds.has(row.location_id)) continue
+    const onHand = Number(row.on_hand) || 0
+    const reserved = Number(row.reserved) || 0
+    const ats = Math.max(0, onHand - reserved)
+    // True stockout: nothing available (includes on_hand=0 and fully reserved).
+    if (ats > 0) continue
+    zeroLines.push({
+      product_id: row.product_id,
+      location_id: row.location_id,
+      on_hand: onHand,
+      reserved,
+      on_order: Number(row.on_order) || 0,
+      ats: 0,
+    })
+  }
+
+  const productIds = [...new Set(zeroLines.map((l) => l.product_id).filter(Boolean))]
+  const productMap = new Map()
+  // Batch product lookups (Supabase .in has practical size limits)
+  for (let i = 0; i < productIds.length; i += 200) {
+    const chunk = productIds.slice(i, i + 200)
+    const { data: products, error: pErr } = await client
+      .from('products')
+      .select('id, sku, title, status, product_data')
+      .eq('workspace_id', workspaceId)
+      .in('id', chunk)
+    if (pErr) throw new Error(pErr.message)
+    for (const p of products || []) {
+      const pd = p.product_data && typeof p.product_data === 'object' ? p.product_data : {}
+      productMap.set(p.id, {
+        id: p.id,
+        sku: p.sku,
+        title: p.title,
+        status: p.status,
+        pos_enabled: Boolean(pd.pos_enabled ?? pd.sellable_in_pos),
+      })
+    }
+  }
+
+  // Prefer active catalog; still show draft if they have zero levels (honest stock picture).
+  const enriched = zeroLines
+    .map((line) => {
+      const p = productMap.get(line.product_id)
+      if (!p) return null
+      // Skip archived/inactive unless they somehow still have a level row we care about
+      const st = String(p.status || '').toLowerCase()
+      if (st === 'archived' || st === 'inactive' || st === 'deleted') return null
+      const store = storeById.get(line.location_id)
+      return {
+        product_id: line.product_id,
+        sku: p.sku,
+        title: p.title,
+        status: p.status,
+        pos_enabled: p.pos_enabled,
+        location_id: line.location_id,
+        store_code: store?.code || null,
+        store_name: store?.name || line.location_id,
+        on_hand: line.on_hand,
+        reserved: line.reserved,
+        on_order: line.on_order,
+        ats: 0,
+      }
+    })
+    .filter(Boolean)
+
+  // Group by store
+  const byStore = new Map()
+  for (const line of enriched) {
+    const key = line.location_id
+    if (!byStore.has(key)) {
+      byStore.set(key, {
+        location_id: line.location_id,
+        store_code: line.store_code,
+        store_name: line.store_name,
+        stockout_count: 0,
+        pos_enabled_stockouts: 0,
+        lines: [],
+      })
+    }
+    const g = byStore.get(key)
+    g.stockout_count += 1
+    if (line.pos_enabled) g.pos_enabled_stockouts += 1
+    if (g.lines.length < perStoreCap) {
+      g.lines.push({
+        product_id: line.product_id,
+        sku: line.sku,
+        title: line.title,
+        pos_enabled: line.pos_enabled,
+        on_hand: line.on_hand,
+        reserved: line.reserved,
+        on_order: line.on_order,
+        ats: 0,
+      })
+    }
+  }
+
+  // Include stores with zero stockouts so HQ sees full coverage
+  for (const s of stores) {
+    if (!byStore.has(s.id)) {
+      byStore.set(s.id, {
+        location_id: s.id,
+        store_code: s.code,
+        store_name: s.name,
+        stockout_count: 0,
+        pos_enabled_stockouts: 0,
+        lines: [],
+      })
+    }
+  }
+
+  const storesOut = [...byStore.values()].sort((a, b) =>
+    String(a.store_name || '').localeCompare(String(b.store_name || '')),
+  )
+  const totalLines = enriched.length
+  const storesWith = storesOut.filter((s) => s.stockout_count > 0).length
+  const posOut = enriched.filter((l) => l.pos_enabled).length
+
+  const mdLines = [
+    '### Per-store stockouts (ATS = 0)',
+    '',
+    `_Method: inventory_levels at location_type=store where on_hand−reserved ≤ 0. Cap ${perStoreCap} lines listed per store._`,
+    '',
+  ]
+  for (const s of storesOut) {
+    const label = s.store_code ? `${s.store_name} (${s.store_code})` : s.store_name
+    mdLines.push(`**${label}** — ${s.stockout_count} SKU(s) at 0${s.pos_enabled_stockouts ? ` · ${s.pos_enabled_stockouts} POS-on` : ''}`)
+    if (s.stockout_count === 0) {
+      mdLines.push('- _No zero-ATS levels at this store._')
+    } else {
+      for (const line of s.lines) {
+        const pe = line.pos_enabled ? ' · POS' : ''
+        const oo = line.on_order > 0 ? ` · on_order ${line.on_order}` : ''
+        mdLines.push(
+          `- \`${line.sku || '?'}\` ${line.title || ''}${pe}${oo} (on_hand=${line.on_hand}, reserved=${line.reserved})`,
+        )
+      }
+      if (s.stockout_count > s.lines.length) {
+        mdLines.push(`- _…and ${s.stockout_count - s.lines.length} more_`)
+      }
+    }
+    mdLines.push('')
+  }
+  mdLines.push(
+    `**Total:** ${totalLines} stockout line(s) across ${storesWith}/${storesOut.length} store(s)` +
+      (posOut ? ` · ${posOut} POS-enabled` : '') +
+      '.',
+  )
+  mdLines.push('_Suggest only — draft store_fill / PO separately; do not claim stock moved._')
+
+  return {
+    status: 'ok',
+    summary:
+      totalLines === 0
+        ? `${storesOut.length} store(s) · no zero-ATS levels found.`
+        : `${totalLines} zero-ATS line(s) across ${storesWith} store(s)` +
+          (posOut ? ` (${posOut} POS-on)` : '') +
+          '.',
+    data: {
+      method: 'inventory_levels ATS<=0 at store locations',
+      store_count: storesOut.length,
+      stores_with_stockouts: storesWith,
+      total_stockout_lines: totalLines,
+      pos_enabled_stockouts: posOut,
+      per_store_list_cap: perStoreCap,
+      stores: storesOut,
+      suggest_only: true,
+    },
+    detail_markdown: mdLines.join('\n'),
   }
 }
 

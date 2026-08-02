@@ -6,6 +6,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isSubscriptionDue } from '../../core/reports/schedule.mjs'
 import { runReportSections, runStubSections } from '../../core/reports/sections.mjs'
+// @ts-expect-error shared mjs module
+import {
+  REPORT_SEED_SLUGS,
+  ensureDefaultSubscriptions as ensureDefaultSubscriptionsCore,
+} from '../../core/reports/seed.mjs'
 import { emitLifecycleNotification } from './notifications'
 
 export type ReportSchedule = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'manual'
@@ -63,13 +68,10 @@ export interface ReportPackCard {
   sections: string[]
 }
 
-const SEED_SLUGS = [
-  'marketing-weekly',
-  'warehouse-weekly-baseline',
-  'finance-stock-rewards',
-] as const
+/** @deprecated use REPORT_SEED_SLUGS from core/reports/seed.mjs */
+const SEED_SLUGS = REPORT_SEED_SLUGS
 
-export { isSubscriptionDue }
+export { isSubscriptionDue, REPORT_SEED_SLUGS }
 
 /** Platform + workspace templates visible to a workspace. */
 export async function listReportTemplates(
@@ -89,48 +91,14 @@ export async function listReportTemplates(
 
 /**
  * Ensure default (disabled) subscriptions exist for platform seed packs.
- * Idempotent — safe on every list.
+ * Idempotent — safe on every list. Includes daily-stockout.
  */
 export async function ensureDefaultSubscriptions(
   client: SupabaseClient,
   workspaceId: string,
   createdBy?: string | null,
 ): Promise<void> {
-  const { data: templates, error: tErr } = await client
-    .from('report_templates')
-    .select('id, slug, default_schedule, default_timezone, default_channels, audience_hint')
-    .is('workspace_id', null)
-    .eq('is_active', true)
-    .in('slug', [...SEED_SLUGS])
-
-  if (tErr) throw new Error(tErr.message)
-  if (!templates?.length) return
-
-  const { data: existing, error: eErr } = await client
-    .from('report_subscriptions')
-    .select('template_id')
-    .eq('workspace_id', workspaceId)
-
-  if (eErr) throw new Error(eErr.message)
-  const have = new Set((existing || []).map((r: any) => r.template_id))
-
-  const rows = templates
-    .filter((t: any) => !have.has(t.id))
-    .map((t: any) => ({
-      workspace_id: workspaceId,
-      template_id: t.id,
-      enabled: false,
-      schedule: t.default_schedule || 'weekly',
-      timezone: t.default_timezone || 'Asia/Singapore',
-      channels: t.default_channels || ['in_app'],
-      audience: t.audience_hint || null,
-      metadata: { seed: true },
-      created_by: createdBy || null,
-    }))
-
-  if (!rows.length) return
-  const { error: iErr } = await client.from('report_subscriptions').insert(rows)
-  if (iErr) throw new Error(iErr.message)
+  await ensureDefaultSubscriptionsCore(client, workspaceId, createdBy || null)
 }
 
 export async function listSubscriptionsWithLastRun(

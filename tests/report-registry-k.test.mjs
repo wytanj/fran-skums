@@ -110,6 +110,21 @@ describe('Rpt-2 seed packs', () => {
     assert.match(sql, /finance-stock-rewards/)
   })
 
+  test('daily-stockout seed pack migration 081', () => {
+    const sql = readFileSync(
+      new URL('../core/db/081_report_daily_stockout.sql', import.meta.url),
+      'utf8',
+    )
+    assert.match(sql, /daily-stockout/)
+    assert.match(sql, /inventory\.store_stockouts/)
+    assert.match(sql, /daily/)
+  })
+
+  test('seed.mjs includes daily-stockout', async () => {
+    const { REPORT_SEED_SLUGS } = await import('../core/reports/seed.mjs')
+    assert.ok(REPORT_SEED_SLUGS.includes('daily-stockout'))
+  })
+
   test('stub section runner is suggest-only', () => {
     const r = runStubSections(['sales.top_movers', 'ops.open_queues'])
     assert.equal(r.sections.length, 2)

@@ -85,6 +85,7 @@ describe('Rpt-6 section handlers', () => {
       'sales.category_rollup',
       'inventory.ats_by_location',
       'inventory.cover_days',
+      'inventory.store_stockouts',
       'ops.open_queues',
       'ops.wave_baseline',
       'finance.stock_position',
@@ -200,11 +201,70 @@ describe('Rpt-6 section handlers', () => {
     assert.ok(r.markdown.includes('Suggest'))
   })
 
+  test('inventory.store_stockouts groups zero-ATS by store', async () => {
+    const client = createMockClient({
+      inventory_locations: [
+        { id: 'loc-st', location_type: 'store', name: 'Orchard', code: 'ORC', is_active: true },
+        { id: 'loc-st2', location_type: 'store', name: 'Bugis+', code: 'BGP', is_active: true },
+        { id: 'loc-wh', location_type: 'warehouse', name: 'Loft', code: 'WH', is_active: true },
+      ],
+      inventory_levels: [
+        // stockout at Orchard
+        { product_id: 'p1', location_id: 'loc-st', on_hand: 0, reserved: 0, on_order: 5 },
+        { product_id: 'p2', location_id: 'loc-st', on_hand: 0, reserved: 0, on_order: 0 },
+        // has stock at Orchard — not a stockout
+        { product_id: 'p3', location_id: 'loc-st', on_hand: 4, reserved: 0, on_order: 0 },
+        // stockout at Bugis
+        { product_id: 'p1', location_id: 'loc-st2', on_hand: 0, reserved: 1, on_order: 0 },
+        // warehouse zero should be ignored (not a store)
+        { product_id: 'p1', location_id: 'loc-wh', on_hand: 0, reserved: 0, on_order: 0 },
+      ],
+      products: [
+        {
+          id: 'p1',
+          sku: 'SKU-1',
+          title: 'Serum A',
+          status: 'active',
+          product_data: { pos_enabled: true },
+        },
+        {
+          id: 'p2',
+          sku: 'SKU-2',
+          title: 'Mask B',
+          status: 'active',
+          product_data: { pos_enabled: false },
+        },
+        {
+          id: 'p3',
+          sku: 'SKU-3',
+          title: 'Toner C',
+          status: 'active',
+          product_data: {},
+        },
+      ],
+    })
+
+    const r = await runReportSections(client, 'ws-1', ['inventory.store_stockouts'])
+    assert.equal(r.sections.length, 1)
+    const sec = r.sections[0]
+    assert.equal(sec.status, 'ok')
+    assert.equal(sec.data.total_stockout_lines, 3)
+    assert.equal(sec.data.stores_with_stockouts, 2)
+    assert.ok(sec.detail_markdown.includes('Orchard'))
+    assert.ok(sec.detail_markdown.includes('Bugis+'))
+    assert.ok(sec.detail_markdown.includes('SKU-1'))
+    assert.ok(r.markdown.includes('Per-store stockouts'))
+    // warehouse must not appear as a store group
+    assert.ok(!sec.data.stores.some((s) => s.store_code === 'WH'))
+  })
+
   test('reportRegistry and MCP wire runReportSections', () => {
     const reg = readFileSync(new URL('../server/utils/reportRegistry.ts', import.meta.url), 'utf8')
     assert.match(reg, /runReportSections/)
     assert.doesNotMatch(reg, /Stub sections until Rpt-6/)
     const mcp = readFileSync(new URL('../mcp/src/lib/reports.mjs', import.meta.url), 'utf8')
     assert.match(mcp, /runReportSections/)
+    assert.match(mcp, /ensureDefaultSubscriptions/)
+    assert.match(mcp, /daily-stockout/)
   })
 })
