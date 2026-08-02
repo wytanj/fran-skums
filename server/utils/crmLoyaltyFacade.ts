@@ -204,7 +204,11 @@ export async function proxyLoyaltyToCrm(
   let body = opts.body
   if (opts.injectWorkspace && body && typeof body === 'object' && !Array.isArray(body)) {
     const b = { ...(body as Record<string, unknown>) }
-    if (!b.workspaceId && link.crm_workspace_id) b.workspaceId = link.crm_workspace_id
+    // Always prefer the SKUMS-linked CRM workspace. POS may send a local demo
+    // UUID (11111111-…) which must not override workspace_crm_links.
+    if (link.crm_workspace_id) {
+      b.workspaceId = link.crm_workspace_id
+    }
     body = b
   }
 
