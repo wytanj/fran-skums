@@ -36,9 +36,15 @@ export function normalizeNotebookMetadata(raw = {}, extras = {}) {
   const subject =
     extras.subject_kind ||
     meta.subject_kind ||
-    (meta.brand_key && !meta.display_name ? 'brand' : meta.discovery || meta.discovery_url ? 'product' : null)
+    (meta.brand_key && !meta.display_name && !meta.title
+      ? 'brand'
+      : meta.discovery || meta.discovery_url
+        ? 'product'
+        : null)
   if (subject && ['product', 'brand', 'other'].includes(String(subject))) {
     meta.subject_kind = String(subject)
+  } else if (!meta.subject_kind) {
+    meta.subject_kind = 'product'
   }
   if (extras.brand_key || meta.brand_key) {
     meta.brand_key = String(extras.brand_key || meta.brand_key)
@@ -55,6 +61,22 @@ export function normalizeNotebookMetadata(raw = {}, extras = {}) {
     meta.crawl_intent = String(crawl)
   } else {
     meta.crawl_intent = 'none'
+  }
+
+  // Title (product name) + description are separate; title also mirrored in hypothesis column
+  if (extras.title != null && String(extras.title).trim()) {
+    meta.title = String(extras.title).trim()
+  } else if (meta.title != null) {
+    meta.title = String(meta.title).trim()
+  }
+  if (extras.description !== undefined) {
+    const d = extras.description != null ? String(extras.description).trim() : ''
+    if (d) meta.description = d
+    else delete meta.description
+  } else if (meta.description != null) {
+    const d = String(meta.description).trim()
+    if (d) meta.description = d
+    else delete meta.description
   }
 
   // Coalesce single discovery_url into discovery[]
@@ -84,20 +106,24 @@ export function researchDeepLink(sessionId) {
 
 export async function createStudySession(input) {
   const db = getDb()
-  const hypothesis = String(input.hypothesis || '').trim()
-  if (!hypothesis) throw new Error('hypothesis is required')
+  // title preferred; hypothesis kept for backwards compatibility (same column)
+  const title = String(input.title || input.hypothesis || '').trim()
+  if (!title) throw new Error('title (or hypothesis) is required')
 
   const metadata = normalizeNotebookMetadata(input.metadata, {
     subject_kind: input.subject_kind,
     brand_key: input.brand_key,
     crawl_intent: input.crawl_intent,
     discovery: input.discovery,
+    title,
+    description: input.description,
   })
+  if (!metadata.title) metadata.title = title
 
   const row = {
     workspace_id: input.workspace_id,
     status: 'open',
-    hypothesis,
+    hypothesis: title,
     marketplace: input.marketplace || 'shopee',
     country: String(input.country || 'sg').toLowerCase(),
     query: input.query != null && String(input.query).trim() ? String(input.query).trim() : null,
@@ -213,10 +239,15 @@ export async function updateStudySession(input) {
   if (!pack) throw new Error('Study session not found')
 
   const patch = {}
-  if (input.hypothesis != null) {
-    const h = String(input.hypothesis).trim()
-    if (!h) throw new Error('hypothesis cannot be empty')
-    patch.hypothesis = h
+  const nextTitle =
+    input.title != null
+      ? String(input.title).trim()
+      : input.hypothesis != null
+        ? String(input.hypothesis).trim()
+        : null
+  if (nextTitle != null) {
+    if (!nextTitle) throw new Error('title cannot be empty')
+    patch.hypothesis = nextTitle
   }
   if (input.query !== undefined) {
     patch.query = input.query != null && String(input.query).trim() ? String(input.query).trim() : null
@@ -237,7 +268,9 @@ export async function updateStudySession(input) {
     input.subject_kind != null ||
     input.brand_key != null ||
     input.crawl_intent != null ||
-    input.discovery != null
+    input.discovery != null ||
+    nextTitle != null ||
+    input.description !== undefined
   ) {
     patch.metadata = normalizeNotebookMetadata(
       { ...(pack.session.metadata || {}), ...(input.metadata && typeof input.metadata === 'object' ? input.metadata : {}) },
@@ -246,8 +279,11 @@ export async function updateStudySession(input) {
         brand_key: input.brand_key,
         crawl_intent: input.crawl_intent,
         discovery: input.discovery,
+        title: nextTitle != null ? nextTitle : undefined,
+        description: input.description,
       },
     )
+    if (nextTitle != null) patch.metadata.title = nextTitle
   }
 
   if (!Object.keys(patch).length) throw new Error('No fields to update')

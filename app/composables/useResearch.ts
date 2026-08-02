@@ -61,7 +61,21 @@ export function useResearch() {
     if (m.subject_kind === 'brand') return 'Brand'
     if (m.subject_kind === 'product') return 'Product'
     if (m.subject_kind === 'other') return 'Other'
-    return 'Notebook'
+    // Never return "Notebook" — template already says research; avoid "Notebook notebook"
+    return 'Product'
+  }
+
+  /** Short title (product/brand name). DB column is still `hypothesis`. */
+  function titleOf(s: any) {
+    const m = metaOf(s)
+    const t = m.title || m.display_name || s?.hypothesis
+    return t ? String(t).trim() : 'Untitled'
+  }
+
+  /** Optional longer description / why we care — metadata.description only. */
+  function descriptionOf(s: any) {
+    const d = metaOf(s).description
+    return d != null && String(d).trim() ? String(d).trim() : ''
   }
 
   function crawlIntent(s: any) {
@@ -138,7 +152,10 @@ export function useResearch() {
   }
 
   async function createNotebook(input: {
-    hypothesis: string
+    /** Product / brand name (required). Stored as hypothesis. */
+    title: string
+    /** Why we care / longer blurb — metadata.description only. */
+    description?: string | null
     query?: string | null
     subject_kind?: string
     brand_key?: string
@@ -150,14 +167,21 @@ export function useResearch() {
     if (!currentWorkspace.value?.id) throw new Error('No workspace')
     if (!canWrite.value) throw new Error('No write permission')
 
-    const hypothesis = String(input.hypothesis || '').trim()
-    if (!hypothesis) throw new Error('hypothesis is required')
+    const title = String(input.title || '').trim()
+    if (!title) throw new Error('Title is required')
+
+    const description =
+      input.description != null && String(input.description).trim()
+        ? String(input.description).trim()
+        : ''
 
     const metadata: Record<string, any> = {
       subject_kind: input.subject_kind || 'product',
       crawl_intent: input.crawl_intent || 'none',
+      title,
       source: 'ui',
     }
+    if (description) metadata.description = description
     if (input.brand_key) {
       metadata.brand_key = String(input.brand_key)
         .trim()
@@ -181,7 +205,8 @@ export function useResearch() {
       .insert({
         workspace_id: currentWorkspace.value.id,
         status: 'open',
-        hypothesis,
+        // DB column still named hypothesis — holds the short title
+        hypothesis: title,
         marketplace: 'shopee',
         country: 'sg',
         query: input.query?.trim() || null,
@@ -250,6 +275,8 @@ export function useResearch() {
   async function updateNotebook(
     sessionId: string,
     patch: {
+      title?: string
+      description?: string | null
       hypothesis?: string
       query?: string | null
       status?: string
@@ -262,7 +289,11 @@ export function useResearch() {
     if (!canWrite.value) throw new Error('No write permission')
 
     const update: Record<string, any> = {}
-    if (patch.hypothesis != null) update.hypothesis = String(patch.hypothesis).trim()
+    const title = patch.title != null ? String(patch.title).trim() : patch.hypothesis != null ? String(patch.hypothesis).trim() : null
+    if (title != null) {
+      if (!title) throw new Error('Title cannot be empty')
+      update.hypothesis = title
+    }
     if (patch.query !== undefined) {
       update.query = patch.query != null && String(patch.query).trim() ? String(patch.query).trim() : null
     }
@@ -273,8 +304,15 @@ export function useResearch() {
       }
     }
 
-    if (patch.crawl_intent || patch.subject_kind || patch.brand_key) {
-      const cur = session.value?.id === sessionId ? metaOf(session.value) : {}
+    const touchMeta =
+      patch.crawl_intent ||
+      patch.subject_kind ||
+      patch.brand_key ||
+      title != null ||
+      patch.description !== undefined
+
+    if (touchMeta) {
+      const cur = session.value?.id === sessionId ? { ...metaOf(session.value) } : {}
       if (!session.value || session.value.id !== sessionId) {
         const { data: s } = await client
           .from('study_sessions')
@@ -287,6 +325,12 @@ export function useResearch() {
       const next = { ...cur }
       if (patch.crawl_intent) next.crawl_intent = patch.crawl_intent
       if (patch.subject_kind) next.subject_kind = patch.subject_kind
+      if (title != null) next.title = title
+      if (patch.description !== undefined) {
+        const d = patch.description != null ? String(patch.description).trim() : ''
+        if (d) next.description = d
+        else delete next.description
+      }
       if (patch.brand_key) {
         next.brand_key = String(patch.brand_key)
           .trim()
@@ -322,6 +366,8 @@ export function useResearch() {
     relativeTime,
     metaOf,
     subjectLabel,
+    titleOf,
+    descriptionOf,
     crawlIntent,
     loadSessions,
     loadNotebook,

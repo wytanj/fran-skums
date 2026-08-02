@@ -8,6 +8,8 @@ const {
   relativeTime,
   metaOf,
   subjectLabel,
+  titleOf,
+  descriptionOf,
   crawlIntent,
   loadSessions,
   createNotebook,
@@ -22,7 +24,8 @@ const statusFilter = ref<'all' | 'open' | 'briefed' | 'proposed' | 'closed'>('op
 const showForm = ref(false)
 const saving = ref(false)
 const form = reactive({
-  hypothesis: '',
+  title: '',
+  description: '',
   query: '',
   subject_kind: 'product' as 'product' | 'brand' | 'other',
   brand_key: '',
@@ -70,7 +73,8 @@ watch(
 onUnmounted(() => clearContext())
 
 function openCreate() {
-  form.hypothesis = ''
+  form.title = ''
+  form.description = ''
   form.query = ''
   form.subject_kind = 'product'
   form.brand_key = ''
@@ -86,7 +90,8 @@ async function onCreate() {
   saving.value = true
   try {
     const row = await createNotebook({
-      hypothesis: form.hypothesis,
+      title: form.title,
+      description: form.description || null,
       query: form.query || null,
       subject_kind: form.subject_kind,
       brand_key: form.brand_key || undefined,
@@ -174,12 +179,20 @@ async function onCreate() {
       <h2 class="mb-4 text-sm font-semibold text-white">New research notebook</h2>
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="sm:col-span-2">
-          <label class="label-field">Hypothesis / why we care *</label>
+          <label class="label-field">Title (product / brand name) *</label>
+          <input
+            v-model="form.title"
+            class="input-field"
+            placeholder="e.g. Olaplex Volumizing Blow Dry Mist 150ml"
+          />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="label-field">Description</label>
           <textarea
-            v-model="form.hypothesis"
+            v-model="form.description"
             rows="2"
             class="input-field"
-            placeholder="e.g. Olaplex Volumizing Blow Dry Mist 150ml — popular on Sephora; benchmark vs catalog later"
+            placeholder="Why we care — popularity signal, what to benchmark, buyer notes…"
           />
         </div>
         <div>
@@ -236,7 +249,7 @@ async function onCreate() {
         <button
           type="button"
           class="btn-primary"
-          :disabled="saving || !form.hypothesis.trim()"
+          :disabled="saving || !form.title.trim()"
           @click="onCreate"
         >
           {{ saving ? 'Opening…' : 'Open notebook' }}
@@ -272,7 +285,10 @@ async function onCreate() {
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-white line-clamp-2">{{ s.hypothesis }}</p>
+            <p class="text-sm font-medium text-white line-clamp-2">{{ titleOf(s) }}</p>
+            <p v-if="descriptionOf(s)" class="mt-0.5 text-xs text-gray-400 line-clamp-2">
+              {{ descriptionOf(s) }}
+            </p>
             <p class="mt-1 text-xs text-gray-500">
               {{ subjectLabel(s) }}
               <span v-if="metaOf(s).brand_key"> · {{ metaOf(s).brand_key }}</span>

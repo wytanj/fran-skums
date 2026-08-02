@@ -34,6 +34,8 @@ export function normalizeNotebookMetadata(
     brand_key?: string
     crawl_intent?: string
     discovery?: unknown
+    title?: string
+    description?: string | null
   } = {},
 ): Record<string, unknown> {
   const meta: Record<string, unknown> =
@@ -45,6 +47,8 @@ export function normalizeNotebookMetadata(
     (meta.discovery || meta.discovery_url ? 'product' : null)
   if (subject && ['product', 'brand', 'other'].includes(String(subject))) {
     meta.subject_kind = String(subject)
+  } else if (!meta.subject_kind) {
+    meta.subject_kind = 'product'
   }
 
   if (extras.brand_key || meta.brand_key) {
@@ -57,6 +61,21 @@ export function normalizeNotebookMetadata(
 
   const crawl = extras.crawl_intent || meta.crawl_intent || 'none'
   meta.crawl_intent = ['none', 'later', 'active'].includes(String(crawl)) ? String(crawl) : 'none'
+
+  if (extras.title != null && String(extras.title).trim()) {
+    meta.title = String(extras.title).trim()
+  } else if (meta.title != null) {
+    meta.title = String(meta.title).trim()
+  }
+  if (extras.description !== undefined) {
+    const d = extras.description != null ? String(extras.description).trim() : ''
+    if (d) meta.description = d
+    else delete meta.description
+  } else if (meta.description != null) {
+    const d = String(meta.description).trim()
+    if (d) meta.description = d
+    else delete meta.description
+  }
 
   if (!Array.isArray(meta.discovery)) meta.discovery = []
   if (extras.discovery) {
@@ -88,7 +107,10 @@ export function researchDeepLink(sessionId: string) {
 
 export async function createStudySession(input: {
   workspace_id: string
-  hypothesis: string
+  /** Product/brand name. Prefer `title`; `hypothesis` kept for API compatibility. */
+  hypothesis?: string
+  title?: string
+  description?: string | null
   marketplace?: string
   country?: string
   query?: string | null
@@ -100,20 +122,23 @@ export async function createStudySession(input: {
   discovery?: unknown
 }) {
   const db = getServiceClient()
-  const hypothesis = String(input.hypothesis || '').trim()
-  if (!hypothesis) throw new Error('hypothesis is required')
+  const title = String(input.title || input.hypothesis || '').trim()
+  if (!title) throw new Error('title (or hypothesis) is required')
 
   const metadata = normalizeNotebookMetadata(input.metadata || {}, {
     subject_kind: input.subject_kind,
     brand_key: input.brand_key,
     crawl_intent: input.crawl_intent,
     discovery: input.discovery,
+    title,
+    description: input.description,
   })
+  if (!metadata.title) metadata.title = title
 
   const row = {
     workspace_id: input.workspace_id,
     status: 'open',
-    hypothesis,
+    hypothesis: title,
     marketplace: input.marketplace || 'shopee',
     country: String(input.country || 'sg').toLowerCase(),
     query: input.query != null && String(input.query).trim() ? String(input.query).trim() : null,
@@ -222,6 +247,8 @@ export async function updateStudySession(input: {
   workspace_id: string
   session_id: string
   hypothesis?: string
+  title?: string
+  description?: string | null
   query?: string | null
   status?: string
   linked_product_id?: string | null
@@ -239,10 +266,15 @@ export async function updateStudySession(input: {
   if (!pack) throw new Error('Study session not found')
 
   const patch: Record<string, unknown> = {}
-  if (input.hypothesis != null) {
-    const h = String(input.hypothesis).trim()
-    if (!h) throw new Error('hypothesis cannot be empty')
-    patch.hypothesis = h
+  const nextTitle =
+    input.title != null
+      ? String(input.title).trim()
+      : input.hypothesis != null
+        ? String(input.hypothesis).trim()
+        : null
+  if (nextTitle != null) {
+    if (!nextTitle) throw new Error('title cannot be empty')
+    patch.hypothesis = nextTitle
   }
   if (input.query !== undefined) {
     patch.query =
@@ -264,9 +296,11 @@ export async function updateStudySession(input: {
     input.subject_kind != null ||
     input.brand_key != null ||
     input.crawl_intent != null ||
-    input.discovery != null
+    input.discovery != null ||
+    nextTitle != null ||
+    input.description !== undefined
   ) {
-    patch.metadata = normalizeNotebookMetadata(
+    const nextMeta = normalizeNotebookMetadata(
       {
         ...((pack.session.metadata as Record<string, unknown>) || {}),
         ...(input.metadata && typeof input.metadata === 'object' ? input.metadata : {}),
@@ -276,8 +310,12 @@ export async function updateStudySession(input: {
         brand_key: input.brand_key,
         crawl_intent: input.crawl_intent,
         discovery: input.discovery,
+        title: nextTitle != null ? nextTitle : undefined,
+        description: input.description,
       },
     )
+    if (nextTitle != null) nextMeta.title = nextTitle
+    patch.metadata = nextMeta
   }
 
   if (!Object.keys(patch).length) throw new Error('No fields to update')

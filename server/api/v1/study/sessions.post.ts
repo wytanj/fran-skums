@@ -1,7 +1,7 @@
 /**
  * Open a research notebook (study session). Does not start Shopee crawl.
  * POST /api/v1/study/sessions
- * Body: { hypothesis, query?, marketplace?, country?, metadata?, subject_kind?, brand_key?, crawl_intent?, discovery?, discovery_url? }
+ * Body: { title?, description?, hypothesis?, query?, marketplace?, country?, metadata?, subject_kind?, brand_key?, crawl_intent?, discovery?, discovery_url? }
  */
 import { requireApiKey } from '../../../utils/apiAuth'
 import { createStudySession, researchDeepLink } from '../../../utils/marketplaceStudy'
@@ -19,6 +19,8 @@ export default defineEventHandler(async (event) => {
 
     const session = await createStudySession({
       workspace_id: auth.workspaceId,
+      title: body?.title,
+      description: body?.description,
       hypothesis: body?.hypothesis,
       query: body?.query ?? null,
       marketplace: body?.marketplace,

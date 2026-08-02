@@ -1,7 +1,7 @@
 /**
  * Update research notebook cover fields.
  * PATCH /api/v1/study/sessions/:id
- * Body: { hypothesis?, query?, status?, metadata?, subject_kind?, brand_key?, crawl_intent?, discovery?, linked_product_id? }
+ * Body: { title?, description?, hypothesis?, query?, status?, metadata?, subject_kind?, brand_key?, crawl_intent?, discovery?, linked_product_id? }
  */
 import { requireApiKey } from '../../../../utils/apiAuth'
 import { researchDeepLink, updateStudySession } from '../../../../utils/marketplaceStudy'
@@ -16,6 +16,8 @@ export default defineEventHandler(async (event) => {
     const session = await updateStudySession({
       workspace_id: auth.workspaceId,
       session_id: id,
+      title: body?.title,
+      description: body?.description,
       hypothesis: body?.hypothesis,
       query: body?.query,
       status: body?.status,

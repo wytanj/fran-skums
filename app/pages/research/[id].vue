@@ -13,6 +13,8 @@ const {
   relativeTime,
   metaOf,
   subjectLabel,
+  titleOf,
+  descriptionOf,
   crawlIntent,
   loadNotebook,
   addNote,
@@ -26,12 +28,17 @@ const noteBody = ref('')
 const noteTitle = ref('')
 const noteUrl = ref('')
 const showRaw = ref(false)
+const editingCover = ref(false)
+const coverForm = reactive({ title: '', description: '' })
 
 const id = computed(() => String(route.params.id || ''))
 
 async function reload() {
   const pack = await loadNotebook(id.value)
   if (pack?.session) {
+    coverForm.title = titleOf(pack.session)
+    coverForm.description = descriptionOf(pack.session)
+    editingCover.value = false
     setContext(
       'research',
       id.value,
@@ -40,7 +47,7 @@ async function reload() {
         brand_key: metaOf(pack.session).brand_key,
         crawl_intent: crawlIntent(pack.session),
       },
-      pack.session.hypothesis?.slice(0, 80),
+      titleOf(pack.session).slice(0, 80),
     )
   }
 }
@@ -132,6 +139,34 @@ async function onCrawlIntent(intent: 'none' | 'later' | 'active') {
     busy.value = false
   }
 }
+
+function startEditCover() {
+  if (!session.value) return
+  coverForm.title = titleOf(session.value)
+  coverForm.description = descriptionOf(session.value)
+  editingCover.value = true
+}
+
+async function saveCover() {
+  if (!session.value || !canWrite.value) return
+  if (!coverForm.title.trim()) {
+    notify.error(new Error('Title is required'))
+    return
+  }
+  busy.value = true
+  try {
+    await updateNotebook(session.value.id, {
+      title: coverForm.title.trim(),
+      description: coverForm.description.trim() || null,
+    })
+    notify.success('Cover updated')
+    await reload()
+  } catch (e: any) {
+    notify.error(e)
+  } finally {
+    busy.value = false
+  }
+}
 </script>
 
 <template>
@@ -147,16 +182,61 @@ async function onCrawlIntent(intent: 'none' | 'later' | 'active') {
       <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
           <p class="text-xs uppercase tracking-wide text-gray-500">
-            {{ subjectLabel(session) }} notebook
+            {{ subjectLabel(session) }} research
             <span v-if="metaOf(session).brand_key"> · {{ metaOf(session).brand_key }}</span>
           </p>
-          <h1 class="mt-1 text-xl font-bold text-white">{{ session.hypothesis }}</h1>
+          <template v-if="!editingCover">
+            <h1 class="mt-1 text-xl font-bold text-white">{{ titleOf(session) }}</h1>
+            <p
+              v-if="descriptionOf(session)"
+              class="mt-2 text-sm text-gray-300 whitespace-pre-wrap"
+            >
+              {{ descriptionOf(session) }}
+            </p>
+            <p v-else-if="canWrite" class="mt-2 text-xs text-gray-600">
+              No description yet —
+              <button type="button" class="text-indigo-400 hover:underline" @click="startEditCover">
+                add one
+              </button>
+            </p>
+          </template>
+          <div v-else class="mt-3 space-y-3">
+            <div>
+              <label class="label-field">Title (product / brand name)</label>
+              <input v-model="coverForm.title" class="input-field" placeholder="e.g. Olaplex Volumizing Blow Dry Mist 150ml" />
+            </div>
+            <div>
+              <label class="label-field">Description</label>
+              <textarea
+                v-model="coverForm.description"
+                rows="3"
+                class="input-field"
+                placeholder="Why we care, popularity signal, what to benchmark…"
+              />
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="btn-primary text-sm" :disabled="busy" @click="saveCover">
+                Save
+              </button>
+              <button type="button" class="btn-ghost text-sm" :disabled="busy" @click="editingCover = false">
+                Cancel
+              </button>
+            </div>
+          </div>
           <p v-if="session.query" class="mt-2 text-sm text-gray-400">
             Shopee query (optional): <span class="text-gray-300">{{ session.query }}</span>
           </p>
           <p class="mt-1 text-xs text-gray-600">
             Opened {{ relativeTime(session.created_at) }}
             · {{ session.marketplace }}/{{ session.country }}
+            <button
+              v-if="canWrite && !editingCover"
+              type="button"
+              class="ml-2 text-indigo-400 hover:underline"
+              @click="startEditCover"
+            >
+              Edit title / description
+            </button>
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">

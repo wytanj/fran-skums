@@ -70,11 +70,22 @@ export const toolDefinitions = [
   {
     name: 'study_start',
     description:
-      'Open a product/brand research notebook (study session). Does NOT start Shopee crawl. Park discovery URLs (e.g. Sephora) in metadata/discovery; crawl only later via pipeline watchlist_seed after human approve. deep_link → /research/{id}.',
+      'Open a product/brand research notebook (study session). Does NOT start Shopee crawl. Prefer title + description as separate fields. Park discovery URLs in discovery_url; crawl only later via pipeline watchlist_seed. deep_link → /research/{id}.',
     inputSchema: {
       type: 'object',
       properties: {
-        hypothesis: { type: 'string', description: 'What we are studying and why' },
+        title: {
+          type: 'string',
+          description: 'Product/brand name (preferred). Stored as session title.',
+        },
+        description: {
+          type: 'string',
+          description: 'Why we care / longer blurb — separate from title',
+        },
+        hypothesis: {
+          type: 'string',
+          description: 'Alias for title (legacy). Prefer title + description.',
+        },
         query: {
           type: 'string',
           description: 'Optional Shopee/search query for later warehouse match — omit for notebook-only',
@@ -84,7 +95,7 @@ export const toolDefinitions = [
         subject_kind: {
           type: 'string',
           enum: ['product', 'brand', 'other'],
-          description: 'Notebook subject type (default inferred)',
+          description: 'Notebook subject type (default product)',
         },
         brand_key: { type: 'string', description: 'Slug e.g. olaplex' },
         crawl_intent: {
@@ -100,7 +111,7 @@ export const toolDefinitions = [
         discovery_url: { type: 'string', description: 'Shortcut single external URL (e.g. Sephora PDP)' },
         metadata: { type: 'object' },
       },
-      required: ['hypothesis'],
+      required: [],
     },
   },
   {
@@ -165,12 +176,14 @@ export const toolDefinitions = [
   {
     name: 'study_update',
     description:
-      'Update notebook cover: hypothesis, query, status, crawl_intent, brand_key, metadata merge. Does NOT start crawl. Close with status=closed.',
+      'Update notebook cover: title, description, query, status, crawl_intent, brand_key. Does NOT start crawl. Close with status=closed.',
     inputSchema: {
       type: 'object',
       properties: {
         session_id: { type: 'string' },
-        hypothesis: { type: 'string' },
+        title: { type: 'string', description: 'Product/brand name' },
+        description: { type: 'string', description: 'Separate why-we-care blurb' },
+        hypothesis: { type: 'string', description: 'Alias for title (legacy)' },
         query: { type: 'string' },
         status: {
           type: 'string',
@@ -1456,6 +1469,8 @@ export async function handleTool(name, args = {}) {
         if (a.discovery_channel) meta.discovery_channel = String(a.discovery_channel)
         const session = await study.createStudySession({
           workspace_id,
+          title: a.title,
+          description: a.description,
           hypothesis: a.hypothesis,
           query: a.query ?? null,
           marketplace: a.marketplace,
@@ -1567,6 +1582,8 @@ export async function handleTool(name, args = {}) {
         const session = await study.updateStudySession({
           workspace_id: requireWorkspaceId(),
           session_id: String(a.session_id),
+          title: a.title,
+          description: a.description,
           hypothesis: a.hypothesis,
           query: a.query,
           status: a.status,
