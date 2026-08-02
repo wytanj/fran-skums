@@ -256,6 +256,20 @@ function onWaveWeekdaysInput(e: Event) {
 const pendingAdjustments = ref<any[]>([])
 const floorLoading = ref(false)
 const floorActing = ref<string | null>(null)
+const floorSaving = ref(false)
+const floorForm = ref({
+  adjustment_type: 'damage' as 'damage' | 'found' | 'stocktake',
+  sku: '',
+  quantity: 2,
+  location_id: '',
+  notes: '',
+})
+
+const storeLocations = computed(() =>
+  (locations.value || []).filter((l: InventoryLocation) =>
+    ['store', 'warehouse', '3pl'].includes(String(l.location_type || '')),
+  ),
+)
 
 async function loadFloorAdjustments() {
   if (!currentWorkspace.value?.id) return
@@ -269,6 +283,53 @@ async function loadFloorAdjustments() {
     showErr(e?.data?.statusMessage || e?.message || 'Failed to load floor adjustments')
   } finally {
     floorLoading.value = false
+  }
+}
+
+async function submitFloorReport() {
+  if (!currentWorkspace.value?.id) return
+  const sku = floorForm.value.sku.trim()
+  if (!sku) {
+    showErr('Enter a product SKU')
+    return
+  }
+  if (floorForm.value.adjustment_type !== 'stocktake' && floorForm.value.quantity <= 0) {
+    showErr('Quantity must be greater than zero')
+    return
+  }
+  floorSaving.value = true
+  try {
+    const res = await $fetch<{
+      data?: { adjustment_number?: string }
+      message?: string
+      variance?: number
+    }>('/api/store-ops/adjustments', {
+      method: 'POST',
+      body: {
+        workspace_id: currentWorkspace.value.id,
+        adjustment_type: floorForm.value.adjustment_type,
+        sku,
+        quantity: floorForm.value.quantity,
+        location_id: floorForm.value.location_id || undefined,
+        location_code: floorForm.value.location_id ? undefined : 'ST-MAIN',
+        notes:
+          floorForm.value.notes.trim()
+          || `${floorForm.value.adjustment_type}: ${floorForm.value.quantity} of ${sku}`,
+        submit: true,
+      },
+    })
+    showOk(
+      res.message
+      || `Created ${res.data?.adjustment_number || 'adjustment'} (ledger unchanged until Apply)`,
+    )
+    floorForm.value.sku = ''
+    floorForm.value.notes = ''
+    floorForm.value.quantity = 2
+    await loadFloorAdjustments()
+  } catch (e: any) {
+    showErr(e?.data?.statusMessage || e?.message || 'Failed to create floor adjustment')
+  } finally {
+    floorSaving.value = false
   }
 }
 
@@ -1765,10 +1826,81 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       <div class="card p-5">
         <h2 class="text-base font-semibold text-white">Floor adjustments → inventory ledger</h2>
         <p class="mt-1 text-sm text-gray-400">
-          POS damage, found stock, and cycle counts land here as pending adjustments.
-          Apply writes <span class="font-mono text-gray-300">inventory_ledger</span> (quantity truth);
-          reject leaves stock unchanged. Requires <span class="font-mono text-gray-300">inventory:write</span>.
+          Report damage, found stock, or cycle counts from HQ here (or from POS Stock).
+          Items land as <span class="font-medium text-gray-300">pending</span> first —
+          Apply writes <span class="font-mono text-gray-300">inventory_ledger</span>;
+          reject leaves stock unchanged. Requires
+          <span class="font-mono text-gray-300">store_ops:write</span> to report,
+          <span class="font-mono text-gray-300">inventory:write</span> to apply.
         </p>
+      </div>
+
+      <div class="card p-5 space-y-4">
+        <div>
+          <h2 class="text-base font-semibold text-white">Report floor issue</h2>
+          <p class="mt-1 text-sm text-gray-400">
+            Example: “Found 2 damaged units of product X” → type Damage, SKU, qty 2, store location, then submit.
+            Stock does <span class="font-medium text-gray-300">not</span> change until you Apply below.
+          </p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label class="block space-y-1">
+            <span class="label-field">Type</span>
+            <select v-model="floorForm.adjustment_type" class="input-field">
+              <option value="damage">Damage / impair</option>
+              <option value="found">Found stock</option>
+              <option value="stocktake">Cycle count (absolute on-hand)</option>
+            </select>
+          </label>
+          <label class="block space-y-1">
+            <span class="label-field">SKU</span>
+            <input
+              v-model="floorForm.sku"
+              class="input-field font-mono"
+              placeholder="e.g. 1133662106"
+              autocomplete="off"
+            >
+          </label>
+          <label class="block space-y-1">
+            <span class="label-field">
+              {{ floorForm.adjustment_type === 'stocktake' ? 'Counted on-hand' : 'Quantity' }}
+            </span>
+            <input v-model.number="floorForm.quantity" type="number" min="0" class="input-field" >
+          </label>
+          <label class="block space-y-1">
+            <span class="label-field">Location</span>
+            <select v-model="floorForm.location_id" class="input-field">
+              <option value="">Main store (ST-MAIN)</option>
+              <option
+                v-for="loc in storeLocations"
+                :key="loc.id"
+                :value="loc.id"
+              >
+                {{ loc.name }} ({{ loc.code }})
+              </option>
+            </select>
+          </label>
+        </div>
+        <label class="block space-y-1">
+          <span class="label-field">Notes (optional)</span>
+          <input
+            v-model="floorForm.notes"
+            class="input-field"
+            placeholder="Found 2 damaged on shelf A01 — packaging leak"
+          >
+        </label>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <p class="mr-auto text-xs text-gray-500">
+            Damage reduces ATS by qty · Found increases · Count sets absolute on-hand at that location.
+          </p>
+          <button
+            class="btn-primary"
+            :disabled="floorSaving || !floorForm.sku.trim()"
+            @click="submitFloorReport"
+          >
+            {{ floorSaving ? 'Submitting…' : 'Submit for approval' }}
+          </button>
+        </div>
       </div>
 
       <div class="card overflow-hidden">

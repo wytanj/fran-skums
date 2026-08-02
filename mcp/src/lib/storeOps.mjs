@@ -521,13 +521,36 @@ export async function createInboundDraft(opts = {}) {
 }
 
 /**
+ * Normalize adjustment type from natural language / aliases.
+ * @param {unknown} raw
+ */
+function normalizeFloorAdjType(raw) {
+  const t = String(raw || 'damage').toLowerCase().trim()
+  if (['found', 'found_stock', 'found-stock', 'foundstock'].includes(t)) return 'found'
+  if (['stocktake', 'cycle_count', 'cycle-count', 'count', 'stock_count'].includes(t)) return 'stocktake'
+  if (['theft', 'expiry', 'return', 'correction'].includes(t)) return t
+  // damage / damaged / impair / write-off
+  return 'damage'
+}
+
+/**
  * Floor inventory adjustment draft/pending only — never apply to ledger.
+ *
+ * Natural language-friendly inputs (in addition to full lines[]):
+ *   sku + quantity + adjustment_type=damage|found|stocktake
+ *   → system_qty from inventory_levels; counted_qty computed:
+ *     damage: system - qty, found: system + qty, stocktake: qty absolute
+ *
  * @param {{
  *   location_code?: string|null,
  *   location_id?: string|null,
  *   adjustment_type?: string,
  *   notes?: string|null,
- *   lines: Array<{ sku?: string, product_id?: string, system_qty?: number, counted_qty: number, reason?: string }>,
+ *   sku?: string|null,
+ *   product_id?: string|null,
+ *   quantity?: number|null,
+ *   qty?: number|null,
+ *   lines?: Array<{ sku?: string, product_id?: string, system_qty?: number, counted_qty?: number, quantity?: number, reason?: string }>,
  *   submit?: boolean,
  *   dry_run?: boolean,
  * }} opts
@@ -535,8 +558,20 @@ export async function createInboundDraft(opts = {}) {
 export async function createFloorAdjustmentDraft(opts = {}) {
   const workspace_id = requireWorkspaceId()
   const db = getDb()
-  const linesIn = Array.isArray(opts.lines) ? opts.lines : []
-  if (!linesIn.length) throw new Error('lines required')
+
+  // Accept top-level sku+quantity (common agent path) by folding into lines[]
+  let linesIn = Array.isArray(opts.lines) ? [...opts.lines] : []
+  const topSku = trimString(opts.sku)
+  const topProductId = trimString(opts.product_id)
+  const topQty = opts.quantity != null ? Number(opts.quantity) : opts.qty != null ? Number(opts.qty) : null
+  if ((!linesIn.length) && (topSku || topProductId) && topQty != null && Number.isFinite(topQty)) {
+    linesIn = [{ sku: topSku || undefined, product_id: topProductId || undefined, quantity: topQty }]
+  }
+  if (!linesIn.length) {
+    throw new Error(
+      'Provide lines[] or sku+quantity. Example: { sku: "1133662106", quantity: 2, adjustment_type: "damage" }',
+    )
+  }
 
   let locationId = opts.location_id || null
   let locationCode = opts.location_code || 'ST-MAIN'
@@ -548,49 +583,122 @@ export async function createFloorAdjustmentDraft(opts = {}) {
     locationCode = loc.code
   }
 
-  const adjType = opts.adjustment_type || 'damage'
-  const status = opts.submit === true ? 'pending' : 'draft'
+  const adjType = normalizeFloorAdjType(opts.adjustment_type)
+  // Default submit=true so "please adjust" lands in HQ pending queue (still not applied)
+  const status = opts.submit === false ? 'draft' : 'pending'
 
   const resolvedLines = []
+  const unresolved = []
   for (const l of linesIn) {
     let productId = l.product_id || null
     const sku = trimString(l.sku)
+    let productSku = sku
+    let productTitle = null
     if (!productId && sku) {
       const { data: p } = await db
         .from('products')
-        .select('id')
+        .select('id, sku, title')
         .eq('workspace_id', workspace_id)
         .eq('sku', sku)
         .maybeSingle()
       productId = p?.id || null
+      productSku = p?.sku || sku
+      productTitle = p?.title || null
+    } else if (productId) {
+      const { data: p } = await db
+        .from('products')
+        .select('id, sku, title')
+        .eq('workspace_id', workspace_id)
+        .eq('id', productId)
+        .maybeSingle()
+      productSku = p?.sku || null
+      productTitle = p?.title || null
     }
-    if (!productId) continue
+    if (!productId) {
+      unresolved.push(sku || l.product_id || '?')
+      continue
+    }
+
+    // Current on-hand at location (ledger truth)
+    const { data: level } = await db
+      .from('inventory_levels')
+      .select('on_hand')
+      .eq('workspace_id', workspace_id)
+      .eq('product_id', productId)
+      .eq('location_id', locationId)
+      .maybeSingle()
+    const systemQty =
+      l.system_qty != null && Number.isFinite(Number(l.system_qty))
+        ? Number(l.system_qty)
+        : Number(level?.on_hand || 0)
+
+    // Prefer explicit counted_qty; else quantity/qty delta semantics
+    let countedQty
+    if (l.counted_qty != null && Number.isFinite(Number(l.counted_qty))) {
+      countedQty = Number(l.counted_qty)
+    } else {
+      const delta = Number(l.quantity ?? l.qty ?? topQty ?? NaN)
+      if (!Number.isFinite(delta)) {
+        throw new Error(
+          `Line for ${productSku || productId}: need counted_qty or quantity (units damaged/found)`,
+        )
+      }
+      if (adjType === 'stocktake') {
+        countedQty = Math.max(0, Math.floor(delta))
+      } else if (adjType === 'found') {
+        countedQty = systemQty + Math.max(0, Math.floor(delta))
+      } else {
+        // damage / theft / expiry / etc. — reduce on-hand by delta
+        countedQty = Math.max(0, systemQty - Math.max(0, Math.floor(delta)))
+      }
+    }
+
     resolvedLines.push({
       product_id: productId,
-      system_qty: Number(l.system_qty ?? 0),
-      counted_qty: Number(l.counted_qty),
-      reason: l.reason || opts.notes || null,
+      sku: productSku,
+      title: productTitle,
+      system_qty: systemQty,
+      counted_qty: countedQty,
+      variance: countedQty - systemQty,
+      reason: l.reason || opts.notes || adjType,
     })
   }
-  if (!resolvedLines.length) throw new Error('No resolvable product lines')
+  if (!resolvedLines.length) {
+    throw new Error(
+      `No resolvable product lines${unresolved.length ? ` (unresolved: ${unresolved.join(', ')})` : ''}`,
+    )
+  }
 
+  const notes =
+    opts.notes
+    || (resolvedLines.length === 1
+      ? `${adjType}: ${Math.abs(resolvedLines[0].variance)} unit(s) of ${resolvedLines[0].sku || resolvedLines[0].product_id} at ${locationCode}`
+      : `MCP floor adj ${adjType} (${locationCode})`)
+
+  // created_by on inventory_adjustments references profiles.id — do not pass auth user id
   const header = {
     workspace_id,
     adjustment_number: adjNumber(),
     location_id: locationId,
     adjustment_type: adjType,
     status,
-    notes: opts.notes || `MCP floor adj (${locationCode})`,
-    created_by: getMcpActorUserId(),
+    notes,
+    created_by: null,
   }
 
   if (opts.dry_run === true) {
     return {
       dry_run: true,
-      would_create: { adjustment: header, lines: resolvedLines },
-      message: 'Dry run — no write. Create as draft/pending only; human Applies to ledger in Store Ops.',
-      deep_link: '/store-ops',
-      agent_hint: 'Never claim stock changed until HQ Apply to ledger.',
+      would_create: {
+        adjustment: header,
+        location_code: locationCode,
+        lines: resolvedLines,
+      },
+      message:
+        'Dry run — no write. Stock does NOT change until HQ Applies in Store Ops → Floor (or floor_adjustment_apply).',
+      deep_link: '/store-ops?tab=floor',
+      agent_hint:
+        'For "found 2 damaged of SKU X": adjustment_type=damage, sku=X, quantity=2, submit=true. Never claim ATS changed until apply.',
     }
   }
 
@@ -619,9 +727,20 @@ export async function createFloorAdjustmentDraft(opts = {}) {
   return {
     adjustment: adj,
     lines: lines || [],
-    deep_link: '/store-ops',
-    message: `Floor adjustment ${status}. Apply with floor_adjustment_apply when you have inventory:write.`,
-    agent_hint: 'Draft/pending only until apply. Levels change only after apply succeeds.',
+    location_code: locationCode,
+    summary: resolvedLines.map((l) => ({
+      sku: l.sku,
+      title: l.title,
+      system_qty: l.system_qty,
+      counted_qty: l.counted_qty,
+      variance: l.variance,
+    })),
+    deep_link: '/store-ops?tab=floor',
+    message: `Floor adjustment ${adj.adjustment_number} created as ${status}. Ledger unchanged until Apply.`,
+    agent_hint:
+      status === 'pending'
+        ? 'Pending in Store Ops Floor queue. Call floor_adjustment_apply (inventory:write) or have HQ Apply in UI. Do not claim stock moved yet.'
+        : 'Draft only. Set submit=true for pending queue, then Apply to change ATS.',
   }
 }
 

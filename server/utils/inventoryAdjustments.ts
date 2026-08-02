@@ -11,6 +11,105 @@ export type AdjustmentType =
   | 'found'
   | 'return'
 
+function newAdjustmentNumber(prefix: string) {
+  return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 9999)
+    .toString()
+    .padStart(4, '0')}`
+}
+
+/**
+ * Create a floor adjustment (damage / found / stocktake) as draft or pending.
+ * Does NOT apply to ledger — HQ Apply does that.
+ */
+export async function createInventoryAdjustment(
+  client: SupabaseClient,
+  params: {
+    workspaceId: string
+    locationId: string
+    adjustmentType: AdjustmentType
+    status?: 'draft' | 'pending'
+    notes?: string | null
+    createdBy?: string | null
+    lines: Array<{
+      product_id: string
+      system_qty?: number | null
+      counted_qty: number
+      reason?: string | null
+      variant_id?: string | null
+    }>
+    channel?: 'ui' | 'api' | 'mcp' | 'system'
+  },
+) {
+  if (!params.lines?.length) {
+    throw Object.assign(new Error('At least one line is required'), { statusCode: 400 })
+  }
+
+  const status = params.status || 'pending'
+  const type = params.adjustmentType
+  const prefix =
+    type === 'found' ? 'HQ-FOUND' : type === 'stocktake' ? 'HQ-COUNT' : type === 'damage' ? 'HQ-DMG' : 'HQ-ADJ'
+
+  const { data: adjustment, error: adjustmentError } = await client
+    .from('inventory_adjustments')
+    .insert({
+      workspace_id: params.workspaceId,
+      adjustment_number: newAdjustmentNumber(prefix),
+      location_id: params.locationId,
+      adjustment_type: type,
+      status,
+      notes: params.notes || null,
+      created_by: params.createdBy || null,
+    })
+    .select('id, adjustment_number, status, adjustment_type, location_id, notes, created_at')
+    .single()
+
+  if (adjustmentError) throw adjustmentError
+
+  const { data: lines, error: lineError } = await client
+    .from('inventory_adjustment_lines')
+    .insert(
+      params.lines.map((line, i) => ({
+        adjustment_id: adjustment.id,
+        product_id: line.product_id,
+        variant_id: line.variant_id || null,
+        system_qty: line.system_qty ?? 0,
+        counted_qty: line.counted_qty,
+        reason: line.reason || type,
+        sort_order: i,
+      })),
+    )
+    .select('id, product_id, system_qty, counted_qty, reason')
+
+  if (lineError) {
+    await client.from('inventory_adjustments').delete().eq('id', adjustment.id)
+    throw lineError
+  }
+
+  await recordAudit(
+    client,
+    {
+      workspace_id: params.workspaceId,
+      entity_type: 'inventory_adjustment',
+      entity_id: adjustment.id,
+      event_type: 'inventory.adjustment.created',
+      operation: 'CREATE',
+      channel: params.channel || 'ui',
+      actor_user_id: params.createdBy || null,
+      actor_kind: params.createdBy ? 'user' : 'system',
+      after_data: { adjustment, lines },
+      metadata: {
+        adjustment_type: type,
+        status,
+        location_id: params.locationId,
+      },
+      idempotency_key: `inventory_adjustment:${adjustment.id}:created`,
+    },
+    { strict: false },
+  )
+
+  return { adjustment, lines: lines || [] }
+}
+
 export async function listInventoryAdjustments(
   client: SupabaseClient,
   params: {

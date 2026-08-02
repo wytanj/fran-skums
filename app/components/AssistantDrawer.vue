@@ -29,6 +29,7 @@ const catalogPrompts = [
   'How do I approve a store replenishment request?',
   'How do POS receive exceptions get verified?',
   'How do floor damage reports update stock?',
+  'Report 2 damaged units of a SKU from Store Ops Floor',
   'What is in my Actions queue?',
 ]
 

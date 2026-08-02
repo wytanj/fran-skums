@@ -1107,17 +1107,37 @@ export const toolDefinitions = [
   {
     name: 'floor_adjustment_create_draft',
     description:
-      'Create floor inventory adjustment as draft or pending. NEVER apply to ledger — HQ Applies in Store Ops. Prefer dry_run. store_ops:write / safe / cloud.',
+      'Report floor damage / found stock / cycle count as draft or pending. ' +
+      'Natural language: "found 2 damaged of SKU X" → sku + quantity=2 + adjustment_type=damage. ' +
+      'Also accepts lines[{sku,quantity}] or lines[{sku,counted_qty,system_qty}]. ' +
+      'Computes system_qty from inventory_levels; damage reduces counted, found increases. ' +
+      'NEVER changes ATS until floor_adjustment_apply or HQ Apply in Store Ops → Floor. ' +
+      'Prefer dry_run first. store_ops:write / safe / cloud.',
     inputSchema: {
       type: 'object',
       properties: {
-        location_code: { type: 'string' },
+        location_code: {
+          type: 'string',
+          description: 'e.g. ST-MAIN, WH-MAIN, LOFT-SG (default ST-MAIN)',
+        },
         location_id: { type: 'string' },
         adjustment_type: {
           type: 'string',
           enum: ['correction', 'stocktake', 'damage', 'theft', 'expiry', 'found', 'return'],
+          description: 'damage = write-off units; found = add units; stocktake = absolute count',
         },
         notes: { type: 'string' },
+        sku: {
+          type: 'string',
+          description: 'Shortcut: product SKU when reporting a single line (with quantity)',
+        },
+        product_id: { type: 'string', description: 'Shortcut: product UUID (with quantity)' },
+        quantity: {
+          type: 'number',
+          description:
+            'Shortcut units for single-line report. Damage/found = delta; stocktake = absolute on-hand.',
+        },
+        qty: { type: 'number', description: 'Alias of quantity' },
         lines: {
           type: 'array',
           items: {
@@ -1125,16 +1145,27 @@ export const toolDefinitions = [
             properties: {
               sku: { type: 'string' },
               product_id: { type: 'string' },
-              system_qty: { type: 'number' },
-              counted_qty: { type: 'number' },
+              quantity: {
+                type: 'number',
+                description: 'Delta units (damage/found) or absolute if counted_qty omitted for stocktake',
+              },
+              qty: { type: 'number' },
+              system_qty: { type: 'number', description: 'Optional override; default = current on_hand' },
+              counted_qty: {
+                type: 'number',
+                description: 'Optional absolute count after adjust; computed from quantity if omitted',
+              },
               reason: { type: 'string' },
             },
           },
         },
-        submit: { type: 'boolean', description: 'pending vs draft' },
+        submit: {
+          type: 'boolean',
+          description: 'true (default) = pending HQ queue; false = draft only',
+        },
         dry_run: { type: 'boolean' },
       },
-      required: ['lines'],
+      required: [],
     },
   },
 
@@ -2241,8 +2272,13 @@ export async function handleTool(name, args = {}) {
           location_id: a.location_id,
           adjustment_type: a.adjustment_type,
           notes: a.notes,
+          sku: a.sku,
+          product_id: a.product_id,
+          quantity: a.quantity,
+          qty: a.qty,
           lines: a.lines,
-          submit: a.submit === true,
+          // Default pending so "please adjust" reaches HQ queue; still not applied
+          submit: a.submit !== false,
           dry_run: a.dry_run === true,
         })
         if (result.dry_run) return jsonResult(result)
