@@ -164,10 +164,21 @@ async function extractDomCards(page) {
         item.querySelector('[data-sqe="name"]') ||
         item.querySelector('[class*="name"], [class*="Name"]')
       const title = titleEl?.textContent?.trim() || link?.getAttribute('title') || ''
+      const fullText = (item.innerText || item.textContent || '').replace(/\s+/g, ' ').trim()
       const priceEl = item.querySelector('[class*="price"], [class*="Price"]')
-      const priceText = priceEl?.textContent?.trim() || ''
+      let priceText = priceEl?.textContent?.trim() || ''
+      if (!priceText) {
+        const m = fullText.match(/(?:S\$|\$)\s*[0-9]+(?:\.[0-9]+)?/)
+        if (m) priceText = m[0]
+      }
       const soldEl = item.querySelector('[class*="sold"], [class*="Sold"]')
-      const soldText = soldEl?.textContent?.trim() || ''
+      let soldText = soldEl?.textContent?.trim() || ''
+      if (!soldText) {
+        const m = fullText.match(
+          /[0-9.,]+\s*[kKmM]?\+?\s*(?:sold(?:\s*\/\s*month)?|monthly\s*sales?)/i,
+        )
+        if (m) soldText = m[0]
+      }
       const html = item.innerHTML || ''
       const isMall = /mall/i.test(html) || /Shopee Mall/i.test(html)
       const isPreferredPlus = /preferred\+/i.test(html) || /Preferred\+/i.test(html)
@@ -179,6 +190,7 @@ async function extractDomCards(page) {
         title,
         priceText,
         soldText,
+        fullText,
         isMall,
         isPreferred,
         isPreferredPlus,
@@ -210,6 +222,15 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
   const shopUsername = isShop
     ? String(seed.target || seed.metadata?.shop_username || '').trim()
     : String(seed.metadata?.shop_username || '').trim() || null
+  // Keyword SERP: sortBy=sales → Top Sales (Sold/Month on cards). pop/relevancy default.
+  const sortByRaw =
+    seed.metadata?.sort_by ||
+    seed.metadata?.sortBy ||
+    seed.sort_by ||
+    null
+  const sortBy = sortByRaw != null && String(sortByRaw).trim()
+    ? String(sortByRaw).trim().toLowerCase()
+    : null
 
   const browser = await browserApi.getBrowser()
   const page = await browserApi.createStealthPage(browser)
@@ -276,7 +297,7 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
           url += (url.includes('?') ? '&' : '?') + `page=${pageIdx}`
         }
       } else {
-        url = shopeeSearchUrl(seed.target, country, pageIdx)
+        url = shopeeSearchUrl(seed.target, country, pageIdx, sortBy ? { sortBy } : {})
       }
 
       try {
@@ -316,29 +337,65 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
           query: queryLabel,
           country,
           rankOffset: allCards.length,
+          sortBy,
         })
         for (const c of mapped) {
           if (allCards.length >= maxListings) break
           if (allCards.some((x) => x.shop_id === c.shop_id && x.item_id === c.item_id)) continue
-          allCards.push(enrichCard(c, { jobId, seed, isShop, shopUsername, source: 'shopee_api' }))
+          allCards.push(
+            enrichCard(c, {
+              jobId,
+              seed,
+              isShop,
+              shopUsername,
+              source: 'shopee_api',
+              sortBy,
+            }),
+          )
         }
       }
 
-      if (allCards.length === before) {
+      // Prefer DOM when we need price + Sold/Month labels (API often omits display strings).
+      // Always merge DOM if API left price/sold gaps; still use DOM-only when API empty.
+      {
         const domRows = await extractDomCards(page)
         const mapped = cardsFromDomRows(domRows, {
           query: queryLabel,
           country,
           rankOffset: allCards.length,
+          sortBy,
         })
         for (const c of mapped) {
           if (allCards.length >= maxListings) break
-          if (allCards.some((x) => x.shop_id === c.shop_id && x.item_id === c.item_id)) continue
+          const existing = allCards.find(
+            (x) => x.shop_id === c.shop_id && x.item_id === c.item_id,
+          )
+          if (existing) {
+            if (existing.price == null && c.price != null) existing.price = c.price
+            if (!existing.sold_label && c.sold_label) {
+              existing.sold_label = c.sold_label
+              existing.sold_count_lower_bound = c.sold_count_lower_bound
+            }
+            if (c.signals?.sold_period) {
+              existing.signals = { ...(existing.signals || {}), sold_period: c.signals.sold_period }
+            }
+            continue
+          }
+          if (allCards.length === before && !mapped.length) break
           if (c.sold_label && c.sold_count_lower_bound == null) {
             const p = parseSoldLabel(c.sold_label)
             c.sold_count_lower_bound = p.lower_bound ?? undefined
           }
-          allCards.push(enrichCard(c, { jobId, seed, isShop, shopUsername, source: 'shopee_dom' }))
+          allCards.push(
+            enrichCard(c, {
+              jobId,
+              seed,
+              isShop,
+              shopUsername,
+              source: 'shopee_dom',
+              sortBy,
+            }),
+          )
         }
       }
 
@@ -371,10 +428,24 @@ export async function scrapeShopeeWithPuppeteer(seed, jobId, browserApi) {
  * @param {{ jobId: string, seed: any, isShop: boolean, shopUsername: string | null, source: string }} ctx
  */
 function enrichCard(c, ctx) {
+  const brandKey =
+    ctx.seed?.metadata?.brand_key ||
+    ctx.seed?.metadata?.brandKey ||
+    (!ctx.isShop ? String(ctx.seed?.target || '').trim().toLowerCase() : null)
+  const sortBy = ctx.sortBy || null
   const signals = {
     ...(c.signals || {}),
     ...(ctx.isShop ? { official_shop: true } : {}),
     ...(ctx.shopUsername ? { shop_username: ctx.shopUsername } : {}),
+    ...(brandKey ? { brand_key: brandKey } : {}),
+    ...(sortBy ? { sort_by: sortBy } : {}),
+    harvest_source: ctx.isShop
+      ? sortBy === 'sales'
+        ? 'mall_all_products_sales'
+        : 'mall_list_harvest'
+      : sortBy === 'sales'
+        ? 'keyword_search_sales'
+        : 'keyword_search',
   }
   // Shop storefront listings are Mall/official when mode=shop
   const seller_type = ctx.isShop
@@ -394,6 +465,7 @@ function enrichCard(c, ctx) {
       source: ctx.source,
       mode: ctx.seed.mode || 'keyword',
       shop_username: ctx.shopUsername,
+      sort_by: sortBy,
     },
   }
 }

@@ -22,16 +22,29 @@ export function shopeeHost(country = 'sg') {
 }
 
 /**
+ * Keyword SERP URL.
+ * Example (Top Sales / monthly movers):  
+ *   https://shopee.sg/search?keyword=biodance&page=0&sortBy=sales
+ *
  * @param {string} keyword
  * @param {string} [country]
  * @param {number} [page] zero-based page index
+ * @param {{ sortBy?: 'sales' | 'pop' | 'relevancy' | string | null }} [opts]
  */
-export function shopeeSearchUrl(keyword, country = 'sg', page = 0) {
+export function shopeeSearchUrl(keyword, country = 'sg', page = 0, opts = {}) {
   const host = shopeeHost(country)
   const q = encodeURIComponent(String(keyword || '').trim())
   const p = Math.max(0, Number(page) || 0)
-  const pageQs = p > 0 ? `&page=${p}` : ''
-  return `https://${host}/search?keyword=${q}${pageQs}`
+  const sortBy = opts.sortBy != null && String(opts.sortBy).trim()
+    ? String(opts.sortBy).trim()
+    : null
+  const params = new URLSearchParams()
+  params.set('keyword', String(keyword || '').trim())
+  params.set('page', String(p))
+  if (sortBy) params.set('sortBy', sortBy)
+  // Prefer encodeURIComponent keyword form for readability in logs/operators
+  const sortQs = sortBy ? `&sortBy=${encodeURIComponent(sortBy)}` : ''
+  return `https://${host}/search?keyword=${q}&page=${p}${sortQs}`
 }
 
 /**

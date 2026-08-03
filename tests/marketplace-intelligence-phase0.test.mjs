@@ -153,12 +153,18 @@ test('parseSoldLabel handles buckets and exact counts', () => {
     label: '5.2k sold',
     lower_bound: 5200,
     is_bucket: true,
+    period: 'lifetime',
   })
   assert.equal(parseSoldLabel('1.1k+ sold').lower_bound, 1100)
   assert.equal(parseSoldLabel('1.2M sold').lower_bound, 1_200_000)
   assert.equal(parseSoldLabel('456 sold').lower_bound, 456)
   assert.equal(parseSoldLabel(null).lower_bound, null)
   assert.equal(parseSoldLabel('').lower_bound, null)
+  // Keyword SERP sortBy=sales display
+  assert.equal(parseSoldLabel('1k+ Sold/Month').lower_bound, 1000)
+  assert.equal(parseSoldLabel('1k+ Sold/Month').period, 'month')
+  assert.equal(parseSoldLabel('517 Sold/Month').lower_bound, 517)
+  assert.equal(parseSoldLabel('517 Sold/Month').period, 'month')
 })
 
 test('seller taxonomy normalizes badges and dropship signals', () => {

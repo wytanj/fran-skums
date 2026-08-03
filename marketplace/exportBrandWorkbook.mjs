@@ -16,6 +16,7 @@ import XLSX from 'xlsx/dist/xlsx.full.min.js'
 import {
   BRAND_LISTING_COLUMNS,
   enrichRowsWithPlatformBreadcrumbs,
+  enrichRowsWithPrice,
   queryBrandListings,
   rowLooksLikeSalesSort,
   snapshotToBrandListingRow,
@@ -275,10 +276,15 @@ export async function buildBrandWorkbook(db, workspaceId, opts = {}) {
 
     // Attach MH-4 platform breadcrumbs (Shopee › … › leaf) even when latest snap is sales-only
     rows = await enrichRowsWithPlatformBreadcrumbs(db, workspaceId, rows)
+    // Attach price from any snap when the winning latest/sales row is priceless
+    rows = await enrichRowsWithPrice(db, workspaceId, rows)
 
     const ordered = orderListingRows(rows)
     const withPath = rows.filter(
       (r) => r.platform_category_path_text || r.platform_category_leaf,
+    ).length
+    const withPrice = rows.filter(
+      (r) => r.price != null && r.price !== '' && Number.isFinite(Number(r.price)),
     ).length
     totalRows += ordered.length
 
@@ -295,6 +301,7 @@ export async function buildBrandWorkbook(db, workspaceId, opts = {}) {
       sku_count: ordered.length,
       sold_sum: soldSum,
       sold_max: soldMax,
+      with_price: withPrice,
       with_platform_path: withPath,
       ...(salesRecipe ? { with_sales_rank: withRank } : {}),
     })
@@ -304,6 +311,7 @@ export async function buildBrandWorkbook(db, workspaceId, opts = {}) {
       sku_count: ordered.length,
       sold_sum: soldSum,
       sold_max: soldMax,
+      with_price: withPrice,
       with_platform_path: withPath,
       ...(salesRecipe ? { with_sales_rank: withRank } : {}),
     })
@@ -346,7 +354,7 @@ export async function buildBrandWorkbook(db, workspaceId, opts = {}) {
     brands: brandMeta,
     generated_at,
     note: salesRecipe
-      ? 'Recipe full_sales (MH-14): one sheet per brand from sortBy=sales harvest. sales_rank is Shopee Top Sales grid position, not monthly units sold. sold_count_lower_bound remains cumulative lifetime. platform_category_path_text / platform_category_leaf are Shopee PDP breadcrumbs (MH-4), merged in when any snap has them. Do not re-sum in the LLM.'
-      : 'Recipe full: one sheet per brand_key + _index. sold_count_lower_bound is cumulative lifetime (bucketed), not a weekly rate. platform_category_path_text is the Shopee Category breadcrumb trail (e.g. Shopee > Beauty & Personal Care > Makeup > Blusher). sort_by / sales_rank appear when present. Do not re-sum in the LLM — use the sheets.',
+      ? 'Recipe full_sales (MH-14): one sheet per brand from sortBy=sales harvest. Columns include price (SGD) when any snap has it (merged). sales_rank is Shopee Top Sales grid position, not monthly units sold. sold_count_lower_bound remains cumulative lifetime. platform_category_path_text / platform_category_leaf are Shopee PDP breadcrumbs (MH-4), merged in when any snap has them. Do not re-sum in the LLM.'
+      : 'Recipe full: one sheet per brand_key + _index. Columns include price (SGD) merged from any listing snapshot when present. sold_count_lower_bound is cumulative lifetime (bucketed), not a weekly rate. platform_category_path_text is the Shopee Category breadcrumb trail (e.g. Shopee > Beauty & Personal Care > Makeup > Blusher). sort_by / sales_rank appear when present. _index.with_price = rows with a price. Do not re-sum in the LLM — use the sheets.',
   }
 }

@@ -53,21 +53,39 @@ export function mapApiItemToCard(item, ctx) {
     normalizeShopeePrice(basic.price_before_discount) ??
     normalizeShopeePrice(basic.price_max_before_discount)
 
+  // Prefer explicit monthly sales when API exposes them (SERP sortBy=sales).
+  const monthlyRaw =
+    basic.monthly_sales ??
+    basic.sold_per_month ??
+    basic.historical_sold_month ??
+    basic.item_card_display_sold_count_monthly
   const soldRaw =
+    monthlyRaw ??
     basic.historical_sold ??
     basic.sold ??
     basic.global_sold_count ??
     basic.item_card_display_sold_count
   let sold_label
   let sold_count_lower_bound
+  let sold_period
   if (soldRaw != null && soldRaw !== '') {
     if (typeof soldRaw === 'number') {
       sold_count_lower_bound = Math.round(soldRaw)
-      sold_label = soldRaw >= 1000 ? `${(soldRaw / 1000).toFixed(1)}k sold` : `${soldRaw} sold`
+      if (monthlyRaw != null && monthlyRaw !== '') {
+        sold_label =
+          soldRaw >= 1000
+            ? `${(soldRaw / 1000).toFixed(1)}k Sold/Month`
+            : `${soldRaw} Sold/Month`
+        sold_period = 'month'
+      } else {
+        sold_label = soldRaw >= 1000 ? `${(soldRaw / 1000).toFixed(1)}k sold` : `${soldRaw} sold`
+        sold_period = 'lifetime'
+      }
     } else {
       const parsed = parseSoldLabel(String(soldRaw))
       sold_label = parsed.label ?? String(soldRaw)
       sold_count_lower_bound = parsed.lower_bound ?? undefined
+      sold_period = parsed.period ?? (monthlyRaw != null ? 'month' : null)
     }
   }
 
@@ -192,6 +210,8 @@ export function mapApiItemToCard(item, ctx) {
       ...signals,
       is_official_shop: isOfficial,
       ...(accountUsername ? { shop_username: String(accountUsername) } : {}),
+      ...(sold_period ? { sold_period } : {}),
+      ...(ctx.sortBy ? { sort_by: String(ctx.sortBy).toLowerCase() } : {}),
     },
     raw: {
       ...basic,
@@ -222,7 +242,7 @@ export function extractItemsFromSearchPayload(payload) {
 
 /**
  * @param {unknown} payload
- * @param {{ query?: string, country?: string, rankOffset?: number }} [opts]
+ * @param {{ query?: string, country?: string, rankOffset?: number, sortBy?: string | null }} [opts]
  */
 export function cardsFromSearchPayload(payload, opts = {}) {
   const items = extractItemsFromSearchPayload(payload)
@@ -233,6 +253,7 @@ export function cardsFromSearchPayload(payload, opts = {}) {
       rank,
       query: opts.query,
       country: opts.country,
+      sortBy: opts.sortBy,
     })
     if (card) {
       cards.push(card)
@@ -258,11 +279,19 @@ export function cardsFromDomRows(rows, opts = {}) {
     const title = String(row.title || '').trim()
     if (!title) continue
 
+    const fullText = String(row.fullText || row.text || '')
     const priceText = String(row.priceText || row.price || '')
-    const priceMatch = priceText.replace(/,/g, '').match(/([0-9]+(?:\.[0-9]+)?)/)
+    const priceMatch =
+      priceText.replace(/,/g, '').match(/([0-9]+(?:\.[0-9]+)?)/) ||
+      fullText.replace(/,/g, '').match(/(?:S\$|\$)\s*([0-9]+(?:\.[0-9]+)?)/)
     const price = priceMatch ? parseFloat(priceMatch[1]) : undefined
 
-    const sold = parseSoldLabel(String(row.soldText || row.sold || ''))
+    const soldTextRaw =
+      String(row.soldText || row.sold || '').trim() ||
+      (fullText.match(
+        /([0-9.,]+\s*[kKmM]?\+?\s*(?:sold(?:\s*\/\s*month)?|monthly\s*sales?))/i,
+      )?.[0] ?? '')
+    const sold = parseSoldLabel(soldTextRaw)
     const badges = Array.isArray(row.badges) ? row.badges.map(String) : []
     if (row.isMall) badges.push('mall')
     if (row.isPreferredPlus) badges.push('preferred+')
@@ -271,6 +300,10 @@ export function cardsFromDomRows(rows, opts = {}) {
 
     const seller_type = sellerTypeFromBadges(badges)
     const country = opts.country || 'sg'
+    const sortBy = opts.sortBy != null ? String(opts.sortBy).toLowerCase() : null
+    const soldPeriod =
+      sold.period ||
+      (sortBy === 'sales' && sold.lower_bound != null ? 'month' : null)
 
     cards.push({
       shop_id: ids.shop_id,
@@ -288,9 +321,13 @@ export function cardsFromDomRows(rows, opts = {}) {
       sold_count_lower_bound: sold.lower_bound ?? undefined,
       rank_position: rank,
       search_query: opts.query,
-      signals: deriveDropshipSignals({
-        location: row.location ? String(row.location) : undefined,
-      }),
+      signals: {
+        ...deriveDropshipSignals({
+          location: row.location ? String(row.location) : undefined,
+        }),
+        ...(soldPeriod ? { sold_period: soldPeriod } : {}),
+        ...(sortBy ? { sort_by: sortBy } : {}),
+      },
       raw: row,
     })
     rank++

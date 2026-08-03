@@ -505,7 +505,7 @@ export const toolDefinitions = [
   {
     name: 'market_brand_export_full',
     description:
-      'Multi-sheet .xlsx of the Mall harvest — one worksheet per brand_key plus leading _index. Each sheet includes platform_category_path_text (Shopee PDP Category breadcrumb trail) + platform_category_leaf when MH-4 data exists (merged even onto sales-sort rows). Recipes: **full** (latest/best sold per listing) · **full_sales** (MH-14 Top Sales rank; NOT monthly units — sold_* is cumulative lifetime). Prefer download_url. Do NOT re-sum in the model.',
+      'Multi-sheet .xlsx of the Mall harvest — one worksheet per brand_key plus leading _index. Each sheet includes **price** (SGD, merged from any snapshot with price), sold_label / sold_count_lower_bound, platform_category_path_text + platform_category_leaf when MH-4 data exists (merged even onto sales-sort rows). Recipes: **full** (latest/best sold per listing + price fill) · **full_sales** (MH-14 Top Sales rank; NOT monthly units — sold_* is cumulative lifetime). _index has with_price counts. Prefer download_url. Do NOT re-sum in the model.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -2146,8 +2146,23 @@ export async function handleTool(name, args = {}) {
             content_type: built.content_type,
           },
           agent_hint:
-            'Tell the user to download via download_url with their API key (do not paste the xlsx into chat). One sheet per brand; _index has totals. sold is cumulative lifetime, not a rate.',
+            'Tell the user to download via download_url with their API key (do not paste the xlsx into chat). One sheet per brand; _index has sku_count, sold_sum, with_price, with_platform_path. Each product row has a price column (SGD) when harvest has it. sold is cumulative lifetime, not a rate.',
           bytes: built.buffer.length,
+          columns: [
+            'brand_key',
+            'shop_username',
+            'title',
+            'sold_label',
+            'sold_count_lower_bound',
+            'sort_by',
+            'sales_rank',
+            'price',
+            'currency',
+            'platform_category_path_text',
+            'platform_category_leaf',
+            'listing_url',
+            '…',
+          ],
         }
         const maxB64 = 2_500_000
         if (a.include_base64 === true && built.buffer.length <= maxB64) {

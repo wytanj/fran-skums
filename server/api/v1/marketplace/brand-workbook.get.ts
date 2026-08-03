@@ -9,7 +9,9 @@
  *   &max_brands=120
  *   &meta=1   → JSON only (no file body)
  *
- * full_sales (MH-14): rows from sortBy=sales harvest; sales_rank ≠ monthly units.
+ * Product sheets include **price** (SGD) when any snapshot has it (merged onto
+ * the latest/highest-sold row). full_sales (MH-14): sales-sort ranks; sales_rank
+ * ≠ monthly units. sold_* remains lifetime.
  *
  * Scope: intel:read
  *

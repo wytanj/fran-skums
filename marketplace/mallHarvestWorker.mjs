@@ -81,13 +81,22 @@ export function browserHarvestEvaluate() {
   function soldLower(label) {
     if (!label) return null
     const s = String(label).toLowerCase().replace(/,/g, '')
-    const m = s.match(/([\d.]+)\s*([km])?\+?\s*sold/)
+    // "1k+ sold" | "517 sold/month" | "1k+ sold/month"
+    const m = s.match(/([\d.]+)\s*([km])?\+?\s*sold(?:\s*\/\s*month)?/)
     if (!m) return null
     let n = parseFloat(m[1])
     if (!Number.isFinite(n)) return null
     if (m[2] === 'k') n *= 1000
     if (m[2] === 'm') n *= 1e6
     return Math.floor(n)
+  }
+
+  function parsePrice(text) {
+    if (!text) return null
+    const m = String(text).replace(/,/g, '').match(/(?:s\$|\$)\s*([0-9]+(?:\.[0-9]+)?)/i)
+    if (!m) return null
+    const n = parseFloat(m[1])
+    return Number.isFinite(n) ? n : null
   }
 
   const byItem = new Map()
@@ -117,8 +126,15 @@ export function browserHarvestEvaluate() {
     for (const strip of [nameElText, name]) {
       if (strip && strip.length > 3) soldRegion = soldRegion.split(strip).join(' ')
     }
-    const soldMatch = soldRegion.match(/([0-9.,]+\s*[kKmM]?\+?\s*sold)/i)
+    const soldMatch = soldRegion.match(
+      /([0-9.,]+\s*[kKmM]?\+?\s*sold(?:\s*\/\s*month)?)/i,
+    )
     let sold_label = soldMatch ? soldMatch[1].replace(/\s+/g, ' ').trim() : null
+    const sold_period = sold_label
+      ? /sold\s*\/\s*month/i.test(sold_label)
+        ? 'month'
+        : 'lifetime'
+      : null
 
     // Defence in depth: no single listing has a credible lifetime count this
     // high. Drop the value rather than let it dominate every aggregate.
@@ -128,11 +144,17 @@ export function browserHarvestEvaluate() {
       sold_label = null
     }
 
+    const priceEl = card?.querySelector?.('[class*="price"], [class*="Price"]')
+    const price =
+      parsePrice(priceEl?.textContent || '') ?? parsePrice(soldRegion) ?? parsePrice(text)
+
     const key = `${ids.shop_id}:${ids.item_id}`
     const row = {
       name,
       sold_label,
       sold_count_lower_bound: soldLower(sold_label),
+      sold_period,
+      price,
       ...(sold_parse_suspect ? { sold_parse_suspect: true } : {}),
       category: category,
       shop_id: ids.shop_id,
@@ -141,7 +163,17 @@ export function browserHarvestEvaluate() {
       rank_position: byItem.size + 1,
     }
     const prev = byItem.get(key)
-    if (!prev || (!prev.sold_label && row.sold_label)) byItem.set(key, row)
+    if (!prev || (!prev.sold_label && row.sold_label) || (prev.price == null && row.price != null)) {
+      byItem.set(key, {
+        ...prev,
+        ...row,
+        sold_label: row.sold_label || prev?.sold_label || null,
+        sold_count_lower_bound:
+          row.sold_count_lower_bound ?? prev?.sold_count_lower_bound ?? null,
+        price: row.price ?? prev?.price ?? null,
+        sold_period: row.sold_period || prev?.sold_period || null,
+      })
+    }
   }
 
   const products = [...byItem.values()]
@@ -248,14 +280,36 @@ export function mergeHarvestProducts(pages, opts = {}) {
         byKey.set(key, p)
         continue
       }
+      // Always keep price / sold when either side has them (multi-page dedupe).
+      const merged = {
+        ...prev,
+        ...p,
+        sold_label: p.sold_label || prev.sold_label,
+        sold_count_lower_bound:
+          p.sold_count_lower_bound ?? prev.sold_count_lower_bound ?? null,
+        price: p.price ?? prev.price ?? null,
+        original_price: p.original_price ?? prev.original_price ?? null,
+        sold_period: p.sold_period || prev.sold_period || null,
+      }
       if (opts.preferLowerSalesRank) {
         const pr = Number(prev.sales_rank ?? prev.rank_position ?? 99999)
         const nr = Number(p.sales_rank ?? p.rank_position ?? 99999)
-        if (nr < pr) byKey.set(key, { ...p, sold_label: p.sold_label || prev.sold_label })
-        else if (!prev.sold_label && p.sold_label) byKey.set(key, { ...prev, sold_label: p.sold_label, sold_count_lower_bound: p.sold_count_lower_bound })
+        if (nr < pr) {
+          byKey.set(key, {
+            ...merged,
+            ...p,
+            sold_label: p.sold_label || prev.sold_label,
+            sold_count_lower_bound:
+              p.sold_count_lower_bound ?? prev.sold_count_lower_bound ?? null,
+            price: p.price ?? prev.price ?? null,
+            sales_rank: p.sales_rank ?? prev.sales_rank,
+          })
+        } else {
+          byKey.set(key, merged)
+        }
         continue
       }
-      if (!prev.sold_label && p.sold_label) byKey.set(key, p)
+      byKey.set(key, merged)
     }
   }
   const rows = [...byKey.values()]
@@ -573,9 +627,11 @@ export async function harvestBrandShelf(page, brand, db, shelf, opts) {
     stop_reason,
     attribution,
     write,
+    with_price: products.filter((p) => p.price != null).length,
     sample: products.slice(0, 3).map((p) => ({
       name: p.name,
       sold_label: p.sold_label,
+      price: p.price,
       category: p.category,
       shop_collection_id: collId,
     })),

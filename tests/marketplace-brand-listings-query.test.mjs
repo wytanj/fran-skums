@@ -36,6 +36,11 @@ function mockDb({ rows = [], count = 0 }) {
       lte: rec('lte'),
       in: rec('in'),
       ilike: rec('ilike'),
+      // Used by enrichRowsWithPrice / enrichRowsWithPlatformBreadcrumbs
+      not(col, op, val) {
+        calls.filters.push({ op: 'not', col, val: { op, val } })
+        return api
+      },
       order(col, opts) {
         calls.orders.push({ col, ...opts })
         return api
@@ -44,10 +49,15 @@ function mockDb({ rows = [], count = 0 }) {
         calls.ranges.push({ from, to })
         return Promise.resolve({ data: rows, error: null })
       },
-      then(resolve) {
-        return Promise.resolve(
-          isCount ? { count, error: null } : { data: rows, error: null },
-        ).then(resolve)
+      then(resolve, reject) {
+        // Main data path uses range(); enrich paths await after order()/not().
+        // Resolve empty for enrich chains so tests stay focused on the view query.
+        const payload = isCount
+          ? { count, error: null }
+          : calls.ranges.length
+            ? { data: rows, error: null }
+            : { data: [], error: null }
+        return Promise.resolve(payload).then(resolve, reject)
       },
     }
     return api
@@ -202,9 +212,14 @@ test('buildBrandRadarSummary top products', () => {
 test('RP-1: reads the latest-per-listing view, not the raw snapshot table', async () => {
   const db = mockDb({ rows: [snap()], count: 1 })
   await queryBrandListings(db, 'ws-1', { limit: 10 })
-  // The JS dedupe + fetch window are gone; SQL returns one row per listing.
-  assert.ok(db.calls.tables.every((t) => t === 'v_marketplace_listing_latest'))
-  assert.ok(!db.calls.tables.includes('marketplace_listing_snapshots'))
+  // Primary SQL page/count is the latest view (no JS fetch-window dedupe).
+  assert.ok(db.calls.tables.includes('v_marketplace_listing_latest'))
+  assert.ok(
+    db.calls.tables.filter((t) => t === 'v_marketplace_listing_latest').length >= 2,
+    'count + page should hit the view',
+  )
+  // Post-read enrich may touch marketplace_listing_snapshots for crumbs/price
+  // fill — that is intentional, not a return to the raw-table scan path.
 })
 
 test('RP-1: min_sold is a SQL predicate, not a post-window JS filter', async () => {
@@ -441,9 +456,11 @@ test('RP-5: default projection omits the fields measured as pure token cost', as
   const res = await queryBrandListings(db, 'ws-1', { limit: 10 })
   const present = [...res.columns, ...Object.keys(res.constant)]
   // listing_url was 26% of payload, listing_id 6%, crawled_at 5%.
-  for (const dropped of ['listing_url', 'listing_id', 'crawled_at', 'platform_category_path_text']) {
+  // platform_category_path_text stays in DEFAULT_LISTING_FIELDS (MH-4 trail for agents).
+  for (const dropped of ['listing_url', 'listing_id', 'crawled_at']) {
     assert.ok(!present.includes(dropped), `${dropped} should not be in the default projection`)
   }
+  assert.ok(present.includes('price'), 'price is in the default agent projection')
   // …but the caller can discover them.
   assert.ok(res.available_fields.includes('listing_url'))
 })

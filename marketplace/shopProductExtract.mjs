@@ -259,6 +259,8 @@ export function harvestToObservationCards(harvest, opts = {}) {
       shop_name: harvest.shop_username || null,
       seller_type: 'mall',
       currency,
+      price: p.price != null ? Number(p.price) : undefined,
+      original_price: p.original_price != null ? Number(p.original_price) : undefined,
       sold_label: p.sold_label,
       sold_count_lower_bound: p.sold_count_lower_bound ?? undefined,
       rank_position: p.rank_position || i + 1,
@@ -277,6 +279,7 @@ export function harvestToObservationCards(harvest, opts = {}) {
         sort_by: harvest.sort_by || p.sort_by || null,
         page: harvest.page ?? p.sales_rank_page ?? null,
         shop_kind: multi ? 'multi_brand_distributor' : 'single_brand',
+        ...(p.sold_period ? { sold_period: p.sold_period } : {}),
         ...(p.sales_rank != null ? { sales_rank: p.sales_rank } : {}),
         ...(p.sales_rank_page != null ? { sales_rank_page: p.sales_rank_page } : {}),
         ...(p.sales_rank_on_page != null

@@ -136,6 +136,73 @@ export function rowLooksLikeSalesSort(row) {
 }
 
 /**
+ * Fill price (and currency) when the latest/highest-sold snap lacks them by
+ * looking up any other snapshot for the same listing_id that has price set.
+ *
+ * Mall list harvest historically wrote sold without price; the price re-pass
+ * writes newer snaps with price. v_marketplace_listing_latest prefers highest
+ * sold then newest — so the "winning" row can still be priceless while a
+ * sibling snap has SGD. Workbooks and MCP sheets need the fill.
+ *
+ * Mutates and returns the same rows array.
+ *
+ * @param {any} db
+ * @param {string} workspaceId
+ * @param {object[]} rows
+ */
+export async function enrichRowsWithPrice(db, workspaceId, rows) {
+  const list = Array.isArray(rows) ? rows : []
+  if (!list.length || !db) return list
+
+  const missingIds = [
+    ...new Set(
+      list
+        .filter((r) => r?.listing_id && (r.price == null || r.price === ''))
+        .map((r) => r.listing_id),
+    ),
+  ]
+  if (!missingIds.length) return list
+
+  /** @type {Map<string, { price: number, currency: string|null }>} */
+  const byListing = new Map()
+
+  for (let i = 0; i < missingIds.length; i += 100) {
+    const chunk = missingIds.slice(i, i + 100)
+    const { data, error } = await db
+      .from('marketplace_listing_snapshots')
+      .select('listing_id, price, currency, crawled_at')
+      .eq('workspace_id', workspaceId)
+      .in('listing_id', chunk)
+      .not('price', 'is', null)
+      .order('crawled_at', { ascending: false })
+
+    if (error) {
+      console.error('[brand-listings] price enrich:', error.message)
+      break
+    }
+
+    for (const snap of data || []) {
+      if (!snap.listing_id || byListing.has(snap.listing_id)) continue
+      const n = snap.price != null ? Number(snap.price) : NaN
+      if (!Number.isFinite(n)) continue
+      byListing.set(snap.listing_id, {
+        price: n,
+        currency: snap.currency || null,
+      })
+    }
+  }
+
+  for (const r of list) {
+    if (r.price != null && r.price !== '') continue
+    const hit = byListing.get(r.listing_id)
+    if (!hit) continue
+    r.price = hit.price
+    if (!r.currency && hit.currency) r.currency = hit.currency
+  }
+  return list
+}
+
+/**
  * Fill platform breadcrumbs (MH-4) onto rows missing path/leaf by looking up
  * any snapshot for the same listing_id that has platform_category_leaf.
  *
@@ -301,6 +368,7 @@ export function summarizeBrandListings(rows) {
   const byLeaf = {}
   let withSold = 0
   let withPlatform = 0
+  let withPrice = 0
   for (const r of list) {
     const bk = r.brand_key || '(none)'
     byBrand[bk] = (byBrand[bk] || 0) + 1
@@ -310,10 +378,12 @@ export function summarizeBrandListings(rows) {
     byLeaf[leaf] = (byLeaf[leaf] || 0) + 1
     if (r.sold_label || r.sold_count_lower_bound) withSold++
     if (r.platform_category_path_text || r.platform_category_leaf) withPlatform++
+    if (r.price != null && r.price !== '' && Number.isFinite(Number(r.price))) withPrice++
   }
   return {
     row_count: list.length,
     with_sold: withSold,
+    with_price: withPrice,
     with_platform_path: withPlatform,
     by_brand: byBrand,
     by_shop_collection: byShelf,
@@ -365,6 +435,7 @@ export function buildBrandRadarSummary(rows, opts = {}) {
       title: r.title,
       sold_label: r.sold_label,
       sold_count_lower_bound: r.sold_count_lower_bound,
+      price: r.price ?? null,
       shop_collection_name: r.shop_collection_name,
       platform_category_leaf: r.platform_category_leaf,
       listing_url: r.listing_url,
@@ -668,7 +739,19 @@ export async function queryBrandListings(db, workspaceId, filters = {}) {
 
   // Merge MH-4 path/leaf from any snap for the listing (sales latest may lack crumbs)
   if (filters.enrich_breadcrumbs !== false) {
-    rows = await enrichRowsWithPlatformBreadcrumbs(db, workspaceId, rows)
+    try {
+      rows = await enrichRowsWithPlatformBreadcrumbs(db, workspaceId, rows)
+    } catch (e) {
+      console.error('[brand-listings] breadcrumb enrich failed:', e?.message || e)
+    }
+  }
+  // Merge price from any snap when latest/highest-sold row is priceless
+  if (filters.enrich_price !== false) {
+    try {
+      rows = await enrichRowsWithPrice(db, workspaceId, rows)
+    } catch (e) {
+      console.error('[brand-listings] price enrich failed:', e?.message || e)
+    }
   }
 
   const total = totalMatching ?? rows.length

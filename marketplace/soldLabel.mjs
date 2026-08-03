@@ -29,19 +29,45 @@ export function isPlausibleSoldCount(n) {
 }
 
 /**
+ * Detect period implied by the label text.
+ * Shopee keyword SERP under sortBy=sales often shows "517 Sold/Month".
+ * Mall shop grids usually show lifetime "1.2k sold" (no /month).
+ * @param {string} raw
+ * @returns {'month' | 'lifetime' | null}
+ */
+export function detectSoldPeriod(raw) {
+  const s = String(raw || '')
+  if (!s.trim()) return null
+  if (/sold\s*\/\s*month|monthly\s*sales?|\/\s*mo\b/i.test(s)) return 'month'
+  if (/\bsold\b/i.test(s)) return 'lifetime'
+  return null
+}
+
+/**
  * @param {string | null | undefined} label
- * @returns {{ label: string | null, lower_bound: number | null, is_bucket: boolean }}
+ * @returns {{
+ *   label: string | null,
+ *   lower_bound: number | null,
+ *   is_bucket: boolean,
+ *   period: 'month' | 'lifetime' | null
+ * }}
  */
 export function parseSoldLabel(label) {
   if (label == null) {
-    return { label: null, lower_bound: null, is_bucket: false }
+    return { label: null, lower_bound: null, is_bucket: false, period: null }
   }
   const raw = String(label).trim()
   if (!raw) {
-    return { label: null, lower_bound: null, is_bucket: false }
+    return { label: null, lower_bound: null, is_bucket: false, period: null }
   }
 
-  const cleaned = raw.replace(/,/g, '').replace(/\s*sold\s*/gi, ' ').trim()
+  const period = detectSoldPeriod(raw)
+  // Keep "Sold/Month" parseable: strip sold(/month) so k/m/num matchers see the figure.
+  const cleaned = raw
+    .replace(/,/g, '')
+    .replace(/\s*sold\s*(?:\/\s*month)?/gi, ' ')
+    .replace(/\s*monthly\s*sales?/gi, ' ')
+    .trim()
   const isBucket = /\+|plus|over|more than/i.test(cleaned) || /[kKmM]\+?$/.test(cleaned.replace(/\s/g, ''))
 
   const mMatch = cleaned.match(/([0-9]+(?:\.[0-9]+)?)\s*[mM]\+?/)
@@ -50,6 +76,7 @@ export function parseSoldLabel(label) {
       label: raw,
       lower_bound: Math.round(parseFloat(mMatch[1]) * 1_000_000),
       is_bucket: true,
+      period,
     }
   }
 
@@ -59,6 +86,7 @@ export function parseSoldLabel(label) {
       label: raw,
       lower_bound: Math.round(parseFloat(kMatch[1]) * 1_000),
       is_bucket: true,
+      period,
     }
   }
 
@@ -69,8 +97,9 @@ export function parseSoldLabel(label) {
       label: raw,
       lower_bound: Number.isFinite(n) ? n : null,
       is_bucket: isBucket,
+      period,
     }
   }
 
-  return { label: raw, lower_bound: null, is_bucket: false }
+  return { label: raw, lower_bound: null, is_bucket: false, period }
 }
