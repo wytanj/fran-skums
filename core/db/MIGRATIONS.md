@@ -76,6 +76,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 074 | help_crm_pos_skums_setup.sql | Help: crm-pos-skums-setup for Catalog AI + MCP | Live demo / production setup; agent-readable |
 | 081 | report_daily_stockout.sql | Platform seed pack `daily-stockout` | Per-store ATS=0 section `inventory.store_stockouts`; MCP `reports_run` |
 | 080 | rostering.sql | Store roster: employees (manual/rippling), zones, hourly shifts | POS my-zone + MCP roster_* + /roster UI |
+| 082 | mcp_oauth.sql | Per-user OAuth for the Claude MCP connector: `mcp_oauth_codes`, `mcp_oauth_tokens` | RLS on / no policies = service role only. Scopes re-derived from live membership per request; `scope` column is audit only. See `docs/MCP_OAUTH_DESIGN.md` |
 
 ## Planned Phase C Spine
 

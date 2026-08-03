@@ -8,6 +8,11 @@ import {
 } from '../../mcp/src/context.mjs'
 import { handleMcpJsonRpc, listToolsForTransport } from '../../mcp/src/httpProtocol.mjs'
 import { handleTool } from '../../mcp/src/tools.mjs'
+import {
+  authenticateMcpOauthToken,
+  isMcpOauthAccessToken,
+  resolveMcpScopesForUser,
+} from './mcpOauth'
 
 export { MCP_SCOPE_PROFILES, listToolsForTransport, handleTool }
 
@@ -19,13 +24,86 @@ export type RemoteMcpAuth = {
   clientName: string
   boundUserId?: string | null
   boundUserRole?: string | null
+  /** Which credential proved identity. Drives 401-vs-200 error shaping. */
+  authKind?: 'api_key' | 'oauth'
+}
+
+/** Raw `Authorization: Bearer …` value, or null. */
+export function readMcpBearerToken(event: any): string | null {
+  const raw = getHeader(event, 'authorization') || getHeader(event, 'Authorization') || ''
+  const match = String(raw).match(/^Bearer\s+(.+)$/i)
+  return match ? match[1].trim() : null
+}
+
+/** True when the request carries an MCP OAuth access token (ours, not an API key). */
+export function hasMcpOauthBearer(event: any): boolean {
+  return isMcpOauthAccessToken(readMcpBearerToken(event))
+}
+
+/**
+ * Authenticate a per-user OAuth access token.
+ *
+ * Scopes are recomputed from live workspace_members on every request rather than
+ * read off the token, so demoting someone in the web app takes effect on their
+ * next Claude message instead of at token expiry.
+ */
+async function authenticateOauthMcp(event: any, token: string): Promise<RemoteMcpAuth> {
+  const client = getAdminClient()
+  const identity = await authenticateMcpOauthToken(client, token)
+  if (!identity) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'MCP access token is invalid or expired. Reconnect the Fran connector in Claude.',
+    })
+  }
+
+  const { scopes, role, deniedReason } = await resolveMcpScopesForUser(
+    client,
+    identity.workspaceId,
+    identity.userId,
+  )
+
+  if (!scopes.length) {
+    throw createError({
+      statusCode: 403,
+      statusMessage:
+        deniedReason === 'bound_user_not_a_member'
+          ? 'Your Fran account is no longer a member of this workspace.'
+          : 'Your Fran role has no MCP-compatible permissions. Ask a workspace owner to widen it.',
+    })
+  }
+
+  const headers = getHeaders(event)
+  const clientHint =
+    (typeof headers['x-mcp-client'] === 'string' && headers['x-mcp-client'])
+    || (typeof headers['x-client-name'] === 'string' && headers['x-client-name'])
+    || 'claude-oauth'
+
+  return {
+    workspaceId: identity.workspaceId,
+    keyId: `oauth:${identity.tokenId}`,
+    keyName: `oauth:${identity.userId}`,
+    scopes,
+    clientName: String(clientHint).slice(0, 80),
+    boundUserId: identity.userId,
+    boundUserRole: role,
+    authKind: 'oauth',
+  }
 }
 
 /**
  * Authenticate API key for cloud MCP and resolve safe scopes.
  * A2: scopes already capped by bound user; then cloud ceiling applied.
+ *
+ * OAuth access tokens are checked first — they are the per-user path used by the
+ * Claude Enterprise connector; API keys remain for scripts, cron and Claude Code.
  */
 export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> {
+  const bearer = readMcpBearerToken(event)
+  if (isMcpOauthAccessToken(bearer)) {
+    return authenticateOauthMcp(event, bearer as string)
+  }
+
   const ctx = await authenticateApiKey(event)
   if (!ctx) {
     const q = getQuery(event)
@@ -104,6 +182,7 @@ export async function authenticateRemoteMcp(event: any): Promise<RemoteMcpAuth> 
     clientName: String(clientHint).slice(0, 80),
     boundUserId,
     boundUserRole,
+    authKind: 'api_key',
   }
 }
 

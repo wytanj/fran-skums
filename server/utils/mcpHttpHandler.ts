@@ -1,7 +1,14 @@
 /**
  * Shared Streamable-HTTP MCP request handler for /mcp and /mcp/c/:token
- * Claude personal connectors only allow: name, URL, optional OAuth client id/secret.
- * Embed API key in the URL: https://…/mcp?api_key=sk_live_…  or  https://…/mcp/c/sk_live_…
+ *
+ * Two ways to authenticate, both live:
+ *  - OAuth (preferred for teams): one connector config for the whole Claude org,
+ *    but each person signs in to Fran and gets their own web-app permissions.
+ *    Needs a real 401 + WWW-Authenticate to bootstrap — see the catch block below.
+ *  - API key in the URL (scripts, cron, Claude Code): /mcp?api_key=sk_live_… or
+ *    /mcp/c/sk_live_…. One shared identity for everyone who has the URL.
+ *
+ * @see server/utils/mcpOauth.ts
  */
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
@@ -11,6 +18,7 @@ import {
   remoteMcpCorsHeaders,
   runRemoteMcpJsonRpc,
 } from './remoteMcp'
+import { mcpOauthClient, mcpOauthIssuer, mcpUnauthorizedHeader } from './mcpOauth'
 import { handleMcpJsonRpc } from '../../mcp/src/httpProtocol.mjs'
 
 const PUBLIC_METHODS = new Set(['initialize', 'ping'])
@@ -104,7 +112,13 @@ function formatJsonRpcAsSse(payload: unknown): string {
 export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: string | null }) {
   const cors = remoteMcpCorsHeaders()
   for (const [k, v] of Object.entries(cors)) setHeader(event, k, v)
-  setHeader(event, 'Access-Control-Expose-Headers', 'Mcp-Session-Id, X-Fran-Mcp-Workspace, X-Fran-Mcp-Profile')
+  // WWW-Authenticate must be readable by browser-based MCP clients, or they
+  // cannot see where the protected-resource metadata lives.
+  setHeader(
+    event,
+    'Access-Control-Expose-Headers',
+    'Mcp-Session-Id, X-Fran-Mcp-Workspace, X-Fran-Mcp-Profile, WWW-Authenticate',
+  )
 
   injectMcpApiKeyFromUrl(event, opts?.pathToken)
 
@@ -138,22 +152,41 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
     const hasKeyHint = Boolean(
       opts?.pathToken || q.api_key || q.api || q.key || q.access_token || q.token,
     )
+    const issuer = mcpOauthIssuer(event)
+    const oauth = await mcpOauthClient()
     return {
       name: 'fran-skums',
       version: '0.6.4-cloud',
       transport: 'streamable-http-jsonrpc',
       protocolVersion: '2024-11-05',
       auth: hasKeyHint
-        ? 'API key detected in URL (Claude connector mode)'
-        : 'Embed key in URL for Claude: /mcp?api_key=sk_live_… or /mcp/c/sk_live_… (also accepts ?api=)',
-      docs: 'https://fran-skums.vercel.app/help/connect-claude',
+        ? 'API key detected in URL (single shared identity)'
+        : oauth
+          ? 'OAuth (per-user) or API key in URL'
+          : 'Embed key in URL for Claude: /mcp?api_key=sk_live_… or /mcp/c/sk_live_… (also accepts ?api=)',
+      docs: `${issuer}/help/connect-claude`,
       tools_hint: listToolsForTransport(true).map((t: any) => t.name),
-      claude_personal_connector: {
-        fields_supported: ['name', 'url', 'oauth_client_id (leave blank)', 'oauth_client_secret (leave blank)'],
-        url_with_key_query: 'https://fran-skums.vercel.app/mcp?api_key=sk_live_YOUR_KEY',
-        url_with_key_path: 'https://fran-skums.vercel.app/mcp/c/sk_live_YOUR_KEY',
+      // Preferred for teams: one connector config, per-person permissions.
+      oauth: oauth
+        ? {
+            supported: true,
+            client_id: oauth.clientId,
+            client_secret_required: Boolean(oauth.clientSecretHash),
+            credential_source: oauth.source,
+            protected_resource_metadata: `${issuer}/.well-known/oauth-protected-resource/mcp`,
+            authorization_server_metadata: `${issuer}/.well-known/oauth-authorization-server`,
+            url: `${issuer}/mcp`,
+            note: 'Add the URL plus the OAuth Client ID/Secret in Claude → Advanced settings. Each person then clicks Connect and signs in to Fran; they get exactly their web-app permissions.',
+          }
+        : { supported: false, note: 'MCP_OAUTH_CLIENT_ID is not set on this deployment.' },
+      // Still supported: one shared identity, right for scripts and cron.
+      api_key_connector: {
+        fields_supported: ['name', 'url', 'oauth_client_id', 'oauth_client_secret'],
+        url_with_key_query: `${issuer}/mcp?api_key=sk_live_YOUR_KEY`,
+        url_with_key_path: `${issuer}/mcp/c/sk_live_YOUR_KEY`,
         also_accepts: '?api=sk_live_… (alias for api_key)',
-        oauth: 'not_required — leave client id/secret empty; put key in the URL',
+        caveat:
+          'One key in one URL means every member of the Claude org shares one identity and one permission set. Use OAuth for per-person permissions.',
         note: 'Use the FULL sk_live_… secret once (Settings → Create Claude key). Path form often works better if the client strips query strings.',
       },
     }
@@ -195,6 +228,30 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
         e?.statusMessage
         || e?.message
         || 'API key required'
+
+      // OAuth discovery needs a REAL 401 with WWW-Authenticate — Anthropic does
+      // not read that header off a 200 response, so the status is what starts
+      // the Connect flow.
+      //
+      // Only when there is no URL key to explain: if someone pasted a wrong or
+      // revoked sk_live_ key, 401 would send them into a pointless OAuth dance
+      // and hide the message telling them the key is bad. That path keeps the
+      // long-standing 200 + JSON-RPC error.
+      const urlKeyPresent = Boolean((event.context as any)?.mcpApiKey)
+      if (!urlKeyPresent && (await mcpOauthClient())) {
+        setResponseStatus(event, 401)
+        setHeader(event, 'WWW-Authenticate', mcpUnauthorizedHeader(event))
+        setHeader(event, 'Content-Type', 'application/json')
+        setHeader(event, 'Cache-Control', 'no-store')
+        return {
+          error: 'unauthorized',
+          message: msg,
+          how_to_connect:
+            'Claude: add this URL as a custom connector with the Fran OAuth Client ID/Secret, then click Connect and sign in. Scripts: use an sk_live_ key.',
+          docs: `${mcpOauthIssuer(event)}/help/connect-claude`,
+        }
+      }
+
       // MCP clients often treat HTTP 401 as "couldn't reach". Keep JSON-RPC on 200.
       setResponseStatus(event, 200)
       setHeader(event, 'Content-Type', preferSse ? 'text/event-stream' : 'application/json')

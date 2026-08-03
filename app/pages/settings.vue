@@ -10,7 +10,7 @@ const {
   can,
 } = useTeam()
 
-const activeTab = ref<'profile' | 'workspace' | 'team' | 'organization' | 'api-keys' | 'custom-fields' | 'assistant'>('profile')
+const activeTab = ref<'profile' | 'workspace' | 'team' | 'organization' | 'api-keys' | 'claude-connector' | 'custom-fields' | 'assistant'>('profile')
 
 // Organization
 const {
@@ -613,6 +613,7 @@ const tabs = [
   { key: 'workspace', label: 'Workspace' },
   { key: 'team', label: 'Team' },
   { key: 'api-keys', label: 'API Keys' },
+  { key: 'claude-connector', label: 'Claude Connector' },
   { key: 'custom-fields', label: 'Custom Fields' },
   { key: 'assistant', label: 'AI Assistant' },
 ]
@@ -1315,6 +1316,11 @@ onMounted(async () => {
           No API keys yet. Create one to connect n8n, CLI tools, or agents.
         </div>
       </div>
+    </div>
+
+    <!-- Claude Connector (per-user OAuth for MCP) -->
+    <div v-show="activeTab === 'claude-connector'">
+      <ClaudeConnectorSettings :workspace-id="currentWorkspace?.id || null" />
     </div>
 
     <!-- Custom Fields -->

@@ -35,7 +35,9 @@ export default defineNuxtConfig({
       login: '/auth/login',
       callback: '/auth/confirm',
       include: undefined,
-      exclude: ['/', '/auth/*', '/invite/*', '/m/*'],
+      // /oauth/* handles its own login bounce so the full authorize query
+      // (client_id, code_challenge, state…) survives the round trip.
+      exclude: ['/', '/auth/*', '/invite/*', '/m/*', '/oauth/*'],
       cookieRedirect: false,
     },
   },
@@ -94,6 +96,10 @@ export default defineNuxtConfig({
     queueProcessorKey: process.env.QUEUE_PROCESSOR_KEY || '',
     // Marketplace BI scheduler (falls back to QUEUE_PROCESSOR_KEY in route)
     marketplaceCronSecret: process.env.MARKETPLACE_CRON_SECRET || '',
+    // Per-user OAuth for the Claude MCP connector. Unset = feature is inert and
+    // the API-key-in-URL path is unchanged. @see server/utils/mcpOauth.ts
+    mcpOauthClientId: process.env.MCP_OAUTH_CLIENT_ID || '',
+    mcpOauthClientSecret: process.env.MCP_OAUTH_CLIENT_SECRET || '',
     public: {
       appName: 'Fran SKUMS',
       x402Network: process.env.X402_NETWORK || 'base',
