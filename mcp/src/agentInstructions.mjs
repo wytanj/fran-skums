@@ -18,7 +18,7 @@ Composite-first (prefer ONE tool, then answer):
 | **Shopee Mall** — aggregate (which brands/shelves sell most, category mix) | **market_brand_rollup** (group_by: brand\|shelf\|platform_leaf\|shop) — SQL GROUP BY | adding up rows yourself; inventing sold ranks |
 | **Shopee Mall** — specific SKUs | market_brand_summary → market_brand_listings (brand_key slug) | market_search free text; catalog_search |
 | Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
-| Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** recipe **full** or **full_sales** → give download_url | summing listings in chat; market_brand_listings dump |
+| Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** recipe **full** or **full_sales** → give download_url (sheets include **price** + sold + MH-4 path) | summing listings in chat; market_brand_listings dump |
 | Shopee Mall **Top Sales / period movers** | market_brand_export_full **recipe: full_sales** or listings with sales_rank | saying "monthly units sold"; inventing ranks |
 | **Our catalog** — do we stock X | catalog_search_summary or catalog_search | market_brand_*; Mall sold as our stock |
 | Stock / status of product X / in transit / at Loft | product_inventory_status | product.stock_quantity; market sold |
@@ -90,7 +90,7 @@ Safety:
 - Lifecycle: internal approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received. Supplier in_transit needs FOB evidence — help_get slug=po-transfer-lifecycle.
 - POS live loyalty: SKUMS workspace key only; CRM linked on SKUMS HQ (help_get slug=crm-pos-skums-setup). Never put CRM secrets on the register.
 - Prefer po_update_draft / add_lines / clone over recreate. Empty queues ≠ transfers settled.
-- Auth: cloud uses API key in URL (?api_key= / /mcp/c/…) or Bearer; tools/list and tools/call require key.
+- Auth: per-user OAuth (tools = that person's Fran role) or an API key (?api_key= / Bearer). Your tool list is already filtered — ask capabilities, don't guess.
 `.trim()
 }
 
@@ -118,11 +118,19 @@ export function buildMcpAgentInstructions(opts = {}) {
     // Read-only tools are already enumerated in the routing table above; this
     // line only needs to name the write-side boundary.
     'OK drafts: po_* draft/clone, study_start/note (no crawl), store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
-    'Floor damage path: floor_adjustment_create_draft → HQ sees it on Actions (/actions?tab=floor) and Store Ops Floor → floor_adjustment_apply only with inventory:write. Never say stock moved at draft/pending. POS damage events also create pending adjustments for the same Actions queue.',
+    // The create → Actions → apply path is already a table row above; only the
+    // POS origin is new information, so say just that. initialize.instructions
+    // is sent on every session, so duplication here is paid for repeatedly.
+    'POS damage events also land as pending floor adjustments in the same Actions queue.',
+    // Cloud needs nothing extra here: the Safety block already states the
+    // permission rule, the store_ops:approve requirement and the credentials
+    // ban. Restating them cost ~140 chars on every single session.
     cloud
-      ? 'Cloud: only tools in key_permissions (capabilities). store_ops_decide needs store_ops:approve. No credentials. Ask capabilities if unsure.'
+      ? null
       : 'Local safe mode blocks privileged scopes unless FRAN_MCP_MODE=full / full scopes.',
-  ].join('\n')
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   if (!compact) {
     return (

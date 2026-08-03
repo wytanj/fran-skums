@@ -51,7 +51,13 @@ test('assistant twins for #8 reads', () => {
 test('storeOps has inbound and floor draft', () => {
   assert.match(storeOps, /createInboundDraft/)
   assert.match(storeOps, /createFloorAdjustmentDraft/)
-  assert.match(storeOps, /Never claim stock changed|NOT applied to ledger/)
+  // A draft must tell the agent it has NOT moved stock, or Claude reports a
+  // completed adjustment that only exists as a pending row. Accepts either
+  // generation's phrasing — 79d6138 reworded this without weakening it.
+  assert.match(
+    storeOps,
+    /Never claim (ATS|stock) changed|Ledger unchanged until Apply|NOT applied to ledger/i,
+  )
 })
 
 test('lowStockRequestPack shapes draft args', async () => {
