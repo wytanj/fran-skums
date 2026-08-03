@@ -468,8 +468,11 @@ test('credentials come from the database first, env only as fallback', () => {
   const src = read('server/utils/mcpOauth.ts')
   assert.match(src, /from\('mcp_oauth_clients'\)/)
   assert.match(src, /return envMcpOauthClient\(\)/)
-  // A DB outage must not take the MCP endpoint down.
-  assert.match(src, /} catch \{[\s\S]{0,240}\}\n  return envMcpOauthClient\(\)/)
+  // A DB outage must not take the MCP endpoint down: the lookup is wrapped and
+  // the fallback runs after the catch. Matched without literal newlines — this
+  // repo checks out CRLF on Windows, so anchoring on \n makes the assertion
+  // pass in the working copy and fail after a fresh clone.
+  assert.match(src, /catch \{[\s\S]{0,300}return envMcpOauthClient\(\)/)
 })
 
 test('rotation keeps the client_id and replaces only the secret', () => {
