@@ -1,18 +1,24 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-08-02  
+**Date:** 2026-08-03  
 **Production:** https://fran-skums.vercel.app · POS https://fran-pos.vercel.app · CRM https://fran-crm-eight.vercel.app  
-**DB:** migrations **001–079 applied** (… **075** harvest notify · **076** snapshot dimensions + latest-per-listing · **077** brand rollup · **078** query cache · **079** read-path correctness).  
-**Held / parked:** R2 OAuth · Browserbase-as-primary for Shopee · Phase H ecommerce  
+**DB:** migrations **001–083 applied** (… **075** harvest notify · **076–079** read path · **080** rostering · **081** daily-stockout seed · **082** mcp oauth · **083** mcp oauth client registry).  
+
+**Held / parked:** Browserbase-as-primary for Shopee · Phase H ecommerce  
+
+**MCP per-user OAuth (was “R2 OAuth”):** **code built, DB applied, not deployed.** One Claude Enterprise connector config → per-employee permissions. No env vars needed: owner generates + rotates the client id/secret in **Settings → Claude Connector**. Inert until then. See `docs/MCP_OAUTH_DESIGN.md`.  
 
 **Brand radar / Mall harvest:** Track **BR** — **mono scrape backlog cleared (2026-08-01/02)** · **73/73** mono: lifetime sold + **MH-14 sales ranks** (`list_sales_*`) + **MH-4 platform crumbs** · queue **idle** · **no open scrape duties** for the v1 goals · honest “sold/month” = **Top Sales grid rank** (not calendar units; S-E later) · export recipes **full** | **full_sales** · breadcrumb merge on read · **prod redeploy** 2026-08-02 · optional later: deeper `max_pages` · more PDPs/SKU · distributors · monthly re-scrape
 
 **MCP read path:** Track **RP** — **COMPLETE (RP-1…RP-8)** · next product layer = **named report recipes** (not free-form row math) · `market_brand_rollup` / export_csv / **export_full** · design **`docs/MCP_READ_PATH_DESIGN.md`**  
-**Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · next: L-sim / Jan-1 / campaigns  
+**Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · CRM WS id always injected on POS proxy · next: L-sim / Jan-1 / campaigns  
 **Fran product UX:** Track **F0** — single-org chrome · see § Track F0  
 **Teammate / Kristle:** Track **TEAM** — **shipped + prod** · owner ops invite · Phase **S** = Workspace SSO + MFA later  
 **Demand forecast:** Track **FC** — **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
 **Near-expiry / Loft gate:** Track **EX** — schema + B.4 code exist; **ops path not wired** · review before build · see § Track EX  
+**Store roster:** Track **RO** — **shipped** · zones + hourly shifts · `/roster` · MCP `roster_*` · POS my-zone + board · mig **080**  
+**Research notebooks:** Track **RN** — **shipped** · `/research` · MCP study note tools · harvest remains opt-in  
+**Floor / Actions:** POS+MCP floor damage → Actions **Apply** · Store Ops HQ form · stock only after Apply  
 **MCP agent routing:** **two buckets shipped** (Mall `market_brand_*` vs catalog/stock)  
 **Web / store-routing site:** **`TODO-WEB.md`**
 
@@ -42,17 +48,24 @@
 
 ## Start here next
 
-### What’s done (recent → 2026-08-02)
+### What’s done (recent → 2026-08-03)
 
 | Area | Outcome |
 |------|---------|
 | **BR mono scrape (v1 goals)** | **Complete** · **73/73** mono: lifetime sold + **MH-14 sales ranks** + **MH-4 platform crumbs** · harvest queue **idle** · **no open scrape duties** |
 | **MH-14 sales ranks** | S-A/B/C eng ✅ · S1 mono **`--sort-by sales --skip-mh4 --max-pages 2`** finished · honest label = Top Sales **rank** + lifetime sold (not calendar monthly units) |
 | **MH-4 crumbs** | Last four brands done (pyunkang-yul, sulwhasoo, round-lab, house-of-hur) · path merge onto sales rows in read/export |
-| **MCP / export** | Recipes **full** + **full_sales** · default listings include path + `sales_rank` · **prod redeploy 2026-08-02** |
+| **MCP / export** | Recipes **full** + **full_sales** · default listings include path + `sales_rank` · demo-safe labels · **prod redeploy 2026-08-02** |
+| **A3 MCP OAuth** | **Built · DB applied · not deployed** · per-employee permissions through one Claude Enterprise connector · client id/secret managed in Settings (no env vars) · API keys unchanged for scripts/cron |
 | **Harvest ops** | `_harvest_queue` cold→babysit · **no Chrome bounce** by default · sales-only monthly command ready |
 | **RP** | **RP-1…RP-8 done** · mig **076–079** applied + prod |
-| **TEAM / L / Loft** | Prior shipped state unchanged — invites, loyalty live wire, Loft P–F |
+| **RO roster** | **Shipped** · mig **080** · zones/shifts · `/roster` · MCP + POS my-zone/board · sample staff seed |
+| **RN research** | **Shipped** · `/research` notebooks · MCP study note tools · Product Quality dropped from nav |
+| **Floor damage** | **Shipped** · MCP/Store Ops create draft · Actions → Floor Apply/Reject · POS events surface on HQ |
+| **K stockout pack** | **Shipped** · `daily-stockout` preset · section `inventory.store_stockouts` · mig **081** · MCP `template_slug` |
+| **L loyalty proxy** | Linked CRM workspace id always injected on POS loyalty proxy |
+| **EX audit** | Track **EX** documented — gate/scopes exist; HQ send UI + inbound dates **not wired** (do not rebuild `/expiry`) |
+| **TEAM / Loft** | Prior shipped state unchanged — invites, Loft P–F |
 
 ### Layout — what to do next (ordered)
 
@@ -63,10 +76,10 @@
      · deeper catalogs max_pages=12 · more MH-4 PDPs per brand
      · distributors · true monthly units (MH-14 S-E / MH-10)
    · Re-export xlsx only when you want a fresh sheet from DB
-
 1. MCP report recipes (product, high leverage)  ← next eng
    · Named recipes: top_brands_weekly · top_sales_by_brand · shelf_mix · mh4_coverage
-   · market_report_run · Airtable/Sheets push · K weekly pack
+   · market_report_run · Airtable/Sheets push · Mall weekly pack (K)
+   · daily-stockout already seeded — build market recipes next
 
 2. EX — Near-expiry / Loft gate (when scheduling Loft-facing work)
    · P0: real Send-to-Loft UI + override · inbound expiry capture
@@ -74,12 +87,12 @@
    · Do NOT rebuild /expiry app — see § Track EX recommendation
 
 3. K + FC (HQ demand loop)
-   · FC-2/3 · demand pack seed
+   · FC-2/3 · demand pack seed · more real K sections beyond stockout
 
 4. F0 Fran single-org UX
 
 5. Parallel when blocked
-   · Loft Phase 0 · J · L campaigns
+   · Loft Phase 0 IDs · J (supplier PO) · L campaigns · RO ops polish
 ```
 
 ### Claude / MCP cheat sheet
@@ -112,22 +125,26 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
-| **A** | MCP composites #1–8 | **Done** |
-| **A2** | Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
-| **BR** | **Weekly brand radar / Mall harvest** | **v1 mono scrape closed** (sold + sales ranks + crumbs) · queue idle · optional monthly sales re-run · MH-10–13 / S-E later |
-| **RP+** | **MCP report recipes / BI handoff** | **Next eng** — named recipes + Airtable/Sheets · `top_sales_by_brand` ready to build on harvest data |
-| **RP** | **MCP read path** | **RP-1…RP-8 DONE** |
-| **K** | **Agentic report registry** | **Rpt-0–6 done** · seed Mall weekly pack sections |
-| **FC** | **Demand forecast studio** | **FC-0–1 done** · next FC-2/3 |
-| **F0** | **Fran single-org UX** | **Next product chrome** |
-| **L** | **Loyalty FWB** | **Live wire shipped** · Jan-1 / campaigns |
-| **B** | Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
-| **EX** | **Near-expiry / FEFO policy (Loft gate)** | **Review before build** · P0 wire send + data · see § Track EX |
-| **J** | **Supplier order lifecycle (KR/HK)** | Design + Help 072 · Phase 0 actors |
-| **TEAM** | **Teammate invite** | **Shipped + prod** · Kristle = owner ops |
-| **S** | **Login MFA = Google Workspace** | Planned |
-| **G** | **Shopee collect** | Windows primary · G2 → MH-11 |
-| **WEB** | **Fran web → store** | Parked in `TODO-WEB.md` |
+| **—** | **BR** weekly brand radar | **v1 closed** · queue idle · optional monthly sales re-run · MH-10–13 / S-E later |
+| **1 ← next** | **RP+** MCP report recipes / BI handoff | Named recipes + Airtable/Sheets · `top_sales_by_brand` ready on harvest data |
+| **2** | **EX** near-expiry / Loft gate | **Review before build** · P0 wire Send-to-Loft + inbound dates · see § Track EX |
+| **3** | **K** agentic report registry | **Rpt-0–6 done** · **daily-stockout shipped** · next Mall weekly / demand sections |
+| **3** | **FC** demand forecast studio | **FC-0–1 done** · next FC-2/3 |
+| **4** | **F0** Fran single-org UX | Product chrome collapse |
+| **5** | **B** Loft Phase 0 close-out | **Ops:** Loft email / dictionary IDs |
+| **5** | **J** supplier order lifecycle (KR/HK) | Design + Help 072 · Phase 0 actors |
+| **5** | **L** loyalty FWB | Live wire shipped · Jan-1 / campaigns |
+| **Done** | **A** MCP composites #1–8 | **Done** |
+| **Done** | **A2** Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
+| **P1** | **A3** MCP per-user OAuth | **Built · mig 082+083 applied · not deployed** · generate credentials in Settings → Claude Connector · `docs/MCP_OAUTH_DESIGN.md` |
+| **Done** | **RP** MCP read path | **RP-1…RP-8 DONE** |
+| **Done** | **RO** store roster | **Shipped** · mig 080 · `/roster` · MCP + POS |
+| **Done** | **RN** research notebooks | **Shipped** · `/research` · MCP study notes |
+| **Done** | **Floor** damage → Actions Apply | **Shipped** · MCP/Store Ops/POS → HQ Apply |
+| **Done** | **TEAM** teammate invite | **Shipped + prod** · Kristle = owner ops |
+| **Later** | **S** login MFA = Google Workspace | Planned |
+| **Later** | **G** Shopee collect | Windows primary · G2 → MH-11 |
+| **Parked** | **WEB** Fran web → store | Parked in `TODO-WEB.md` |
 
 ## Track EX — Near-expiry / Loft short-date gate (ops wiring)
 
@@ -434,6 +451,7 @@ Map into packages: viewer → read; member → read+run; ops_safe/admin → writ
 | **Warehouse daily ops** | Daily | Ops | exceptions, floor pending, inbound, ready-for-collect |
 | **Finance stock & rewards** | Weekly | Finance | stock position, rewards liability (CRM if available) |
 | **HQ demand daily** | Daily | HQ / buyer | velocity snapshot + store_fill + supplier_buy suggestions |
+| **Daily stockout** | Daily | Ops / HQ | per-store ATS=0 (`inventory.store_stockouts`) — **shipped** mig **081** |
 
 ### Demand MA + path A/B (inside K, not a separate free agent)
 
@@ -783,6 +801,7 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 - [x] Migration **067** report.run.completed policy on shared project
 - [x] Migration **068** marketplace brand universe on shared project (local applied 2026-07-20)
 - [ ] **Apply migration 075** (`npm run db:migrate`) — MH-9 harvest notification policies
+- [x] **Migrations 080–081** applied (roster + daily-stockout seed) — 2026-08-03
 - [ ] Set **`SKUMS_API_BASE`** + **`MARKETPLACE_CRON_SECRET`** locally for MH-9 blocked/recovered pings
 - [ ] Confirm prod deploy green after each push
 - [ ] Confirm prod DB has **063–068** if not same project as local migrate
@@ -804,7 +823,8 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 
 ## Completed tracks (do not redo)
 
-- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live · **M1–M3** · inv manager **065** · **K Rpt-0–5** (mig **066–067**)  
+- M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live · **M1–M3** · inv manager **065** · **K Rpt-0–6** (mig **066–067**) · **daily-stockout** (mig **081**)  
+- **RO** roster (mig **080**) · **RN** research notebooks · floor damage → Actions Apply · BR mono v1 (sold + sales ranks + crumbs)  
 - Detail in git history / `TODO-LOFT.md` / commit summaries  
 
 ### Phase N — stakeholder notifications
