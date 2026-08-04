@@ -77,6 +77,8 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 081 | report_daily_stockout.sql | Platform seed pack `daily-stockout` | Per-store ATS=0 section `inventory.store_stockouts`; MCP `reports_run` |
 | 080 | rostering.sql | Store roster: employees (manual/rippling), zones, hourly shifts | POS my-zone + MCP roster_* + /roster UI |
 | 082 | mcp_oauth.sql | Per-user OAuth for the Claude MCP connector: `mcp_oauth_codes`, `mcp_oauth_tokens` | RLS on / no policies = service role only. Scopes re-derived from live membership per request; `scope` column is audit only. See `docs/MCP_OAUTH_DESIGN.md` |
+| 083 | mcp_oauth_client_registry.sql | `mcp_oauth_clients` — client id + hashed secret, managed from Settings → Claude Connector | Rotation without a redeploy. Resolved by `client_id`, so several workspaces can hold separate credentials on one connector URL |
+| 084 | invite_policy_no_auth_users.sql | Invite self-view policy reads `auth.jwt() ->> 'email'` instead of `auth.users` | Fixes "permission denied for table users" when inviting. **Never query `auth.users` from an RLS policy** — `authenticated` has no privilege on it. Guarded by `tests/rls-no-auth-users.test.mjs` |
 
 ## Planned Phase C Spine
 
