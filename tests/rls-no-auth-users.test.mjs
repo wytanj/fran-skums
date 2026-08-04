@@ -29,12 +29,18 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const dbDir = join(root, 'core/db')
 
-/** Drop -- line comments so quoted examples in a header don't read as code. */
+/**
+ * Drop -- line comments so quoted examples in a header don't read as code.
+ *
+ * Matches to the next line terminator explicitly instead of using `.*$`. In JS
+ * regex `\r` IS a line terminator, so `.` will not cross it and `$` (without the
+ * m flag) does not match before one — meaning `/--.*$/` silently fails to strip
+ * anything from a CRLF file. This repo checks out CRLF on Windows, so that
+ * version passed against a freshly-written working copy and no-opped on a clean
+ * clone, which let migration 084's own quoted example count as live SQL.
+ */
 function stripComments(sql) {
-  return sql
-    .split('\n')
-    .map((line) => line.replace(/--.*$/, ''))
-    .join('\n')
+  return sql.replace(/--[^\r\n]*/g, '')
 }
 
 function migrationFiles() {

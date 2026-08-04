@@ -139,10 +139,9 @@ test('no migration re-adds a unique across all invite statuses', () => {
   const dbDir = join(root, 'core/db')
   const offenders = []
   for (const f of readdirSync(dbDir).filter((x) => /^\d{3}_.*\.sql$/.test(x)).sort()) {
-    const sql = read(`core/db/${f}`)
-      .split('\n')
-      .map((l) => l.replace(/--.*$/, ''))
-      .join('\n')
+    // /--[^\r\n]*/ rather than /--.*$/: in JS regex \r is a line terminator, so
+    // `.` will not cross it and the `$` form strips nothing from a CRLF file.
+    const sql = read(`core/db/${f}`).replace(/--[^\r\n]*/g, '')
     if (/unique\s*\(\s*workspace_id\s*,\s*email\s*,\s*status\s*\)/i.test(sql) && f !== '009_team_permissions.sql') {
       offenders.push(f)
     }
