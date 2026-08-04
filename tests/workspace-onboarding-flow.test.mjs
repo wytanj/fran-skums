@@ -19,7 +19,7 @@
  * @see server/utils/mcpOauth.ts (resolveWorkspaceForUser)
  */
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -115,4 +115,37 @@ test('onboarding names the signed-in account', () => {
 test('a failed invite fetch still leaves the create path usable', () => {
   const src = read('app/pages/onboarding.vue')
   assert.match(src, /catch \{[\s\S]{0,80}pendingInvites\.value = \[\]/)
+})
+
+// ---------------------------------------------------------------------------
+// Invite uniqueness: one PENDING invite, not one invite per status
+// ---------------------------------------------------------------------------
+
+test('085 constrains only pending invites, so revoke history can accumulate', () => {
+  const sql = read('core/db/085_invite_unique_pending_only.sql')
+  assert.match(sql, /drop constraint if exists workspace_invites_workspace_id_email_status_key/)
+  assert.match(sql, /create unique index[\s\S]{0,200}where status = 'pending'/)
+  // Case-insensitive, matching sendInvite's lowercasing and accept_invite's
+  // lower() comparison — otherwise a re-invite with different casing slips a
+  // second live invitation through.
+  assert.match(sql, /\(workspace_id, lower\(email\)\)/)
+})
+
+test('no migration re-adds a unique across all invite statuses', () => {
+  // unique (workspace_id, email, status) caps history at one revoked and one
+  // accepted row per address, so the SECOND revoke of the same person fails with
+  // a duplicate key error. That is the bug 085 removes; re-adding it would
+  // reintroduce it silently.
+  const dbDir = join(root, 'core/db')
+  const offenders = []
+  for (const f of readdirSync(dbDir).filter((x) => /^\d{3}_.*\.sql$/.test(x)).sort()) {
+    const sql = read(`core/db/${f}`)
+      .split('\n')
+      .map((l) => l.replace(/--.*$/, ''))
+      .join('\n')
+    if (/unique\s*\(\s*workspace_id\s*,\s*email\s*,\s*status\s*\)/i.test(sql) && f !== '009_team_permissions.sql') {
+      offenders.push(f)
+    }
+  }
+  assert.deepEqual(offenders, [], `re-adds the all-status unique: ${offenders.join(', ')}`)
 })
