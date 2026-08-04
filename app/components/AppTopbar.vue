@@ -7,8 +7,13 @@ const router = useRouter()
 
 const userMenuOpen = ref(false)
 
+const { resetWorkspaceState } = useWorkspace()
+
 async function logout() {
   await client.auth.signOut()
+  // Workspace state is module-level and survives the route change; clearing it
+  // stops the next account from seeing this one's workspace name and role.
+  resetWorkspaceState()
   router.push('/auth/login')
 }
 </script>

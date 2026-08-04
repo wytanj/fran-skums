@@ -4,6 +4,22 @@ const currentWorkspace = ref<Workspace | null>(null)
 const workspaces = ref<Workspace[]>([])
 const memberRole = ref<string>('member')
 const hasFetched = ref(false)
+/**
+ * Whose state the refs above hold.
+ *
+ * These are module-level, so they survive a sign-out → sign-in in the same tab.
+ * Without this, signing in as a second account showed the first account's
+ * workspace name and role until a hard reload — and `currentWorkspace` staying
+ * set meant the new user skipped the onboarding/invite path entirely.
+ */
+const fetchedForUid = ref<string | null>(null)
+
+function resetWorkspaceState() {
+  currentWorkspace.value = null
+  workspaces.value = []
+  memberRole.value = 'member'
+  hasFetched.value = false
+}
 
 function getUid(u: any): string | undefined {
   return u?.id || u?.sub
@@ -19,6 +35,13 @@ export function useWorkspace() {
       console.warn('[SKUMS] fetchWorkspaces called but no user id. user.value:', JSON.stringify(user.value))
       return
     }
+
+    // Different account in the same tab — drop the previous user's state before
+    // it can be displayed or used to skip onboarding.
+    if (fetchedForUid.value && fetchedForUid.value !== uid) {
+      resetWorkspaceState()
+    }
+    fetchedForUid.value = uid
 
     console.log('[SKUMS] Fetching workspaces for user:', uid)
 
@@ -63,6 +86,16 @@ export function useWorkspace() {
     console.log('[SKUMS] Final found workspaces:', foundWorkspaces.length)
 
     workspaces.value = foundWorkspaces
+
+    // A selected workspace the user can no longer reach must not stay on screen
+    // — e.g. their membership was removed, or a refetch followed an account
+    // change. Falling through to the first available one below is correct.
+    if (
+      currentWorkspace.value
+      && !foundWorkspaces.some((ws) => ws.id === currentWorkspace.value!.id)
+    ) {
+      currentWorkspace.value = null
+    }
 
     if (foundWorkspaces.length > 0 && !currentWorkspace.value) {
       currentWorkspace.value = foundWorkspaces[0]
@@ -124,5 +157,7 @@ export function useWorkspace() {
     fetchWorkspaces,
     selectWorkspace,
     createWorkspace,
+    /** For sign-out, so the next account starts clean. */
+    resetWorkspaceState,
   }
 }

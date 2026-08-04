@@ -2,14 +2,37 @@
 const router = useRouter()
 const user = useSupabaseUser()
 const { currentWorkspace, workspaces, fetchWorkspaces, createWorkspace, selectWorkspace } = useWorkspace()
+const { fetchMyPendingInvites, acceptInvite } = useTeam()
 
 const name = ref('')
 const loading = ref(false)
 const checking = ref(true)
 const error = ref('')
 
+/**
+ * A pending invite is the answer to "you have no workspace" far more often than
+ * creating one is. Surfacing it here means an invitee who reaches this page by
+ * any route joins the team instead of quietly ending up owning an empty
+ * workspace — which also decides which workspace Claude connects them to.
+ */
+const pendingInvites = ref<any[]>([])
+const acceptingToken = ref<string | null>(null)
+
 function getUid(u: any): string | undefined {
   return u?.id || u?.sub
+}
+
+async function handleAccept(invite: any) {
+  acceptingToken.value = invite.token
+  error.value = ''
+  try {
+    await acceptInvite(invite.token)
+    await fetchWorkspaces()
+    router.push('/')
+  } catch (e: any) {
+    error.value = e.message || 'Could not accept the invite'
+    acceptingToken.value = null
+  }
 }
 
 onMounted(async () => {
@@ -33,6 +56,14 @@ onMounted(async () => {
     router.push('/')
     return
   }
+
+  // Best effort — a failure here should still show the create form.
+  try {
+    pendingInvites.value = await fetchMyPendingInvites()
+  } catch {
+    pendingInvites.value = []
+  }
+
   checking.value = false
 })
 
@@ -71,8 +102,50 @@ function handleSelect(ws: any) {
       <div class="mb-8 text-center">
         <h1 class="text-2xl font-bold text-white">Welcome to SKUMS</h1>
         <p class="mt-2 text-sm text-gray-400">
-          {{ workspaces.length > 0 ? 'Select a workspace or create a new one' : 'Create your first workspace to get started' }}
+          <template v-if="pendingInvites.length > 0">You've been invited to a workspace</template>
+          <template v-else-if="workspaces.length > 0">Select a workspace or create a new one</template>
+          <template v-else>Create your first workspace to get started</template>
         </p>
+        <p v-if="user?.email" class="mt-1 text-xs text-gray-500">
+          Signed in as {{ user.email }}
+        </p>
+      </div>
+
+      <!-- Pending invites: joining the team, not starting a new one -->
+      <div v-if="pendingInvites.length > 0" class="mb-6 space-y-2">
+        <p class="mb-2 text-sm font-medium text-gray-300">Invitations</p>
+        <div
+          v-for="inv in pendingInvites"
+          :key="inv.id"
+          class="card flex items-center gap-4 p-4"
+        >
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600/10 text-sm font-bold text-emerald-400">
+            {{ (inv.workspace?.name || '?').charAt(0).toUpperCase() }}
+          </div>
+          <div class="min-w-0">
+            <p class="truncate font-medium text-white">{{ inv.workspace?.name || 'Workspace' }}</p>
+            <p class="text-xs text-gray-500">invited as {{ inv.role }}</p>
+          </div>
+          <button
+            type="button"
+            class="btn-primary ml-auto shrink-0 text-sm"
+            :disabled="acceptingToken === inv.token"
+            @click="handleAccept(inv)"
+          >
+            {{ acceptingToken === inv.token ? 'Joining…' : 'Accept' }}
+          </button>
+        </div>
+        <p class="pt-1 text-xs text-gray-500">
+          Accept the invitation to join your team. Only create a workspace below if you
+          actually need a separate one.
+        </p>
+      </div>
+
+      <div
+        v-if="error && pendingInvites.length > 0"
+        class="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400"
+      >
+        {{ error }}
       </div>
 
       <!-- Existing workspaces -->
