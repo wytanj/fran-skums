@@ -554,6 +554,32 @@ test('consent screen names the account and its tool count before granting', () =
   assert.match(src, /tool_count/)
 })
 
+test('consent screen offers a pending invitation instead of dead-ending', () => {
+  const src = read('app/pages/oauth/authorize.vue')
+  assert.match(src, /Accept invitation/)
+  // Accepting goes through the user's own client so accept_invite's auth.uid()
+  // email check still applies — a server route with the service key would skip it.
+  assert.match(src, /rpc\('accept_invite', \{\s*p_token: invite\.token,?\s*\}\)/)
+  // Reload rather than authorise immediately: the tool count only exists after
+  // membership does, and it is the thing worth seeing before granting.
+  assert.match(src, /await load\(\)/)
+})
+
+test('invite lookup is scoped to the signed-in address', () => {
+  const src = read('server/api/oauth/authorize-info.get.ts')
+  // The service client bypasses RLS, so this filter is the only thing stopping
+  // one person's invite token being handed to another.
+  assert.match(src, /\.ilike\('email', email\)/)
+  assert.match(src, /\.eq\('status', 'pending'\)/)
+  // Expired invites must not be offered — accept_invite would refuse them anyway.
+  assert.match(src, /\.gt\('expires_at'/)
+})
+
+test('a user with no invite still gets the ask-an-owner message', () => {
+  const src = read('server/api/oauth/authorize-info.get.ts')
+  assert.match(src, /invites\.length[\s\S]{0,200}not a member of any Fran workspace/)
+})
+
 test('design doc records the flow and the key-vs-OAuth tradeoff', () => {
   const doc = read('docs/MCP_OAUTH_DESIGN.md')
   assert.match(doc, /authorization_code/)

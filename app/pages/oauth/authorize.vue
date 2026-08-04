@@ -12,6 +12,12 @@
  */
 definePageMeta({ layout: 'auth' })
 
+type PendingInvite = {
+  token: string
+  role: string
+  workspace_name: string | null
+}
+
 type AuthorizeInfo = {
   signed_in: boolean
   email?: string | null
@@ -23,6 +29,7 @@ type AuthorizeInfo = {
   tool_count?: number
   tool_names?: string[]
   can_authorize?: boolean
+  pending_invites?: PendingInvite[]
   reason?: string | null
   scope?: string
 }
@@ -33,6 +40,7 @@ const client = useSupabaseClient()
 const info = ref<AuthorizeInfo | null>(null)
 const loading = ref(true)
 const approving = ref(false)
+const accepting = ref<string | null>(null)
 const error = ref('')
 const showTools = ref(false)
 
@@ -79,6 +87,32 @@ async function approve() {
     error.value =
       e?.data?.statusMessage || e?.statusMessage || e?.message || 'Could not authorize.'
     approving.value = false
+  }
+}
+
+/**
+ * Accept a pending invitation without leaving the flow.
+ *
+ * Uses the accept_invite RPC through the *user's* client, not a server route:
+ * the function keys off auth.uid() and verifies the signed-in address matches
+ * the invited one, so the identity check stays where it belongs. Reloads rather
+ * than authorising straight away — the tool count is the thing worth seeing
+ * before granting, and it only exists after membership does.
+ */
+async function acceptAndReload(invite: PendingInvite) {
+  accepting.value = invite.token
+  error.value = ''
+  try {
+    const { error: rpcError } = await (client as any).rpc('accept_invite', {
+      p_token: invite.token,
+    })
+    if (rpcError) throw rpcError
+    await load()
+  } catch (e: any) {
+    error.value =
+      e?.message || e?.data?.statusMessage || 'Could not accept the invitation.'
+  } finally {
+    accepting.value = null
   }
 }
 
@@ -161,6 +195,30 @@ onMounted(load)
       >
         {{ info.reason }}
       </p>
+
+      <!-- Pending invitation: finish joining without leaving the flow -->
+      <div v-if="!info.can_authorize && info.pending_invites?.length" class="mt-4 space-y-2">
+        <div
+          v-for="inv in info.pending_invites"
+          :key="inv.token"
+          class="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3"
+        >
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium text-white">
+              {{ inv.workspace_name || 'Workspace' }}
+            </p>
+            <p class="text-xs text-emerald-400/80">invited as {{ inv.role }}</p>
+          </div>
+          <button
+            type="button"
+            class="btn-primary ml-auto shrink-0 text-sm"
+            :disabled="accepting === inv.token"
+            @click="acceptAndReload(inv)"
+          >
+            {{ accepting === inv.token ? 'Joining…' : 'Accept invitation' }}
+          </button>
+        </div>
+      </div>
 
       <div class="mt-6 flex flex-col gap-3">
         <button

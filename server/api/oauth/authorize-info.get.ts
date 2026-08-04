@@ -46,6 +46,28 @@ export default defineEventHandler(async (event) => {
   const ws = await resolveWorkspaceForUser(db, userId)
 
   if (!ws.workspaceId) {
+    // No workspace is usually "invited but not accepted yet", so offer the
+    // invitation here instead of sending them away. Without this, Connect is a
+    // dead end that costs a round trip through the invite link.
+    //
+    // Filtered by the signed-in address explicitly: the service client bypasses
+    // RLS, so nothing else stops us handing one person's invite token to another.
+    const email = String(user?.email || '').trim().toLowerCase()
+    let invites: Array<{ token: string; role: string; workspace_name: string | null }> = []
+    if (email) {
+      const { data } = await db
+        .from('workspace_invites')
+        .select('token, role, expires_at, workspaces(name)')
+        .eq('status', 'pending')
+        .ilike('email', email)
+        .gt('expires_at', new Date().toISOString())
+      invites = (data || []).map((row: any) => ({
+        token: row.token as string,
+        role: (row.role as string) || 'member',
+        workspace_name: (row.workspaces?.name as string) || null,
+      }))
+    }
+
     return {
       signed_in: true,
       email: user?.email || null,
@@ -55,8 +77,10 @@ export default defineEventHandler(async (event) => {
       scopes: [],
       tool_count: 0,
       can_authorize: false,
-      reason:
-        'This account is not a member of any Fran workspace. Ask an owner to invite you, then try again.',
+      pending_invites: invites,
+      reason: invites.length
+        ? 'Accept your invitation below to finish connecting.'
+        : 'This account is not a member of any Fran workspace. Ask an owner to invite you, then try again.',
       scope: request.scope,
       resource: request.resource,
     }
