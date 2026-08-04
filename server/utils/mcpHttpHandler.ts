@@ -18,7 +18,7 @@ import {
   remoteMcpCorsHeaders,
   runRemoteMcpJsonRpc,
 } from './remoteMcp'
-import { mcpOauthClient, mcpOauthIssuer, mcpUnauthorizedHeader } from './mcpOauth'
+import { anyMcpOauthClient, mcpOauthIssuer, mcpUnauthorizedHeader } from './mcpOauth'
 import { handleMcpJsonRpc } from '../../mcp/src/httpProtocol.mjs'
 
 const PUBLIC_METHODS = new Set(['initialize', 'ping'])
@@ -153,7 +153,7 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
       opts?.pathToken || q.api_key || q.api || q.key || q.access_token || q.token,
     )
     const issuer = mcpOauthIssuer(event)
-    const oauth = await mcpOauthClient()
+    const oauth = await anyMcpOauthClient()
     return {
       name: 'fran-skums',
       version: '0.6.4-cloud',
@@ -238,7 +238,7 @@ export async function handleMcpHttpRequest(event: H3Event, opts?: { pathToken?: 
       // and hide the message telling them the key is bad. That path keeps the
       // long-standing 200 + JSON-RPC error.
       const urlKeyPresent = Boolean((event.context as any)?.mcpApiKey)
-      if (!urlKeyPresent && (await mcpOauthClient())) {
+      if (!urlKeyPresent && (await anyMcpOauthClient())) {
         setResponseStatus(event, 401)
         setHeader(event, 'WWW-Authenticate', mcpUnauthorizedHeader(event))
         setHeader(event, 'Content-Type', 'application/json')

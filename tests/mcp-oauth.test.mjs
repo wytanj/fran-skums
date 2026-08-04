@@ -371,7 +371,7 @@ test('MCP endpoint returns a real 401 with WWW-Authenticate', () => {
 test('a bad URL API key still gets the explanatory 200, not an OAuth bounce', () => {
   const src = read('server/utils/mcpHttpHandler.ts')
   assert.match(src, /const urlKeyPresent = Boolean\(\(event\.context as any\)\?\.mcpApiKey\)/)
-  assert.match(src, /if \(!urlKeyPresent && \(await mcpOauthClient\(\)\)\)/)
+  assert.match(src, /if \(!urlKeyPresent && \(await anyMcpOauthClient\(\)\)\)/)
   // The legacy path survives.
   assert.match(src, /setResponseStatus\(event, 200\)/)
 })
@@ -430,7 +430,7 @@ test('discovery documents 404 when no client is registered', () => {
   const src = read('server/middleware/mcpOauthMetadata.ts')
   // Shipping this code before credentials exist must not advertise a broken
   // OAuth server — Claude would fail mid-flow instead of falling back.
-  assert.match(src, /if \(!\(await mcpOauthClient\(\)\)\)[\s\S]{0,200}setResponseStatus\(event, 404\)/)
+  assert.match(src, /if \(!\(await anyMcpOauthClient\(\)\)\)[\s\S]{0,200}setResponseStatus\(event, 404\)/)
   assert.match(src, /oauth_not_configured/)
 })
 
@@ -466,13 +466,18 @@ test('migration 083 keeps the client registry service-role only', () => {
 
 test('credentials come from the database first, env only as fallback', () => {
   const src = read('server/utils/mcpOauth.ts')
-  assert.match(src, /from\('mcp_oauth_clients'\)/)
+  // Registry queries live in mcpOauthClients.ts so they can be executed in a
+  // test rather than pattern-matched — see tests/mcp-oauth-clients.test.mjs.
+  assert.match(src, /findMcpOauthClientById\(db \|\| getAdminClient\(\), id\)/)
+  assert.match(src, /findAnyMcpOauthClient\(db \|\| getAdminClient\(\)\)/)
   assert.match(src, /return envMcpOauthClient\(\)/)
   // A DB outage must not take the MCP endpoint down: the lookup is wrapped and
   // the fallback runs after the catch. Matched without literal newlines — this
   // repo checks out CRLF on Windows, so anchoring on \n makes the assertion
   // pass in the working copy and fail after a fresh clone.
   assert.match(src, /catch \{[\s\S]{0,300}return envMcpOauthClient\(\)/)
+  // The env pair must only answer for its OWN id, never for a stranger's.
+  assert.match(src, /env && env\.clientId === id \? env : null/)
 })
 
 test('rotation keeps the client_id and replaces only the secret', () => {

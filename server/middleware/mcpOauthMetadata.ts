@@ -16,7 +16,7 @@
 import { defineEventHandler, getMethod, send, setResponseHeader, setResponseStatus } from 'h3'
 import {
   authorizationServerMetadata,
-  mcpOauthClient,
+  anyMcpOauthClient,
   protectedResourceMetadata,
 } from '../utils/mcpOauth'
 
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
     return send(event, '')
   }
 
-  if (!(await mcpOauthClient())) {
+  if (!(await anyMcpOauthClient())) {
     setResponseStatus(event, 404)
     setResponseHeader(event, 'content-type', 'application/json')
     return send(

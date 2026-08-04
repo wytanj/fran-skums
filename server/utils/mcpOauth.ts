@@ -24,6 +24,11 @@ import { randomBytes } from 'node:crypto'
 import type { H3Event } from 'h3'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveEffectiveScopesForApiKey } from './effectiveScopes'
+import {
+  findAnyMcpOauthClient,
+  findMcpOauthClientById,
+  type McpOauthClientRow,
+} from './mcpOauthClients'
 import { defaultMcpPackageForRole } from './scopes'
 import { resolveCloudMcpScopes } from '../../mcp/src/context.mjs'
 import {
@@ -121,42 +126,65 @@ function envMcpOauthClient(): McpOauthClient | null {
   }
 }
 
+function rowToClient(row: McpOauthClientRow): McpOauthClient {
+  return {
+    id: row.id,
+    clientId: row.clientId,
+    clientSecretHash: row.clientSecretHash,
+    redirectUris: registeredRedirectUris(),
+    source: 'database',
+  }
+}
+
 /**
- * The registered client. Database first, env var as fallback.
+ * Resolve the client a request claims to be, by its client_id.
  *
- * One client for the whole deployment — every Claude organisation that adds the
- * connector pastes the same pair, which is safe because the pair grants nothing
- * on its own. Returns null when neither source has one, and every caller treats
- * that as "OAuth is off", which is what keeps this inert until it is set up.
+ * Use this on every path that authenticates — the token endpoint and the
+ * authorize request. Resolving by id rather than "the newest row" is what lets
+ * a demo workspace and a production workspace hold separate credentials against
+ * the same connector URL.
+ *
+ * Falls back to the env pair only when that pair's id is the one presented, so
+ * an env-configured deployment keeps working without ever matching a stranger.
+ */
+export async function mcpOauthClientById(
+  clientId: string | null | undefined,
+  db?: SupabaseClient,
+): Promise<McpOauthClient | null> {
+  const id = String(clientId || '').trim()
+  if (!id) return null
+
+  try {
+    const row = await findMcpOauthClientById(db || getAdminClient(), id)
+    if (row) return rowToClient(row)
+  } catch {
+    // Service key missing, table not migrated, or the DB is unreachable. Fall
+    // back rather than taking the MCP endpoint down with us.
+  }
+
+  const env = envMcpOauthClient()
+  return env && env.clientId === id ? env : null
+}
+
+/**
+ * Is OAuth switched on at all? Database first, env var as fallback.
+ *
+ * ONLY for the two boolean gates — the discovery 404 and the /mcp 401. It
+ * returns an arbitrary live client when several workspaces are registered, so
+ * authenticating with it would let one workspace's credentials stop another's
+ * from being recognised. Use mcpOauthClientById for anything that authenticates.
  *
  * Database first so rotating a leaked secret is a button in Settings rather than
  * a Vercel edit plus a redeploy.
  */
-export async function mcpOauthClient(
+export async function anyMcpOauthClient(
   db?: SupabaseClient,
 ): Promise<McpOauthClient | null> {
   try {
-    const client = db || getAdminClient()
-    const { data } = await client
-      .from('mcp_oauth_clients')
-      .select('id, client_id, client_secret_hash')
-      .is('revoked_at', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    const row = data?.[0]
-    if (row) {
-      return {
-        id: row.id as string,
-        clientId: row.client_id as string,
-        clientSecretHash: (row.client_secret_hash as string) || null,
-        redirectUris: registeredRedirectUris(),
-        source: 'database',
-      }
-    }
+    const row = await findAnyMcpOauthClient(db || getAdminClient())
+    if (row) return rowToClient(row)
   } catch {
-    // No service key, table not migrated yet, or the DB is unreachable. Fall back
-    // rather than taking the MCP endpoint down with us.
+    // Same reasoning as above — degrade to env, never throw.
   }
   return envMcpOauthClient()
 }
@@ -391,7 +419,7 @@ export function protectedResourceMetadata(event: H3Event) {
 }
 
 export async function authorizationServerMetadata(event: H3Event) {
-  const client = await mcpOauthClient()
+  const client = await anyMcpOauthClient()
   return authorizationServerMetadataFor(
     mcpOauthIssuer(event),
     Boolean(client?.clientSecretHash),
@@ -407,12 +435,24 @@ export async function validateAuthorizeRequest(
   event: H3Event,
   query: Record<string, any>,
 ): Promise<AuthorizeParams> {
-  const client = await mcpOauthClient()
+  // Resolve by the id presented, not "the" client — see mcpOauthClientById.
+  const client = await mcpOauthClientById(query.client_id)
   if (!client) {
-    throw createError({
-      statusCode: 503,
-      statusMessage: 'MCP OAuth is not configured on this deployment.',
-    })
+    // Distinguish "nothing is set up" from "that id is not ours", or an admin
+    // debugging a typo gets told the whole feature is off.
+    const configured = await anyMcpOauthClient()
+    throw createError(
+      configured
+        ? {
+            statusCode: 400,
+            statusMessage:
+              'Unknown client_id. Check the OAuth Client ID in the Claude connector settings.',
+          }
+        : {
+            statusCode: 503,
+            statusMessage: 'MCP OAuth is not configured on this deployment.',
+          },
+    )
   }
 
   const result = checkAuthorizeParams(query, {

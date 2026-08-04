@@ -11,7 +11,7 @@
 import {
   OauthError,
   exchangeAuthorizationCode,
-  mcpOauthClient,
+  mcpOauthClientById,
   refreshAccessToken,
   touchMcpOauthClient,
   verifyClientSecretHash,
@@ -54,13 +54,6 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'no-store')
 
   const db = getAdminClient()
-  const client = await mcpOauthClient(db)
-  if (!client) {
-    return fail(event, 503, {
-      error: 'temporarily_unavailable',
-      error_description: 'MCP OAuth is not configured on this deployment.',
-    })
-  }
 
   let body: Record<string, any>
   try {
@@ -78,7 +71,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const creds = readClientCredentials(event, body)
-  if (creds.clientId !== client.clientId) {
+
+  // Resolve by the id presented rather than fetching "the" client: several
+  // workspaces can each hold their own credentials against this one endpoint.
+  // Unknown and revoked both land here, and both answer invalid_client without
+  // saying which — nothing to probe.
+  const client = await mcpOauthClientById(creds.clientId, db)
+  if (!client) {
     return fail(event, 401, {
       error: 'invalid_client',
       error_description: 'Unknown client_id.',
