@@ -73,8 +73,24 @@ export async function loadBrandsForShopUsername(db, workspaceId, shopUsername) {
     .limit(100)
 
   if (error) throw new Error(error.message)
-  const rows = data || []
+  let rows = data || []
   if (!rows.length) return []
+
+  // Distributor Malls often stock brands linked to a *different* distributor shop
+  // (e.g. Abib titles on younfamily.sg). Use the full multi_brand_distributor
+  // allowlist for attribution, not only rows sharing this shop_username.
+  const shopIsDistributor = rows.some((r) => isMultiBrandDistributor(r))
+  if (shopIsDistributor) {
+    const { data: allDist, error: eDist } = await db
+      .from('marketplace_brand_universe')
+      .select('id, brand_key, display_name, shop_username, shop_kind, metadata, enabled')
+      .eq('workspace_id', workspaceId)
+      .eq('shop_kind', SHOP_KIND_DISTRIBUTOR)
+      .eq('enabled', true)
+      .limit(200)
+    if (eDist) throw new Error(eDist.message)
+    if (allDist?.length) rows = allDist
+  }
 
   // Expand allowlist: union of distributor_brand_keys + all rows sharing shop
   const keySet = new Set(rows.map((r) => String(r.brand_key).toLowerCase()))
@@ -99,11 +115,21 @@ export async function loadBrandsForShopUsername(db, workspaceId, shopUsername) {
 
   const byKey = new Map()
   for (const r of [...rows, ...extra]) {
+    const meta = r.metadata && typeof r.metadata === 'object' ? r.metadata : {}
     byKey.set(String(r.brand_key).toLowerCase(), {
       brand_key: String(r.brand_key).toLowerCase(),
       display_name: r.display_name || r.brand_key,
       shop_kind: r.shop_kind || SHOP_KIND_SINGLE,
-      metadata: r.metadata || {},
+      metadata: meta,
+      // buildBrandMatchProfile() reads `aliases`, but there is no aliases column
+      // and nothing used to populate it — so the alias mechanism was dead code
+      // and no brand could ever match a short form of its name. Dear Klairs is
+      // the case that exposed it: display_name yields "dear klairs", while every
+      // Shopee title says just "Klairs …", so 71 of 94 listings on wishtrend.sg
+      // failed to attribute once the shop was correctly in multi-brand mode.
+      aliases: Array.isArray(meta.aliases)
+        ? meta.aliases.map((a) => String(a || '').trim()).filter(Boolean)
+        : [],
     })
   }
   return [...byKey.values()]
