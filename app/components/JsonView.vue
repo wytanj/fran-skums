@@ -42,7 +42,7 @@ const highlighted = computed(() => {
 
 <template>
   <pre
-    class="jv-root overflow-auto rounded-lg bg-gray-950 p-4 text-sm leading-relaxed"
+    class="jv-root overflow-auto rounded-lg border border-line-soft bg-surface-sunken p-4 text-sm leading-relaxed text-ink"
     :style="maxHeight ? { maxHeight } : {}"
   ><code v-html="highlighted" /></pre>
 </template>
@@ -53,19 +53,18 @@ const highlighted = computed(() => {
   tab-size: 2;
 }
 .jv-key {
-  color: #93c5fd; /* blue-300 */
+  color: #5C4030; /* ink-soft / brown */
 }
 .jv-string {
-  color: #86efac; /* green-300 */
+  color: #2D8A5E; /* success */
 }
 .jv-number {
-  color: #fca5a5; /* red-300 */
+  color: #C47A1A; /* warning */
 }
 .jv-boolean {
-  color: #c4b5fd; /* violet-300 */
+  color: #3A2415; /* ink */
 }
 .jv-null {
-  color: #6b7280; /* gray-500 */
-  font-style: italic;
+  color: #8B7355; /* muted */
 }
 </style>

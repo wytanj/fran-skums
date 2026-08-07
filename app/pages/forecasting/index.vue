@@ -80,10 +80,10 @@ function toggleSelect(id: string) {
 }
 
 function pathBadge(path: string) {
-  if (path === 'store_fill') return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-  if (path === 'supplier_buy') return 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+  if (path === 'store_fill') return 'border-emerald-500/40 bg-success-soft text-success'
+  if (path === 'supplier_buy') return 'border-amber-500/40 bg-warning-soft text-warning'
   if (path === 'watch') return 'border-blue-500/40 bg-blue-500/10 text-blue-300'
-  return 'border-gray-700 bg-gray-800 text-gray-500'
+  return 'border-line bg-surface-sunken text-muted'
 }
 
 function pathLabel(path: string) {
@@ -134,15 +134,15 @@ async function runAIForecast() {
 
 function confidenceColor(c: string) {
   if (c === 'high') return 'text-green-400 bg-green-500/10 border-green-500/30'
-  if (c === 'medium') return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30'
-  return 'text-gray-400 bg-gray-500/10 border-gray-500/30'
+  if (c === 'medium') return 'text-warning bg-yellow-soft border-yellow-500/30'
+  return 'text-muted bg-surface-sunken border-line'
 }
 
 function riskColor(r: string) {
-  if (r === 'at_risk') return 'text-red-400 bg-red-500/10 border-red-500/30'
-  if (r === 'borderline') return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30'
+  if (r === 'at_risk') return 'text-danger bg-danger-soft border-danger/30'
+  if (r === 'borderline') return 'text-warning bg-yellow-soft border-yellow-500/30'
   if (r === 'safe') return 'text-green-400 bg-green-500/10 border-green-500/30'
-  return 'text-gray-400 bg-gray-500/10 border-gray-500/30'
+  return 'text-muted bg-surface-sunken border-line'
 }
 
 function multiplierBarWidth(m: number) {
@@ -154,19 +154,19 @@ const statsCards = computed(() => [
     label: 'Needs Action',
     value: criticalCount.value,
     sub: 'Stockout, critical, or reorder now',
-    color: criticalCount.value > 0 ? 'text-red-400' : 'text-green-400',
+    color: criticalCount.value > 0 ? 'text-danger' : 'text-green-400',
   },
   {
     label: 'Overstock',
     value: overstockCount.value,
     sub: '>90 days of stock',
-    color: overstockCount.value > 0 ? 'text-purple-400' : 'text-green-400',
+    color: overstockCount.value > 0 ? 'text-brown' : 'text-green-400',
   },
   {
     label: 'Expiry at Risk',
     value: expiryRiskCount.value,
     sub: 'May expire before sell-through',
-    color: expiryRiskCount.value > 0 ? 'text-orange-400' : 'text-green-400',
+    color: expiryRiskCount.value > 0 ? 'text-warning' : 'text-green-400',
   },
   {
     label: 'Next SG Event',
@@ -174,7 +174,7 @@ const statsCards = computed(() => [
     sub: nextEvent.value
       ? `${nextEvent.value.date_from} · ${nextEvent.value.multiplier}×`
       : 'No upcoming events',
-    color: 'text-indigo-400',
+    color: 'text-brown',
   },
 ])
 
@@ -204,13 +204,13 @@ onUnmounted(() => clearContext())
     <!-- Header -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div class="min-w-0">
-        <h1 class="text-xl font-bold text-white sm:text-2xl">
+        <h1 class="text-xl font-bold text-ink sm:text-2xl">
           Demand Forecasting
         </h1>
-        <p class="mt-1 max-w-2xl text-sm text-gray-400">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Velocity floor from SKUMS views · path A/B hints · AI explain is suggest-only.
           Nightly truth lives in
-          <NuxtLink to="/reports" class="text-indigo-400 hover:underline">Reports</NuxtLink>
+          <NuxtLink to="/reports" class="text-brown hover:underline">Reports</NuxtLink>
           (Track K). Draft actions only — never auto FOB or Loft.
         </p>
       </div>
@@ -218,7 +218,7 @@ onUnmounted(() => clearContext())
         <NuxtLink to="/reports" class="btn-secondary text-sm">
           Open Reports
         </NuxtLink>
-        <NuxtLink to="/help" class="btn-ghost text-sm text-gray-400">
+        <NuxtLink to="/help" class="btn-ghost text-sm text-muted">
           Help
         </NuxtLink>
       </div>
@@ -231,13 +231,13 @@ onUnmounted(() => clearContext())
         :key="card.label"
         class="card p-4"
       >
-        <p class="mb-1 text-xs uppercase tracking-wide text-gray-500">
+        <p class="mb-1 text-xs uppercase tracking-wide text-muted">
           {{ card.label }}
         </p>
         <p class="truncate text-2xl font-bold" :class="card.color">
           {{ card.value }}
         </p>
-        <p class="mt-1 truncate text-xs text-gray-500">
+        <p class="mt-1 truncate text-xs text-muted">
           {{ card.sub }}
         </p>
       </div>
@@ -252,16 +252,16 @@ onUnmounted(() => clearContext())
       <NuxtLink to="/import-export" class="underline">Import / Export</NuxtLink>.
     </div>
 
-    <div v-if="error" class="mb-4 card p-4 text-sm text-red-300">
+    <div v-if="error" class="mb-4 card p-4 text-sm text-danger">
       {{ error }}
     </div>
 
     <!-- Selection bar (FC-1 multi-select) -->
     <div
       v-if="selectedIds.length"
-      class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm"
+      class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-yellow-deep/10 px-4 py-3 text-sm"
     >
-      <span class="font-medium text-indigo-200">{{ selectedIds.length }} selected</span>
+      <span class="font-medium text-ink-soft">{{ selectedIds.length }} selected</span>
       <button
         type="button"
         class="btn-secondary text-xs"
@@ -269,40 +269,40 @@ onUnmounted(() => clearContext())
       >
         Explain first
       </button>
-      <button type="button" class="btn-ghost text-xs text-gray-400" @click="selectedIds = []">
+      <button type="button" class="btn-ghost text-xs text-muted" @click="selectedIds = []">
         Clear
       </button>
-      <span class="text-xs text-gray-500">
+      <span class="text-xs text-muted">
         Path A/B draft actions land in FC-3 · loft split is exact in Reports Rpt-6
       </span>
     </div>
 
     <!-- Tabs -->
-    <div class="mb-4 flex gap-1 overflow-x-auto border-b border-gray-800 pb-0">
+    <div class="mb-4 flex gap-1 overflow-x-auto border-b border-line pb-0">
       <button
         v-for="tab in tabs"
         :key="tab.key"
         type="button"
         class="shrink-0 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors"
         :class="activeTab === tab.key
-          ? 'border border-b-gray-950 border-gray-700 bg-gray-900 text-white'
-          : 'text-gray-500 hover:text-gray-300'"
+          ? 'border border-b-gray-950 border-line bg-white text-ink'
+          : 'text-muted hover:text-ink-soft'"
         @click="activeTab = tab.key as any"
       >
         {{ tab.label }}
         <span
           v-if="tab.key === 'reorder' && criticalCount > 0"
-          class="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white"
+          class="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-ink"
         >{{ criticalCount }}</span>
         <span
           v-if="tab.key === 'expiry' && expiryRiskCount > 0"
-          class="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white"
+          class="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-ink"
         >{{ expiryRiskCount }}</span>
       </button>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-indigo-500" />
+      <div class="h-6 w-6 animate-spin rounded-full border-2 border-line-strong border-t-indigo-500" />
     </div>
 
     <template v-else>
@@ -322,38 +322,38 @@ onUnmounted(() => clearContext())
           </select>
         </div>
 
-        <div class="overflow-x-auto rounded-xl border border-gray-800">
+        <div class="overflow-x-auto rounded-xl border border-line">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-800 bg-gray-900/60">
+              <tr class="border-b border-line bg-white/60">
                 <th class="px-3 py-3 text-left">
                   <input
                     type="checkbox"
-                    class="rounded border-gray-600"
+                    class="rounded border-line-strong"
                     :checked="allFilteredSelected"
                     :aria-label="'Select all filtered'"
                     @change="toggleSelectAll"
                   >
                 </th>
-                <th class="px-4 py-3 text-left font-medium text-gray-400">
+                <th class="px-4 py-3 text-left font-medium text-muted">
                   Product
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Vel/day
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   ATS
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Days left
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Suggest
                 </th>
-                <th class="px-4 py-3 font-medium text-gray-400">
+                <th class="px-4 py-3 font-medium text-muted">
                   Path
                 </th>
-                <th class="px-4 py-3 font-medium text-gray-400">
+                <th class="px-4 py-3 font-medium text-muted">
                   Status
                 </th>
               </tr>
@@ -362,30 +362,30 @@ onUnmounted(() => clearContext())
               <tr
                 v-for="row in filteredAlerts"
                 :key="row.product_id"
-                class="border-b border-gray-800/50 transition-colors hover:bg-gray-900/40"
-                :class="selectedIds.includes(row.product_id) ? 'bg-indigo-500/5' : ''"
+                class="border-b border-line-soft transition-colors hover:bg-white/40"
+                :class="selectedIds.includes(row.product_id) ? 'bg-yellow-soft/40' : ''"
               >
                 <td class="px-3 py-3">
                   <input
                     type="checkbox"
-                    class="rounded border-gray-600"
+                    class="rounded border-line-strong"
                     :checked="selectedIds.includes(row.product_id)"
                     @change="toggleSelect(row.product_id)"
                   >
                 </td>
                 <td class="px-4 py-3">
-                  <p class="max-w-[200px] truncate font-medium text-white">
+                  <p class="max-w-[200px] truncate font-medium text-ink">
                     {{ row.product_title }}
                   </p>
-                  <p v-if="row.product_sku" class="text-xs text-gray-500">
+                  <p v-if="row.product_sku" class="text-xs text-muted">
                     {{ row.product_sku }}
                   </p>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <span v-if="row.daily_velocity > 0" class="text-gray-200">{{ row.daily_velocity.toFixed(2) }}</span>
-                  <span v-else class="text-gray-600">—</span>
+                  <span v-if="row.daily_velocity > 0" class="text-ink-soft">{{ row.daily_velocity.toFixed(2) }}</span>
+                  <span v-else class="text-muted">—</span>
                 </td>
-                <td class="px-4 py-3 text-right text-gray-200">
+                <td class="px-4 py-3 text-right text-ink-soft">
                   {{ row.available_to_sell.toLocaleString() }}
                 </td>
                 <td class="px-4 py-3 text-right">
@@ -394,13 +394,13 @@ onUnmounted(() => clearContext())
                     class="font-semibold"
                     :class="dsrColor(row.days_of_stock_remaining)"
                   >{{ row.days_of_stock_remaining }}d</span>
-                  <span v-else class="text-gray-600">—</span>
+                  <span v-else class="text-muted">—</span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <span v-if="row.suggested_order_qty" class="font-medium text-indigo-400">
+                  <span v-if="row.suggested_order_qty" class="font-medium text-brown">
                     {{ row.suggested_order_qty.toLocaleString() }}
                   </span>
-                  <span v-else class="text-gray-600">—</span>
+                  <span v-else class="text-muted">—</span>
                 </td>
                 <td class="px-4 py-3">
                   <span
@@ -416,46 +416,46 @@ onUnmounted(() => clearContext())
                 </td>
               </tr>
               <tr v-if="filteredAlerts.length === 0">
-                <td colspan="8" class="px-4 py-12 text-center text-sm text-gray-500">
+                <td colspan="8" class="px-4 py-12 text-center text-sm text-muted">
                   No products match your filters.
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="mt-3 text-xs text-gray-600">
+        <p class="mt-3 text-xs text-muted">
           Path column is a client hint. Exact loft vs supplier split runs in
-          <code class="text-gray-500">reorder.store_fill</code> /
-          <code class="text-gray-500">reorder.supplier_buy</code> report sections.
+          <code class="text-muted">reorder.store_fill</code> /
+          <code class="text-muted">reorder.supplier_buy</code> report sections.
         </p>
       </div>
 
       <!-- Expiry -->
       <div v-if="activeTab === 'expiry'">
-        <div v-if="expiryRisks.length === 0" class="py-16 text-center text-sm text-gray-500">
+        <div v-if="expiryRisks.length === 0" class="py-16 text-center text-sm text-muted">
           No expiry-tracked batches.
-          <NuxtLink to="/expiry" class="text-indigo-400 hover:underline">Expiry Manager</NuxtLink>
+          <NuxtLink to="/expiry" class="text-brown hover:underline">Expiry Manager</NuxtLink>
         </div>
-        <div v-else class="overflow-x-auto rounded-xl border border-gray-800">
+        <div v-else class="overflow-x-auto rounded-xl border border-line">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-800 bg-gray-900/60">
-                <th class="px-4 py-3 text-left font-medium text-gray-400">
+              <tr class="border-b border-line bg-white/60">
+                <th class="px-4 py-3 text-left font-medium text-muted">
                   Product
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Remaining
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Expires
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Days left
                 </th>
-                <th class="px-4 py-3 text-right font-medium text-gray-400">
+                <th class="px-4 py-3 text-right font-medium text-muted">
                   Days to sell
                 </th>
-                <th class="px-4 py-3 font-medium text-gray-400">
+                <th class="px-4 py-3 font-medium text-muted">
                   Risk
                 </th>
               </tr>
@@ -464,30 +464,30 @@ onUnmounted(() => clearContext())
               <tr
                 v-for="row in expiryRisks"
                 :key="row.item_id"
-                class="border-b border-gray-800/50 hover:bg-gray-900/40"
+                class="border-b border-line-soft hover:bg-white/40"
               >
                 <td class="px-4 py-3">
-                  <p class="max-w-[200px] truncate font-medium text-white">
+                  <p class="max-w-[200px] truncate font-medium text-ink">
                     {{ row.product_title }}
                   </p>
-                  <p v-if="row.product_sku" class="text-xs text-gray-500">
+                  <p v-if="row.product_sku" class="text-xs text-muted">
                     {{ row.product_sku }}
                   </p>
                 </td>
-                <td class="px-4 py-3 text-right text-gray-200">
+                <td class="px-4 py-3 text-right text-ink-soft">
                   {{ row.remaining_qty.toLocaleString() }}
                 </td>
-                <td class="px-4 py-3 text-right text-xs text-gray-400">
+                <td class="px-4 py-3 text-right text-xs text-muted">
                   {{ row.expiry_date }}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <span :class="row.days_until_expiry <= 30 ? 'text-red-400' : row.days_until_expiry <= 60 ? 'text-yellow-400' : 'text-gray-200'">
+                  <span :class="row.days_until_expiry <= 30 ? 'text-danger' : row.days_until_expiry <= 60 ? 'text-warning' : 'text-ink-soft'">
                     {{ row.days_until_expiry }}d
                   </span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <span v-if="row.days_to_sell_through !== null" class="text-gray-200">{{ row.days_to_sell_through }}d</span>
-                  <span v-else class="text-gray-600">—</span>
+                  <span v-if="row.days_to_sell_through !== null" class="text-ink-soft">{{ row.days_to_sell_through }}d</span>
+                  <span v-else class="text-muted">—</span>
                 </td>
                 <td class="px-4 py-3">
                   <span
@@ -503,7 +503,7 @@ onUnmounted(() => clearContext())
 
       <!-- Events -->
       <div v-if="activeTab === 'events'">
-        <p class="mb-4 text-sm text-gray-400">
+        <p class="mb-4 text-sm text-muted">
           Singapore demand events (multipliers) used when explaining forecasts.
         </p>
         <div class="space-y-2">
@@ -513,27 +513,27 @@ onUnmounted(() => clearContext())
             class="card flex items-center gap-4 px-4 py-3"
           >
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-white">
+              <p class="text-sm font-medium text-ink">
                 {{ ev.event_name }}
               </p>
-              <p class="mt-0.5 text-xs text-gray-500">
+              <p class="mt-0.5 text-xs text-muted">
                 {{ ev.date_from }} → {{ ev.date_to }}
-                <span v-if="ev.notes" class="ml-2 text-gray-600">· {{ ev.notes }}</span>
+                <span v-if="ev.notes" class="ml-2 text-muted">· {{ ev.notes }}</span>
               </p>
             </div>
             <div class="hidden w-32 sm:block">
-              <div class="h-2 overflow-hidden rounded-full bg-gray-800">
+              <div class="h-2 overflow-hidden rounded-full bg-surface-sunken">
                 <div
-                  class="h-full rounded-full bg-indigo-500"
+                  class="h-full rounded-full bg-yellow-deep"
                   :style="{ width: multiplierBarWidth(ev.multiplier) }"
                 />
               </div>
             </div>
-            <span class="w-12 shrink-0 text-right text-sm font-bold text-indigo-400">
+            <span class="w-12 shrink-0 text-right text-sm font-bold text-brown">
               {{ ev.multiplier }}×
             </span>
           </div>
-          <div v-if="forecastEvents.length === 0" class="py-12 text-center text-sm text-gray-500">
+          <div v-if="forecastEvents.length === 0" class="py-12 text-center text-sm text-muted">
             No upcoming events.
           </div>
         </div>
@@ -542,10 +542,10 @@ onUnmounted(() => clearContext())
       <!-- AI Explain -->
       <div v-if="activeTab === 'ai'">
         <div class="card mb-6 p-5">
-          <h3 class="mb-2 text-sm font-semibold text-white">
+          <h3 class="mb-2 text-sm font-semibold text-ink">
             AI explain (suggest-only)
           </h3>
-          <p class="mb-4 text-xs text-gray-500">
+          <p class="mb-4 text-xs text-muted">
             Uses structured velocity + events + expiry context. Numbers are advisory —
             not a TSFM and not an auto-buy. Prefer Reports for portfolio path A/B.
           </p>
@@ -574,7 +574,7 @@ onUnmounted(() => clearContext())
               <span>{{ aiLoading ? 'Running…' : 'Run explain' }}</span>
             </button>
           </div>
-          <p v-if="aiProductOptions.length === 0" class="mt-2 text-xs text-gray-600">
+          <p v-if="aiProductOptions.length === 0" class="mt-2 text-xs text-muted">
             No products with velocity. Import sales first.
           </p>
         </div>
@@ -582,13 +582,13 @@ onUnmounted(() => clearContext())
         <div v-if="aiForecast" class="space-y-4">
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h3 class="text-lg font-bold text-white">
+              <h3 class="text-lg font-bold text-ink">
                 {{ aiForecast.product_title }}
               </h3>
-              <p class="mt-0.5 text-xs text-gray-500">
+              <p class="mt-0.5 text-xs text-muted">
                 {{ new Date(aiForecast.generated_at).toLocaleString() }} ·
                 {{ aiForecast.data_maturity }} ·
-                <span class="text-indigo-400/80">{{ aiForecast.method_used }}</span>
+                <span class="text-brown/80">{{ aiForecast.method_used }}</span>
               </p>
             </div>
             <span
@@ -601,51 +601,51 @@ onUnmounted(() => clearContext())
 
           <div class="grid grid-cols-3 gap-3">
             <div class="card p-4 text-center">
-              <p class="mb-1 text-xs text-gray-500">
+              <p class="mb-1 text-xs text-muted">
                 30-day
               </p>
-              <p class="text-3xl font-bold text-white">
+              <p class="text-3xl font-bold text-ink">
                 {{ aiForecast.forecast_30d.toLocaleString() }}
               </p>
             </div>
             <div class="card p-4 text-center">
-              <p class="mb-1 text-xs text-gray-500">
+              <p class="mb-1 text-xs text-muted">
                 60-day
               </p>
-              <p class="text-3xl font-bold text-white">
+              <p class="text-3xl font-bold text-ink">
                 {{ aiForecast.forecast_60d.toLocaleString() }}
               </p>
             </div>
             <div class="card p-4 text-center">
-              <p class="mb-1 text-xs text-gray-500">
+              <p class="mb-1 text-xs text-muted">
                 90-day
               </p>
-              <p class="text-3xl font-bold text-white">
+              <p class="text-3xl font-bold text-ink">
                 {{ aiForecast.forecast_90d.toLocaleString() }}
               </p>
             </div>
           </div>
 
-          <div class="card border-indigo-500/30 p-4">
-            <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-400">
+          <div class="card border-line p-4">
+            <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-brown">
               Recommendation
             </p>
-            <p class="text-sm text-gray-200">
+            <p class="text-sm text-ink-soft">
               {{ aiForecast.recommendation }}
             </p>
           </div>
 
           <div v-if="aiForecast.event_impact" class="card p-4">
-            <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
               Event impact
             </p>
-            <p class="text-sm text-gray-300">
+            <p class="text-sm text-ink-soft">
               {{ aiForecast.event_impact }}
             </p>
           </div>
         </div>
 
-        <div v-else-if="!aiLoading" class="py-16 text-center text-sm text-gray-500">
+        <div v-else-if="!aiLoading" class="py-16 text-center text-sm text-muted">
           Select a product and run explain, or multi-select from the reorder queue.
         </div>
       </div>

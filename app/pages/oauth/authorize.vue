@@ -130,42 +130,42 @@ onMounted(load)
 
 <template>
   <div class="card p-8">
-    <h2 class="text-xl font-semibold text-white">Connect Claude to Fran</h2>
-    <p class="mt-1 text-sm text-gray-400">
+    <h2 class="text-xl font-semibold text-ink">Connect Claude to Fran</h2>
+    <p class="mt-1 text-sm text-muted">
       Claude will act with your Fran permissions — nothing more.
     </p>
 
-    <div v-if="loading" class="mt-6 text-sm text-gray-400">Checking your account…</div>
+    <div v-if="loading" class="mt-6 text-sm text-muted">Checking your account…</div>
 
     <div
       v-else-if="error"
-      class="mt-6 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400"
+      class="mt-6 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger"
     >
       {{ error }}
     </div>
 
     <template v-else-if="info">
-      <dl class="mt-6 space-y-3 rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
+      <dl class="mt-6 space-y-3 rounded-lg border border-white/10 bg-surface-sunken p-4 text-sm">
         <div class="flex items-baseline justify-between gap-4">
-          <dt class="text-gray-400">Signed in as</dt>
-          <dd class="text-right font-medium text-white">{{ info.email || 'unknown' }}</dd>
+          <dt class="text-muted">Signed in as</dt>
+          <dd class="text-right font-medium text-ink">{{ info.email || 'unknown' }}</dd>
         </div>
         <div class="flex items-baseline justify-between gap-4">
-          <dt class="text-gray-400">Workspace</dt>
-          <dd class="text-right text-white">{{ info.workspace_name || '—' }}</dd>
+          <dt class="text-muted">Workspace</dt>
+          <dd class="text-right text-ink">{{ info.workspace_name || '—' }}</dd>
         </div>
         <div class="flex items-baseline justify-between gap-4">
-          <dt class="text-gray-400">Your role</dt>
-          <dd class="text-right text-white">{{ info.role || '—' }}</dd>
+          <dt class="text-muted">Your role</dt>
+          <dd class="text-right text-ink">{{ info.role || '—' }}</dd>
         </div>
         <div class="flex items-baseline justify-between gap-4">
-          <dt class="text-gray-400">Tools Claude will get</dt>
-          <dd class="text-right text-white">
+          <dt class="text-muted">Tools Claude will get</dt>
+          <dd class="text-right text-ink">
             {{ info.tool_count }}
             <button
               v-if="info.tool_names?.length"
               type="button"
-              class="ml-2 text-xs text-emerald-400 hover:underline"
+              class="ml-2 text-xs text-success hover:underline"
               @click="showTools = !showTools"
             >
               {{ showTools ? 'hide' : 'show' }}
@@ -176,14 +176,14 @@ onMounted(load)
 
       <p
         v-if="showTools"
-        class="mt-3 max-h-40 overflow-y-auto rounded-lg bg-black/30 p-3 font-mono text-xs text-gray-400"
+        class="mt-3 max-h-40 overflow-y-auto rounded-lg bg-black/30 p-3 font-mono text-xs text-muted"
       >
         {{ info.tool_names?.join(', ') }}
       </p>
 
       <p
         v-if="info.workspace_ambiguous"
-        class="mt-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-400"
+        class="mt-4 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning"
       >
         You belong to more than one workspace. Connecting to
         <strong>{{ info.workspace_name }}</strong>.
@@ -191,7 +191,7 @@ onMounted(load)
 
       <p
         v-if="!info.can_authorize"
-        class="mt-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-400"
+        class="mt-4 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning"
       >
         {{ info.reason }}
       </p>
@@ -201,13 +201,13 @@ onMounted(load)
         <div
           v-for="inv in info.pending_invites"
           :key="inv.token"
-          class="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3"
+          class="flex items-center gap-3 rounded-lg border border-success/30 bg-success-soft p-3"
         >
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-white">
+            <p class="truncate text-sm font-medium text-ink">
               {{ inv.workspace_name || 'Workspace' }}
             </p>
-            <p class="text-xs text-emerald-400/80">invited as {{ inv.role }}</p>
+            <p class="text-xs text-success/80">invited as {{ inv.role }}</p>
           </div>
           <button
             type="button"
@@ -234,7 +234,7 @@ onMounted(load)
         </button>
       </div>
 
-      <p class="mt-6 text-xs text-gray-500">
+      <p class="mt-6 text-xs text-muted">
         Your permissions are re-checked on every request, so a role change in Fran
         takes effect immediately. Revoke access any time from Settings.
       </p>

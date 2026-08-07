@@ -188,11 +188,11 @@ onMounted(async () => {
 <template>
   <div class="flex h-full flex-col">
     <!-- Header -->
-    <div class="border-b border-gray-800 bg-gray-900 px-6 py-4">
+    <div class="border-b border-line bg-white px-6 py-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-xl font-semibold text-white">Product Quality</h1>
-          <p class="mt-0.5 text-sm text-gray-400">
+          <h1 class="text-xl font-semibold text-ink">Product Quality</h1>
+          <p class="mt-0.5 text-sm text-muted">
             Competitive intelligence across Shopee, Lazada, Sephora, Hwahae, Olive Young &amp; more
           </p>
         </div>
@@ -213,9 +213,9 @@ onMounted(async () => {
     <!-- Analysing overlay -->
     <div
       v-if="analysing"
-      class="border-b border-indigo-500/30 bg-indigo-500/10 px-6 py-3"
+      class="border-b border-line bg-yellow-deep/10 px-6 py-3"
     >
-      <div class="flex items-center gap-3 text-indigo-300 text-sm">
+      <div class="flex items-center gap-3 text-brown text-sm">
         <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z" />
@@ -225,39 +225,39 @@ onMounted(async () => {
     </div>
 
     <!-- Payment error (hidden until x402 is enabled) -->
-    <!-- <div v-if="paymentError" class="border-b border-red-500/30 bg-red-500/10 px-6 py-3 text-sm text-red-400 flex items-center justify-between">
+    <!-- <div v-if="paymentError" class="border-b border-danger/30 bg-danger-soft px-6 py-3 text-sm text-danger flex items-center justify-between">
       <span>{{ paymentError }}</span>
-      <button class="text-red-300 hover:text-white text-xs underline" @click="paymentError = null">Dismiss</button>
+      <button class="text-danger hover:text-ink text-xs underline" @click="paymentError = null">Dismiss</button>
     </div> -->
 
     <!-- Error -->
-    <div v-if="error" class="border-b border-red-500/30 bg-red-500/10 px-6 py-3 text-sm text-red-400">
+    <div v-if="error" class="border-b border-danger/30 bg-danger-soft px-6 py-3 text-sm text-danger">
       {{ error }}
     </div>
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Left: list panel -->
-      <div class="flex w-full flex-col overflow-hidden" :class="detailProductId ? 'hidden lg:flex lg:w-96 lg:border-r lg:border-gray-800' : ''">
+      <div class="flex w-full flex-col overflow-hidden" :class="detailProductId ? 'hidden lg:flex lg:w-96 lg:border-r lg:border-line' : ''">
 
         <!-- Summary cards -->
         <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
-          <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-            <div class="text-xs text-gray-400">Analysed</div>
-            <div class="mt-1 text-2xl font-bold text-white">{{ totalAnalysed }}</div>
+          <div class="rounded-lg border border-line bg-surface-sunken p-3">
+            <div class="text-xs text-muted">Analysed</div>
+            <div class="mt-1 text-2xl font-bold text-ink">{{ totalAnalysed }}</div>
           </div>
-          <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-            <div class="text-xs text-gray-400">Avg Score</div>
+          <div class="rounded-lg border border-line bg-surface-sunken p-3">
+            <div class="text-xs text-muted">Avg Score</div>
             <div class="mt-1 text-2xl font-bold" :class="scoreColor(avgScore)">
               {{ avgScore ?? '—' }}
             </div>
           </div>
-          <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-            <div class="text-xs text-gray-400">Competitive+</div>
-            <div class="mt-1 text-2xl font-bold text-emerald-400">{{ leadersCount }}</div>
+          <div class="rounded-lg border border-line bg-surface-sunken p-3">
+            <div class="text-xs text-muted">Competitive+</div>
+            <div class="mt-1 text-2xl font-bold text-success">{{ leadersCount }}</div>
           </div>
-          <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-            <div class="text-xs text-gray-400">At Risk</div>
-            <div class="mt-1 text-2xl font-bold text-red-400">{{ atRiskCount }}</div>
+          <div class="rounded-lg border border-line bg-surface-sunken p-3">
+            <div class="text-xs text-muted">At Risk</div>
+            <div class="mt-1 text-2xl font-bold text-danger">{{ atRiskCount }}</div>
           </div>
         </div>
 
@@ -265,18 +265,18 @@ onMounted(async () => {
         <div class="flex-1 overflow-y-auto px-4 pb-4">
           <!-- Empty state -->
           <div v-if="!loading && analyses.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800">
-              <svg class="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-sunken">
+              <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.563.563 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
               </svg>
             </div>
-            <p class="text-sm font-medium text-gray-400">No analyses yet</p>
-            <p class="mt-1 text-xs text-gray-600">Click "Analyse Product" to start competitive research</p>
+            <p class="text-sm font-medium text-muted">No analyses yet</p>
+            <p class="mt-1 text-xs text-muted">Click "Analyse Product" to start competitive research</p>
           </div>
 
           <!-- Loader -->
           <div v-else-if="loading" class="space-y-2 pt-2">
-            <div v-for="i in 5" :key="i" class="h-14 animate-pulse rounded-lg bg-gray-800" />
+            <div v-for="i in 5" :key="i" class="h-14 animate-pulse rounded-lg bg-surface-sunken" />
           </div>
 
           <!-- Product list -->
@@ -284,13 +284,13 @@ onMounted(async () => {
             <button
               v-for="a in analyses"
               :key="a.id"
-              class="w-full rounded-lg border bg-gray-800/50 p-3 text-left transition-all hover:bg-gray-800"
-              :class="detailProductId === a.product_id ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-gray-700'"
+              class="w-full rounded-lg border bg-surface-sunken p-3 text-left transition-all hover:bg-surface-sunken"
+              :class="detailProductId === a.product_id ? 'border-yellow-deep bg-yellow-soft/40' : 'border-line'"
               @click="openDetail(a.product_id)"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-medium text-white">{{ a.product_title ?? a.product_id }}</p>
+                  <p class="truncate text-sm font-medium text-ink">{{ a.product_title ?? a.product_id }}</p>
                   <div class="mt-1 flex flex-wrap items-center gap-1.5">
                     <span
                       class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium"
@@ -316,14 +316,14 @@ onMounted(async () => {
                       </svg>
                       Queued
                     </span>
-                    <span class="text-xs text-gray-600">{{ timeAgo(a.analysed_at) }}</span>
+                    <span class="text-xs text-muted">{{ timeAgo(a.analysed_at) }}</span>
                   </div>
                 </div>
                 <div class="shrink-0 text-right">
                   <div class="text-xl font-bold leading-none" :class="scoreColor(a.overall_score)">
                     {{ a.overall_score !== null ? Math.round(a.overall_score) : '—' }}
                   </div>
-                  <div class="mt-0.5 text-xs text-gray-600">/ 100</div>
+                  <div class="mt-0.5 text-xs text-muted">/ 100</div>
                 </div>
               </div>
               <div v-if="a.sources_checked?.length" class="mt-2 flex flex-wrap gap-1">
@@ -344,7 +344,7 @@ onMounted(async () => {
       <!-- Right: detail panel -->
       <div v-if="detailProductId" class="flex flex-1 flex-col overflow-hidden">
         <div v-if="loading" class="flex flex-1 items-center justify-center">
-          <svg class="h-8 w-8 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24">
+          <svg class="h-8 w-8 animate-spin text-brown" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z" />
           </svg>
@@ -352,10 +352,10 @@ onMounted(async () => {
 
         <template v-else-if="selectedAnalysis">
           <!-- Detail header -->
-          <div class="flex items-center justify-between border-b border-gray-800 px-6 py-4">
+          <div class="flex items-center justify-between border-b border-line px-6 py-4">
             <div>
-              <h2 class="text-base font-semibold text-white">{{ selectedAnalysis.product_title ?? 'Product Detail' }}</h2>
-              <p class="text-xs text-gray-500">Last analysed {{ timeAgo(selectedAnalysis.analysed_at) }}</p>
+              <h2 class="text-base font-semibold text-ink">{{ selectedAnalysis.product_title ?? 'Product Detail' }}</h2>
+              <p class="text-xs text-muted">Last analysed {{ timeAgo(selectedAnalysis.analysed_at) }}</p>
             </div>
             <div class="flex items-center gap-2">
               <button
@@ -368,7 +368,7 @@ onMounted(async () => {
               >
                 Re-analyse (Free)
               </button>
-              <button class="text-gray-500 hover:text-white lg:hidden" @click="closeDetail">
+              <button class="text-muted hover:text-ink lg:hidden" @click="closeDetail">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
@@ -390,11 +390,11 @@ onMounted(async () => {
                 class="rounded-lg border p-3"
                 :class="scoreBg(value)"
               >
-                <div class="text-xs text-gray-400">{{ label }}</div>
+                <div class="text-xs text-muted">{{ label }}</div>
                 <div class="mt-1 text-2xl font-bold" :class="scoreColor(value)">
                   {{ value !== null ? Math.round(value as number) : '—' }}
                 </div>
-                <div class="mt-0.5 text-xs text-gray-600">/ 100</div>
+                <div class="mt-0.5 text-xs text-muted">/ 100</div>
               </div>
             </div>
 
@@ -416,30 +416,30 @@ onMounted(async () => {
             </div>
 
             <!-- AI Summary -->
-            <div v-if="selectedAnalysis.ai_summary" class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-              <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">AI Assessment</h3>
-              <p class="text-sm text-gray-300 leading-relaxed">{{ selectedAnalysis.ai_summary }}</p>
+            <div v-if="selectedAnalysis.ai_summary" class="rounded-lg border border-line bg-surface-sunken p-4">
+              <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">AI Assessment</h3>
+              <p class="text-sm text-ink-soft leading-relaxed">{{ selectedAnalysis.ai_summary }}</p>
             </div>
 
             <!-- Marketplace comparison table -->
             <div v-if="selectedSnapshots.length">
-              <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Marketplace Data</h3>
-              <div class="overflow-x-auto rounded-lg border border-gray-700">
+              <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Marketplace Data</h3>
+              <div class="overflow-x-auto rounded-lg border border-line">
                 <table class="w-full text-sm">
                   <thead>
-                    <tr class="border-b border-gray-700 bg-gray-800/80">
-                      <th class="px-3 py-2.5 text-left text-xs font-medium text-gray-400">Platform</th>
-                      <th class="px-3 py-2.5 text-right text-xs font-medium text-gray-400">Price</th>
-                      <th class="px-3 py-2.5 text-right text-xs font-medium text-gray-400">Rating</th>
-                      <th class="px-3 py-2.5 text-right text-xs font-medium text-gray-400">Reviews</th>
-                      <th class="px-3 py-2.5 text-right text-xs font-medium text-gray-400">Sold</th>
-                      <th class="px-3 py-2.5 text-center text-xs font-medium text-gray-400">Stock</th>
-                      <th class="px-3 py-2.5 text-center text-xs font-medium text-gray-400">Source</th>
-                      <th class="px-3 py-2.5 text-center text-xs font-medium text-gray-400">Link</th>
+                    <tr class="border-b border-line bg-surface-sunken/80">
+                      <th class="px-3 py-2.5 text-left text-xs font-medium text-muted">Platform</th>
+                      <th class="px-3 py-2.5 text-right text-xs font-medium text-muted">Price</th>
+                      <th class="px-3 py-2.5 text-right text-xs font-medium text-muted">Rating</th>
+                      <th class="px-3 py-2.5 text-right text-xs font-medium text-muted">Reviews</th>
+                      <th class="px-3 py-2.5 text-right text-xs font-medium text-muted">Sold</th>
+                      <th class="px-3 py-2.5 text-center text-xs font-medium text-muted">Stock</th>
+                      <th class="px-3 py-2.5 text-center text-xs font-medium text-muted">Source</th>
+                      <th class="px-3 py-2.5 text-center text-xs font-medium text-muted">Link</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-700/50">
-                    <tr v-for="snap in selectedSnapshots" :key="snap.id" class="hover:bg-gray-800/30">
+                    <tr v-for="snap in selectedSnapshots" :key="snap.id" class="hover:bg-surface-sunken/60">
                       <td class="px-3 py-3">
                         <div class="flex items-center gap-2">
                           <span
@@ -448,52 +448,52 @@ onMounted(async () => {
                           >
                             {{ marketplaceLabel(snap.marketplace) }}
                           </span>
-                          <span v-if="!snap.found" class="text-xs text-gray-600">not found</span>
+                          <span v-if="!snap.found" class="text-xs text-muted">not found</span>
                         </div>
-                        <div v-if="snap.seller_name" class="mt-0.5 truncate text-xs text-gray-600 max-w-[120px]">
+                        <div v-if="snap.seller_name" class="mt-0.5 truncate text-xs text-muted max-w-[120px]">
                           {{ snap.seller_name }}
                         </div>
                       </td>
                       <td class="px-3 py-3 text-right">
                         <div v-if="snap.price" class="flex items-center justify-end gap-1.5">
-                          <span class="font-medium text-white">
+                          <span class="font-medium text-ink">
                             {{ snap.currency }} {{ Number(snap.price).toFixed(2) }}
                           </span>
                           <!-- Price trend arrow -->
                           <template v-if="priceTrend(snap.marketplace)">
                             <span
                               v-if="priceTrend(snap.marketplace)!.direction === 'up'"
-                              class="text-xs text-red-400"
+                              class="text-xs text-danger"
                               :title="`+${priceTrend(snap.marketplace)!.delta.toFixed(2)}`"
                             >
                               ↑
                             </span>
                             <span
                               v-else-if="priceTrend(snap.marketplace)!.direction === 'down'"
-                              class="text-xs text-emerald-400"
+                              class="text-xs text-success"
                               :title="`${priceTrend(snap.marketplace)!.delta.toFixed(2)}`"
                             >
                               ↓
                             </span>
                           </template>
                         </div>
-                        <span v-else class="text-gray-600">—</span>
+                        <span v-else class="text-muted">—</span>
                       </td>
                       <td class="px-3 py-3 text-right">
-                        <span v-if="snap.rating" class="text-yellow-400">
+                        <span v-if="snap.rating" class="text-warning">
                           {{ Number(snap.rating).toFixed(1) }}★
                         </span>
-                        <span v-else class="text-gray-600">—</span>
+                        <span v-else class="text-muted">—</span>
                       </td>
                       <td class="px-3 py-3 text-right">
-                        <span v-if="snap.review_count" class="text-gray-300">
+                        <span v-if="snap.review_count" class="text-ink-soft">
                           {{ snap.review_count >= 1000
                             ? (snap.review_count / 1000).toFixed(1) + 'k'
                             : snap.review_count }}
                         </span>
-                        <span v-else class="text-gray-600">—</span>
+                        <span v-else class="text-muted">—</span>
                       </td>
-                      <td class="px-3 py-3 text-right text-gray-300 text-xs">
+                      <td class="px-3 py-3 text-right text-ink-soft text-xs">
                         {{ snap.units_sold_label ?? '—' }}
                       </td>
                       <td class="px-3 py-3 text-center">
@@ -501,16 +501,16 @@ onMounted(async () => {
                           v-if="snap.found"
                           class="inline-flex rounded-full px-1.5 py-0.5 text-xs"
                           :class="snap.availability === 'in_stock'
-                            ? 'bg-emerald-500/20 text-emerald-400'
+                            ? 'bg-emerald-500/20 text-success'
                             : snap.availability === 'out_of_stock'
-                            ? 'bg-red-500/20 text-red-400'
-                            : 'bg-gray-700 text-gray-400'"
+                            ? 'bg-danger-soft text-danger'
+                            : 'bg-line text-muted'"
                         >
                           {{ snap.availability === 'in_stock' ? 'In Stock'
                             : snap.availability === 'out_of_stock' ? 'OOS'
                             : 'Unknown' }}
                         </span>
-                        <span v-else class="text-gray-600">—</span>
+                        <span v-else class="text-muted">—</span>
                       </td>
                       <td class="px-3 py-3 text-center">
                         <span
@@ -526,13 +526,13 @@ onMounted(async () => {
                           :href="snap.external_url"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:text-indigo-400 transition-colors"
+                          class="inline-flex h-6 w-6 items-center justify-center rounded text-muted hover:text-brown transition-colors"
                         >
                           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                           </svg>
                         </a>
-                        <span v-else class="text-gray-600">—</span>
+                        <span v-else class="text-muted">—</span>
                       </td>
                     </tr>
                   </tbody>
@@ -543,15 +543,15 @@ onMounted(async () => {
             <!-- Price History -->
             <div v-if="Object.keys(priceHistoryByMarketplace).length > 0">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Price History</h3>
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Price History</h3>
                 <div class="flex gap-1">
                   <button
                     v-for="d in [7, 30, 90, undefined]"
                     :key="d ?? 'all'"
                     class="rounded px-2 py-0.5 text-xs transition-colors"
                     :class="priceHistoryDays === d
-                      ? 'bg-indigo-500/20 text-indigo-400'
-                      : 'text-gray-500 hover:text-gray-300'"
+                      ? 'bg-yellow-deep/20 text-brown'
+                      : 'text-muted hover:text-ink-soft'"
                     @click="priceHistoryDays = d; detailProductId && loadPriceHistory(detailProductId, d)"
                   >
                     {{ d ? `${d}d` : 'All' }}
@@ -562,13 +562,13 @@ onMounted(async () => {
                 <div
                   v-for="(entries, marketplace) in priceHistoryByMarketplace"
                   :key="marketplace"
-                  class="rounded-lg border border-gray-700 bg-gray-800/30 p-3"
+                  class="rounded-lg border border-line bg-surface-sunken/60 p-3"
                 >
                   <div class="flex items-center justify-between mb-2">
                     <span class="inline-flex rounded px-1.5 py-0.5 text-xs" :class="marketplaceBadge(marketplace as string)">
                       {{ marketplaceLabel(marketplace as string) }}
                     </span>
-                    <span class="text-xs text-gray-500">{{ entries.length }} data points</span>
+                    <span class="text-xs text-muted">{{ entries.length }} data points</span>
                   </div>
                   <!-- Sparkline bars -->
                   <div class="flex items-end gap-px h-12">
@@ -576,14 +576,14 @@ onMounted(async () => {
                       v-for="(entry, i) in entries"
                       :key="i"
                       class="flex-1 min-w-[2px] rounded-t transition-all"
-                      :class="entry.data_source === 'scraped' ? 'bg-indigo-500' : 'bg-gray-600'"
+                      :class="entry.data_source === 'scraped' ? 'bg-yellow-deep' : 'bg-muted'"
                       :style="{
                         height: `${Math.max(10, (entry.price / Math.max(...entries.map(e => e.price))) * 100)}%`,
                       }"
                       :title="`${formatCurrency(entry.price)} — ${new Date(entry.date).toLocaleDateString()}`"
                     />
                   </div>
-                  <div class="mt-1.5 flex items-center justify-between text-xs text-gray-500">
+                  <div class="mt-1.5 flex items-center justify-between text-xs text-muted">
                     <span>{{ formatCurrency(entries[0]?.price) }}</span>
                     <span>Latest: {{ formatCurrency(entries[entries.length - 1]?.price) }}</span>
                   </div>
@@ -593,17 +593,17 @@ onMounted(async () => {
 
             <!-- Recommendations -->
             <div v-if="selectedAnalysis.recommendations?.length">
-              <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Recommendations</h3>
+              <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Recommendations</h3>
               <div class="space-y-2">
                 <div
                   v-for="(rec, i) in selectedAnalysis.recommendations"
                   :key="i"
-                  class="flex gap-3 rounded-lg border border-gray-700 bg-gray-800/30 p-3"
+                  class="flex gap-3 rounded-lg border border-line bg-surface-sunken/60 p-3"
                 >
-                  <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-bold text-indigo-400">
+                  <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-yellow-deep/20 text-xs font-bold text-brown">
                     {{ i + 1 }}
                   </div>
-                  <p class="text-sm text-gray-300 leading-relaxed">{{ rec }}</p>
+                  <p class="text-sm text-ink-soft leading-relaxed">{{ rec }}</p>
                 </div>
               </div>
             </div>
@@ -613,7 +613,7 @@ onMounted(async () => {
         <!-- No analysis yet for selected product -->
         <div v-else class="flex flex-1 items-center justify-center">
           <div class="text-center">
-            <p class="text-sm text-gray-400">No analysis found for this product.</p>
+            <p class="text-sm text-muted">No analysis found for this product.</p>
             <button class="btn-primary mt-4 text-sm" @click="() => {
               const id = detailProductId
               if (id) {
@@ -630,10 +630,10 @@ onMounted(async () => {
       <!-- No detail selected (desktop only, show CTA) -->
       <div v-else-if="analyses.length > 0" class="hidden lg:flex flex-1 items-center justify-center">
         <div class="text-center">
-          <svg class="mx-auto h-10 w-10 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <svg class="mx-auto h-10 w-10 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.563.563 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
           </svg>
-          <p class="mt-3 text-sm text-gray-500">Select a product to view its competitive analysis</p>
+          <p class="mt-3 text-sm text-muted">Select a product to view its competitive analysis</p>
         </div>
       </div>
     </div>
@@ -651,13 +651,13 @@ onMounted(async () => {
     >
       <div
         v-if="showModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 backdrop-blur-sm"
         @click.self="showModal = false"
       >
-        <div class="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 shadow-2xl">
-          <div class="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-            <h2 class="text-base font-semibold text-white">Analyse Product Competitiveness</h2>
-            <button class="text-gray-500 hover:text-white" @click="showModal = false">
+        <div class="w-full max-w-lg rounded-xl border border-line bg-white shadow-2xl">
+          <div class="flex items-center justify-between border-b border-line px-5 py-4">
+            <h2 class="text-base font-semibold text-ink">Analyse Product Competitiveness</h2>
+            <button class="text-muted hover:text-ink" @click="showModal = false">
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
@@ -667,7 +667,7 @@ onMounted(async () => {
           <div class="p-5">
             <!-- Product search -->
             <div class="relative">
-              <label class="mb-1.5 block text-xs font-medium text-gray-400">Search your products</label>
+              <label class="mb-1.5 block text-xs font-medium text-muted">Search your products</label>
               <input
                 v-model="productSearch"
                 type="text"
@@ -675,7 +675,7 @@ onMounted(async () => {
                 class="input-field w-full"
               />
               <div v-if="searchLoading" class="absolute right-3 top-8">
-                <svg class="h-4 w-4 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
+                <svg class="h-4 w-4 animate-spin text-muted" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z" />
                 </svg>
@@ -684,22 +684,22 @@ onMounted(async () => {
               <!-- Dropdown results -->
               <div
                 v-if="productResults.length"
-                class="absolute z-10 mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 shadow-xl"
+                class="absolute z-10 mt-1 w-full rounded-lg border border-line bg-white shadow-xl"
               >
                 <button
                   v-for="p in productResults"
                   :key="p.id"
-                  class="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-gray-800 first:rounded-t-lg last:rounded-b-lg"
+                  class="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-surface-sunken first:rounded-t-lg last:rounded-b-lg"
                   @click="selectProduct(p)"
                 >
                   <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-white">{{ p.title }}</p>
-                    <p class="text-xs text-gray-500">
+                    <p class="truncate text-sm text-ink">{{ p.title }}</p>
+                    <p class="text-xs text-muted">
                       {{ p.sku ?? 'No SKU' }}
                       <span v-if="(p as any).brand?.name"> · {{ (p as any).brand.name }}</span>
                     </p>
                   </div>
-                  <div v-if="(p as any).retail_price" class="shrink-0 text-xs text-gray-400">
+                  <div v-if="(p as any).retail_price" class="shrink-0 text-xs text-muted">
                     {{ p.currency }} {{ Number((p as any).retail_price).toFixed(2) }}
                   </div>
                 </button>
@@ -707,9 +707,9 @@ onMounted(async () => {
             </div>
 
             <!-- Selected product preview -->
-            <div v-if="selectedProduct" class="mt-3 rounded-lg border border-indigo-500/30 bg-indigo-500/5 p-3">
-              <p class="text-sm font-medium text-white">{{ (selectedProduct as any).title }}</p>
-              <div class="mt-1 flex flex-wrap gap-x-3 text-xs text-gray-400">
+            <div v-if="selectedProduct" class="mt-3 rounded-lg border border-line bg-yellow-soft/40 p-3">
+              <p class="text-sm font-medium text-ink">{{ (selectedProduct as any).title }}</p>
+              <div class="mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
                 <span v-if="(selectedProduct as any).brand?.name">{{ (selectedProduct as any).brand.name }}</span>
                 <span v-if="selectedProduct.ean">EAN: {{ selectedProduct.ean }}</span>
                 <span v-if="selectedProduct.asin">ASIN: {{ selectedProduct.asin }}</span>
@@ -721,14 +721,14 @@ onMounted(async () => {
 
             <!-- Tier selection -->
             <div v-if="selectedProduct" class="mt-4 space-y-2">
-              <label class="block text-xs font-medium text-gray-400 mb-2">Choose scan type</label>
+              <label class="block text-xs font-medium text-muted mb-2">Choose scan type</label>
 
               <!-- Free tier -->
-              <div class="rounded-lg border border-gray-700 bg-gray-800/30 p-3">
+              <div class="rounded-lg border border-line bg-surface-sunken/60 p-3">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="text-sm font-medium text-white">Free Analysis</p>
-                    <p class="text-xs text-gray-500 mt-0.5">AI estimate now + real scrape overnight</p>
+                    <p class="text-sm font-medium text-ink">Free Analysis</p>
+                    <p class="text-xs text-muted mt-0.5">AI estimate now + real scrape overnight</p>
                   </div>
                   <button
                     class="btn-secondary text-xs"
@@ -741,11 +741,11 @@ onMounted(async () => {
               </div>
 
               <!-- Instant scan (x402) — hidden until x402 is enabled -->
-              <!-- <div class="rounded-lg border border-indigo-500/30 bg-indigo-500/5 p-3">
+              <!-- <div class="rounded-lg border border-line bg-yellow-soft/40 p-3">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="text-sm font-medium text-white">Instant Scan</p>
-                    <p class="text-xs text-gray-500 mt-0.5">Live scrape all marketplaces now (~60s)</p>
+                    <p class="text-sm font-medium text-ink">Instant Scan</p>
+                    <p class="text-xs text-muted mt-0.5">Live scrape all marketplaces now (~60s)</p>
                   </div>
                   <button
                     class="btn-primary text-xs flex items-center gap-1.5"
@@ -762,7 +762,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="flex items-center justify-end border-t border-gray-800 px-5 py-4">
+          <div class="flex items-center justify-end border-t border-line px-5 py-4">
             <button class="btn-secondary" @click="showModal = false">Cancel</button>
           </div>
         </div>

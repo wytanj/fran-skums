@@ -40,11 +40,11 @@ onMounted(async () => {
 <template>
   <div class="card p-8 text-center">
     <div class="mb-4 flex justify-center">
-      <svg class="h-12 w-12 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <svg class="h-12 w-12 text-success" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
       </svg>
     </div>
-    <h2 class="text-xl font-semibold text-white">Completing sign in</h2>
-    <p class="mt-2 text-sm text-gray-400">Redirecting you...</p>
+    <h2 class="text-xl font-semibold text-ink">Completing sign in</h2>
+    <p class="mt-2 text-sm text-muted">Redirecting you...</p>
   </div>
 </template>

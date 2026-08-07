@@ -99,7 +99,7 @@ function formatWhen(iso: string | null | undefined) {
 
 function statusClass(status: string | undefined) {
   if (status === 'completed') return 'badge-active'
-  if (status === 'failed') return 'badge bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20'
+  if (status === 'failed') return 'badge bg-danger-soft text-danger ring-1 ring-inset ring-red-500/20'
   if (status === 'running' || status === 'pending') return 'badge-draft'
   return 'badge-archived'
 }
@@ -109,16 +109,16 @@ function statusClass(status: string | undefined) {
   <div class="mx-auto max-w-5xl space-y-6 p-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-white">
+        <h1 class="text-2xl font-bold tracking-tight text-ink">
           Agentic reports
         </h1>
-        <p class="mt-1 max-w-2xl text-sm text-gray-400">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Subscribe to sectionized packs (daily stockout, marketing, warehouse, finance).
           Toggle on/off per workspace. Reports
-          <strong class="font-medium text-gray-300">suggest only</strong>
+          <strong class="font-medium text-ink-soft">suggest only</strong>
           — they never auto-approve, send to Loft, or mark FOB.
-          MCP: <code class="text-gray-500">reports_run</code> with
-          <code class="text-gray-500">template_slug=daily-stockout</code>.
+          MCP: <code class="text-muted">reports_run</code> with
+          <code class="text-muted">template_slug=daily-stockout</code>.
         </p>
       </div>
       <button
@@ -133,18 +133,18 @@ function statusClass(status: string | undefined) {
 
     <div
       v-if="error"
-      class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+      class="rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"
     >
       {{ error }}
     </div>
 
-    <div v-if="loading && !packs.length" class="card p-8 text-center text-sm text-gray-400">
+    <div v-if="loading && !packs.length" class="card p-8 text-center text-sm text-muted">
       Loading packs…
     </div>
 
-    <div v-else-if="!packs.length" class="card p-8 text-center text-sm text-gray-400">
+    <div v-else-if="!packs.length" class="card p-8 text-center text-sm text-muted">
       No report packs yet. Apply migration
-      <code class="text-indigo-300">066</code>
+      <code class="text-brown">066</code>
       and refresh.
     </div>
 
@@ -157,7 +157,7 @@ function statusClass(status: string | undefined) {
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
-              <h2 class="truncate text-base font-semibold text-white">
+              <h2 class="truncate text-base font-semibold text-ink">
                 {{ card.template.title }}
               </h2>
               <span class="badge-archived">
@@ -167,7 +167,7 @@ function statusClass(status: string | undefined) {
                 {{ card.subscription.schedule }}
               </span>
             </div>
-            <p class="mt-1 text-xs text-gray-500">
+            <p class="mt-1 text-xs text-muted">
               {{ card.template.slug }}
             </p>
           </div>
@@ -179,7 +179,7 @@ function statusClass(status: string | undefined) {
             :aria-checked="card.subscription.enabled"
             :disabled="togglingId === card.subscription.id"
             class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
-            :class="card.subscription.enabled ? 'bg-indigo-600' : 'bg-gray-700'"
+            :class="card.subscription.enabled ? 'bg-yellow' : 'bg-line'"
             @click="onToggle(card, !card.subscription.enabled)"
           >
             <span
@@ -189,7 +189,7 @@ function statusClass(status: string | undefined) {
           </button>
         </div>
 
-        <p class="mt-3 flex-1 text-sm text-gray-400">
+        <p class="mt-3 flex-1 text-sm text-muted">
           {{ card.template.description || 'No description.' }}
         </p>
 
@@ -197,14 +197,14 @@ function statusClass(status: string | undefined) {
           <span
             v-for="sec in card.sections"
             :key="sec"
-            class="rounded bg-gray-800 px-2 py-0.5 font-mono text-[11px] text-gray-400"
+            class="rounded bg-surface-sunken px-2 py-0.5 font-mono text-[11px] text-muted"
           >
             {{ sec }}
           </span>
         </div>
 
-        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-800 pt-4">
-          <div class="text-xs text-gray-500">
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
+          <div class="text-xs text-muted">
             <span v-if="card.last_run">
               Last run:
               <span :class="statusClass(card.last_run.status)">
@@ -228,21 +228,21 @@ function statusClass(status: string | undefined) {
 
     <div v-if="lastMarkdown" class="card p-5">
       <div class="mb-2 flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-white">
+        <h3 class="text-sm font-semibold text-ink">
           Last run summary
-          <span v-if="lastTitle" class="font-normal text-gray-400">— {{ lastTitle }}</span>
+          <span v-if="lastTitle" class="font-normal text-muted">— {{ lastTitle }}</span>
         </h3>
         <button type="button" class="btn-ghost text-xs" @click="lastMarkdown = null">
           Dismiss
         </button>
       </div>
-      <pre class="overflow-x-auto whitespace-pre-wrap rounded-lg bg-gray-950 p-4 text-xs text-gray-300">{{ lastMarkdown }}</pre>
+      <pre class="overflow-x-auto whitespace-pre-wrap rounded-lg bg-cream p-4 text-xs text-ink-soft">{{ lastMarkdown }}</pre>
     </div>
 
-    <p class="text-xs text-gray-600">
-      Scopes: <code class="text-gray-500">reports:read</code> list ·
-      <code class="text-gray-500">reports:write</code> toggle ·
-      <code class="text-gray-500">reports:run</code> run now.
+    <p class="text-xs text-muted">
+      Scopes: <code class="text-muted">reports:read</code> list ·
+      <code class="text-muted">reports:write</code> toggle ·
+      <code class="text-muted">reports:run</code> run now.
       Cron / Slack / MCP tools come in later slices (Rpt-3+).
     </p>
   </div>

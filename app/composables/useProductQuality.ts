@@ -153,19 +153,19 @@ export function useProductQuality() {
 
   // ── Helpers ─────────────────────────────────────────────────
   function scoreColor(score: number | null): string {
-    if (score === null) return 'text-gray-500'
-    if (score >= 80) return 'text-emerald-400'
-    if (score >= 60) return 'text-yellow-400'
-    if (score >= 40) return 'text-orange-400'
-    return 'text-red-400'
+    if (score === null) return 'text-muted'
+    if (score >= 80) return 'text-success'
+    if (score >= 60) return 'text-warning'
+    if (score >= 40) return 'text-warning'
+    return 'text-danger'
   }
 
   function scoreBg(score: number | null): string {
-    if (score === null) return 'bg-gray-800'
-    if (score >= 80) return 'bg-emerald-500/10 border-emerald-500/30'
-    if (score >= 60) return 'bg-yellow-500/10 border-yellow-500/30'
-    if (score >= 40) return 'bg-orange-500/10 border-orange-500/30'
-    return 'bg-red-500/10 border-red-500/30'
+    if (score === null) return 'bg-surface-sunken'
+    if (score >= 80) return 'bg-success-soft border-success/30'
+    if (score >= 60) return 'bg-yellow-soft border-yellow-500/30'
+    if (score >= 40) return 'bg-orange-500/10 border-warning/30'
+    return 'bg-danger-soft border-danger/30'
   }
 
   function positionLabel(pos: string | null): string {
@@ -181,24 +181,24 @@ export function useProductQuality() {
 
   function positionBadgeClass(pos: string | null): string {
     const map: Record<string, string> = {
-      market_leader: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+      market_leader: 'bg-success-soft text-success border border-success/30',
       competitive:   'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-      at_risk:       'bg-orange-500/20 text-orange-400 border border-orange-500/30',
-      lagging:       'bg-red-500/20 text-red-400 border border-red-500/30',
-      niche:         'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+      at_risk:       'bg-orange-500/20 text-warning border border-warning/30',
+      lagging:       'bg-danger-soft text-danger border border-danger/30',
+      niche:         'bg-purple-500/20 text-brown border border-peach',
     }
-    return pos ? (map[pos] ?? 'bg-gray-700 text-gray-400') : 'bg-gray-700 text-gray-400'
+    return pos ? (map[pos] ?? 'bg-line text-muted') : 'bg-line text-muted'
   }
 
   function priceBadgeClass(pos: string | null): string {
     const map: Record<string, string> = {
-      cheapest:     'bg-emerald-500/20 text-emerald-400',
+      cheapest:     'bg-success-soft text-success',
       competitive:  'bg-blue-500/20 text-blue-400',
-      premium:      'bg-yellow-500/20 text-yellow-400',
-      overpriced:   'bg-red-500/20 text-red-400',
-      unknown:      'bg-gray-700 text-gray-400',
+      premium:      'bg-yellow-500/20 text-warning',
+      overpriced:   'bg-danger-soft text-danger',
+      unknown:      'bg-line text-muted',
     }
-    return pos ? (map[pos] ?? 'bg-gray-700 text-gray-400') : 'bg-gray-700 text-gray-400'
+    return pos ? (map[pos] ?? 'bg-line text-muted') : 'bg-line text-muted'
   }
 
   function marketplaceLabel(m: string): string {
@@ -216,16 +216,16 @@ export function useProductQuality() {
       shopee:  'bg-orange-500/20 text-orange-300',
       lazada:  'bg-blue-500/20 text-blue-300',
       amazon:  'bg-yellow-500/20 text-yellow-300',
-      iherb:   'bg-green-500/20 text-green-300',
+      iherb:   'bg-success-soft text-success',
     }
-    return map[m] ?? 'bg-gray-700 text-gray-300'
+    return map[m] ?? 'bg-line text-ink-soft'
   }
 
   function dataSourceBadge(source: string | null): { label: string; class: string } {
     if (source === 'scraped') {
-      return { label: 'Live Data', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' }
+      return { label: 'Live Data', class: 'bg-success-soft text-success border border-success/30' }
     }
-    return { label: 'AI Estimated', class: 'bg-amber-500/20 text-amber-400 border border-amber-500/30' }
+    return { label: 'AI Estimated', class: 'bg-warning-soft text-warning border border-warning/30' }
   }
 
   function timeAgo(dateStr: string): string {

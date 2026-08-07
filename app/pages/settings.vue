@@ -582,11 +582,11 @@ async function handleRemoveMember(userId: string, name: string) {
 
 function getRoleColor(role: string) {
   const map: Record<string, string> = {
-    owner: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
-    admin: 'bg-indigo-500/10 text-indigo-400 ring-indigo-500/20',
-    member: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
-    viewer: 'bg-gray-500/10 text-gray-400 ring-gray-500/20',
-    billing: 'bg-purple-500/10 text-purple-400 ring-purple-500/20',
+    owner: 'bg-warning-soft text-warning ring-amber-500/20',
+    admin: 'bg-yellow-deep/10 text-brown ring-yellow-deep/20',
+    member: 'bg-success-soft text-success ring-success/20',
+    viewer: 'bg-surface-sunken text-muted ring-line',
+    billing: 'bg-purple-500/10 text-brown ring-purple-500/20',
   }
   return map[role] || map.viewer
 }
@@ -663,40 +663,63 @@ async function saveAssistantProfile() {
   else showSuccess('AI Assistant settings saved.')
 }
 
+const route = useRoute()
+const router = useRouter()
+
+const tabKeys = new Set(tabs.map(t => t.key))
+
+function applyHashTab() {
+  const hash = (route.hash || '').replace(/^#/, '')
+  if (hash && tabKeys.has(hash as any)) {
+    activeTab.value = hash as typeof activeTab.value
+  }
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'assistant' && !assistantLoaded.value) loadAssistantProfile()
   if (tab === 'organization' && !orgLoaded.value) loadOrgData()
+  // Keep deep links working for MCP CTA (/settings#claude-connector)
+  if (import.meta.client) {
+    const next = `#${tab}`
+    if (route.hash !== next) router.replace({ hash: next })
+  }
 })
 
+watch(() => route.hash, () => applyHashTab())
+
 onMounted(async () => {
+  applyHashTab()
   await Promise.all([loadProfile(), loadWorkspace(), loadCustomFields(), loadTeam(), loadApiKeys()])
 })
 </script>
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold text-white">Settings</h1>
-    </div>
+    <UiPageHeader
+      eyebrow="Workspace"
+      title="Settings"
+      subtitle="Profile, API keys, team, and Claude MCP connector."
+    />
 
-    <!-- Tabs -->
-    <div class="mb-6 flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        :class="[
-          'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all',
-          activeTab === tab.key ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white',
-        ]"
-        @click="activeTab = tab.key as any"
-      >
-        {{ tab.label }}
-      </button>
+    <!-- Tabs — horizontal scroll on mobile -->
+    <div class="mb-6 overflow-x-auto rounded-full border border-line bg-surface-sunken p-1">
+      <div class="flex min-w-max gap-0.5">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          type="button"
+          class="press rounded-full px-3.5 py-2 text-[12.5px] font-semibold whitespace-nowrap transition-all"
+          :class="activeTab === tab.key ? 'bg-white text-ink shadow-warm-xs' : 'text-muted hover:text-ink'"
+          @click="activeTab = tab.key as any"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Profile -->
     <div v-show="activeTab === 'profile'" class="card p-6 space-y-4">
-      <h2 class="text-lg font-semibold text-white">Profile</h2>
+      <h2 class="text-lg font-semibold text-ink">Profile</h2>
       <div>
         <label class="label-field">Email</label>
         <input :value="user?.email" type="email" disabled class="input-field opacity-60" />
@@ -716,7 +739,7 @@ onMounted(async () => {
 
     <!-- Workspace -->
     <div v-show="activeTab === 'workspace'" class="card p-6 space-y-4">
-      <h2 class="text-lg font-semibold text-white">Workspace Settings</h2>
+      <h2 class="text-lg font-semibold text-ink">Workspace Settings</h2>
       <div>
         <label class="label-field">Workspace Name</label>
         <input v-model="workspace.name" type="text" class="input-field" />
@@ -735,14 +758,14 @@ onMounted(async () => {
       <!-- No org yet -->
       <div v-if="!currentOrganization" class="card p-6 space-y-4">
         <div>
-          <h2 class="text-lg font-semibold text-white">Organization</h2>
-          <p class="mt-1 text-sm text-gray-400">
+          <h2 class="text-lg font-semibold text-ink">Organization</h2>
+          <p class="mt-1 text-sm text-muted">
             Organizations group multiple workspaces under one umbrella. Org admins get implicit access to all workspaces.
           </p>
         </div>
 
         <div v-if="!showCreateOrgForm" class="text-center py-6">
-          <p class="text-sm text-gray-500 mb-4">You don't belong to any organization yet.</p>
+          <p class="text-sm text-muted mb-4">You don't belong to any organization yet.</p>
           <button class="btn-primary" @click="showCreateOrgForm = true">Create Organization</button>
         </div>
 
@@ -764,7 +787,7 @@ onMounted(async () => {
       <template v-else>
         <!-- Org details -->
         <div class="card p-6 space-y-4">
-          <h2 class="text-lg font-semibold text-white">Organization Settings</h2>
+          <h2 class="text-lg font-semibold text-ink">Organization Settings</h2>
           <div>
             <label class="label-field">Name</label>
             <input v-model="orgForm.name" type="text" class="input-field" />
@@ -782,8 +805,8 @@ onMounted(async () => {
         <div class="card p-6">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-lg font-semibold text-white">Organization Members</h2>
-              <p class="mt-0.5 text-sm text-gray-400">{{ orgMembers.length }} member{{ orgMembers.length !== 1 ? 's' : '' }}</p>
+              <h2 class="text-lg font-semibold text-ink">Organization Members</h2>
+              <p class="mt-0.5 text-sm text-muted">{{ orgMembers.length }} member{{ orgMembers.length !== 1 ? 's' : '' }}</p>
             </div>
             <button v-if="isOrgAdmin" class="btn-primary" @click="showOrgInviteForm = !showOrgInviteForm">
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -794,8 +817,8 @@ onMounted(async () => {
           </div>
 
           <!-- Org invite form -->
-          <div v-if="showOrgInviteForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-            <h3 class="mb-3 text-sm font-medium text-white">Invite to organization</h3>
+          <div v-if="showOrgInviteForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4">
+            <h3 class="mb-3 text-sm font-medium text-ink">Invite to organization</h3>
             <form class="flex gap-3" @submit.prevent="handleSendOrgInvite">
               <input
                 v-model="orgInviteEmail"
@@ -813,22 +836,22 @@ onMounted(async () => {
                 {{ orgInviteSending ? 'Sending...' : 'Send' }}
               </button>
             </form>
-            <p class="mt-2 text-xs text-gray-500">Org admins have implicit access to all workspaces in this organization.</p>
+            <p class="mt-2 text-xs text-muted">Org admins have implicit access to all workspaces in this organization.</p>
           </div>
 
           <!-- Org member list -->
-          <div class="divide-y divide-gray-800">
+          <div class="divide-y divide-line">
             <div v-for="m in orgMembers" :key="m.user_id" class="flex items-center justify-between py-3">
               <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-800 text-sm font-semibold text-gray-300">
+                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-sunken text-sm font-semibold text-ink-soft">
                   {{ (m.profile?.full_name || m.profile?.email || '?').charAt(0).toUpperCase() }}
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-white">
+                  <p class="text-sm font-medium text-ink">
                     {{ m.profile?.full_name || 'Unnamed' }}
-                    <span v-if="m.user_id === getUserId()" class="text-xs text-gray-500">(you)</span>
+                    <span v-if="m.user_id === getUserId()" class="text-xs text-muted">(you)</span>
                   </p>
-                  <p class="text-xs text-gray-500">{{ m.profile?.email || m.user_id }}</p>
+                  <p class="text-xs text-muted">{{ m.profile?.email || m.user_id }}</p>
                 </div>
               </div>
               <div class="flex items-center gap-3">
@@ -850,7 +873,7 @@ onMounted(async () => {
                 </span>
                 <button
                   v-if="isOrgAdmin && m.role !== 'owner' && m.user_id !== getUserId()"
-                  class="btn-ghost !p-1.5 text-red-400 hover:text-red-300"
+                  class="btn-ghost !p-1.5 text-danger hover:text-danger"
                   title="Remove member"
                   @click="handleRemoveOrgMember(m.user_id, m.profile?.full_name)"
                 >
@@ -865,20 +888,20 @@ onMounted(async () => {
 
         <!-- Pending Org Invites -->
         <div v-if="orgInvites.length > 0" class="card p-6">
-          <h2 class="mb-4 text-lg font-semibold text-white">Pending Organization Invites</h2>
-          <div class="divide-y divide-gray-800">
+          <h2 class="mb-4 text-lg font-semibold text-ink">Pending Organization Invites</h2>
+          <div class="divide-y divide-line">
             <div v-for="inv in orgInvites" :key="inv.id" class="flex items-center justify-between py-3">
               <div>
-                <p class="text-sm font-medium text-white">{{ inv.email }}</p>
-                <p class="text-xs text-gray-500">
+                <p class="text-sm font-medium text-ink">{{ inv.email }}</p>
+                <p class="text-xs text-muted">
                   Invited as <span class="capitalize">{{ inv.role }}</span>
                   &middot; Expires {{ new Date(inv.expires_at).toLocaleDateString() }}
                 </p>
               </div>
               <div class="flex items-center gap-2">
-                <span class="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400 ring-1 ring-inset ring-amber-500/20">Pending</span>
+                <span class="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning ring-1 ring-inset ring-amber-500/20">Pending</span>
                 <button
-                  class="btn-ghost !p-1.5 text-red-400 hover:text-red-300"
+                  class="btn-ghost !p-1.5 text-danger hover:text-danger"
                   title="Revoke invite"
                   @click="handleRevokeOrgInvite(inv.id)"
                 >
@@ -895,8 +918,8 @@ onMounted(async () => {
         <div class="card p-6">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-lg font-semibold text-white">Workspaces in Organization</h2>
-              <p class="mt-0.5 text-sm text-gray-400">{{ orgWorkspaces.length }} workspace{{ orgWorkspaces.length !== 1 ? 's' : '' }}</p>
+              <h2 class="text-lg font-semibold text-ink">Workspaces in Organization</h2>
+              <p class="mt-0.5 text-sm text-muted">{{ orgWorkspaces.length }} workspace{{ orgWorkspaces.length !== 1 ? 's' : '' }}</p>
             </div>
             <button v-if="isOrgAdmin && unlinkedWorkspaces.length > 0" class="btn-secondary text-xs" @click="showMoveWorkspaceForm = !showMoveWorkspaceForm">
               {{ showMoveWorkspaceForm ? 'Cancel' : 'Move workspace here' }}
@@ -904,35 +927,35 @@ onMounted(async () => {
           </div>
 
           <!-- Move workspace form -->
-          <div v-if="showMoveWorkspaceForm && unlinkedWorkspaces.length > 0" class="mb-4 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-            <p class="text-sm text-gray-300 mb-2">Select a workspace to move into this organization:</p>
+          <div v-if="showMoveWorkspaceForm && unlinkedWorkspaces.length > 0" class="mb-4 rounded-lg border border-line bg-surface-sunken p-4">
+            <p class="text-sm text-ink-soft mb-2">Select a workspace to move into this organization:</p>
             <div class="space-y-2">
               <button
                 v-for="ws in unlinkedWorkspaces"
                 :key="ws.id"
-                class="w-full flex items-center justify-between rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-indigo-500 hover:bg-indigo-500/5 transition-colors"
+                class="w-full flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm text-ink-soft hover:border-indigo-500 hover:bg-yellow-soft/40 transition-colors"
                 @click="handleMoveWorkspace(ws.id)"
               >
                 <span>{{ ws.name }}</span>
-                <span class="text-xs text-gray-500">{{ ws.slug }}</span>
+                <span class="text-xs text-muted">{{ ws.slug }}</span>
               </button>
             </div>
           </div>
 
           <!-- Workspace list -->
-          <div v-if="orgWorkspaces.length === 0" class="py-6 text-center text-sm text-gray-500">
+          <div v-if="orgWorkspaces.length === 0" class="py-6 text-center text-sm text-muted">
             No workspaces linked to this organization yet.
           </div>
-          <div v-else class="divide-y divide-gray-800">
+          <div v-else class="divide-y divide-line">
             <div v-for="ws in orgWorkspaces" :key="ws.id" class="flex items-center justify-between py-3">
               <div>
-                <p class="text-sm font-medium text-white">{{ ws.name }}</p>
-                <p class="text-xs text-gray-500">{{ ws.slug }}</p>
+                <p class="text-sm font-medium text-ink">{{ ws.name }}</p>
+                <p class="text-xs text-muted">{{ ws.slug }}</p>
               </div>
               <span
                 :class="[
                   'rounded-full px-2 py-0.5 text-xs',
-                  ws.id === currentWorkspace?.id ? 'bg-indigo-500/10 text-indigo-400' : 'bg-gray-700/50 text-gray-400',
+                  ws.id === currentWorkspace?.id ? 'bg-yellow-deep/10 text-brown' : 'bg-line/50 text-muted',
                 ]"
               >
                 {{ ws.id === currentWorkspace?.id ? 'Current' : 'Workspace' }}
@@ -949,8 +972,8 @@ onMounted(async () => {
       <div class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold text-white">Team Members</h2>
-            <p class="mt-0.5 text-sm text-gray-400">
+            <h2 class="text-lg font-semibold text-ink">Team Members</h2>
+            <p class="mt-0.5 text-sm text-muted">
               {{ members.length }} member{{ members.length !== 1 ? 's' : '' }}
               · Owner appoints Admins · Admins manage ops & keys within their scopes
             </p>
@@ -964,8 +987,8 @@ onMounted(async () => {
         </div>
 
         <!-- Invite form -->
-        <div v-if="showInviteForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-          <h3 class="mb-3 text-sm font-medium text-white">Invite by email</h3>
+        <div v-if="showInviteForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4">
+          <h3 class="mb-3 text-sm font-medium text-ink">Invite by email</h3>
           <form class="flex gap-3" @submit.prevent="handleSendInvite">
             <input
               v-model="inviteEmail"
@@ -983,25 +1006,25 @@ onMounted(async () => {
               {{ inviteSending ? 'Sending...' : 'Send' }}
             </button>
           </form>
-          <p class="mt-2 text-xs text-gray-500">
+          <p class="mt-2 text-xs text-muted">
             Invite valid 7 days. <span v-if="isOwner">As owner you can appoint Admins (ops leads). </span>
             <span v-else>Only the workspace owner can invite Admins.</span>
           </p>
         </div>
 
         <!-- Member list -->
-        <div class="divide-y divide-gray-800">
+        <div class="divide-y divide-line">
           <div v-for="m in members" :key="m.user_id" class="flex items-center justify-between py-3">
             <div class="flex items-center gap-3">
-              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-800 text-sm font-semibold text-gray-300">
+              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-sunken text-sm font-semibold text-ink-soft">
                 {{ (m.profile?.full_name || m.profile?.email || '?').charAt(0).toUpperCase() }}
               </div>
               <div>
-                <p class="text-sm font-medium text-white">
+                <p class="text-sm font-medium text-ink">
                   {{ m.profile?.full_name || 'Unnamed' }}
-                  <span v-if="m.user_id === getUserId()" class="text-xs text-gray-500">(you)</span>
+                  <span v-if="m.user_id === getUserId()" class="text-xs text-muted">(you)</span>
                 </p>
-                <p class="text-xs text-gray-500">{{ m.profile?.email || m.user_id }}</p>
+                <p class="text-xs text-muted">{{ m.profile?.email || m.user_id }}</p>
               </div>
             </div>
             <div class="flex items-center gap-3">
@@ -1023,7 +1046,7 @@ onMounted(async () => {
               </span>
               <button
                 v-if="(isOwner || can('team', 'remove')) && m.role !== 'owner' && m.user_id !== getUserId()"
-                class="btn-ghost !p-1.5 text-red-400 hover:text-red-300"
+                class="btn-ghost !p-1.5 text-danger hover:text-danger"
                 title="Remove member"
                 @click="handleRemoveMember(m.user_id, m.profile?.full_name)"
               >
@@ -1038,18 +1061,18 @@ onMounted(async () => {
 
       <!-- Pending Invites -->
       <div v-if="invites.length > 0" class="card p-6">
-        <h2 class="mb-4 text-lg font-semibold text-white">Pending Invites</h2>
-        <div class="divide-y divide-gray-800">
+        <h2 class="mb-4 text-lg font-semibold text-ink">Pending Invites</h2>
+        <div class="divide-y divide-line">
           <div v-for="inv in invites" :key="inv.id" class="flex items-center justify-between py-3">
             <div>
-              <p class="text-sm font-medium text-white">{{ inv.email }}</p>
-              <p class="text-xs text-gray-500">
+              <p class="text-sm font-medium text-ink">{{ inv.email }}</p>
+              <p class="text-xs text-muted">
                 Invited as <span class="capitalize">{{ inv.role }}</span>
                 &middot; Expires {{ new Date(inv.expires_at).toLocaleDateString() }}
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <span class="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400 ring-1 ring-inset ring-amber-500/20">
+              <span class="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning ring-1 ring-inset ring-amber-500/20">
                 Pending
               </span>
               <button
@@ -1061,7 +1084,7 @@ onMounted(async () => {
                 Copy link
               </button>
               <button
-                class="btn-ghost !p-1.5 text-red-400 hover:text-red-300"
+                class="btn-ghost !p-1.5 text-danger hover:text-danger"
                 title="Revoke invite"
                 @click="handleRevokeInvite(inv.id)"
               >
@@ -1076,33 +1099,33 @@ onMounted(async () => {
 
       <!-- Permissions Overview -->
       <div class="card p-6">
-        <h2 class="mb-2 text-lg font-semibold text-white">Permission Roles</h2>
-        <p class="mb-4 text-sm text-gray-400">
+        <h2 class="mb-2 text-lg font-semibold text-ink">Permission Roles</h2>
+        <p class="mb-4 text-sm text-muted">
           Standard permission levels applied to all organizations. Custom permission schemas can be created per workspace in the future.
         </p>
-        <div class="overflow-x-auto rounded-lg border border-gray-800">
+        <div class="overflow-x-auto rounded-lg border border-line">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-800 bg-gray-900/50">
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Area</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-amber-400">Owner</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-indigo-400">Admin</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-emerald-400">Member</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-gray-400">Viewer</th>
+              <tr class="border-b border-line bg-surface-sunken/80">
+                <th class="px-4 py-3 text-left text-xs font-medium text-muted">Area</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-warning">Owner</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-brown">Admin</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-success">Member</th>
+                <th class="px-3 py-3 text-center text-xs font-medium text-muted">Viewer</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-800/50">
-              <tr v-for="area in ['products', 'brands', 'categories', 'integrations', 'schemas', 'team', 'workspace', 'api']" :key="area" class="hover:bg-gray-800/20">
-                <td class="px-4 py-2.5 text-gray-300 capitalize">{{ area }}</td>
-                <td class="px-3 py-2.5 text-center text-emerald-400">Full</td>
-                <td class="px-3 py-2.5 text-center text-emerald-400">{{ area === 'workspace' ? 'R/W' : 'Full' }}</td>
+            <tbody class="divide-y divide-line-soft">
+              <tr v-for="area in ['products', 'brands', 'categories', 'integrations', 'schemas', 'team', 'workspace', 'api']" :key="area" class="hover:bg-surface-sunken/20">
+                <td class="px-4 py-2.5 text-ink-soft capitalize">{{ area }}</td>
+                <td class="px-3 py-2.5 text-center text-success">Full</td>
+                <td class="px-3 py-2.5 text-center text-success">{{ area === 'workspace' ? 'R/W' : 'Full' }}</td>
                 <td class="px-3 py-2.5 text-center">
-                  <span v-if="['products', 'brands', 'categories'].includes(area)" class="text-emerald-400">R/W</span>
-                  <span v-else-if="['integrations', 'schemas', 'team', 'workspace'].includes(area)" class="text-gray-500">Read</span>
-                  <span v-else-if="area === 'api'" class="text-gray-500">Read</span>
-                  <span v-else class="text-gray-500">Read</span>
+                  <span v-if="['products', 'brands', 'categories'].includes(area)" class="text-success">R/W</span>
+                  <span v-else-if="['integrations', 'schemas', 'team', 'workspace'].includes(area)" class="text-muted">Read</span>
+                  <span v-else-if="area === 'api'" class="text-muted">Read</span>
+                  <span v-else class="text-muted">Read</span>
                 </td>
-                <td class="px-3 py-2.5 text-center text-gray-600">Read</td>
+                <td class="px-3 py-2.5 text-center text-muted">Read</td>
               </tr>
             </tbody>
           </table>
@@ -1113,31 +1136,31 @@ onMounted(async () => {
     <!-- API Keys -->
     <div v-show="activeTab === 'api-keys'" class="space-y-6">
       <!-- Newly created key banner -->
-      <div v-if="newlyCreatedKey" class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
-        <p class="text-sm font-semibold text-emerald-400 mb-1">API key created successfully</p>
-        <p class="text-xs text-gray-400 mb-2">Copy this key now — it will not be shown again.</p>
+      <div v-if="newlyCreatedKey" class="rounded-lg border border-success/30 bg-success-soft p-4">
+        <p class="text-sm font-semibold text-success mb-1">API key created successfully</p>
+        <p class="text-xs text-muted mb-2">Copy this key now — it will not be shown again.</p>
         <div class="flex items-center gap-2">
-          <code class="flex-1 rounded bg-gray-900 px-3 py-2 font-mono text-sm text-white break-all select-all">{{ newlyCreatedKey }}</code>
+          <code class="flex-1 rounded bg-white px-3 py-2 font-mono text-sm text-ink break-all select-all">{{ newlyCreatedKey }}</code>
           <button class="btn-primary shrink-0 text-xs" @click="copyToClipboard(newlyCreatedKey)">Copy</button>
           <button class="btn-secondary shrink-0 text-xs" @click="newlyCreatedKey = ''">Dismiss</button>
         </div>
-        <div v-if="newlyCreatedKeyUse === 'pos'" class="mt-4 rounded-lg border border-emerald-500/20 bg-gray-950/70 p-3">
+        <div v-if="newlyCreatedKeyUse === 'pos'" class="mt-4 rounded-lg border border-success/20 bg-cream/70 p-3">
           <div class="mb-2 flex items-center justify-between gap-3">
-            <p class="text-xs font-medium text-emerald-300">POS connector values</p>
+            <p class="text-xs font-medium text-success">POS connector values</p>
             <button class="btn-secondary shrink-0 text-xs" @click="copyToClipboard(posConnectorSnippet)">
               Copy POS values
             </button>
           </div>
-          <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-gray-950 p-3 font-mono text-xs text-gray-200">{{ posConnectorSnippet }}</pre>
+          <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-cream p-3 font-mono text-xs text-ink-soft">{{ posConnectorSnippet }}</pre>
         </div>
-        <div v-if="newlyCreatedKeyUse === 'mcp'" class="mt-4 rounded-lg border border-violet-500/20 bg-gray-950/70 p-3">
+        <div v-if="newlyCreatedKeyUse === 'mcp'" class="mt-4 rounded-lg border border-violet-500/20 bg-cream/70 p-3">
           <div class="mb-2 flex items-center justify-between gap-3">
             <p class="text-xs font-medium text-violet-300">Claude / remote MCP values</p>
             <button class="btn-secondary shrink-0 text-xs" @click="copyToClipboard(mcpConnectorSnippet)">
               Copy MCP values
             </button>
           </div>
-          <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-gray-950 p-3 font-mono text-xs text-gray-200">{{ mcpConnectorSnippet }}</pre>
+          <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded bg-cream p-3 font-mono text-xs text-ink-soft">{{ mcpConnectorSnippet }}</pre>
         </div>
       </div>
 
@@ -1146,15 +1169,15 @@ onMounted(async () => {
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div class="max-w-2xl">
             <p class="text-xs font-medium uppercase tracking-wider text-violet-400">Remote MCP (Phase R1)</p>
-            <h2 class="mt-1 text-lg font-semibold text-white">Connect Claude to this workspace</h2>
-            <p class="mt-1 text-sm text-gray-400">
+            <h2 class="mt-1 text-lg font-semibold text-ink">Connect Claude to this workspace</h2>
+            <p class="mt-1 text-sm text-muted">
               Non-technical staff can add this HTTPS endpoint as a custom MCP integration in Claude.
-              Keys are <strong class="text-gray-300">cloud-safe</strong>: catalog Q&amp;A, help, drafts — not submit/execute.
-              Humans still approve in <NuxtLink to="/actions" class="text-indigo-400 hover:underline">Actions</NuxtLink>.
+              Keys are <strong class="text-ink-soft">cloud-safe</strong>: catalog Q&amp;A, help, drafts — not submit/execute.
+              Humans still approve in <NuxtLink to="/actions" class="text-brown hover:underline">Actions</NuxtLink>.
             </p>
             <p class="mt-2 font-mono text-xs text-violet-300/90">{{ mcpEndpointUrl }}</p>
-            <p class="mt-2 text-xs text-gray-500">
-              Full guide: <NuxtLink to="/help/connect-claude" class="text-indigo-400 hover:underline">/help/connect-claude</NuxtLink>
+            <p class="mt-2 text-xs text-muted">
+              Full guide: <NuxtLink to="/help/connect-claude" class="text-brown hover:underline">/help/connect-claude</NuxtLink>
             </p>
           </div>
           <button class="btn-primary shrink-0" :disabled="mcpKeySaving || !currentWorkspace" @click="handleCreateMcpKey">
@@ -1166,9 +1189,9 @@ onMounted(async () => {
       <div class="card p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div class="max-w-2xl">
-            <p class="text-xs font-medium uppercase tracking-wider text-indigo-400">POS integration</p>
-            <h2 class="mt-1 text-lg font-semibold text-white">Connect POS to this workspace</h2>
-            <p class="mt-1 text-sm text-gray-400">
+            <p class="text-xs font-medium uppercase tracking-wider text-brown">POS integration</p>
+            <h2 class="mt-1 text-lg font-semibold text-ink">Connect POS to this workspace</h2>
+            <p class="mt-1 text-sm text-muted">
               Create a connector key with POS catalog read and POS sale write access. Paste this URL and key into the
               POS app's SKUMS Connector settings.
             </p>
@@ -1179,21 +1202,21 @@ onMounted(async () => {
         </div>
 
         <div class="mt-5 grid gap-3 sm:grid-cols-3">
-          <div class="rounded-lg bg-gray-900/70 p-3">
-            <p class="text-xs text-gray-500">Catalog</p>
-            <p class="mt-1 font-mono text-xs text-gray-300">GET /api/v1/pos/catalog</p>
+          <div class="rounded-lg bg-white/70 p-3">
+            <p class="text-xs text-muted">Catalog</p>
+            <p class="mt-1 font-mono text-xs text-ink-soft">GET /api/v1/pos/catalog</p>
           </div>
-          <div class="rounded-lg bg-gray-900/70 p-3">
-            <p class="text-xs text-gray-500">Scan</p>
-            <p class="mt-1 font-mono text-xs text-gray-300">POST /api/v1/pos/scan</p>
+          <div class="rounded-lg bg-white/70 p-3">
+            <p class="text-xs text-muted">Scan</p>
+            <p class="mt-1 font-mono text-xs text-ink-soft">POST /api/v1/pos/scan</p>
           </div>
-          <div class="rounded-lg bg-gray-900/70 p-3">
-            <p class="text-xs text-gray-500">Sales</p>
-            <p class="mt-1 font-mono text-xs text-gray-300">POST /api/v1/pos/sales</p>
+          <div class="rounded-lg bg-white/70 p-3">
+            <p class="text-xs text-muted">Sales</p>
+            <p class="mt-1 font-mono text-xs text-ink-soft">POST /api/v1/pos/sales</p>
           </div>
         </div>
 
-        <div class="mt-4 rounded-lg border border-gray-800 bg-gray-900/40 p-3 text-sm text-gray-400">
+        <div class="mt-4 rounded-lg border border-line bg-white/40 p-3 text-sm text-muted">
           <p>
             Google SSO should be set up in SKUMS first because SKUMS owns workspace, team, and API-key administration.
             POS can use this connector key for the demo and later move to register/device or shared IAM login when staff roles are ready.
@@ -1204,8 +1227,8 @@ onMounted(async () => {
       <div class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold text-white">API Keys</h2>
-            <p class="mt-1 text-sm text-gray-400">Manage keys for external access — n8n, CLI, agents, and other integrations.</p>
+            <h2 class="text-lg font-semibold text-ink">API Keys</h2>
+            <p class="mt-1 text-sm text-muted">Manage keys for external access — n8n, CLI, agents, and other integrations.</p>
           </div>
           <button class="btn-primary" @click="showKeyForm = !showKeyForm">
             {{ showKeyForm ? 'Cancel' : '+ New API Key' }}
@@ -1213,7 +1236,7 @@ onMounted(async () => {
         </div>
 
         <!-- Create form -->
-        <div v-if="showKeyForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-3">
+        <div v-if="showKeyForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4 space-y-3">
           <div>
             <label class="label-field">Name *</label>
             <input v-model="newKeyName" class="input-field" placeholder="e.g. n8n Production, CLI Dev" />
@@ -1225,7 +1248,7 @@ onMounted(async () => {
                 v-for="scope in AVAILABLE_SCOPES"
                 :key="scope.key"
                 class="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs cursor-pointer transition-colors"
-                :class="newKeyScopes.includes(scope.key) ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300' : 'border-gray-700 text-gray-400 hover:border-gray-600'"
+                :class="newKeyScopes.includes(scope.key) ? 'border-indigo-500 bg-yellow-deep/10 text-brown' : 'border-line text-muted hover:border-line-strong'"
               >
                 <input
                   v-model="newKeyScopes"
@@ -1243,12 +1266,12 @@ onMounted(async () => {
         </div>
 
         <!-- Endpoint hint -->
-        <div class="mb-4 rounded-lg bg-gray-800/50 border border-gray-700 p-4 text-sm">
-          <p class="text-white font-medium mb-2">Quick Start</p>
-          <div class="space-y-1 text-gray-400">
-            <p>Base URL: <code class="text-indigo-400">{your-app-url}/api/v1</code></p>
-            <p>Auth: <code class="text-indigo-400">Authorization: Bearer sk_live_…</code> or <code class="text-indigo-400">X-API-Key: sk_live_…</code></p>
-            <p class="mt-2">Endpoints: <code class="text-indigo-400">/products</code> · <code class="text-indigo-400">/brands</code> · <code class="text-indigo-400">/categories</code> · <code class="text-indigo-400">/schemas</code></p>
+        <div class="mb-4 rounded-lg bg-surface-sunken border border-line p-4 text-sm">
+          <p class="text-ink font-medium mb-2">Quick Start</p>
+          <div class="space-y-1 text-muted">
+            <p>Base URL: <code class="text-brown">{your-app-url}/api/v1</code></p>
+            <p>Auth: <code class="text-brown">Authorization: Bearer sk_live_…</code> or <code class="text-brown">X-API-Key: sk_live_…</code></p>
+            <p class="mt-2">Endpoints: <code class="text-brown">/products</code> · <code class="text-brown">/brands</code> · <code class="text-brown">/categories</code> · <code class="text-brown">/schemas</code></p>
           </div>
         </div>
 
@@ -1256,7 +1279,7 @@ onMounted(async () => {
         <div v-if="apiKeys.length > 0" class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-700 text-left text-gray-400">
+              <tr class="border-b border-line text-left text-muted">
                 <th class="pb-2 pr-4">Name</th>
                 <th class="pb-2 pr-4">Kind</th>
                 <th class="pb-2 pr-4">Prefix</th>
@@ -1267,26 +1290,26 @@ onMounted(async () => {
                 <th class="pb-2"></th>
               </tr>
             </thead>
-            <tbody class="text-gray-300">
-              <tr v-for="key in apiKeys" :key="key.id" class="border-b border-gray-800">
-                <td class="py-2.5 pr-4 font-medium text-white">
+            <tbody class="text-ink-soft">
+              <tr v-for="key in apiKeys" :key="key.id" class="border-b border-line">
+                <td class="py-2.5 pr-4 font-medium text-ink">
                   {{ key.name }}
-                  <span v-if="key.max_package" class="mt-0.5 block text-[10px] font-normal text-gray-500">{{ key.max_package }}</span>
+                  <span v-if="key.max_package" class="mt-0.5 block text-[10px] font-normal text-muted">{{ key.max_package }}</span>
                 </td>
-                <td class="py-2.5 pr-4 text-xs text-gray-400">{{ key.key_kind || 'general' }}</td>
-                <td class="py-2.5 pr-4 font-mono text-xs text-gray-400">{{ key.key_prefix }}…</td>
+                <td class="py-2.5 pr-4 text-xs text-muted">{{ key.key_kind || 'general' }}</td>
+                <td class="py-2.5 pr-4 font-mono text-xs text-muted">{{ key.key_prefix }}…</td>
                 <td class="py-2.5 pr-4">
-                  <span v-if="!key.scopes || key.scopes.length === 0" class="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">Legacy empty</span>
-                  <span v-else class="text-xs text-gray-400">{{ key.scopes.length }} scopes</span>
+                  <span v-if="!key.scopes || key.scopes.length === 0" class="rounded bg-line px-1.5 py-0.5 text-xs text-muted">Legacy empty</span>
+                  <span v-else class="text-xs text-muted">{{ key.scopes.length }} scopes</span>
                 </td>
-                <td class="py-2.5 pr-4 text-xs text-gray-500">
+                <td class="py-2.5 pr-4 text-xs text-muted">
                   {{ key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : 'Never' }}
                 </td>
-                <td class="py-2.5 pr-4 text-xs text-gray-500">{{ key.total_requests.toLocaleString() }}</td>
+                <td class="py-2.5 pr-4 text-xs text-muted">{{ key.total_requests.toLocaleString() }}</td>
                 <td class="py-2.5 pr-4">
                   <span
                     class="rounded-full px-2 py-0.5 text-xs"
-                    :class="key.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'"
+                    :class="key.is_active ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'"
                   >
                     {{ key.revoked_at ? 'Revoked' : key.is_active ? 'Active' : 'Disabled' }}
                   </span>
@@ -1294,32 +1317,32 @@ onMounted(async () => {
                 <td class="py-2.5 text-right space-x-2">
                   <button
                     v-if="!key.revoked_at"
-                    class="text-xs text-gray-400 hover:text-white"
+                    class="text-xs text-muted hover:text-ink"
                     @click="handleToggleKey(key.id, key.is_active)"
                   >
                     {{ key.is_active ? 'Disable' : 'Enable' }}
                   </button>
                   <button
                     v-if="!key.revoked_at"
-                    class="text-xs text-red-400 hover:text-red-300"
+                    class="text-xs text-danger hover:text-danger"
                     @click="handleDeleteKey(key.id)"
                   >
                     Revoke
                   </button>
-                  <span v-else class="text-xs text-gray-600">—</span>
+                  <span v-else class="text-xs text-muted">—</span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-else class="text-center py-8 text-sm text-gray-500">
+        <div v-else class="text-center py-8 text-sm text-muted">
           No API keys yet. Create one to connect n8n, CLI tools, or agents.
         </div>
       </div>
     </div>
 
     <!-- Claude Connector (per-user OAuth for MCP) -->
-    <div v-show="activeTab === 'claude-connector'">
+    <div id="claude-connector" v-show="activeTab === 'claude-connector'">
       <ClaudeConnectorSettings :workspace-id="currentWorkspace?.id || null" />
     </div>
 
@@ -1328,8 +1351,8 @@ onMounted(async () => {
       <div class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold text-white">Custom Fields</h2>
-            <p class="mt-1 text-sm text-gray-400">Define additional fields for your products</p>
+            <h2 class="text-lg font-semibold text-ink">Custom Fields</h2>
+            <p class="mt-1 text-sm text-muted">Define additional fields for your products</p>
           </div>
           <button class="btn-primary" @click="showFieldForm = true">
             Add field
@@ -1337,7 +1360,7 @@ onMounted(async () => {
         </div>
 
         <!-- New field form -->
-        <div v-if="showFieldForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-3">
+        <div v-if="showFieldForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4 space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="label-field">Field Name</label>
@@ -1374,8 +1397,8 @@ onMounted(async () => {
             </div>
           </div>
           <div class="flex items-center justify-between">
-            <label class="flex items-center gap-2 text-sm text-gray-300">
-              <input v-model="fieldForm.is_required" type="checkbox" class="rounded border-gray-600 bg-gray-800 text-indigo-500" />
+            <label class="flex items-center gap-2 text-sm text-ink-soft">
+              <input v-model="fieldForm.is_required" type="checkbox" class="rounded border-line-strong bg-surface-sunken text-brown" />
               Required field
             </label>
             <div class="flex gap-2">
@@ -1386,20 +1409,20 @@ onMounted(async () => {
         </div>
 
         <!-- Fields list -->
-        <div v-if="customFields.length === 0 && !showFieldForm" class="py-8 text-center text-sm text-gray-500">
+        <div v-if="customFields.length === 0 && !showFieldForm" class="py-8 text-center text-sm text-muted">
           No custom fields defined yet
         </div>
-        <div v-else class="divide-y divide-gray-800">
+        <div v-else class="divide-y divide-line">
           <div v-for="field in customFields" :key="field.id" class="flex items-center justify-between py-3">
             <div>
-              <p class="font-medium text-white">{{ field.field_name }}</p>
-              <p class="text-xs text-gray-500">
-                <code class="rounded bg-gray-800 px-1.5 py-0.5">{{ field.field_key }}</code>
+              <p class="font-medium text-ink">{{ field.field_name }}</p>
+              <p class="text-xs text-muted">
+                <code class="rounded bg-surface-sunken px-1.5 py-0.5">{{ field.field_key }}</code>
                 &middot; {{ field.field_type }}
-                <span v-if="field.is_required" class="text-red-400">&middot; required</span>
+                <span v-if="field.is_required" class="text-danger">&middot; required</span>
               </p>
             </div>
-            <button class="btn-ghost !p-1.5 text-red-400" @click="deleteField(field.id)">
+            <button class="btn-ghost !p-1.5 text-danger" @click="deleteField(field.id)">
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
               </svg>
@@ -1412,13 +1435,13 @@ onMounted(async () => {
     <!-- AI Assistant -->
     <div v-show="activeTab === 'assistant'" class="card p-6 space-y-5">
       <div>
-        <h2 class="text-lg font-semibold text-white">Catalog Assistant (in-app)</h2>
-        <p class="mt-1 text-sm text-gray-400">
-          Powered by xAI Grok. This is the floating <strong class="text-gray-300">Catalog AI</strong> drawer — live Q&amp;A over your imported products, inventory, and Actions queue.
+        <h2 class="text-lg font-semibold text-ink">Catalog Assistant (in-app)</h2>
+        <p class="mt-1 text-sm text-muted">
+          Powered by xAI Grok. This is the floating <strong class="text-ink-soft">Catalog AI</strong> drawer — live Q&amp;A over your imported products, inventory, and Actions queue.
         </p>
-        <div class="mt-3 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-2 text-xs text-gray-400 space-y-1">
-          <p><strong class="text-gray-300">In-app Assistant</strong> — catalog counts/search for large imports (uses tools + your xAI key on the server).</p>
-          <p><strong class="text-gray-300">MCP</strong> (<code class="text-gray-500">npm run mcp</code> in Cursor/Claude) — marketplace study, draft POs, pipeline. Same workspace data; approve in <strong class="text-gray-300">Actions</strong>.</p>
+        <div class="mt-3 rounded-lg border border-line bg-surface-sunken/40 px-3 py-2 text-xs text-muted space-y-1">
+          <p><strong class="text-ink-soft">In-app Assistant</strong> — catalog counts/search for large imports (uses tools + your xAI key on the server).</p>
+          <p><strong class="text-ink-soft">MCP</strong> (<code class="text-muted">npm run mcp</code> in Cursor/Claude) — marketplace study, draft POs, pipeline. Same workspace data; approve in <strong class="text-ink-soft">Actions</strong>.</p>
           <p>They share Supabase + xAI but are different surfaces — pick one based on whether you are in the browser or an IDE agent.</p>
         </div>
       </div>
@@ -1432,7 +1455,7 @@ onMounted(async () => {
           <option value="distributor">Distributor</option>
           <option value="custom">Custom</option>
         </select>
-        <p class="mt-1 text-xs text-gray-500">Tells the assistant how to frame recommendations and data transformations.</p>
+        <p class="mt-1 text-xs text-muted">Tells the assistant how to frame recommendations and data transformations.</p>
       </div>
 
       <div>
@@ -1451,7 +1474,7 @@ onMounted(async () => {
           class="input-field"
           placeholder="https://hooks.slack.com/services/..."
         />
-        <p class="mt-1 text-xs text-gray-500">Optional. Enables the assistant to post insights and alerts to your Slack channel.</p>
+        <p class="mt-1 text-xs text-muted">Optional. Enables the assistant to post insights and alerts to your Slack channel.</p>
       </div>
 
       <div>
@@ -1461,7 +1484,7 @@ onMounted(async () => {
           class="input-field min-h-[100px] resize-y"
           placeholder="e.g. Always respond in British English. Focus on Amazon seller metrics. Never suggest deleting products."
         />
-        <p class="mt-1 text-xs text-gray-500">Extra instructions appended to the assistant's system prompt.</p>
+        <p class="mt-1 text-xs text-muted">Extra instructions appended to the assistant's system prompt.</p>
       </div>
 
       <button class="btn-primary" :disabled="assistantSaving" @click="saveAssistantProfile">

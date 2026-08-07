@@ -365,39 +365,39 @@ export function useInventory() {
     const map: Record<string, { label: string; cls: string }> = {
       warehouse:  { label: 'Warehouse',   cls: 'bg-blue-500/10 text-blue-400' },
       store:      { label: 'Store',       cls: 'bg-green-500/10 text-green-400' },
-      in_transit: { label: 'In Transit',  cls: 'bg-amber-500/10 text-amber-400' },
-      supplier:   { label: 'Supplier',    cls: 'bg-purple-500/10 text-purple-400' },
-      fba:        { label: 'Amazon FBA',  cls: 'bg-orange-500/10 text-orange-400' },
+      in_transit: { label: 'In Transit',  cls: 'bg-warning-soft text-warning' },
+      supplier:   { label: 'Supplier',    cls: 'bg-purple-500/10 text-brown' },
+      fba:        { label: 'Amazon FBA',  cls: 'bg-orange-500/10 text-warning' },
       '3pl':      { label: '3PL',         cls: 'bg-cyan-500/10 text-cyan-400' },
-      damaged:    { label: 'Damaged',     cls: 'bg-red-500/10 text-red-400' },
-      returns:    { label: 'Returns',     cls: 'bg-yellow-500/10 text-yellow-400' },
-      virtual:    { label: 'Virtual',     cls: 'bg-gray-500/10 text-gray-400' },
+      damaged:    { label: 'Damaged',     cls: 'bg-danger-soft text-danger' },
+      returns:    { label: 'Returns',     cls: 'bg-yellow-soft text-warning' },
+      virtual:    { label: 'Virtual',     cls: 'bg-surface-sunken text-muted' },
     }
-    return map[type] ?? { label: type, cls: 'bg-gray-500/10 text-gray-400' }
+    return map[type] ?? { label: type, cls: 'bg-surface-sunken text-muted' }
   }
 
   function poStatusBadge(status: PurchaseOrder['status']) {
     const map: Record<string, { label: string; cls: string }> = {
-      draft:               { label: 'Draft',               cls: 'bg-gray-500/10 text-gray-400' },
+      draft:               { label: 'Draft',               cls: 'bg-surface-sunken text-muted' },
       submitted:           { label: 'Submitted',           cls: 'bg-blue-500/10 text-blue-400' },
-      confirmed:           { label: 'Confirmed',           cls: 'bg-indigo-500/10 text-indigo-400' },
-      in_transit:          { label: 'In Transit',          cls: 'bg-amber-500/10 text-amber-400' },
-      partially_received:  { label: 'Partial Receipt',     cls: 'bg-orange-500/10 text-orange-400' },
-      received:            { label: 'Received',            cls: 'bg-emerald-500/10 text-emerald-400' },
-      cancelled:           { label: 'Cancelled',           cls: 'bg-red-500/10 text-red-400' },
+      confirmed:           { label: 'Confirmed',           cls: 'bg-yellow-deep/10 text-brown' },
+      in_transit:          { label: 'In Transit',          cls: 'bg-warning-soft text-warning' },
+      partially_received:  { label: 'Partial Receipt',     cls: 'bg-orange-500/10 text-warning' },
+      received:            { label: 'Received',            cls: 'bg-success-soft text-success' },
+      cancelled:           { label: 'Cancelled',           cls: 'bg-danger-soft text-danger' },
     }
-    return map[status] ?? { label: status, cls: 'bg-gray-500/10 text-gray-400' }
+    return map[status] ?? { label: status, cls: 'bg-surface-sunken text-muted' }
   }
 
   function transferStatusBadge(status: InventoryTransfer['status']) {
     const map: Record<string, { label: string; cls: string }> = {
-      draft:               { label: 'Draft',           cls: 'bg-gray-500/10 text-gray-400' },
-      in_transit:          { label: 'In Transit',      cls: 'bg-amber-500/10 text-amber-400' },
-      partially_received:  { label: 'Partial',         cls: 'bg-orange-500/10 text-orange-400' },
-      received:            { label: 'Received',        cls: 'bg-emerald-500/10 text-emerald-400' },
-      cancelled:           { label: 'Cancelled',       cls: 'bg-red-500/10 text-red-400' },
+      draft:               { label: 'Draft',           cls: 'bg-surface-sunken text-muted' },
+      in_transit:          { label: 'In Transit',      cls: 'bg-warning-soft text-warning' },
+      partially_received:  { label: 'Partial',         cls: 'bg-orange-500/10 text-warning' },
+      received:            { label: 'Received',        cls: 'bg-success-soft text-success' },
+      cancelled:           { label: 'Cancelled',       cls: 'bg-danger-soft text-danger' },
     }
-    return map[status] ?? { label: status, cls: 'bg-gray-500/10 text-gray-400' }
+    return map[status] ?? { label: status, cls: 'bg-surface-sunken text-muted' }
   }
 
   return {

@@ -1,92 +1,101 @@
 <script setup lang="ts">
-defineProps<{
-  collapsed: boolean
-  mobileOpen: boolean
-}>()
-
-const emit = defineEmits<{
-  toggle: []
-  closeMobile: []
-}>()
+defineProps<{ open: boolean }>()
+defineEmits<{ close: [] }>()
 
 const route = useRoute()
 const { currentWorkspace, workspaces, selectWorkspace } = useWorkspace()
-const { currentOrganization, organizations, selectOrganization, fetchOrganizations } = useOrganization()
+const { currentOrganization, organizations, selectOrganization } = useOrganization()
 const { open: openAssistant } = useAssistant()
+const { isNavigatingTo } = useNavigating()
+const user = useSupabaseUser()
 
 // Workspaces filtered by current org (if any)
 const filteredWorkspaces = computed(() => {
   if (!currentOrganization.value) return workspaces.value
   return workspaces.value.filter(
-    ws => ws.organization_id === currentOrganization.value!.id || !ws.organization_id
+    ws => ws.organization_id === currentOrganization.value!.id || !ws.organization_id,
   )
 })
 
-const navigation = [
-  // Fran Ops (/fran) hidden for now — page has no valuable actions yet
-  { name: 'Dashboard', href: '/', icon: 'home' },
-  { name: 'Actions', href: '/actions', icon: 'check' },
-  { name: 'Research', href: '/research', icon: 'notebook' },
-  { name: 'Products', href: '/products', icon: 'cube' },
-  { name: 'Inventory', href: '/inventory', icon: 'warehouse' },
-  { name: 'Store Ops', href: '/store-ops', icon: 'arrows' },
-  { name: 'Roster', href: '/roster', icon: 'users' },
-  { name: 'Expiry', href: '/expiry', icon: 'clock' },
-  { name: 'Forecasting', href: '/forecasting', icon: 'chart' },
-  { name: 'Reports', href: '/reports', icon: 'chart' },
-  { name: 'Brands', href: '/brands', icon: 'tag' },
-  { name: 'Categories', href: '/categories', icon: 'folder' },
-  { name: 'Import / Export', href: '/import-export', icon: 'arrows' },
-  { name: 'Schema Builder', href: '/schema', icon: 'schema' },
-  { name: 'Help', href: '/help', icon: 'help' },
-]
+/** Grouped nav — API / MCP elevated; catalogue + ops secondary. */
+const groups = computed(() => [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/', label: 'Dashboard', icon: 'home' },
+      { to: '/actions', label: 'Actions', icon: 'check' },
+    ],
+  },
+  {
+    label: 'API & agents',
+    items: [
+      { to: '/api-explorer', label: 'API Explorer', icon: 'api' },
+      { to: '/settings#claude-connector', label: 'Connect Claude / MCP', icon: 'sparkle' },
+      { to: '/integrations', label: 'Integrations', icon: 'puzzle' },
+      { to: '/help', label: 'Help centre', icon: 'help' },
+    ],
+  },
+  {
+    label: 'Catalogue',
+    items: [
+      { to: '/products', label: 'Products', icon: 'cube' },
+      { to: '/brands', label: 'Brands', icon: 'tag' },
+      { to: '/categories', label: 'Categories', icon: 'folder' },
+      { to: '/schema', label: 'Schema Builder', icon: 'schema' },
+      { to: '/import-export', label: 'Import / Export', icon: 'arrows' },
+      { to: '/research', label: 'Research', icon: 'notebook' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { to: '/inventory', label: 'Inventory', icon: 'warehouse' },
+      { to: '/store-ops', label: 'Store Ops', icon: 'arrows' },
+      { to: '/roster', label: 'Roster', icon: 'users' },
+      { to: '/expiry', label: 'Expiry', icon: 'clock' },
+      { to: '/forecasting', label: 'Forecasting', icon: 'chart' },
+      { to: '/reports', label: 'Reports', icon: 'chart' },
+    ],
+  },
+])
 
-const bottomNav = [
-  { name: 'API Explorer', href: '/api-explorer', icon: 'api' },
-  { name: 'Integrations', href: '/integrations', icon: 'puzzle' },
-  { name: 'Settings', href: '/settings', icon: 'cog' },
-]
+const initials = computed(() => {
+  const email = user.value?.email || ''
+  return (email.charAt(0) || '?').toUpperCase()
+})
 
-function isActive(href: string) {
-  if (href === '/') return route.path === '/'
-  return route.path.startsWith(href)
+function isActive(to: string) {
+  const path = to.split('#')[0].split('?')[0]
+  if (path === '/') return route.path === '/'
+  if (to.includes('#')) {
+    // Settings MCP section: active when on settings
+    return route.path === path || route.path.startsWith(`${path}/`)
+  }
+  return route.path === path || route.path.startsWith(`${path}/`)
 }
 </script>
 
 <template>
+  <!-- Desktop: fixed rail. Mobile: slide-over drawer. -->
   <aside
-    :class="[
-      'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-gray-800 bg-gray-900 transition-all duration-300 lg:relative lg:z-auto',
-      collapsed ? 'w-[68px]' : 'w-64',
-      mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-    ]"
+    class="fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-line bg-white transition-transform lg:translate-x-0"
+    :class="open ? 'translate-x-0' : '-translate-x-full'"
   >
-    <!-- Logo -->
-    <div class="flex h-16 shrink-0 items-center gap-3 border-b border-gray-800 px-4">
-      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white text-sm">
-        FR
-      </div>
-      <Transition
-        enter-active-class="transition-opacity duration-200"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition-opacity duration-100"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <span v-if="!collapsed" class="text-lg font-bold tracking-tight text-white">
-          Fran <span class="text-indigo-400">SKUMS</span>
-        </span>
-      </Transition>
+    <!-- Brand -->
+    <div class="flex h-14 shrink-0 items-center gap-2 border-b border-line-soft px-4">
+      <span class="flex h-7 w-7 items-center justify-center rounded-md bg-yellow text-[12px] font-bold text-brown">FR</span>
+      <span class="font-display text-[19px] font-bold tracking-tight text-ink">
+        Fran <span class="text-brown">SKUMS</span>
+      </span>
+      <button class="press ml-auto text-muted lg:hidden" aria-label="Close menu" @click="$emit('close')">✕</button>
     </div>
 
-    <!-- Org + Workspace selector -->
-    <div v-if="!collapsed" class="border-b border-gray-800 p-3 space-y-2">
-      <!-- Organization selector (only if user belongs to orgs) -->
+    <!-- Org + workspace -->
+    <div class="space-y-2 border-b border-line-soft p-3">
       <select
         v-if="organizations.length > 0"
         :value="currentOrganization?.id || ''"
-        class="input-field text-xs"
+        class="input-field h-9 text-[12px]"
         @change="(e: Event) => {
           const val = (e.target as HTMLSelectElement).value
           if (!val) return
@@ -99,11 +108,10 @@ function isActive(href: string) {
         </option>
       </select>
 
-      <!-- Workspace selector -->
       <select
         v-if="filteredWorkspaces.length > 0"
         :value="currentWorkspace?.id"
-        class="input-field text-xs"
+        class="input-field h-9 text-[12px]"
         @change="(e: Event) => {
           const ws = filteredWorkspaces.find(w => w.id === (e.target as HTMLSelectElement).value)
           if (ws) selectWorkspace(ws)
@@ -115,64 +123,55 @@ function isActive(href: string) {
       </select>
     </div>
 
-    <!-- Navigation -->
-    <nav class="flex-1 space-y-1 overflow-y-auto p-3">
-      <NuxtLink
-        v-for="item in navigation"
-        :key="item.name"
-        :to="item.href"
-        :class="[
-          'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-          isActive(item.href)
-            ? 'bg-indigo-600/10 text-indigo-400'
-            : 'text-gray-400 hover:bg-gray-800 hover:text-white',
-        ]"
-        @click="emit('closeMobile')"
-      >
-        <SidebarIcon :name="item.icon" class="h-5 w-5 shrink-0" />
-        <span v-if="!collapsed" class="truncate">{{ item.name }}</span>
-      </NuxtLink>
+    <!-- Navigation groups -->
+    <nav class="flex-1 overflow-y-auto px-2.5 py-3">
+      <template v-for="group in groups" :key="group.label">
+        <p class="px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[1px] text-muted first:pt-0">
+          {{ group.label }}
+        </p>
+        <NuxtLink
+          v-for="item in group.items"
+          :key="item.to"
+          :to="item.to"
+          class="press mb-0.5 flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium"
+          :class="isActive(item.to) || isNavigatingTo(item.to.split('#')[0])
+            ? 'bg-yellow-soft font-semibold text-brown'
+            : 'text-ink-soft hover:bg-surface-sunken'"
+          @click="$emit('close')"
+        >
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center text-current">
+            <UiSpinner v-if="isNavigatingTo(item.to.split('#')[0])" size="xs" />
+            <SidebarIcon v-else :name="item.icon" class="h-4 w-4" />
+          </span>
+          <span class="flex-1 truncate">{{ item.label }}</span>
+        </NuxtLink>
+      </template>
     </nav>
 
-    <!-- Bottom nav -->
-    <div class="space-y-1 border-t border-gray-800 p-3">
+    <!-- Footer: assistant + account -->
+    <div class="shrink-0 space-y-1 border-t border-line-soft p-2.5">
+      <button
+        type="button"
+        class="press flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium text-ink-soft hover:bg-surface-sunken"
+        @click="openAssistant(); $emit('close')"
+      >
+        <SidebarIcon name="sparkle" class="h-4 w-4 shrink-0" />
+        <span>Catalog AI</span>
+      </button>
+
       <NuxtLink
-        v-for="item in bottomNav"
-        :key="item.name"
-        :to="item.href"
-        :class="[
-          'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-          isActive(item.href)
-            ? 'bg-indigo-600/10 text-indigo-400'
-            : 'text-gray-400 hover:bg-gray-800 hover:text-white',
-        ]"
-        @click="emit('closeMobile')"
+        to="/settings"
+        class="press flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-surface-sunken"
+        @click="$emit('close')"
       >
-        <SidebarIcon :name="item.icon" class="h-5 w-5 shrink-0" />
-        <span v-if="!collapsed" class="truncate">{{ item.name }}</span>
+        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-peach-soft text-[11px] font-bold text-brown">
+          {{ initials }}
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-[13px] font-semibold text-ink">{{ user?.email || 'Account' }}</span>
+          <span class="block truncate text-[11px] text-muted">{{ currentWorkspace?.name || 'Settings' }}</span>
+        </span>
       </NuxtLink>
-
-      <!-- AI Assistant button -->
-      <button
-        :class="[
-          'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400 transition-all hover:bg-gray-800 hover:text-white',
-        ]"
-        @click="openAssistant"
-      >
-        <SidebarIcon name="sparkle" class="h-5 w-5 shrink-0" />
-        <span v-if="!collapsed">Catalog AI</span>
-      </button>
-
-      <!-- Collapse toggle (desktop) -->
-      <button
-        class="hidden w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400 transition-all hover:bg-gray-800 hover:text-white lg:flex"
-        @click="emit('toggle')"
-      >
-        <svg class="h-5 w-5 shrink-0 transition-transform" :class="{ 'rotate-180': collapsed }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-        </svg>
-        <span v-if="!collapsed">Collapse</span>
-      </button>
     </div>
   </aside>
 </template>

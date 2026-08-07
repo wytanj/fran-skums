@@ -316,12 +316,12 @@ export function useForecasting() {
   // ── Helpers ───────────────────────────────────────────────────
   function alertLevelColor(level: AlertLevel): string {
     const map: Record<AlertLevel, string> = {
-      stockout:    'text-red-400 bg-red-500/10 border-red-500/30',
-      critical:    'text-orange-400 bg-orange-500/10 border-orange-500/30',
-      reorder_now: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
+      stockout:    'text-danger bg-danger-soft border-danger/30',
+      critical:    'text-warning bg-orange-500/10 border-warning/30',
+      reorder_now: 'text-warning bg-yellow-soft border-yellow-500/30',
       watch:       'text-blue-400 bg-blue-500/10 border-blue-500/30',
       healthy:     'text-green-400 bg-green-500/10 border-green-500/30',
-      overstock:   'text-purple-400 bg-purple-500/10 border-purple-500/30',
+      overstock:   'text-brown bg-purple-500/10 border-peach',
       no_data:     'text-zinc-400 bg-zinc-500/10 border-zinc-500/30',
     }
     return map[level] ?? map.no_data
@@ -342,11 +342,11 @@ export function useForecasting() {
 
   function dsrColor(days: number | null): string {
     if (days === null) return 'text-zinc-400'
-    if (days === 0)    return 'text-red-400'
-    if (days <= 7)     return 'text-orange-400'
-    if (days <= 14)    return 'text-yellow-400'
+    if (days === 0)    return 'text-danger'
+    if (days <= 7)     return 'text-warning'
+    if (days <= 14)    return 'text-warning'
     if (days <= 30)    return 'text-blue-400'
-    if (days > 90)     return 'text-purple-400'
+    if (days > 90)     return 'text-brown'
     return 'text-green-400'
   }
 

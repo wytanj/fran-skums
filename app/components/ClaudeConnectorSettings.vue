@@ -148,30 +148,30 @@ watch(() => props.workspaceId, load, { immediate: true })
 <template>
   <div class="space-y-6">
     <div class="card p-6">
-      <h3 class="text-lg font-semibold text-white">Claude connector</h3>
-      <p class="mt-1 text-sm text-gray-400">
+      <h3 class="text-lg font-semibold text-ink">Claude connector</h3>
+      <p class="mt-1 text-sm text-muted">
         One connector for the whole Claude organisation. Each teammate signs in with their
         own account, so Claude gets exactly their Fran permissions — no keys to hand out.
       </p>
 
-      <div v-if="loading" class="mt-6 text-sm text-gray-400">Loading…</div>
+      <div v-if="loading" class="mt-6 text-sm text-muted">Loading…</div>
 
       <template v-else-if="status">
         <!-- Shown once, right after create/rotate -->
         <div
           v-if="freshSecret"
-          class="mt-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4"
+          class="mt-6 rounded-lg border border-success/30 bg-success-soft p-4"
         >
-          <p class="text-sm font-medium text-emerald-300">
+          <p class="text-sm font-medium text-success">
             {{ freshRotated ? 'New secret — copy it now' : 'Credentials created — copy them now' }}
           </p>
-          <p class="mt-1 text-xs text-emerald-400/80">
+          <p class="mt-1 text-xs text-success/80">
             The secret is not shown again. Paste it into Claude before leaving this page.
           </p>
           <div class="mt-3 space-y-2">
             <div class="flex items-center gap-2">
-              <span class="w-28 shrink-0 text-xs text-gray-400">Client Secret</span>
-              <code class="flex-1 truncate rounded bg-black/40 px-2 py-1 font-mono text-xs text-white">{{ freshSecret }}</code>
+              <span class="w-28 shrink-0 text-xs text-muted">Client Secret</span>
+              <code class="flex-1 truncate rounded bg-white border border-line px-2 py-1 font-mono text-xs text-ink">{{ freshSecret }}</code>
               <button type="button" class="btn-secondary shrink-0 text-xs" @click="copy(freshSecret!, 'Client Secret')">Copy</button>
             </div>
           </div>
@@ -179,7 +179,7 @@ watch(() => props.workspaceId, load, { immediate: true })
 
         <div
           v-if="status.source === 'env'"
-          class="mt-6 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-400"
+          class="mt-6 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning"
         >
           Currently using the <code class="font-mono text-xs">MCP_OAUTH_CLIENT_ID</code> /
           <code class="font-mono text-xs">MCP_OAUTH_CLIENT_SECRET</code> environment
@@ -188,19 +188,19 @@ watch(() => props.workspaceId, load, { immediate: true })
         </div>
 
         <!-- Paste-into-Claude block -->
-        <dl class="mt-6 space-y-3 rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
+        <dl class="mt-6 space-y-3 rounded-lg border border-line bg-surface-sunken p-4 text-sm">
           <div class="flex items-center gap-2">
-            <dt class="w-28 shrink-0 text-gray-400">URL</dt>
+            <dt class="w-28 shrink-0 text-muted">URL</dt>
             <dd class="flex flex-1 items-center gap-2 overflow-hidden">
-              <code class="flex-1 truncate font-mono text-xs text-white">{{ status.connector_url }}</code>
+              <code class="flex-1 truncate font-mono text-xs text-ink">{{ status.connector_url }}</code>
               <button type="button" class="btn-secondary shrink-0 text-xs" @click="copy(status.connector_url, 'URL')">Copy</button>
             </dd>
           </div>
           <div class="flex items-center gap-2">
-            <dt class="w-28 shrink-0 text-gray-400">Client ID</dt>
+            <dt class="w-28 shrink-0 text-muted">Client ID</dt>
             <dd class="flex flex-1 items-center gap-2 overflow-hidden">
-              <code v-if="status.client_id" class="flex-1 truncate font-mono text-xs text-white">{{ status.client_id }}</code>
-              <span v-else class="flex-1 text-xs text-gray-500">not generated yet</span>
+              <code v-if="status.client_id" class="flex-1 truncate font-mono text-xs text-ink">{{ status.client_id }}</code>
+              <span v-else class="flex-1 text-xs text-muted">not generated yet</span>
               <button
                 v-if="status.client_id"
                 type="button"
@@ -210,8 +210,8 @@ watch(() => props.workspaceId, load, { immediate: true })
             </dd>
           </div>
           <div class="flex items-center gap-2">
-            <dt class="w-28 shrink-0 text-gray-400">Client Secret</dt>
-            <dd class="flex-1 text-xs text-gray-400">
+            <dt class="w-28 shrink-0 text-muted">Client Secret</dt>
+            <dd class="flex-1 text-xs text-muted">
               <template v-if="status.has_secret">
                 <code class="font-mono">{{ status.secret_prefix ? status.secret_prefix + '••••••••' : '••••••••' }}</code>
                 <span class="ml-2">shown only at creation — rotate to get a new one</span>
@@ -221,16 +221,16 @@ watch(() => props.workspaceId, load, { immediate: true })
           </div>
         </dl>
 
-        <p class="mt-3 text-xs text-gray-500">
+        <p class="mt-3 text-xs text-muted">
           In Claude: Admin settings → Connectors → Add custom connector → paste the URL, then
           open Advanced settings for the Client ID and Secret. Leave Request headers empty.
           Do not put an API key in the URL — that disables per-person permissions.
         </p>
 
-        <div v-if="status.configured" class="mt-4 grid gap-x-6 gap-y-1 text-xs text-gray-500 sm:grid-cols-2">
-          <p>Created <span class="text-gray-400">{{ when(status.created_at) }}</span></p>
-          <p>Last rotated <span class="text-gray-400">{{ when(status.rotated_at) }}</span></p>
-          <p>Last used by Claude <span class="text-gray-400">{{ when(status.last_used_at) }}</span></p>
+        <div v-if="status.configured" class="mt-4 grid gap-x-6 gap-y-1 text-xs text-muted sm:grid-cols-2">
+          <p>Created <span class="text-muted">{{ when(status.created_at) }}</span></p>
+          <p>Last rotated <span class="text-muted">{{ when(status.rotated_at) }}</span></p>
+          <p>Last used by Claude <span class="text-muted">{{ when(status.last_used_at) }}</span></p>
         </div>
 
         <div class="mt-6 flex flex-wrap gap-3">
@@ -254,8 +254,8 @@ watch(() => props.workspaceId, load, { immediate: true })
     <div v-if="status?.configured" class="card p-6">
       <div class="flex items-baseline justify-between gap-4">
         <div>
-          <h3 class="text-lg font-semibold text-white">Connected teammates</h3>
-          <p class="mt-1 text-sm text-gray-400">
+          <h3 class="text-lg font-semibold text-ink">Connected teammates</h3>
+          <p class="mt-1 text-sm text-muted">
             Each person connects themselves from Claude. Permissions come from their Fran
             role and are re-checked on every request.
           </p>
@@ -271,7 +271,7 @@ watch(() => props.workspaceId, load, { immediate: true })
         </button>
       </div>
 
-      <p v-if="!status.connection_count" class="mt-4 text-sm text-gray-500">
+      <p v-if="!status.connection_count" class="mt-4 text-sm text-muted">
         Nobody has connected yet. Tell the team: Claude → Settings → Connectors → Fran → Connect.
       </p>
 
@@ -282,8 +282,8 @@ watch(() => props.workspaceId, load, { immediate: true })
           class="flex items-center justify-between gap-4 py-3"
         >
           <div class="min-w-0">
-            <p class="truncate text-sm text-white">{{ c.email || c.full_name || c.user_id }}</p>
-            <p class="text-xs text-gray-500">
+            <p class="truncate text-sm text-ink">{{ c.email || c.full_name || c.user_id }}</p>
+            <p class="text-xs text-muted">
               connected {{ when(c.created_at) }} · last used {{ when(c.last_used_at) }}
             </p>
           </div>

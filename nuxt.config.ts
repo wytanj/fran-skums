@@ -42,10 +42,11 @@ export default defineNuxtConfig({
     },
   },
 
+  // Light-only brand palette (cream/ink/yellow) — no dark class toggle.
   colorMode: {
     classSuffix: '',
-    preference: 'dark',
-    fallback: 'dark',
+    preference: 'light',
+    fallback: 'light',
   },
 
   tailwindcss: {
@@ -53,16 +54,23 @@ export default defineNuxtConfig({
   },
 
   app: {
+    // Short cross-fade. `out-in` avoids two pages overlapping.
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
-      title: 'Fran SKUMS - Product Operations',
+      title: 'Fran SKUMS — Product Operations',
       meta: [
-        { name: 'description', content: 'Fran product, inventory, fulfillment, and store-operations backend.' },
+        { name: 'description', content: 'Fran product, inventory, fulfillment, store ops, API and MCP backend.' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+        { name: 'theme-color', content: '#FFFEF5' },
       ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap' },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap',
+        },
       ],
     },
   },

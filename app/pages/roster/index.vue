@@ -103,7 +103,7 @@ async function onCreateShift() {
 
 function sourceBadge(p: string) {
   if (p === 'rippling') return 'bg-violet-500/10 text-violet-300 ring-violet-500/30'
-  return 'bg-gray-500/10 text-gray-400 ring-gray-600/40'
+  return 'bg-surface-sunken text-muted ring-line'
 }
 </script>
 
@@ -111,8 +111,8 @@ function sourceBadge(p: string) {
   <div class="mx-auto max-w-6xl">
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-white">Roster</h1>
-        <p class="mt-1 text-sm text-gray-400">
+        <h1 class="text-2xl font-bold text-ink">Roster</h1>
+        <p class="mt-1 text-sm text-muted">
           Hourly floor assignments by zone. Employees can be manual or imported from Rippling.
           POS shows the zone for the logged-in staff member.
         </p>
@@ -142,23 +142,23 @@ function sourceBadge(p: string) {
     </div>
 
     <div
-      class="mb-4 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3 text-xs text-gray-400"
+      class="mb-4 rounded-lg border border-line bg-surface-sunken/80 px-4 py-3 text-xs text-muted"
     >
-      Zones: <strong class="text-gray-300">Zone 1 · Zone 2 · Zone 3 · Cashier · Back of House</strong>.
+      Zones: <strong class="text-ink-soft">Zone 1 · Zone 2 · Zone 3 · Cashier · Back of House</strong>.
       MCP: <code class="text-violet-300">roster_board</code>,
       <code class="text-violet-300">roster_upsert_shift</code>,
       <code class="text-violet-300">roster_import_rippling</code>,
       <code class="text-violet-300">roster_my_assignment</code>.
-      Seed: <code class="text-gray-500">node scripts/_seed_roster_sample.mjs</code>
+      Seed: <code class="text-muted">node scripts/_seed_roster_sample.mjs</code>
     </div>
 
-    <div v-if="error" class="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+    <div v-if="error" class="mb-4 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
       {{ error }}
     </div>
 
     <!-- Employee form -->
     <div v-if="showEmployeeForm" class="card mb-6 p-5">
-      <h2 class="mb-3 text-sm font-semibold text-white">Add employee</h2>
+      <h2 class="mb-3 text-sm font-semibold text-ink">Add employee</h2>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="label-field">Name *</label>
@@ -210,7 +210,7 @@ function sourceBadge(p: string) {
 
     <!-- Shift form -->
     <div v-if="showShiftForm" class="card mb-6 p-5">
-      <h2 class="mb-3 text-sm font-semibold text-white">Schedule shift ({{ boardDate }} SGT)</h2>
+      <h2 class="mb-3 text-sm font-semibold text-ink">Schedule shift ({{ boardDate }} SGT)</h2>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="label-field">Employee *</label>
@@ -253,29 +253,29 @@ function sourceBadge(p: string) {
     </div>
 
     <!-- Board -->
-    <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">
+    <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
       Board · {{ boardDate }}
     </h2>
     <div v-if="loading && !zones.length" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="card h-24 animate-pulse bg-gray-900/80" />
+      <div v-for="i in 3" :key="i" class="card h-24 animate-pulse bg-surface-sunken" />
     </div>
     <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       <div v-for="col in boardByZone" :key="col.zone.id" class="card p-4">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-white">{{ col.zone.name }}</h3>
-          <span class="text-xs text-gray-500">{{ col.shifts.length }}</span>
+          <h3 class="text-sm font-semibold text-ink">{{ col.zone.name }}</h3>
+          <span class="text-xs text-muted">{{ col.shifts.length }}</span>
         </div>
-        <div v-if="!col.shifts.length" class="text-xs text-gray-600">No shifts</div>
+        <div v-if="!col.shifts.length" class="text-xs text-muted">No shifts</div>
         <ul class="space-y-2">
           <li
             v-for="s in col.shifts"
             :key="s.id"
-            class="rounded-lg bg-gray-950/70 px-3 py-2 text-sm"
+            class="rounded-lg bg-cream/70 px-3 py-2 text-sm"
           >
-            <p class="font-medium text-white">{{ s.employee?.display_name || '—' }}</p>
-            <p class="text-xs text-gray-400">
+            <p class="font-medium text-ink">{{ s.employee?.display_name || '—' }}</p>
+            <p class="text-xs text-muted">
               {{ formatHour(s.starts_at) }}–{{ formatHour(s.ends_at) }}
-              <span class="text-gray-600"> · {{ s.status }}</span>
+              <span class="text-muted"> · {{ s.status }}</span>
             </p>
           </li>
         </ul>
@@ -283,12 +283,12 @@ function sourceBadge(p: string) {
     </div>
 
     <!-- People -->
-    <h2 class="mb-3 mt-8 text-xs font-medium uppercase tracking-wide text-gray-500">
+    <h2 class="mb-3 mt-8 text-xs font-medium uppercase tracking-wide text-muted">
       People ({{ employees.length }})
     </h2>
     <div class="card overflow-hidden">
       <table class="w-full text-left text-sm">
-        <thead class="border-b border-gray-800 text-xs uppercase text-gray-500">
+        <thead class="border-b border-line text-xs uppercase text-muted">
           <tr>
             <th class="px-4 py-2 font-medium">Name</th>
             <th class="px-4 py-2 font-medium">Role</th>
@@ -300,21 +300,21 @@ function sourceBadge(p: string) {
           <tr
             v-for="e in employees"
             :key="e.id"
-            class="border-b border-gray-800/60 text-gray-300"
+            class="border-b border-line/60 text-ink-soft"
           >
-            <td class="px-4 py-2.5 text-white">{{ e.display_name }}</td>
+            <td class="px-4 py-2.5 text-ink">{{ e.display_name }}</td>
             <td class="px-4 py-2.5">{{ e.role_label }}</td>
             <td class="px-4 py-2.5">
               <span :class="['rounded-full px-2 py-0.5 text-xs ring-1', sourceBadge(e.source_provider)]">
                 {{ e.source_provider }}
               </span>
             </td>
-            <td class="px-4 py-2.5 font-mono text-xs text-gray-500">
+            <td class="px-4 py-2.5 font-mono text-xs text-muted">
               {{ e.pos_staff_ref || '—' }}
             </td>
           </tr>
           <tr v-if="!employees.length">
-            <td colspan="4" class="px-4 py-8 text-center text-gray-600">
+            <td colspan="4" class="px-4 py-8 text-center text-muted">
               No employees yet. Add manually or import via MCP
               <code class="text-violet-400">roster_import_rippling</code>.
             </td>

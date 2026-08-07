@@ -967,8 +967,8 @@ watch(() => currentWorkspace.value?.id, refreshAll)
   <div class="space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-white">Store Ops</h1>
-        <p class="mt-1 text-sm text-gray-400">Replenishment, receiving, and inventory exceptions across POS, SKUMS, and fulfillment partners.</p>
+        <h1 class="text-2xl font-bold text-ink">Store Ops</h1>
+        <p class="mt-1 text-sm text-muted">Replenishment, receiving, and inventory exceptions across POS, SKUMS, and fulfillment partners.</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button class="btn-secondary" :disabled="loading" @click="refreshAll">
@@ -983,7 +983,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
 
     <div
       v-if="inboxUnread > 0 && activeTab !== 'inbox'"
-      class="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      class="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-warning-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
     >
       <p class="text-sm text-amber-100">
         {{ inboxUnread }} unread HQ notification{{ inboxUnread === 1 ? '' : 's' }}
@@ -996,19 +996,19 @@ watch(() => currentWorkspace.value?.id, refreshAll)
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div v-for="item in stats" :key="item.label" class="card p-4">
-        <p class="text-xs font-medium uppercase text-gray-500">{{ item.label }}</p>
-        <p class="mt-2 text-2xl font-bold text-white">{{ item.value }}</p>
-        <p class="mt-1 text-xs text-gray-500">{{ item.sub }}</p>
+        <p class="text-xs font-medium uppercase text-muted">{{ item.label }}</p>
+        <p class="mt-2 text-2xl font-bold text-ink">{{ item.value }}</p>
+        <p class="mt-1 text-xs text-muted">{{ item.sub }}</p>
       </div>
     </div>
 
-    <div class="flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">
+    <div class="flex gap-1 rounded-lg border border-line bg-white p-1">
       <button
         v-for="tab in tabs"
         :key="tab.key"
         :class="[
           'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all',
-          activeTab === tab.key ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white',
+          activeTab === tab.key ? 'bg-surface-sunken text-ink shadow-sm' : 'text-muted hover:text-ink',
         ]"
         @click="activeTab = tab.key"
       >
@@ -1017,19 +1017,19 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     </div>
 
     <div v-show="activeTab === 'inbox'" class="card overflow-hidden">
-      <div class="border-b border-gray-800 px-5 py-4">
-        <h2 class="text-base font-semibold text-white">HQ notification inbox</h2>
-        <p class="mt-1 text-sm text-gray-400">
+      <div class="border-b border-line px-5 py-4">
+        <h2 class="text-base font-semibold text-ink">HQ notification inbox</h2>
+        <p class="mt-1 text-sm text-muted">
           Lifecycle alerts for store requests and receive exceptions (Phase N). Deep links open the right tab.
         </p>
       </div>
-      <div v-if="inboxLoading" class="px-5 py-10 text-center text-sm text-gray-500">
+      <div v-if="inboxLoading" class="px-5 py-10 text-center text-sm text-muted">
         Loading inbox…
       </div>
-      <div v-else-if="inboxItems.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+      <div v-else-if="inboxItems.length === 0" class="px-5 py-10 text-center text-sm text-muted">
         No unread notifications.
       </div>
-      <div v-else class="divide-y divide-gray-800">
+      <div v-else class="divide-y divide-line">
         <div
           v-for="item in inboxItems"
           :key="item.id"
@@ -1037,22 +1037,22 @@ watch(() => currentWorkspace.value?.id, refreshAll)
         >
           <div>
             <div class="flex flex-wrap items-center gap-2">
-              <p class="font-medium text-white">{{ item.title }}</p>
+              <p class="font-medium text-ink">{{ item.title }}</p>
               <span
                 v-if="item.priority && item.priority !== 'normal'"
-                class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300"
+                class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-warning"
               >
                 {{ item.priority }}
               </span>
             </div>
-            <p class="mt-1 text-sm text-gray-400">{{ item.body || item.notification_type }}</p>
-            <p class="mt-1 text-xs text-gray-500">
+            <p class="mt-1 text-sm text-muted">{{ item.body || item.notification_type }}</p>
+            <p class="mt-1 text-xs text-muted">
               {{ item.target_scope }} · {{ formatDate(item.created_at) }}
             </p>
           </div>
-          <div class="text-sm text-gray-400">
+          <div class="text-sm text-muted">
             <p>{{ item.entity_type || '—' }}</p>
-            <p class="text-xs text-gray-500 font-mono">{{ String(item.entity_id || '').slice(0, 8) }}…</p>
+            <p class="text-xs text-muted font-mono">{{ String(item.entity_id || '').slice(0, 8) }}…</p>
           </div>
           <div class="flex flex-wrap gap-2 xl:justify-end">
             <button
@@ -1077,10 +1077,10 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     <form v-if="showRequestForm" class="card space-y-4 p-5" @submit.prevent="handleCreateRequest">
       <div class="flex items-center justify-between gap-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Replenishment request</h2>
-          <p class="text-sm text-gray-400">Create a SKUMS-side request for store stock movement.</p>
+          <h2 class="text-base font-semibold text-ink">Replenishment request</h2>
+          <p class="text-sm text-muted">Create a SKUMS-side request for store stock movement.</p>
         </div>
-        <button type="button" class="text-sm text-gray-400 hover:text-white" @click="showRequestForm = false">
+        <button type="button" class="text-sm text-muted hover:text-ink" @click="showRequestForm = false">
           Close
         </button>
       </div>
@@ -1137,19 +1137,19 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <span class="label-field mb-0">Lines</span>
-          <button type="button" class="text-sm text-indigo-400 hover:text-indigo-300" @click="addRequestLine">
+          <button type="button" class="text-sm text-brown hover:text-brown" @click="addRequestLine">
             Add line
           </button>
         </div>
         <div
           v-for="(line, index) in requestLines"
           :key="index"
-          class="grid gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3 md:grid-cols-[1fr_120px_1fr_auto]"
+          class="grid gap-3 rounded-lg border border-line bg-cream/40 p-3 md:grid-cols-[1fr_120px_1fr_auto]"
         >
           <input v-model="line.sku" class="input-field font-mono text-sm" placeholder="SKU / barcode" />
           <input v-model.number="line.requested_qty" type="number" min="1" class="input-field" />
           <input v-model="line.reason" class="input-field" placeholder="Line reason" />
-          <button type="button" class="rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-white" @click="removeRequestLine(index)">
+          <button type="button" class="rounded-lg px-3 py-2 text-sm text-muted hover:bg-surface-sunken hover:text-ink" @click="removeRequestLine(index)">
             Remove
           </button>
         </div>
@@ -1163,18 +1163,18 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     </form>
 
     <div v-show="activeTab === 'queue'" class="card overflow-hidden">
-      <div class="border-b border-gray-800 px-5 py-4">
-        <h2 class="text-base font-semibold text-white">Request queue</h2>
-        <p class="mt-1 text-sm text-gray-400">Review POS and SKUMS-originated replenishment demand before creating operational orders.</p>
+      <div class="border-b border-line px-5 py-4">
+        <h2 class="text-base font-semibold text-ink">Request queue</h2>
+        <p class="mt-1 text-sm text-muted">Review POS and SKUMS-originated replenishment demand before creating operational orders.</p>
       </div>
-      <div v-if="queueRequests.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+      <div v-if="queueRequests.length === 0" class="px-5 py-10 text-center text-sm text-muted">
         No open replenishment requests.
       </div>
-      <div v-else class="divide-y divide-gray-800">
+      <div v-else class="divide-y divide-line">
         <div v-for="request in queueRequests" :key="request.id" class="grid gap-4 px-5 py-4 xl:grid-cols-[1.5fr_1fr_1fr_auto] xl:items-center">
           <div>
             <div class="flex flex-wrap items-center gap-2">
-              <p class="font-medium text-white">{{ request.request_number }}</p>
+              <p class="font-medium text-ink">{{ request.request_number }}</p>
               <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', requestStatusBadge(request.status).cls]">
                 {{ requestStatusBadge(request.status).label }}
               </span>
@@ -1182,15 +1182,15 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 {{ priorityBadge(request.priority).label }}
               </span>
             </div>
-            <p class="mt-1 text-sm text-gray-400">{{ request.reason || request.request_type.replace('_', ' ') }}</p>
+            <p class="mt-1 text-sm text-muted">{{ request.reason || request.request_type.replace('_', ' ') }}</p>
           </div>
           <div class="text-sm">
-            <p class="text-gray-300">{{ request.pos_location_name || request.store_location_name || 'No location' }}</p>
-            <p class="text-xs text-gray-500">Needed {{ formatDate(request.needed_by) }}</p>
+            <p class="text-ink-soft">{{ request.pos_location_name || request.store_location_name || 'No location' }}</p>
+            <p class="text-xs text-muted">Needed {{ formatDate(request.needed_by) }}</p>
           </div>
           <div class="text-sm">
-            <p class="text-gray-300">{{ qtyLabel(request.total_requested_qty) }} units</p>
-            <p class="text-xs text-gray-500">{{ request.line_count || 0 }} lines</p>
+            <p class="text-ink-soft">{{ qtyLabel(request.total_requested_qty) }} units</p>
+            <p class="text-xs text-muted">{{ request.line_count || 0 }} lines</p>
           </div>
           <div class="flex flex-wrap gap-2 xl:justify-end">
             <button
@@ -1219,7 +1219,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             </button>
             <button
               v-if="['submitted', 'in_review', 'deferred_to_wave'].includes(request.status)"
-              class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+              class="rounded-lg px-3 py-1.5 text-xs text-danger hover:bg-danger-soft disabled:opacity-50"
               :disabled="decideSaving === request.id"
               @click="decideRequest(request, 'reject')"
             >
@@ -1231,20 +1231,20 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     </div>
 
     <div v-show="activeTab === 'orders'" class="card overflow-hidden">
-      <div class="flex flex-col gap-3 border-b border-gray-800 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-col gap-3 border-b border-line px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 class="text-base font-semibold text-white">Replenishment orders</h2>
-          <p class="mt-1 text-sm text-gray-400">Operational movement records that can later be sent to Loft or another 3PL connector.</p>
+          <h2 class="text-base font-semibold text-ink">Replenishment orders</h2>
+          <p class="mt-1 text-sm text-muted">Operational movement records that can later be sent to Loft or another 3PL connector.</p>
         </div>
       </div>
-      <div v-if="orders.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+      <div v-if="orders.length === 0" class="px-5 py-10 text-center text-sm text-muted">
         No replenishment orders yet.
       </div>
-      <div v-else class="divide-y divide-gray-800">
+      <div v-else class="divide-y divide-line">
         <div v-for="order in orders" :key="order.id" class="grid gap-4 px-5 py-4 xl:grid-cols-[1.4fr_1fr_1fr_auto] xl:items-center">
           <div>
             <div class="flex flex-wrap items-center gap-2">
-              <p class="font-medium text-white">{{ order.order_number }}</p>
+              <p class="font-medium text-ink">{{ order.order_number }}</p>
               <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', orderStatusBadge(order.status).cls]">
                 {{ orderStatusBadge(order.status).label }}
               </span>
@@ -1252,15 +1252,15 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 {{ priorityBadge(order.priority).label }}
               </span>
             </div>
-            <p class="mt-1 text-sm text-gray-400">{{ order.connection_name || order.integration_slug || 'Unassigned connector' }}</p>
+            <p class="mt-1 text-sm text-muted">{{ order.connection_name || order.integration_slug || 'Unassigned connector' }}</p>
           </div>
           <div class="text-sm">
-            <p class="text-gray-300">{{ order.source_location_name || 'Source pending' }}</p>
-            <p class="text-xs text-gray-500">To {{ order.destination_location_name || order.pos_location_name || 'destination pending' }}</p>
+            <p class="text-ink-soft">{{ order.source_location_name || 'Source pending' }}</p>
+            <p class="text-xs text-muted">To {{ order.destination_location_name || order.pos_location_name || 'destination pending' }}</p>
           </div>
           <div class="text-sm">
-            <p class="text-gray-300">{{ qtyLabel(order.total_ordered_qty) }} ordered</p>
-            <p class="text-xs text-gray-500">{{ qtyLabel(order.total_received_qty) }} received</p>
+            <p class="text-ink-soft">{{ qtyLabel(order.total_ordered_qty) }} ordered</p>
+            <p class="text-xs text-muted">{{ qtyLabel(order.total_received_qty) }} received</p>
           </div>
           <div class="flex flex-wrap gap-2 xl:justify-end">
             <button v-if="order.status === 'approved'" class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'queued')">
@@ -1275,7 +1275,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             <button v-if="['acknowledged', 'sent_to_3pl'].includes(order.status)" class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'shipped')">
               Shipped
             </button>
-            <button class="rounded-lg px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-50" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'exception')">
+            <button class="rounded-lg px-3 py-1.5 text-xs text-danger hover:bg-danger-soft disabled:opacity-50" :disabled="isPending(`order.status.${order.id}`)" @click="setOrderStatus(order, 'exception')">
               Exception
             </button>
           </div>
@@ -1285,7 +1285,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
 
     <div v-show="activeTab === 'inbound'" class="space-y-5">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-sm text-gray-400">
+        <p class="text-sm text-muted">
           KR/HK → M&amp;P → Loft ASN. Draft locally, send to OFS, confirm to promote LOFT-SG stock. POS does not see this.
         </p>
         <button class="btn-primary" @click="showInboundForm = !showInboundForm">
@@ -1294,25 +1294,25 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
 
       <form v-if="showInboundForm" class="card space-y-4 p-5" @submit.prevent="createInboundAsn">
-        <h2 class="text-base font-semibold text-white">Inbound ASN (draft)</h2>
+        <h2 class="text-base font-semibold text-ink">Inbound ASN (draft)</h2>
         <div class="grid gap-3 md:grid-cols-2">
-          <label class="text-xs text-gray-400">
+          <label class="text-xs text-muted">
             Tracking number
             <input v-model="inboundForm.tracking_number" required class="input mt-1 w-full" />
           </label>
-          <label class="text-xs text-gray-400">
+          <label class="text-xs text-muted">
             ETA
             <input v-model="inboundForm.date_estimate" type="date" required class="input mt-1 w-full" />
           </label>
-          <label class="text-xs text-gray-400">
+          <label class="text-xs text-muted">
             Reference
             <input v-model="inboundForm.reference_no" class="input mt-1 w-full" placeholder="PO / booking" />
           </label>
-          <label class="text-xs text-gray-400">
+          <label class="text-xs text-muted">
             Offshore forwarder
             <input v-model="inboundForm.offshore_forwarder" class="input mt-1 w-full" />
           </label>
-          <label class="text-xs text-gray-400">
+          <label class="text-xs text-muted">
             Palletization
             <select v-model="inboundForm.palletization" class="input mt-1 w-full">
               <option value="full_pallet">Full pallet</option>
@@ -1321,7 +1321,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               <option value="mixed">Mixed</option>
             </select>
           </label>
-          <label class="text-xs text-gray-400">
+          <label class="text-xs text-muted">
             Carton / pallet count
             <div class="mt-1 flex gap-2">
               <input v-model="inboundForm.carton_count" type="number" min="0" class="input w-full" placeholder="Cartons" />
@@ -1330,7 +1330,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
           </label>
         </div>
         <div class="space-y-2">
-          <p class="text-xs font-medium text-gray-400">Lines</p>
+          <p class="text-xs font-medium text-muted">Lines</p>
           <div v-for="(line, idx) in inboundLines" :key="idx" class="flex flex-wrap gap-2">
             <input v-model="line.sku" class="input flex-1" placeholder="SKU" required />
             <input v-model.number="line.quantity" type="number" min="1" class="input w-24" />
@@ -1348,32 +1348,32 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </form>
 
       <div class="card overflow-hidden">
-        <div class="border-b border-gray-800 px-5 py-4">
-          <h2 class="text-base font-semibold text-white">Inbound shipments</h2>
+        <div class="border-b border-line px-5 py-4">
+          <h2 class="text-base font-semibold text-ink">Inbound shipments</h2>
         </div>
-        <div v-if="inboundLoading" class="px-5 py-8 text-sm text-gray-500">Loading…</div>
-        <div v-else-if="inboundShipments.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+        <div v-if="inboundLoading" class="px-5 py-8 text-sm text-muted">Loading…</div>
+        <div v-else-if="inboundShipments.length === 0" class="px-5 py-10 text-center text-sm text-muted">
           No inbound ASNs yet.
         </div>
-        <div v-else class="divide-y divide-gray-800">
+        <div v-else class="divide-y divide-line">
           <div
             v-for="ship in inboundShipments"
             :key="ship.id"
             class="grid gap-3 px-5 py-4 xl:grid-cols-[1.4fr_1fr_1fr_auto] xl:items-center"
           >
             <div>
-              <p class="font-medium text-white">{{ ship.shipment_number }}</p>
-              <p class="text-xs text-gray-500">
+              <p class="font-medium text-ink">{{ ship.shipment_number }}</p>
+              <p class="text-xs text-muted">
                 {{ ship.tracking_number }} · {{ ship.status }}
                 <span v-if="ship.palletization"> · {{ ship.palletization }}</span>
               </p>
-              <p class="text-xs text-gray-500">M&amp;P · {{ ship.offshore_forwarder || 'offshore TBD' }}</p>
+              <p class="text-xs text-muted">M&amp;P · {{ ship.offshore_forwarder || 'offshore TBD' }}</p>
             </div>
-            <div class="text-sm text-gray-300">
+            <div class="text-sm text-ink-soft">
               ETA {{ formatDate(ship.date_estimate) }}
-              <p class="text-xs text-gray-500">{{ (ship.lines || []).length }} line(s)</p>
+              <p class="text-xs text-muted">{{ (ship.lines || []).length }} line(s)</p>
             </div>
-            <div class="text-xs text-gray-500">
+            <div class="text-xs text-muted">
               <span v-if="ship.external_stock_incoming_main_id">OFS main {{ ship.external_stock_incoming_main_id }}</span>
               <span v-else>Not sent to Loft</span>
             </div>
@@ -1401,10 +1401,10 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       <form v-if="showReceivingForm" class="card space-y-4 p-5" @submit.prevent="handleCreateReceivingSession">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <h2 class="text-base font-semibold text-white">Store receiving</h2>
-            <p class="text-sm text-gray-400">Capture what arrived at the store and surface mismatches for SKUMS review.</p>
+            <h2 class="text-base font-semibold text-ink">Store receiving</h2>
+            <p class="text-sm text-muted">Capture what arrived at the store and surface mismatches for SKUMS review.</p>
           </div>
-          <button type="button" class="text-sm text-gray-400 hover:text-white" @click="showReceivingForm = false">
+          <button type="button" class="text-sm text-muted hover:text-ink" @click="showReceivingForm = false">
             Close
           </button>
         </div>
@@ -1446,14 +1446,14 @@ watch(() => currentWorkspace.value?.id, refreshAll)
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="label-field mb-0">Receipt lines</span>
-            <button type="button" class="text-sm text-indigo-400 hover:text-indigo-300" @click="addReceiptLine">
+            <button type="button" class="text-sm text-brown hover:text-brown" @click="addReceiptLine">
               Add line
             </button>
           </div>
           <div
             v-for="(line, index) in receiptLines"
             :key="index"
-            class="grid gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3 lg:grid-cols-[1fr_repeat(5,96px)_140px_auto]"
+            class="grid gap-3 rounded-lg border border-line bg-cream/40 p-3 lg:grid-cols-[1fr_repeat(5,96px)_140px_auto]"
           >
             <input v-model="line.sku" class="input-field font-mono text-sm" placeholder="SKU / barcode" />
             <input v-model.number="line.expected_qty" type="number" min="0" class="input-field" placeholder="Expected" />
@@ -1470,7 +1470,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               <option value="unexpected_item">Unexpected</option>
               <option value="unmapped_sku">Unmapped</option>
             </select>
-            <button type="button" class="rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-white" @click="removeReceiptLine(index)">
+            <button type="button" class="rounded-lg px-3 py-2 text-sm text-muted hover:bg-surface-sunken hover:text-ink" @click="removeReceiptLine(index)">
               Remove
             </button>
           </div>
@@ -1484,20 +1484,20 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </form>
 
       <div class="card overflow-hidden">
-        <div class="border-b border-gray-800 px-5 py-4">
-          <h2 class="text-base font-semibold text-white">Receiving sessions</h2>
+        <div class="border-b border-line px-5 py-4">
+          <h2 class="text-base font-semibold text-ink">Receiving sessions</h2>
         </div>
-        <div v-if="receivingSessions.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+        <div v-if="receivingSessions.length === 0" class="px-5 py-10 text-center text-sm text-muted">
           No receiving sessions yet.
         </div>
-        <div v-else class="divide-y divide-gray-800">
+        <div v-else class="divide-y divide-line">
           <div v-for="session in receivingSessions" :key="session.id" class="grid gap-4 px-5 py-4 md:grid-cols-[1fr_1fr_1fr] md:items-center">
             <div>
-              <p class="font-medium text-white">{{ session.session_number }}</p>
-              <p class="text-sm text-gray-400">{{ session.receipt_type.replace('_', ' ') }}</p>
+              <p class="font-medium text-ink">{{ session.session_number }}</p>
+              <p class="text-sm text-muted">{{ session.receipt_type.replace('_', ' ') }}</p>
             </div>
-            <div class="text-sm text-gray-300">{{ session.status.replace('_', ' ') }}</div>
-            <div class="text-sm text-gray-500 md:text-right">{{ formatDate(session.received_at || session.created_at) }}</div>
+            <div class="text-sm text-ink-soft">{{ session.status.replace('_', ' ') }}</div>
+            <div class="text-sm text-muted md:text-right">{{ formatDate(session.received_at || session.created_at) }}</div>
           </div>
         </div>
       </div>
@@ -1513,10 +1513,10 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       <form v-if="showExceptionForm" class="card space-y-4 p-5" @submit.prevent="handleCreateException">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <h2 class="text-base font-semibold text-white">Inventory exception</h2>
-            <p class="text-sm text-gray-400">Log variances that need SKUMS review or 3PL follow-up.</p>
+            <h2 class="text-base font-semibold text-ink">Inventory exception</h2>
+            <p class="text-sm text-muted">Log variances that need SKUMS review or 3PL follow-up.</p>
           </div>
-          <button type="button" class="text-sm text-gray-400 hover:text-white" @click="showExceptionForm = false">
+          <button type="button" class="text-sm text-muted hover:text-ink" @click="showExceptionForm = false">
             Close
           </button>
         </div>
@@ -1602,30 +1602,30 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </form>
 
       <div class="card overflow-hidden">
-        <div class="border-b border-gray-800 px-5 py-4">
-          <h2 class="text-base font-semibold text-white">Exception queue</h2>
+        <div class="border-b border-line px-5 py-4">
+          <h2 class="text-base font-semibold text-ink">Exception queue</h2>
         </div>
-        <div v-if="exceptions.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+        <div v-if="exceptions.length === 0" class="px-5 py-10 text-center text-sm text-muted">
           No inventory exceptions.
         </div>
-        <div v-else class="divide-y divide-gray-800">
+        <div v-else class="divide-y divide-line">
           <div v-for="exception in exceptions" :key="exception.id" class="grid gap-4 px-5 py-4 xl:grid-cols-[1.5fr_1fr_1fr_auto] xl:items-center">
             <div>
               <div class="flex flex-wrap items-center gap-2">
-                <p class="font-medium text-white">{{ exception.title }}</p>
+                <p class="font-medium text-ink">{{ exception.title }}</p>
                 <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', exceptionStatusBadge(exception.status).cls]">
                   {{ exceptionStatusBadge(exception.status).label }}
                 </span>
               </div>
-              <p class="mt-1 text-sm text-gray-400">{{ exception.summary || exception.exception_type.replace('_', ' ') }}</p>
+              <p class="mt-1 text-sm text-muted">{{ exception.summary || exception.exception_type.replace('_', ' ') }}</p>
             </div>
             <div class="text-sm">
-              <p class="font-mono text-gray-300">{{ exception.sku || 'No SKU' }}</p>
-              <p class="text-xs text-gray-500">{{ exception.source_type.replace('_', ' ') }}</p>
+              <p class="font-mono text-ink-soft">{{ exception.sku || 'No SKU' }}</p>
+              <p class="text-xs text-muted">{{ exception.source_type.replace('_', ' ') }}</p>
             </div>
             <div class="text-sm">
-              <p class="text-gray-300">Expected {{ qtyLabel(exception.expected_qty) }}</p>
-              <p class="text-xs text-gray-500">Actual {{ qtyLabel(exception.actual_qty) }}</p>
+              <p class="text-ink-soft">Expected {{ qtyLabel(exception.expected_qty) }}</p>
+              <p class="text-xs text-muted">Actual {{ qtyLabel(exception.actual_qty) }}</p>
             </div>
             <div class="flex flex-wrap gap-2 xl:justify-end">
               <button
@@ -1643,7 +1643,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 Escalate Loft
               </button>
               <button
-                class="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+                class="rounded-lg px-3 py-1.5 text-xs text-muted hover:bg-surface-sunken hover:text-ink"
                 @click="verifyException(exception, 'reject')"
               >
                 Reject claim
@@ -1657,8 +1657,8 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     <div v-show="activeTab === 'waves'" class="space-y-5">
       <div class="card p-5 space-y-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Wave cadence & cutoffs</h2>
-          <p class="mt-1 text-sm text-gray-400">
+          <h2 class="text-base font-semibold text-ink">Wave cadence & cutoffs</h2>
+          <p class="mt-1 text-sm text-muted">
             Default Mon + Thu waves. Cutoff hours control when deferrals lock into the next wave.
             Per-store receive windows sit on top for door delivery vs self-collect.
           </p>
@@ -1671,7 +1671,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               :value="(storeSettings.wave_weekdays || []).join(',')"
               @change="onWaveWeekdaysInput"
             >
-            <span class="mt-1 block text-xs text-gray-500">e.g. 1,4 for Monday + Thursday</span>
+            <span class="mt-1 block text-xs text-muted">e.g. 1,4 for Monday + Thursday</span>
           </label>
           <label>
             <span class="label-field">Include cutoff (hours before wave day)</span>
@@ -1697,20 +1697,20 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
 
       <div class="card overflow-hidden">
-        <div class="border-b border-gray-800 px-5 py-4">
-          <h2 class="text-base font-semibold text-white">Upcoming waves</h2>
-          <p class="text-xs text-gray-500">{{ waveBundle?.cadence_note }}</p>
+        <div class="border-b border-line px-5 py-4">
+          <h2 class="text-base font-semibold text-ink">Upcoming waves</h2>
+          <p class="text-xs text-muted">{{ waveBundle?.cadence_note }}</p>
         </div>
-        <div v-if="wavesLoading" class="px-5 py-8 text-sm text-gray-500">Loading waves…</div>
-        <div v-else class="divide-y divide-gray-800">
+        <div v-if="wavesLoading" class="px-5 py-8 text-sm text-muted">Loading waves…</div>
+        <div v-else class="divide-y divide-line">
           <div
             v-for="w in (waveBundle?.waves || [])"
             :key="w.id"
             class="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
           >
             <div>
-              <p class="font-medium text-white">{{ w.wave_number }} · {{ w.wave_date }}</p>
-              <p class="text-xs text-gray-500">{{ w.status }}</p>
+              <p class="font-medium text-ink">{{ w.wave_number }} · {{ w.wave_date }}</p>
+              <p class="text-xs text-muted">{{ w.status }}</p>
             </div>
             <div class="flex gap-2">
               <button class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="wavesSaving" @click="runAllocationPreview(w.id, false)">
@@ -1721,21 +1721,21 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               </button>
             </div>
           </div>
-          <div v-if="!(waveBundle?.waves || []).length" class="px-5 py-8 text-sm text-gray-500">
+          <div v-if="!(waveBundle?.waves || []).length" class="px-5 py-8 text-sm text-muted">
             No wave rows yet — refresh ensures the next Mon/Thu dates.
           </div>
         </div>
       </div>
 
       <div v-if="allocationPreview" class="card p-5 space-y-3">
-        <h2 class="text-base font-semibold text-white">Allocation preview (Loft ATS)</h2>
-        <p class="text-xs text-gray-500">
+        <h2 class="text-base font-semibold text-ink">Allocation preview (Loft ATS)</h2>
+        <p class="text-xs text-muted">
           {{ allocationPreview.note || allocationPreview.preview?.note }}
           · Short SKUs: {{ allocationPreview.summary?.short_skus ?? allocationPreview.preview?.summary?.short_skus ?? '—' }}
         </p>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
-            <thead class="text-xs text-gray-500">
+            <thead class="text-xs text-muted">
               <tr>
                 <th class="py-2 pr-3">SKU</th>
                 <th class="py-2 pr-3">Loft ATS</th>
@@ -1748,13 +1748,13 @@ watch(() => currentWorkspace.value?.id, refreshAll)
               <tr
                 v-for="row in (allocationPreview.allocations || allocationPreview.preview?.allocations || [])"
                 :key="row.sku"
-                class="border-t border-gray-800"
+                class="border-t border-line"
               >
-                <td class="py-2 pr-3 font-mono text-gray-200">{{ row.sku }}</td>
-                <td class="py-2 pr-3 text-gray-300">{{ row.loft_available_qty }}</td>
-                <td class="py-2 pr-3 text-gray-300">{{ row.total_requested_qty }}</td>
-                <td class="py-2 pr-3 text-emerald-300">{{ row.total_allocated_qty }}</td>
-                <td class="py-2" :class="row.shortfall > 0 ? 'text-red-300' : 'text-gray-500'">{{ row.shortfall }}</td>
+                <td class="py-2 pr-3 font-mono text-ink-soft">{{ row.sku }}</td>
+                <td class="py-2 pr-3 text-ink-soft">{{ row.loft_available_qty }}</td>
+                <td class="py-2 pr-3 text-ink-soft">{{ row.total_requested_qty }}</td>
+                <td class="py-2 pr-3 text-success">{{ row.total_allocated_qty }}</td>
+                <td class="py-2" :class="row.shortfall > 0 ? 'text-danger' : 'text-muted'">{{ row.shortfall }}</td>
               </tr>
             </tbody>
           </table>
@@ -1762,7 +1762,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
 
       <div class="card p-5 space-y-4">
-        <h2 class="text-base font-semibold text-white">Per-store receive window</h2>
+        <h2 class="text-base font-semibold text-ink">Per-store receive window</h2>
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label>
             <span class="label-field">Inventory location (store)</span>
@@ -1807,10 +1807,10 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             Save store calendar
           </button>
         </div>
-        <div v-if="deliveryCalendars.length" class="divide-y divide-gray-800 border-t border-gray-800 pt-3">
+        <div v-if="deliveryCalendars.length" class="divide-y divide-line border-t border-line pt-3">
           <div v-for="cal in deliveryCalendars" :key="cal.id" class="py-2 text-sm">
-            <span class="text-white">{{ cal.location?.name || cal.inventory_location_id }}</span>
-            <span class="text-gray-500"> · {{ cal.preferred_delivery_mode }} · window {{ cal.receive_window_start || '—' }}–{{ cal.receive_window_end || '—' }}</span>
+            <span class="text-ink">{{ cal.location?.name || cal.inventory_location_id }}</span>
+            <span class="text-muted"> · {{ cal.preferred_delivery_mode }} · window {{ cal.receive_window_start || '—' }}–{{ cal.receive_window_end || '—' }}</span>
           </div>
         </div>
       </div>
@@ -1818,23 +1818,23 @@ watch(() => currentWorkspace.value?.id, refreshAll)
 
     <div v-show="activeTab === 'floor'" class="space-y-5">
       <div class="card p-5">
-        <h2 class="text-base font-semibold text-white">Floor adjustments → inventory ledger</h2>
-        <p class="mt-1 text-sm text-gray-400">
+        <h2 class="text-base font-semibold text-ink">Floor adjustments → inventory ledger</h2>
+        <p class="mt-1 text-sm text-muted">
           Report damage, found stock, or cycle counts from HQ here (or from POS Stock).
-          Items land as <span class="font-medium text-gray-300">pending</span> first —
-          Apply writes <span class="font-mono text-gray-300">inventory_ledger</span>;
+          Items land as <span class="font-medium text-ink-soft">pending</span> first —
+          Apply writes <span class="font-mono text-ink-soft">inventory_ledger</span>;
           reject leaves stock unchanged. Requires
-          <span class="font-mono text-gray-300">store_ops:write</span> to report,
-          <span class="font-mono text-gray-300">inventory:write</span> to apply.
+          <span class="font-mono text-ink-soft">store_ops:write</span> to report,
+          <span class="font-mono text-ink-soft">inventory:write</span> to apply.
         </p>
       </div>
 
       <div class="card p-5 space-y-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Report floor issue</h2>
-          <p class="mt-1 text-sm text-gray-400">
+          <h2 class="text-base font-semibold text-ink">Report floor issue</h2>
+          <p class="mt-1 text-sm text-muted">
             Example: “Found 2 damaged units of product X” → type Damage, SKU, qty 2, store location, then submit.
-            Stock does <span class="font-medium text-gray-300">not</span> change until you Apply below.
+            Stock does <span class="font-medium text-ink-soft">not</span> change until you Apply below.
           </p>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1884,7 +1884,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
           >
         </label>
         <div class="flex flex-wrap items-center justify-end gap-2">
-          <p class="mr-auto text-xs text-gray-500">
+          <p class="mr-auto text-xs text-muted">
             Damage reduces ATS by qty · Found increases · Count sets absolute on-hand at that location.
           </p>
           <button
@@ -1898,19 +1898,19 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
 
       <div class="card overflow-hidden">
-        <div class="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-          <h2 class="text-base font-semibold text-white">Pending queue</h2>
+        <div class="flex items-center justify-between border-b border-line px-5 py-4">
+          <h2 class="text-base font-semibold text-ink">Pending queue</h2>
           <button class="btn-secondary !px-3 !py-1.5 text-xs" :disabled="floorLoading" @click="loadFloorAdjustments">
             Refresh
           </button>
         </div>
-        <div v-if="floorLoading" class="px-5 py-10 text-center text-sm text-gray-500">
+        <div v-if="floorLoading" class="px-5 py-10 text-center text-sm text-muted">
           Loading adjustments…
         </div>
-        <div v-else-if="pendingAdjustments.length === 0" class="px-5 py-10 text-center text-sm text-gray-500">
+        <div v-else-if="pendingAdjustments.length === 0" class="px-5 py-10 text-center text-sm text-muted">
           No pending floor adjustments.
         </div>
-        <div v-else class="divide-y divide-gray-800">
+        <div v-else class="divide-y divide-line">
           <div
             v-for="adj in pendingAdjustments"
             :key="adj.id"
@@ -1918,31 +1918,31 @@ watch(() => currentWorkspace.value?.id, refreshAll)
           >
             <div>
               <div class="flex flex-wrap items-center gap-2">
-                <p class="font-medium text-white">{{ adj.adjustment_number }}</p>
-                <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300">
+                <p class="font-medium text-ink">{{ adj.adjustment_number }}</p>
+                <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-warning">
                   {{ adj.adjustment_type }}
                 </span>
-                <span class="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
+                <span class="rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-muted">
                   {{ adj.status }}
                 </span>
               </div>
-              <p class="mt-1 text-sm text-gray-400">
+              <p class="mt-1 text-sm text-muted">
                 {{ adj.location?.name || adj.location_id }}
-                <span v-if="adj.location?.code" class="font-mono text-gray-500">({{ adj.location.code }})</span>
+                <span v-if="adj.location?.code" class="font-mono text-muted">({{ adj.location.code }})</span>
               </p>
-              <p v-if="adj.notes" class="mt-1 text-xs text-gray-500">{{ adj.notes }}</p>
+              <p v-if="adj.notes" class="mt-1 text-xs text-muted">{{ adj.notes }}</p>
             </div>
             <div class="text-sm space-y-1">
-              <div v-for="line in (adj.lines || [])" :key="line.id" class="text-gray-300">
+              <div v-for="line in (adj.lines || [])" :key="line.id" class="text-ink-soft">
                 <span class="font-mono">{{ line.product?.sku || line.product?.title || line.product_id?.slice?.(0, 8) }}</span>
-                <span class="text-gray-500"> · sys {{ line.system_qty ?? '—' }} → count {{ line.counted_qty }}</span>
+                <span class="text-muted"> · sys {{ line.system_qty ?? '—' }} → count {{ line.counted_qty }}</span>
               </div>
             </div>
             <div class="text-sm">
-              <p :class="adjustmentVariance(adj) < 0 ? 'text-red-300' : adjustmentVariance(adj) > 0 ? 'text-emerald-300' : 'text-gray-300'">
+              <p :class="adjustmentVariance(adj) < 0 ? 'text-danger' : adjustmentVariance(adj) > 0 ? 'text-success' : 'text-ink-soft'">
                 Variance {{ adjustmentVariance(adj) > 0 ? '+' : '' }}{{ adjustmentVariance(adj) }}
               </p>
-              <p class="text-xs text-gray-500">Ledger on apply only</p>
+              <p class="text-xs text-muted">Ledger on apply only</p>
             </div>
             <div class="flex flex-wrap gap-2 xl:justify-end">
               <button
@@ -1953,7 +1953,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 Apply to ledger
               </button>
               <button
-                class="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+                class="rounded-lg px-3 py-1.5 text-xs text-muted hover:bg-surface-sunken hover:text-ink"
                 :disabled="floorActing === adj.id"
                 @click="rejectAdjustment(adj)"
               >

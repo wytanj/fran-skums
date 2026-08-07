@@ -20,39 +20,39 @@ function renderMarkdown(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(
       /```([\s\S]*?)```/g,
-      '<pre class="help-pre overflow-x-auto rounded-lg bg-gray-950 p-3 text-xs font-mono my-4 -mx-1 sm:mx-0"><code>$1</code></pre>',
+      '<pre class="help-pre overflow-x-auto rounded-lg bg-cream p-3 text-xs font-mono my-4 -mx-1 sm:mx-0"><code>$1</code></pre>',
     )
     .replace(
       /`([^`]+)`/g,
-      '<code class="rounded bg-gray-800 px-1 py-0.5 text-[0.8em] font-mono text-indigo-200 break-all sm:break-normal">$1</code>',
+      '<code class="rounded bg-surface-sunken px-1 py-0.5 text-[0.8em] font-mono text-ink-soft break-all sm:break-normal">$1</code>',
     )
     .replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" class="text-indigo-400 underline-offset-2 hover:underline break-words">$1</a>',
+      '<a href="$2" class="text-brown underline-offset-2 hover:underline break-words">$1</a>',
     )
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-ink">$1</strong>')
     .replace(
       /^### (.+)$/gm,
-      '<h3 class="mt-5 mb-2 text-sm font-semibold text-white sm:text-base">$1</h3>',
+      '<h3 class="mt-5 mb-2 text-sm font-semibold text-ink sm:text-base">$1</h3>',
     )
     .replace(
       /^## (.+)$/gm,
-      '<h2 class="mt-7 mb-2 border-b border-gray-800 pb-1.5 text-base font-bold text-white sm:text-lg">$1</h2>',
+      '<h2 class="mt-7 mb-2 border-b border-line pb-1.5 text-base font-bold text-ink sm:text-lg">$1</h2>',
     )
     .replace(/^\| (.+) \|$/gm, (row) => {
-      return `<div class="font-mono text-[11px] sm:text-xs text-gray-300 my-0.5 overflow-x-auto whitespace-pre">${row}</div>`
+      return `<div class="font-mono text-[11px] sm:text-xs text-ink-soft my-0.5 overflow-x-auto whitespace-pre">${row}</div>`
     })
     .replace(
       /^- (.+)$/gm,
-      '<li class="ml-4 list-disc pl-1 text-sm text-gray-300 leading-relaxed my-1">$1</li>',
+      '<li class="ml-4 list-disc pl-1 text-sm text-ink-soft leading-relaxed my-1">$1</li>',
     )
     .replace(
       /^\d+\. (.+)$/gm,
-      '<li class="ml-4 list-decimal pl-1 text-sm text-gray-300 leading-relaxed my-1">$1</li>',
+      '<li class="ml-4 list-decimal pl-1 text-sm text-ink-soft leading-relaxed my-1">$1</li>',
     )
     .replace(
       /\n\n/g,
-      '</p><p class="mt-3 text-sm text-gray-300 leading-relaxed sm:text-[15px]">',
+      '</p><p class="mt-3 text-sm text-ink-soft leading-relaxed sm:text-[15px]">',
     )
     .replace(/\n/g, '<br>')
 }
@@ -105,11 +105,11 @@ onUnmounted(() => clearContext())
   <div class="flex w-full min-w-0 flex-col">
     <!-- Sticky mobile/desktop back bar -->
     <div
-      class="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-2 border-b border-gray-800/80 bg-gray-950/95 px-4 py-2.5 backdrop-blur sm:mx-0 sm:mb-6 sm:rounded-xl sm:border sm:border-gray-800 sm:bg-gray-900/80 sm:px-4"
+      class="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-2 border-b border-line bg-cream/95 px-4 py-2.5 backdrop-blur sm:mx-0 sm:mb-6 sm:rounded-xl sm:border sm:border-line sm:bg-surface-sunken sm:px-4"
     >
       <button
         type="button"
-        class="btn-ghost -ml-1 flex min-h-10 min-w-10 items-center gap-1.5 px-2 text-sm text-gray-300"
+        class="btn-ghost -ml-1 flex min-h-10 min-w-10 items-center gap-1.5 px-2 text-sm text-ink-soft"
         @click="router.push('/help')"
       >
         <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -120,16 +120,16 @@ onUnmounted(() => clearContext())
       </button>
       <span
         v-if="article"
-        class="min-w-0 flex-1 truncate text-xs text-gray-500 sm:text-sm"
+        class="min-w-0 flex-1 truncate text-xs text-muted sm:text-sm"
       >
         {{ article.title }}
       </span>
     </div>
 
-    <div v-if="loading" class="card p-8 text-center text-sm text-gray-500">Loading…</div>
-    <div v-else-if="error || !article" class="card p-6 text-sm text-red-300">
+    <div v-if="loading" class="card p-8 text-center text-sm text-muted">Loading…</div>
+    <div v-else-if="error || !article" class="card p-6 text-sm text-danger">
       {{ error || 'Not found' }}
-      <NuxtLink to="/help" class="mt-3 block text-indigo-400 hover:underline">← Back to Help Center</NuxtLink>
+      <NuxtLink to="/help" class="mt-3 block text-brown hover:underline">← Back to Help Center</NuxtLink>
     </div>
 
     <div
@@ -139,13 +139,13 @@ onUnmounted(() => clearContext())
       <!-- Main article (uses available width; readable measure on very wide screens) -->
       <article class="min-w-0 flex-1 lg:max-w-none xl:max-w-4xl 2xl:max-w-5xl">
         <header class="mb-4 sm:mb-6">
-          <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+          <p class="text-[11px] font-medium uppercase tracking-wide text-muted sm:text-xs">
             {{ categoryLabel(article.category) }}
           </p>
-          <h1 class="mt-1 text-xl font-bold leading-tight text-white sm:text-2xl lg:text-3xl">
+          <h1 class="mt-1 text-xl font-bold leading-tight text-ink sm:text-2xl lg:text-3xl">
             {{ article.title }}
           </h1>
-          <p v-if="article.summary" class="mt-2 text-sm text-gray-400 sm:text-base">
+          <p v-if="article.summary" class="mt-2 text-sm text-muted sm:text-base">
             {{ article.summary }}
           </p>
           <div class="mt-4 flex flex-wrap gap-2">
@@ -170,31 +170,31 @@ onUnmounted(() => clearContext())
         <div class="card overflow-hidden p-4 sm:p-6 lg:p-8">
           <!-- eslint-disable-next-line vue/no-v-html -->
           <div
-            class="help-body text-sm leading-relaxed text-gray-300"
-            v-html="`<p class=&quot;text-sm text-gray-300 leading-relaxed sm:text-[15px]&quot;>${renderMarkdown(article.body_md)}</p>`"
+            class="help-body text-sm leading-relaxed text-ink-soft"
+            v-html="`<p class=&quot;text-sm text-ink-soft leading-relaxed sm:text-[15px]&quot;>${renderMarkdown(article.body_md)}</p>`"
           />
         </div>
 
-        <p class="mt-6 text-center text-xs text-gray-600 sm:mt-8">
-          Still stuck? Ask <strong class="text-gray-400">Catalog AI</strong> a data question, or
-          <NuxtLink to="/help" class="text-indigo-400 hover:underline">browse Help</NuxtLink>.
+        <p class="mt-6 text-center text-xs text-muted sm:mt-8">
+          Still stuck? Ask <strong class="text-muted">Catalog AI</strong> a data question, or
+          <NuxtLink to="/help" class="text-brown hover:underline">browse Help</NuxtLink>.
         </p>
       </article>
 
       <!-- Related / category rail (desktop); stacks under article on mobile -->
       <aside
         v-if="relatedInCategory.length"
-        class="w-full shrink-0 border-t border-gray-800 pt-6 lg:sticky lg:top-[4.5rem] lg:w-64 lg:border-t-0 lg:pt-0 xl:w-72"
+        class="w-full shrink-0 border-t border-line pt-6 lg:sticky lg:top-[4.5rem] lg:w-64 lg:border-t-0 lg:pt-0 xl:w-72"
       >
-        <div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-          <p class="mb-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+        <div class="rounded-xl border border-line bg-surface-sunken/80 p-4">
+          <p class="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
             More in {{ categoryLabel(article.category) }}
           </p>
           <ul class="space-y-1">
             <li v-for="r in relatedInCategory" :key="r.id">
               <NuxtLink
                 :to="`/help/${r.slug}`"
-                class="block rounded-lg px-2.5 py-2.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/80 hover:text-indigo-300 active:bg-gray-800"
+                class="block rounded-lg px-2.5 py-2.5 text-sm text-muted transition-colors hover:bg-surface-sunken/80 hover:text-brown active:bg-surface-sunken"
               >
                 {{ r.title }}
               </NuxtLink>
@@ -202,7 +202,7 @@ onUnmounted(() => clearContext())
           </ul>
           <NuxtLink
             to="/help"
-            class="mt-3 block rounded-lg px-2.5 py-2 text-xs text-indigo-400 hover:underline"
+            class="mt-3 block rounded-lg px-2.5 py-2 text-xs text-brown hover:underline"
           >
             All help articles →
           </NuxtLink>

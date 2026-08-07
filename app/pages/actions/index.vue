@@ -126,12 +126,12 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
   <div class="mx-auto max-w-5xl">
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-white">Actions</h1>
-        <p class="mt-1 text-sm text-gray-400">
+        <h1 class="text-2xl font-bold text-ink">Actions</h1>
+        <p class="mt-1 text-sm text-muted">
           Drafts and approvals for agent (MCP) and human work. Nothing here is “done” until status says so.
         </p>
-        <p class="mt-2 text-xs text-gray-600">
-          Your role: <span class="text-gray-400">{{ memberRole || 'member' }}</span>
+        <p class="mt-2 text-xs text-muted">
+          Your role: <span class="text-muted">{{ memberRole || 'member' }}</span>
           <span v-if="!canApprove" class="text-amber-500/80"> · approve/reject requires owner/admin</span>
         </p>
       </div>
@@ -140,42 +140,42 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
           <p class="text-lg font-bold text-rose-300">{{ counts.pendingFloor }}</p>
           <p class="text-[10px] uppercase text-rose-500/70">Floor</p>
         </div>
-        <div class="rounded-lg bg-amber-500/10 px-3 py-2">
-          <p class="text-lg font-bold text-amber-300">{{ counts.draftPos }}</p>
+        <div class="rounded-lg bg-warning-soft px-3 py-2">
+          <p class="text-lg font-bold text-warning">{{ counts.draftPos }}</p>
           <p class="text-[10px] uppercase text-amber-500/70">Drafts</p>
         </div>
-        <div class="rounded-lg bg-sky-500/10 px-3 py-2">
-          <p class="text-lg font-bold text-sky-300">{{ counts.pendingPos }}</p>
+        <div class="rounded-lg bg-blue-soft px-3 py-2">
+          <p class="text-lg font-bold text-brown">{{ counts.pendingPos }}</p>
           <p class="text-[10px] uppercase text-sky-500/70">Pending</p>
         </div>
         <div class="rounded-lg bg-violet-500/10 px-3 py-2">
           <p class="text-lg font-bold text-violet-300">{{ counts.proposedPipeline }}</p>
           <p class="text-[10px] uppercase text-violet-500/70">Proposed</p>
         </div>
-        <div class="rounded-lg bg-emerald-500/10 px-3 py-2">
-          <p class="text-lg font-bold text-emerald-300">{{ counts.openActions }}</p>
-          <p class="text-[10px] uppercase text-emerald-500/70">Open</p>
+        <div class="rounded-lg bg-success-soft px-3 py-2">
+          <p class="text-lg font-bold text-success">{{ counts.openActions }}</p>
+          <p class="text-[10px] uppercase text-success/70">Open</p>
         </div>
       </div>
     </div>
 
     <div
-      class="mb-4 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3 text-xs text-gray-400"
+      class="mb-4 rounded-lg border border-line bg-surface-sunken/80 px-4 py-3 text-xs text-muted"
     >
       <p>
         <strong class="text-rose-300">Floor / POS signals</strong> (damage, found stock, cycle counts) from
-        Fran POS or MCP land here as <strong class="text-white">pending</strong> —
-        stock does <strong class="text-white">not</strong> change until HQ
-        <strong class="text-white">Apply</strong> (or Reject).
+        Fran POS or MCP land here as <strong class="text-ink">pending</strong> —
+        stock does <strong class="text-ink">not</strong> change until HQ
+        <strong class="text-ink">Apply</strong> (or Reject).
       </p>
       <p class="mt-1">
-        Agent PO drafts land as <strong class="text-amber-300">DRAFT</strong> until you
-        <strong class="text-white">Submit</strong>. Also see
-        <NuxtLink to="/store-ops?tab=floor" class="text-indigo-400 hover:underline">Store Ops → Floor</NuxtLink>.
+        Agent PO drafts land as <strong class="text-warning">DRAFT</strong> until you
+        <strong class="text-ink">Submit</strong>. Also see
+        <NuxtLink to="/store-ops?tab=floor" class="text-brown hover:underline">Store Ops → Floor</NuxtLink>.
       </p>
     </div>
 
-    <div v-if="error" class="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+    <div v-if="error" class="mb-4 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
       {{ error }}
     </div>
 
@@ -187,8 +187,8 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
         :class="[
           'rounded-full px-3 py-1.5 text-xs font-medium transition-colors ring-1',
           tab === t.key
-            ? 'bg-indigo-500/20 text-indigo-300 ring-indigo-500/40'
-            : 'bg-gray-900 text-gray-400 ring-gray-800 hover:text-white',
+            ? 'bg-yellow-deep/20 text-brown ring-indigo-500/40'
+            : 'bg-white text-muted ring-gray-800 hover:text-ink',
         ]"
         @click="tab = t.key"
       >
@@ -207,14 +207,14 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
     </div>
 
     <div v-if="loading" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="card h-20 animate-pulse bg-gray-900/80" />
+      <div v-for="i in 3" :key="i" class="card h-20 animate-pulse bg-surface-sunken" />
     </div>
 
     <!-- Floor / POS signals (damage, found, count) -->
     <div v-show="!loading && tab === 'floor'" class="space-y-3">
       <div
         v-if="filteredFloor.length === 0"
-        class="card p-10 text-center text-sm text-gray-500"
+        class="card p-10 text-center text-sm text-muted"
       >
         No pending floor signals{{ channelFilter !== 'all' ? ` for ${channelFilter}` : '' }}.
         POS “2 damaged” / MCP floor_adjustment_create_draft show up here for HQ Apply.
@@ -227,7 +227,7 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-              <p class="font-mono text-sm text-white">{{ adj.adjustment_number }}</p>
+              <p class="font-mono text-sm text-ink">{{ adj.adjustment_number }}</p>
               <span class="rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-300">
                 {{ adj.adjustment_type }}
               </span>
@@ -235,14 +235,14 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
                 {{ channelFromMeta(adj).toUpperCase() }}
               </span>
             </div>
-            <p class="mt-1 text-xs text-gray-400">
+            <p class="mt-1 text-xs text-muted">
               {{ adj.location?.name || adj.location_id }}
-              <span v-if="adj.location?.code" class="font-mono text-gray-500">({{ adj.location.code }})</span>
+              <span v-if="adj.location?.code" class="font-mono text-muted">({{ adj.location.code }})</span>
               · {{ relativeTime(adj.created_at) }}
             </p>
-            <p class="mt-1 text-sm text-gray-300">{{ floorLineSummary(adj) || 'No lines' }}</p>
-            <p v-if="adj.notes" class="mt-1 text-xs text-gray-500">{{ adj.notes }}</p>
-            <p class="mt-1 text-xs" :class="floorVariance(adj) < 0 ? 'text-red-300' : floorVariance(adj) > 0 ? 'text-emerald-300' : 'text-gray-400'">
+            <p class="mt-1 text-sm text-ink-soft">{{ floorLineSummary(adj) || 'No lines' }}</p>
+            <p v-if="adj.notes" class="mt-1 text-xs text-muted">{{ adj.notes }}</p>
+            <p class="mt-1 text-xs" :class="floorVariance(adj) < 0 ? 'text-danger' : floorVariance(adj) > 0 ? 'text-success' : 'text-muted'">
               Variance {{ floorVariance(adj) > 0 ? '+' : '' }}{{ floorVariance(adj) }}
               · ledger pending until Apply
             </p>
@@ -267,7 +267,7 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
             </button>
             <NuxtLink
               to="/store-ops?tab=floor"
-              class="text-xs text-indigo-400 hover:underline"
+              class="text-xs text-brown hover:underline"
             >
               Store Ops
             </NuxtLink>
@@ -280,7 +280,7 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
     <div v-show="!loading && tab === 'draft_pos'" class="space-y-3">
       <div
         v-if="filteredDrafts.length === 0"
-        class="card p-10 text-center text-sm text-gray-500"
+        class="card p-10 text-center text-sm text-muted"
       >
         No draft decision POs{{ channelFilter !== 'all' ? ` for ${channelFilter}` : '' }}.
         Ask MCP to create or clone a draft — they show up here, not under Inventory.
@@ -289,13 +289,13 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
         v-for="po in filteredDrafts"
         :key="po.id"
         :to="`/actions/internal-pos/${po.id}`"
-        class="card block p-4 transition-colors hover:border-indigo-500/40"
+        class="card block p-4 transition-colors hover:border-line"
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="font-mono text-sm text-white">{{ po.po_number }}</p>
-            <p class="mt-0.5 text-xs text-gray-400">{{ po.supplier_name || 'No supplier' }} · {{ po.line_count }} lines</p>
-            <p class="mt-1 text-xs text-gray-600">
+            <p class="font-mono text-sm text-ink">{{ po.po_number }}</p>
+            <p class="mt-0.5 text-xs text-muted">{{ po.supplier_name || 'No supplier' }} · {{ po.line_count }} lines</p>
+            <p class="mt-1 text-xs text-muted">
               {{ relativeTime(po.created_at) }}
               <span v-if="toolNameFor(po)" class="text-violet-400/80"> · {{ toolNameFor(po) }}</span>
             </p>
@@ -307,14 +307,14 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
             <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', channelClass(channelFromMeta(po))]">
               {{ channelFromMeta(po).toUpperCase() }}
             </span>
-            <span class="text-sm font-semibold text-white">{{ formatMoney(po.subtotal, po.currency) }}</span>
+            <span class="text-sm font-semibold text-ink">{{ formatMoney(po.subtotal, po.currency) }}</span>
           </div>
         </div>
       </NuxtLink>
     </div>
 
     <div v-show="!loading && tab === 'pending_pos'" class="space-y-3">
-      <div v-if="filteredPending.length === 0" class="card p-10 text-center text-sm text-gray-500">
+      <div v-if="filteredPending.length === 0" class="card p-10 text-center text-sm text-muted">
         No POs waiting for approval.
       </div>
       <NuxtLink
@@ -325,8 +325,8 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="font-mono text-sm text-white">{{ po.po_number }}</p>
-            <p class="mt-0.5 text-xs text-gray-400">{{ relativeTime(po.submitted_at || po.updated_at) }}</p>
+            <p class="font-mono text-sm text-ink">{{ po.po_number }}</p>
+            <p class="mt-0.5 text-xs text-muted">{{ relativeTime(po.submitted_at || po.updated_at) }}</p>
           </div>
           <div class="flex items-center gap-2">
             <span :class="['rounded-full px-2 py-0.5 text-xs font-medium ring-1', statusClass(po.status)]">
@@ -335,14 +335,14 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
             <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', channelClass(channelFromMeta(po))]">
               {{ channelFromMeta(po).toUpperCase() }}
             </span>
-            <span class="text-sm font-semibold text-white">{{ formatMoney(po.subtotal, po.currency) }}</span>
+            <span class="text-sm font-semibold text-ink">{{ formatMoney(po.subtotal, po.currency) }}</span>
           </div>
         </div>
       </NuxtLink>
     </div>
 
     <div v-show="!loading && tab === 'pipeline_proposed'" class="space-y-3">
-      <div v-if="filteredProposed.length === 0" class="card p-10 text-center text-sm text-gray-500">
+      <div v-if="filteredProposed.length === 0" class="card p-10 text-center text-sm text-muted">
         No proposed pipeline candidates.
       </div>
       <NuxtLink
@@ -353,8 +353,8 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-sm font-medium text-white">{{ c.title }}</p>
-            <p class="mt-0.5 text-xs text-gray-400">{{ c.kind }} · {{ relativeTime(c.created_at) }}</p>
+            <p class="text-sm font-medium text-ink">{{ c.title }}</p>
+            <p class="mt-0.5 text-xs text-muted">{{ c.kind }} · {{ relativeTime(c.created_at) }}</p>
           </div>
           <div class="flex gap-2">
             <span :class="['rounded-full px-2 py-0.5 text-xs font-medium ring-1', statusClass(c.status)]">
@@ -369,7 +369,7 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
     </div>
 
     <div v-show="!loading && tab === 'pipeline_accepted'" class="space-y-3">
-      <div v-if="filteredAccepted.length === 0" class="card p-10 text-center text-sm text-gray-500">
+      <div v-if="filteredAccepted.length === 0" class="card p-10 text-center text-sm text-muted">
         Nothing accepted and waiting to execute.
       </div>
       <NuxtLink
@@ -380,8 +380,8 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-sm font-medium text-white">{{ c.title }}</p>
-            <p class="mt-0.5 text-xs text-gray-400">{{ c.kind }} · {{ relativeTime(c.decided_at || c.updated_at) }}</p>
+            <p class="text-sm font-medium text-ink">{{ c.title }}</p>
+            <p class="mt-0.5 text-xs text-muted">{{ c.kind }} · {{ relativeTime(c.decided_at || c.updated_at) }}</p>
           </div>
           <span :class="['rounded-full px-2 py-0.5 text-xs font-medium ring-1', statusClass(c.status)]">
             accepted
@@ -391,29 +391,29 @@ function formatMoney(n: number | null | undefined, currency = 'SGD') {
     </div>
 
     <div v-show="!loading && tab === 'recent'" class="space-y-3">
-      <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Decision POs</p>
+      <p class="text-xs font-medium uppercase tracking-wide text-muted">Decision POs</p>
       <NuxtLink
         v-for="po in decidedPos"
         :key="po.id"
         :to="`/actions/internal-pos/${po.id}`"
-        class="card block p-4 hover:border-gray-600"
+        class="card block p-4 hover:border-line-strong"
       >
         <div class="flex justify-between gap-3">
-          <p class="font-mono text-sm text-white">{{ po.po_number }}</p>
+          <p class="font-mono text-sm text-ink">{{ po.po_number }}</p>
           <span :class="['rounded-full px-2 py-0.5 text-xs font-medium ring-1', statusClass(po.status)]">
             {{ po.status }}
           </span>
         </div>
       </NuxtLink>
-      <p class="mt-4 text-xs font-medium uppercase tracking-wide text-gray-500">Pipeline</p>
+      <p class="mt-4 text-xs font-medium uppercase tracking-wide text-muted">Pipeline</p>
       <NuxtLink
         v-for="c in recentPipeline"
         :key="c.id"
         :to="`/actions/pipeline/${c.id}`"
-        class="card block p-4 hover:border-gray-600"
+        class="card block p-4 hover:border-line-strong"
       >
         <div class="flex justify-between gap-3">
-          <p class="text-sm text-white">{{ c.title }}</p>
+          <p class="text-sm text-ink">{{ c.title }}</p>
           <span :class="['rounded-full px-2 py-0.5 text-xs font-medium ring-1', statusClass(c.status)]">
             {{ c.status }}
           </span>

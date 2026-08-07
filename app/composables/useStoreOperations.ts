@@ -470,51 +470,51 @@ export function useStoreOperations() {
 
   function priorityBadge(priority: StoreOpsPriority) {
     const map: Record<string, { label: string; cls: string }> = {
-      low: { label: 'Low', cls: 'bg-gray-500/10 text-gray-400' },
+      low: { label: 'Low', cls: 'bg-surface-sunken text-muted' },
       normal: { label: 'Normal', cls: 'bg-blue-500/10 text-blue-300' },
-      urgent: { label: 'Urgent', cls: 'bg-amber-500/10 text-amber-300' },
-      critical: { label: 'Critical', cls: 'bg-red-500/10 text-red-300' },
+      urgent: { label: 'Urgent', cls: 'bg-warning-soft text-warning' },
+      critical: { label: 'Critical', cls: 'bg-danger-soft text-danger' },
     }
     return map[priority] ?? map.normal
   }
 
   function requestStatusBadge(status: StoreReplenishmentRequestStatus) {
     const map: Record<string, { label: string; cls: string }> = {
-      draft: { label: 'Draft', cls: 'bg-gray-500/10 text-gray-400' },
+      draft: { label: 'Draft', cls: 'bg-surface-sunken text-muted' },
       submitted: { label: 'Submitted', cls: 'bg-blue-500/10 text-blue-300' },
-      in_review: { label: 'In review', cls: 'bg-amber-500/10 text-amber-300' },
-      approved: { label: 'Approved', cls: 'bg-emerald-500/10 text-emerald-300' },
-      rejected: { label: 'Rejected', cls: 'bg-red-500/10 text-red-300' },
+      in_review: { label: 'In review', cls: 'bg-warning-soft text-warning' },
+      approved: { label: 'Approved', cls: 'bg-success-soft text-success' },
+      rejected: { label: 'Rejected', cls: 'bg-danger-soft text-danger' },
       converted: { label: 'Converted', cls: 'bg-cyan-500/10 text-cyan-300' },
-      cancelled: { label: 'Cancelled', cls: 'bg-gray-500/10 text-gray-400' },
+      cancelled: { label: 'Cancelled', cls: 'bg-surface-sunken text-muted' },
     }
     return map[status] ?? map.submitted
   }
 
   function orderStatusBadge(status: StoreReplenishmentOrderStatus) {
     const map: Record<string, { label: string; cls: string }> = {
-      draft: { label: 'Draft', cls: 'bg-gray-500/10 text-gray-400' },
-      approved: { label: 'Approved', cls: 'bg-emerald-500/10 text-emerald-300' },
+      draft: { label: 'Draft', cls: 'bg-surface-sunken text-muted' },
+      approved: { label: 'Approved', cls: 'bg-success-soft text-success' },
       queued: { label: 'Queued', cls: 'bg-blue-500/10 text-blue-300' },
       sent_to_3pl: { label: 'Sent to 3PL', cls: 'bg-cyan-500/10 text-cyan-300' },
-      acknowledged: { label: 'Acknowledged', cls: 'bg-indigo-500/10 text-indigo-300' },
-      partially_shipped: { label: 'Partial ship', cls: 'bg-amber-500/10 text-amber-300' },
-      shipped: { label: 'Shipped', cls: 'bg-amber-500/10 text-amber-300' },
+      acknowledged: { label: 'Acknowledged', cls: 'bg-yellow-deep/10 text-brown' },
+      partially_shipped: { label: 'Partial ship', cls: 'bg-warning-soft text-warning' },
+      shipped: { label: 'Shipped', cls: 'bg-warning-soft text-warning' },
       partially_received: { label: 'Partial receipt', cls: 'bg-orange-500/10 text-orange-300' },
-      received: { label: 'Received', cls: 'bg-emerald-500/10 text-emerald-300' },
-      exception: { label: 'Exception', cls: 'bg-red-500/10 text-red-300' },
-      cancelled: { label: 'Cancelled', cls: 'bg-gray-500/10 text-gray-400' },
-      failed: { label: 'Failed', cls: 'bg-red-500/10 text-red-300' },
+      received: { label: 'Received', cls: 'bg-success-soft text-success' },
+      exception: { label: 'Exception', cls: 'bg-danger-soft text-danger' },
+      cancelled: { label: 'Cancelled', cls: 'bg-surface-sunken text-muted' },
+      failed: { label: 'Failed', cls: 'bg-danger-soft text-danger' },
     }
     return map[status] ?? map.draft
   }
 
   function exceptionStatusBadge(status: InventoryExceptionStatus) {
     const map: Record<string, { label: string; cls: string }> = {
-      open: { label: 'Open', cls: 'bg-red-500/10 text-red-300' },
-      in_review: { label: 'In review', cls: 'bg-amber-500/10 text-amber-300' },
-      resolved: { label: 'Resolved', cls: 'bg-emerald-500/10 text-emerald-300' },
-      dismissed: { label: 'Dismissed', cls: 'bg-gray-500/10 text-gray-400' },
+      open: { label: 'Open', cls: 'bg-danger-soft text-danger' },
+      in_review: { label: 'In review', cls: 'bg-warning-soft text-warning' },
+      resolved: { label: 'Resolved', cls: 'bg-success-soft text-success' },
+      dismissed: { label: 'Dismissed', cls: 'bg-surface-sunken text-muted' },
       escalated: { label: 'Escalated', cls: 'bg-purple-500/10 text-purple-300' },
     }
     return map[status] ?? map.open

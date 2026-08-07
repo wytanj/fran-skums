@@ -542,25 +542,25 @@ export function useActions() {
 
   function statusClass(status: string) {
     const map: Record<string, string> = {
-      draft: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
-      pending_approval: 'bg-sky-500/15 text-sky-300 ring-sky-500/30',
-      approved: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30',
-      accepted: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30',
-      rejected: 'bg-red-500/15 text-red-300 ring-red-500/30',
-      proposed: 'bg-violet-500/15 text-violet-300 ring-violet-500/30',
-      deferred: 'bg-gray-500/15 text-gray-300 ring-gray-500/30',
-      executed: 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30',
-      failed: 'bg-red-500/15 text-red-300 ring-red-500/30',
-      ordered: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30',
-      cancelled: 'bg-gray-600/20 text-gray-400 ring-gray-600/30',
+      draft: 'bg-warning-soft text-warning ring-warning/30',
+      pending_approval: 'bg-blue-soft text-brown ring-blue/40',
+      approved: 'bg-success-soft text-success ring-success/30',
+      accepted: 'bg-success-soft text-success ring-success/30',
+      rejected: 'bg-danger-soft text-danger ring-danger/30',
+      proposed: 'bg-peach-soft text-brown ring-peach',
+      deferred: 'bg-surface-sunken text-ink-soft ring-line',
+      executed: 'bg-yellow-soft text-brown ring-yellow-deep/30',
+      failed: 'bg-danger-soft text-danger ring-danger/30',
+      ordered: 'bg-success-soft text-success ring-success/30',
+      cancelled: 'bg-surface-sunken text-muted ring-line',
     }
-    return map[status] || 'bg-gray-800 text-gray-300 ring-gray-700'
+    return map[status] || 'bg-surface-sunken text-ink-soft ring-line'
   }
 
   function channelClass(ch: string) {
-    if (ch === 'mcp') return 'bg-violet-500/15 text-violet-300'
-    if (ch === 'api') return 'bg-indigo-500/15 text-indigo-300'
-    return 'bg-slate-500/15 text-slate-300'
+    if (ch === 'mcp') return 'bg-peach-soft text-brown'
+    if (ch === 'api') return 'bg-yellow-soft text-brown'
+    return 'bg-surface-sunken text-muted'
   }
 
   function relativeTime(iso: string) {

@@ -134,7 +134,7 @@ onMounted(async () => {
             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
         </NuxtLink>
-        <h1 class="text-2xl font-bold text-white">New Product</h1>
+        <h1 class="text-2xl font-bold text-ink">New Product</h1>
       </div>
       <div class="flex items-center gap-3">
         <NuxtLink to="/products" class="btn-secondary">Cancel</NuxtLink>
@@ -144,12 +144,12 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="error" class="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ error }}</div>
+    <div v-if="error" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">{{ error }}</div>
 
     <form class="space-y-6" @submit.prevent="handleSubmit">
       <!-- Essential Info (always shown) -->
       <div class="card p-6">
-        <h2 class="mb-4 text-lg font-semibold text-white">Product</h2>
+        <h2 class="mb-4 text-lg font-semibold text-ink">Product</h2>
         <div class="space-y-4">
           <div>
             <label class="label-field">Title *</label>
@@ -185,12 +185,12 @@ onMounted(async () => {
               <input v-model="tags" type="text" class="input-field" placeholder="tag1, tag2, tag3" />
             </div>
           </div>
-          <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+          <div class="rounded-lg border border-line bg-surface-sunken p-4">
             <label class="flex items-center gap-3 cursor-pointer">
-              <input v-model="isCanonical" type="checkbox" class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500" />
+              <input v-model="isCanonical" type="checkbox" class="rounded border-line-strong bg-surface-sunken text-brown focus:ring-yellow-deep" />
               <div>
-                <p class="text-sm font-medium text-white">Canonical (Base) Product</p>
-                <p class="text-xs text-gray-400">Mark as the manufacturer's authoritative product definition.</p>
+                <p class="text-sm font-medium text-ink">Canonical (Base) Product</p>
+                <p class="text-xs text-muted">Mark as the manufacturer's authoritative product definition.</p>
               </div>
             </label>
           </div>
@@ -202,7 +202,7 @@ onMounted(async () => {
                 {{ s.name }} ({{ s.workspace_id ? 'Workspace' : 'Global' }})
               </option>
             </select>
-            <p class="mt-1 text-xs text-gray-500">The schema determines which fields appear below.</p>
+            <p class="mt-1 text-xs text-muted">The schema determines which fields appear below.</p>
           </div>
         </div>
       </div>
@@ -210,8 +210,8 @@ onMounted(async () => {
       <!-- Dynamic Schema Fields -->
       <template v-if="resolvedSchema">
         <div v-for="group in getSchemaGroups()" :key="group.key" class="card p-6">
-          <h2 class="mb-1 text-lg font-semibold text-white capitalize">{{ group.label }}</h2>
-          <p v-if="group.description" class="mb-4 text-sm text-gray-400">{{ group.description }}</p>
+          <h2 class="mb-1 text-lg font-semibold text-ink capitalize">{{ group.label }}</h2>
+          <p v-if="group.description" class="mb-4 text-sm text-muted">{{ group.description }}</p>
           <div class="grid grid-cols-2 gap-4" :class="{ 'sm:grid-cols-3': group.fields.length > 4 }">
             <div v-for="field in group.fields" :key="field.path">
               <label class="label-field capitalize">{{ field.label }}</label>
@@ -221,10 +221,10 @@ onMounted(async () => {
                 <input
                   type="checkbox"
                   :checked="!!getNested(productData, field.path)"
-                  class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                  class="rounded border-line-strong bg-surface-sunken text-brown focus:ring-yellow-deep"
                   @change="setNested(productData, field.path, ($event.target as HTMLInputElement).checked)"
                 />
-                <span class="text-sm text-gray-400">{{ field.property.description || '' }}</span>
+                <span class="text-sm text-muted">{{ field.property.description || '' }}</span>
               </label>
 
               <!-- Enum select -->
@@ -269,14 +269,14 @@ onMounted(async () => {
                 @input="setNested(productData, field.path, ($event.target as HTMLInputElement).value || null)"
               />
 
-              <p v-if="field.property.description && field.property.type !== 'boolean'" class="mt-0.5 text-xs text-gray-600 truncate">{{ field.property.description }}</p>
+              <p v-if="field.property.description && field.property.type !== 'boolean'" class="mt-0.5 text-xs text-muted truncate">{{ field.property.description }}</p>
             </div>
           </div>
         </div>
 
         <!-- Top-level non-object fields -->
         <div v-if="getTopLevelFields().length > 0" class="card p-6">
-          <h2 class="mb-4 text-lg font-semibold text-white">Other Fields</h2>
+          <h2 class="mb-4 text-lg font-semibold text-ink">Other Fields</h2>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div v-for="field in getTopLevelFields()" :key="field.path">
               <label class="label-field capitalize">{{ field.label }}</label>
@@ -302,11 +302,11 @@ onMounted(async () => {
 
       <!-- No schema hint -->
       <div v-else class="card p-6 text-center">
-        <svg class="mx-auto h-8 w-8 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <svg class="mx-auto h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
         </svg>
-        <p class="mt-2 text-sm text-gray-400">Select a schema above to see dynamic product fields.</p>
-        <NuxtLink to="/schema" class="mt-1 text-xs text-indigo-400 hover:underline">Manage schemas &rarr;</NuxtLink>
+        <p class="mt-2 text-sm text-muted">Select a schema above to see dynamic product fields.</p>
+        <NuxtLink to="/schema" class="mt-1 text-xs text-brown hover:underline">Manage schemas &rarr;</NuxtLink>
       </div>
     </form>
   </div>

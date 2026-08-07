@@ -9,25 +9,26 @@ const emit = defineEmits<{
   'update:currentPage': [page: number]
 }>()
 
-const totalPages = computed(() => Math.ceil(props.totalItems / props.perPage))
+const totalPages = computed(() => Math.ceil(props.totalItems / props.perPage) || 1)
 
 const displayRange = computed(() => {
-  const start = (props.currentPage - 1) * props.perPage + 1
+  const start = props.totalItems === 0 ? 0 : (props.currentPage - 1) * props.perPage + 1
   const end = Math.min(props.currentPage * props.perPage, props.totalItems)
   return { start, end }
 })
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-2 py-3">
-    <p class="text-sm text-gray-400">
-      Showing <span class="font-medium text-white">{{ displayRange.start }}</span>
-      to <span class="font-medium text-white">{{ displayRange.end }}</span>
-      of <span class="font-medium text-white">{{ totalItems }}</span> results
+  <div class="flex flex-wrap items-center justify-between gap-2 px-1 py-3">
+    <p class="text-[13px] text-muted">
+      Showing <span class="font-medium text-ink">{{ displayRange.start }}</span>
+      to <span class="font-medium text-ink">{{ displayRange.end }}</span>
+      of <span class="font-medium text-ink">{{ totalItems }}</span> results
     </p>
 
     <div class="flex items-center gap-1">
       <button
+        type="button"
         class="btn-ghost !px-2 !py-1.5"
         :disabled="currentPage <= 1"
         @click="emit('update:currentPage', currentPage - 1)"
@@ -37,11 +38,12 @@ const displayRange = computed(() => {
         </svg>
       </button>
 
-      <span class="px-3 text-sm text-gray-400">
+      <span class="px-3 text-[13px] text-muted">
         {{ currentPage }} / {{ totalPages }}
       </span>
 
       <button
+        type="button"
         class="btn-ghost !px-2 !py-1.5"
         :disabled="currentPage >= totalPages"
         @click="emit('update:currentPage', currentPage + 1)"

@@ -64,19 +64,19 @@ async function onCopyLink() {
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <button type="button" class="btn-ghost mb-4 text-xs text-gray-400" @click="router.push('/actions')">
+    <button type="button" class="btn-ghost mb-4 text-xs text-muted" @click="router.push('/actions')">
       ← Actions
     </button>
 
-    <div v-if="loading" class="card p-8 text-center text-sm text-gray-500">Loading…</div>
-    <div v-else-if="error && !c" class="card p-6 text-red-300">{{ error }}</div>
+    <div v-if="loading" class="card p-8 text-center text-sm text-muted">Loading…</div>
+    <div v-else-if="error && !c" class="card p-6 text-danger">{{ error }}</div>
 
     <template v-else-if="c">
       <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 class="text-xl font-bold text-white">{{ c.title }}</h1>
-          <p class="mt-1 text-sm text-gray-400">{{ c.kind }} · pipeline candidate</p>
-          <p v-if="c.summary" class="mt-2 text-sm text-gray-300">{{ c.summary }}</p>
+          <h1 class="text-xl font-bold text-ink">{{ c.title }}</h1>
+          <p class="mt-1 text-sm text-muted">{{ c.kind }} · pipeline candidate</p>
+          <p v-if="c.summary" class="mt-2 text-sm text-ink-soft">{{ c.summary }}</p>
           <p v-if="toolNameFor(c)" class="mt-1 text-xs text-violet-400">via {{ toolNameFor(c) }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -90,16 +90,16 @@ async function onCopyLink() {
         </div>
       </div>
 
-      <div v-if="error" class="mb-4 text-sm text-red-300">{{ error }}</div>
+      <div v-if="error" class="mb-4 text-sm text-danger">{{ error }}</div>
 
       <div class="card mb-6 p-4">
-        <h2 class="mb-2 text-xs font-medium uppercase text-gray-500">Payload</h2>
-        <pre class="max-h-80 overflow-auto rounded bg-gray-950 p-3 text-xs text-gray-300">{{ JSON.stringify(c.payload || {}, null, 2) }}</pre>
+        <h2 class="mb-2 text-xs font-medium uppercase text-muted">Payload</h2>
+        <pre class="max-h-80 overflow-auto rounded bg-cream p-3 text-xs text-ink-soft">{{ JSON.stringify(c.payload || {}, null, 2) }}</pre>
       </div>
 
       <div v-if="c.evidence_refs?.length" class="card mb-6 p-4">
-        <h2 class="mb-2 text-xs font-medium uppercase text-gray-500">Evidence</h2>
-        <ul class="list-disc space-y-1 pl-5 text-xs text-gray-400">
+        <h2 class="mb-2 text-xs font-medium uppercase text-muted">Evidence</h2>
+        <ul class="list-disc space-y-1 pl-5 text-xs text-muted">
           <li v-for="(e, i) in c.evidence_refs" :key="i">{{ e }}</li>
         </ul>
       </div>
@@ -122,20 +122,20 @@ async function onCopyLink() {
         </button>
         <button
           type="button"
-          class="btn-secondary text-red-300"
+          class="btn-secondary text-danger"
           :disabled="busy || !canApprove"
           @click="onDecide('rejected')"
         >
           Reject
         </button>
-        <p v-if="!canApprove" class="w-full text-xs text-amber-400">
+        <p v-if="!canApprove" class="w-full text-xs text-warning">
           Only owners/admins can decide (your role: {{ memberRole }}).
         </p>
       </div>
 
       <div
         v-if="c.status === 'accepted'"
-        class="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"
+        class="mb-6 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm text-emerald-200"
       >
         <p class="font-medium">Accepted — next step is execute (privileged).</p>
         <p class="mt-1 text-xs text-emerald-200/80">
@@ -146,7 +146,7 @@ async function onCopyLink() {
       </div>
 
       <div v-if="c.execution_result" class="card mb-6 p-4">
-        <h2 class="mb-2 text-xs font-medium uppercase text-gray-500">Execution result</h2>
+        <h2 class="mb-2 text-xs font-medium uppercase text-muted">Execution result</h2>
         <div
           v-if="c.execution_result?.type === 'catalog_product' && (c.product_id || c.execution_result?.product?.id)"
           class="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100/90"
@@ -157,24 +157,24 @@ async function onCopyLink() {
           </p>
           <NuxtLink
             :to="`/products/${c.product_id || c.execution_result.product.id}`"
-            class="mt-2 inline-block text-indigo-300 hover:underline"
+            class="mt-2 inline-block text-brown hover:underline"
           >
             Open product →
           </NuxtLink>
         </div>
-        <pre class="overflow-auto text-xs text-gray-300">{{ JSON.stringify(c.execution_result, null, 2) }}</pre>
+        <pre class="overflow-auto text-xs text-ink-soft">{{ JSON.stringify(c.execution_result, null, 2) }}</pre>
       </div>
 
       <div class="card p-4">
-        <h2 class="mb-3 text-sm font-semibold text-white">History</h2>
+        <h2 class="mb-3 text-sm font-semibold text-ink">History</h2>
         <ul class="space-y-2">
           <li
             v-for="ev in audit"
             :key="ev.id"
-            class="flex justify-between gap-2 border-b border-gray-800/50 pb-2 text-xs text-gray-400"
+            class="flex justify-between gap-2 border-b border-line-soft pb-2 text-xs text-muted"
           >
             <span>{{ ev.event_type }} · {{ ev.source_type }}</span>
-            <span class="text-gray-600">{{ new Date(ev.created_at).toLocaleString() }}</span>
+            <span class="text-muted">{{ new Date(ev.created_at).toLocaleString() }}</span>
           </li>
         </ul>
       </div>

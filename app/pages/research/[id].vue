@@ -171,31 +171,31 @@ async function saveCover() {
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <button type="button" class="btn-ghost mb-4 text-xs text-gray-400" @click="router.push('/research')">
+    <button type="button" class="btn-ghost mb-4 text-xs text-muted" @click="router.push('/research')">
       ← Research
     </button>
 
-    <div v-if="loading && !session" class="card p-8 text-center text-sm text-gray-500">Loading…</div>
-    <div v-else-if="error && !session" class="card p-6 text-red-300">{{ error }}</div>
+    <div v-if="loading && !session" class="card p-8 text-center text-sm text-muted">Loading…</div>
+    <div v-else-if="error && !session" class="card p-6 text-danger">{{ error }}</div>
 
     <template v-else-if="session">
       <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
-          <p class="text-xs uppercase tracking-wide text-gray-500">
+          <p class="text-xs uppercase tracking-wide text-muted">
             {{ subjectLabel(session) }} research
             <span v-if="metaOf(session).brand_key"> · {{ metaOf(session).brand_key }}</span>
           </p>
           <template v-if="!editingCover">
-            <h1 class="mt-1 text-xl font-bold text-white">{{ titleOf(session) }}</h1>
+            <h1 class="mt-1 text-xl font-bold text-ink">{{ titleOf(session) }}</h1>
             <p
               v-if="descriptionOf(session)"
-              class="mt-2 text-sm text-gray-300 whitespace-pre-wrap"
+              class="mt-2 text-sm text-ink-soft whitespace-pre-wrap"
             >
               {{ descriptionOf(session) }}
             </p>
-            <p v-else-if="canWrite" class="mt-2 text-xs text-gray-600">
+            <p v-else-if="canWrite" class="mt-2 text-xs text-muted">
               No description yet —
-              <button type="button" class="text-indigo-400 hover:underline" @click="startEditCover">
+              <button type="button" class="text-brown hover:underline" @click="startEditCover">
                 add one
               </button>
             </p>
@@ -223,16 +223,16 @@ async function saveCover() {
               </button>
             </div>
           </div>
-          <p v-if="session.query" class="mt-2 text-sm text-gray-400">
-            Shopee query (optional): <span class="text-gray-300">{{ session.query }}</span>
+          <p v-if="session.query" class="mt-2 text-sm text-muted">
+            Shopee query (optional): <span class="text-ink-soft">{{ session.query }}</span>
           </p>
-          <p class="mt-1 text-xs text-gray-600">
+          <p class="mt-1 text-xs text-muted">
             Opened {{ relativeTime(session.created_at) }}
             · {{ session.marketplace }}/{{ session.country }}
             <button
               v-if="canWrite && !editingCover"
               type="button"
-              class="ml-2 text-indigo-400 hover:underline"
+              class="ml-2 text-brown hover:underline"
               @click="startEditCover"
             >
               Edit title / description
@@ -243,21 +243,21 @@ async function saveCover() {
           <span :class="['rounded-full px-2.5 py-1 text-xs font-medium ring-1', statusClass(session.status)]">
             {{ session.status }}
           </span>
-          <span class="rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-gray-700 text-gray-400">
+          <span class="rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-line text-muted">
             crawl: {{ crawlIntent(session) }}
           </span>
         </div>
       </div>
 
       <div
-        class="mb-6 rounded-lg border border-gray-800 bg-gray-900/40 px-4 py-3 text-xs text-gray-400"
+        class="mb-6 rounded-lg border border-line bg-white/40 px-4 py-3 text-xs text-muted"
       >
-        This is a <strong class="text-gray-300">notebook</strong>, not a harvest job.
+        This is a <strong class="text-ink-soft">notebook</strong>, not a harvest job.
         MCP: <code class="text-violet-300">study_add_note</code>,
         <code class="text-violet-300">study_match_catalog</code>,
         <code class="text-violet-300">study_brief</code>.
         To watch Shopee: propose <code class="text-violet-300">watchlist_seed</code> →
-        <NuxtLink to="/actions" class="text-indigo-400 hover:underline">Actions</NuxtLink>.
+        <NuxtLink to="/actions" class="text-brown hover:underline">Actions</NuxtLink>.
       </div>
 
       <!-- Discovery strip -->
@@ -265,7 +265,7 @@ async function saveCover() {
         v-if="metaOf(session).discovery?.length || metaOf(session).discovery_url"
         class="card mb-6 p-4"
       >
-        <h2 class="mb-2 text-xs font-medium uppercase text-gray-500">Discovery</h2>
+        <h2 class="mb-2 text-xs font-medium uppercase text-muted">Discovery</h2>
         <ul class="space-y-2 text-sm">
           <li
             v-for="(d, i) in metaOf(session).discovery?.length
@@ -273,15 +273,15 @@ async function saveCover() {
               : [{ url: metaOf(session).discovery_url, channel: metaOf(session).discovery_channel }]"
             :key="i"
           >
-            <span v-if="d.channel" class="text-gray-500">[{{ d.channel }}] </span>
+            <span v-if="d.channel" class="text-muted">[{{ d.channel }}] </span>
             <a
               v-if="d.url"
               :href="d.url"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-sky-400 hover:underline break-all"
+              class="text-brown hover:underline break-all"
             >{{ d.url }}</a>
-            <span v-if="d.note" class="text-gray-400"> — {{ d.note }}</span>
+            <span v-if="d.note" class="text-muted"> — {{ d.note }}</span>
           </li>
         </ul>
       </div>
@@ -326,7 +326,7 @@ async function saveCover() {
 
       <!-- Add note -->
       <div v-if="canWrite" class="card mb-6 p-4">
-        <h2 class="mb-3 text-xs font-medium uppercase text-gray-500">Add note</h2>
+        <h2 class="mb-3 text-xs font-medium uppercase text-muted">Add note</h2>
         <div class="space-y-3">
           <input v-model="noteTitle" class="input-field text-sm" placeholder="Title (optional)" />
           <input v-model="noteUrl" class="input-field text-sm" placeholder="URL (optional)" />
@@ -349,15 +349,15 @@ async function saveCover() {
 
       <!-- Pipeline links -->
       <div v-if="pipeline.length" class="card mb-6 p-4">
-        <h2 class="mb-3 text-xs font-medium uppercase text-gray-500">Pipeline from this notebook</h2>
+        <h2 class="mb-3 text-xs font-medium uppercase text-muted">Pipeline from this notebook</h2>
         <ul class="space-y-2">
           <li v-for="c in pipeline" :key="c.id">
             <NuxtLink
               :to="`/actions/pipeline/${c.id}`"
-              class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-950/60 px-3 py-2 text-sm hover:bg-gray-950"
+              class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-cream/60 px-3 py-2 text-sm hover:bg-cream"
             >
-              <span class="text-white">{{ c.title }}</span>
-              <span class="text-xs text-gray-500">{{ c.kind }} · {{ c.status }}</span>
+              <span class="text-ink">{{ c.title }}</span>
+              <span class="text-xs text-muted">{{ c.kind }} · {{ c.status }}</span>
             </NuxtLink>
           </li>
         </ul>
@@ -365,7 +365,7 @@ async function saveCover() {
 
       <!-- Artifact timeline -->
       <div class="mb-2 flex items-center justify-between">
-        <h2 class="text-xs font-medium uppercase tracking-wide text-gray-500">
+        <h2 class="text-xs font-medium uppercase tracking-wide text-muted">
           Pages ({{ artifacts.length }})
         </h2>
         <button type="button" class="btn-ghost !px-2 !py-1 text-xs" @click="showRaw = !showRaw">
@@ -373,7 +373,7 @@ async function saveCover() {
         </button>
       </div>
 
-      <div v-if="artifacts.length === 0" class="card p-8 text-center text-sm text-gray-500">
+      <div v-if="artifacts.length === 0" class="card p-8 text-center text-sm text-muted">
         No pages yet. Add a note or run study_brief / study_match_catalog via MCP.
       </div>
 
@@ -388,27 +388,27 @@ async function saveCover() {
               <span :class="['rounded-full px-2 py-0.5 text-xs font-medium ring-1', artifactBadge(a.artifact_type)]">
                 {{ a.artifact_type }}
               </span>
-              <span class="text-sm font-medium text-white">{{ a.title || a.artifact_type }}</span>
+              <span class="text-sm font-medium text-ink">{{ a.title || a.artifact_type }}</span>
             </div>
-            <span class="text-xs text-gray-600">{{ relativeTime(a.created_at) }}</span>
+            <span class="text-xs text-muted">{{ relativeTime(a.created_at) }}</span>
           </div>
           <pre
             v-if="!showRaw"
-            class="whitespace-pre-wrap break-words text-sm text-gray-300"
+            class="whitespace-pre-wrap break-words text-sm text-ink-soft"
           >{{ artifactBody(a) }}</pre>
           <pre
             v-else
-            class="max-h-64 overflow-auto rounded bg-gray-950 p-3 text-xs text-gray-400"
+            class="max-h-64 overflow-auto rounded bg-cream p-3 text-xs text-muted"
           >{{ JSON.stringify(a.payload, null, 2) }}</pre>
           <p v-if="a.payload?.url" class="mt-2 text-xs">
             <a
               :href="a.payload.url"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-sky-400 hover:underline break-all"
+              class="text-brown hover:underline break-all"
             >{{ a.payload.url }}</a>
           </p>
-          <p v-if="a.grok_model" class="mt-1 text-[10px] text-gray-600">model: {{ a.grok_model }}</p>
+          <p v-if="a.grok_model" class="mt-1 text-[10px] text-muted">model: {{ a.grok_model }}</p>
         </article>
       </div>
     </template>

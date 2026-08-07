@@ -410,7 +410,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
   <div class="mx-auto max-w-4xl">
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-20">
-      <svg class="h-8 w-8 animate-spin text-indigo-400" fill="none" viewBox="0 0 24 24">
+      <svg class="h-8 w-8 animate-spin text-brown" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
@@ -426,31 +426,31 @@ onMounted(() => { load(); loadBrandsAndCategories() })
             </svg>
           </NuxtLink>
           <div>
-            <h1 class="text-2xl font-bold text-white">{{ product.title }}</h1>
+            <h1 class="text-2xl font-bold text-ink">{{ product.title }}</h1>
             <div class="mt-1 flex flex-wrap items-center gap-2">
               <StatusBadge :status="product.status" />
               <span
                 v-if="posEnabled && product.status === 'active'"
-                class="badge bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20"
+                class="badge bg-success-soft text-success ring-1 ring-inset ring-success/20"
               >
                 POS on
               </span>
               <span
                 v-else
-                class="badge bg-gray-500/10 text-gray-400 ring-1 ring-inset ring-gray-500/20"
+                class="badge bg-surface-sunken text-muted ring-1 ring-inset ring-line"
               >
                 POS off
               </span>
-              <span v-if="product.is_canonical" class="badge bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/20">
+              <span v-if="product.is_canonical" class="badge bg-purple-500/10 text-brown ring-1 ring-inset ring-purple-500/20">
                 Canonical
               </span>
               <span v-if="product.canonical_product_id" class="badge bg-cyan-500/10 text-cyan-400 ring-1 ring-inset ring-cyan-500/20">
                 Fork
               </span>
-              <span v-if="product.export_target" class="badge bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/20">
+              <span v-if="product.export_target" class="badge bg-orange-500/10 text-warning ring-1 ring-inset ring-orange-500/20">
                 {{ product.export_target }}
               </span>
-              <span v-if="product.sku" class="text-sm text-gray-400">SKU: {{ product.sku }}</span>
+              <span v-if="product.sku" class="text-sm text-muted">SKU: {{ product.sku }}</span>
             </div>
           </div>
         </div>
@@ -467,7 +467,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
           <button
             v-else
             type="button"
-            class="btn-ghost text-xs text-gray-400"
+            class="btn-ghost text-xs text-muted"
             :disabled="activatingPos"
             @click="handleDeactivateForPos"
           >
@@ -492,25 +492,25 @@ onMounted(() => { load(); loadBrandsAndCategories() })
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
         </svg>
         <div class="flex-1 text-sm">
-          <span class="text-gray-400">Forked from canonical: </span>
+          <span class="text-muted">Forked from canonical: </span>
           <NuxtLink :to="`/products/${product.canonical_product.id}`" class="font-medium text-cyan-400 hover:underline">
             {{ product.canonical_product.title }}
           </NuxtLink>
         </div>
       </div>
 
-      <div v-if="error" class="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ error }}</div>
+      <div v-if="error" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">{{ error }}</div>
 
       <!-- Tabs -->
-      <div class="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-gray-800 bg-gray-900 p-1">
+      <div class="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-line bg-white p-1">
         <button
           v-for="tab in tabs"
           :key="tab.key"
           :class="[
             'shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-all',
             activeTab === tab.key
-              ? 'bg-gray-800 text-white shadow-sm'
-              : 'text-gray-400 hover:text-white',
+              ? 'bg-surface-sunken text-ink shadow-sm'
+              : 'text-muted hover:text-ink',
           ]"
           @click="activeTab = tab.key as any"
         >
@@ -522,7 +522,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
       <div v-show="activeTab === 'details'" class="space-y-4">
         <!-- Rendition info for forks -->
         <div v-if="product.canonical_product_id" class="card p-6 space-y-4">
-          <h3 class="text-base font-semibold text-white">Rendition Info</h3>
+          <h3 class="text-base font-semibold text-ink">Rendition Info</h3>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="label-field">Rendition Name</label>
@@ -598,12 +598,12 @@ onMounted(() => { load(); loadBrandsAndCategories() })
               Use <strong>Activate for POS</strong> to set status=active and enable POS sellable flags.
             </p>
           </div>
-          <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+          <div class="rounded-lg border border-line bg-surface-sunken p-4">
             <label class="flex items-center gap-3 cursor-pointer">
-              <input v-model="form.is_canonical" type="checkbox" class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500" />
+              <input v-model="form.is_canonical" type="checkbox" class="rounded border-line-strong bg-surface-sunken text-brown focus:ring-yellow-deep" />
               <div>
-                <p class="text-sm font-medium text-white">Canonical (Base) Product</p>
-                <p class="text-xs text-gray-400">Mark as the manufacturer's authoritative product definition.</p>
+                <p class="text-sm font-medium text-ink">Canonical (Base) Product</p>
+                <p class="text-xs text-muted">Mark as the manufacturer's authoritative product definition.</p>
               </div>
             </label>
           </div>
@@ -682,7 +682,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
       <!-- Pricing & Inventory tab -->
       <div v-show="activeTab === 'pricing'" class="space-y-6">
         <div class="card p-6">
-          <h3 class="mb-4 text-base font-semibold text-white">Pricing</h3>
+          <h3 class="mb-4 text-base font-semibold text-ink">Pricing</h3>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <label class="label-field">Cost Price</label>
@@ -712,7 +712,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
           </div>
         </div>
         <div class="card p-6">
-          <h3 class="mb-4 text-base font-semibold text-white">Inventory</h3>
+          <h3 class="mb-4 text-base font-semibold text-ink">Inventory</h3>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
               <label class="label-field">Stock Quantity</label>
@@ -723,8 +723,8 @@ onMounted(() => { load(); loadBrandsAndCategories() })
               <input v-model.number="form.low_stock_threshold" type="number" class="input-field" />
             </div>
             <div class="flex items-end pb-1">
-              <label class="flex items-center gap-2 text-sm text-gray-300">
-                <input v-model="form.track_inventory" type="checkbox" class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500" />
+              <label class="flex items-center gap-2 text-sm text-ink-soft">
+                <input v-model="form.track_inventory" type="checkbox" class="rounded border-line-strong bg-surface-sunken text-brown focus:ring-yellow-deep" />
                 Track inventory
               </label>
             </div>
@@ -737,12 +737,12 @@ onMounted(() => { load(); loadBrandsAndCategories() })
         <div>
           <label class="label-field">SEO Title</label>
           <input v-model="form.seo_title" type="text" class="input-field" />
-          <p class="mt-1 text-xs text-gray-500">{{ form.seo_title?.length || 0 }} / 60</p>
+          <p class="mt-1 text-xs text-muted">{{ form.seo_title?.length || 0 }} / 60</p>
         </div>
         <div>
           <label class="label-field">SEO Description</label>
           <textarea v-model="form.seo_description" rows="3" class="input-field" />
-          <p class="mt-1 text-xs text-gray-500">{{ form.seo_description?.length || 0 }} / 160</p>
+          <p class="mt-1 text-xs text-muted">{{ form.seo_description?.length || 0 }} / 160</p>
         </div>
         <div>
           <label class="label-field">Keywords</label>
@@ -752,11 +752,11 @@ onMounted(() => { load(); loadBrandsAndCategories() })
           <label class="label-field">Canonical URL</label>
           <input v-model="form.canonical_url" type="url" class="input-field" />
         </div>
-        <div class="mt-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-          <p class="text-xs font-medium uppercase tracking-wider text-gray-500 mb-3">Search Preview</p>
+        <div class="mt-6 rounded-lg border border-line bg-surface-sunken p-4">
+          <p class="text-xs font-medium uppercase tracking-wider text-muted mb-3">Search Preview</p>
           <p class="text-lg text-blue-400 hover:underline">{{ form.seo_title || form.title || 'Page Title' }}</p>
-          <p class="text-sm text-emerald-400">{{ form.canonical_url || 'https://yourstore.com/products/...' }}</p>
-          <p class="mt-1 text-sm text-gray-400">{{ form.seo_description || form.short_description || 'Add a meta description...' }}</p>
+          <p class="text-sm text-success">{{ form.canonical_url || 'https://yourstore.com/products/...' }}</p>
+          <p class="mt-1 text-sm text-muted">{{ form.seo_description || form.short_description || 'Add a meta description...' }}</p>
         </div>
       </div>
 
@@ -766,10 +766,10 @@ onMounted(() => { load(); loadBrandsAndCategories() })
         <div class="card p-5">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h3 class="text-base font-semibold text-white">Assigned Schema</h3>
-              <p class="mt-0.5 text-sm text-gray-400">Select a schema to structure this product's dynamic data.</p>
+              <h3 class="text-base font-semibold text-ink">Assigned Schema</h3>
+              <p class="mt-0.5 text-sm text-muted">Select a schema to structure this product's dynamic data.</p>
             </div>
-            <NuxtLink to="/schema" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <NuxtLink to="/schema" class="text-xs text-brown hover:text-brown">
               Manage Schemas &rarr;
             </NuxtLink>
           </div>
@@ -792,13 +792,13 @@ onMounted(() => { load(); loadBrandsAndCategories() })
         <!-- Schema Data Editor -->
         <template v-if="resolvedSchema">
           <div class="flex items-center justify-between">
-            <div class="flex rounded-lg border border-gray-800 bg-gray-900 p-0.5">
+            <div class="flex rounded-lg border border-line bg-white p-0.5">
               <button
                 v-for="v in [{ key: 'form', label: 'Form' }, { key: 'json', label: 'JSON Schema' }, { key: 'raw', label: 'Raw Data' }]"
                 :key="v.key"
                 :class="[
                   'rounded-md px-3 py-1.5 text-xs font-medium transition-all',
-                  schemaView === v.key ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white',
+                  schemaView === v.key ? 'bg-surface-sunken text-ink' : 'text-muted hover:text-ink',
                 ]"
                 @click="schemaView = v.key as any"
               >
@@ -818,15 +818,15 @@ onMounted(() => { load(); loadBrandsAndCategories() })
           <!-- Form View -->
           <div v-if="schemaView === 'form'" class="space-y-4">
             <div v-for="group in getSchemaFieldsGrouped()" :key="group.key" class="card overflow-hidden">
-              <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
-                <h4 class="text-sm font-semibold text-white capitalize">{{ group.key.replace(/_/g, ' ') }}</h4>
-                <p v-if="group.description" class="text-xs text-gray-500 mt-0.5">{{ group.description }}</p>
+              <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
+                <h4 class="text-sm font-semibold text-ink capitalize">{{ group.key.replace(/_/g, ' ') }}</h4>
+                <p v-if="group.description" class="text-xs text-muted mt-0.5">{{ group.description }}</p>
               </div>
               <div class="p-4 space-y-3">
                 <div v-for="field in group.fields" :key="field.path" class="grid grid-cols-3 gap-3 items-start">
                   <div class="pt-2">
-                    <label class="text-sm font-medium text-gray-300">{{ field.key.replace(/_/g, ' ') }}</label>
-                    <p v-if="field.property.description" class="text-xs text-gray-500">{{ field.property.description }}</p>
+                    <label class="text-sm font-medium text-ink-soft">{{ field.key.replace(/_/g, ' ') }}</label>
+                    <p v-if="field.property.description" class="text-xs text-muted">{{ field.property.description }}</p>
                   </div>
                   <div class="col-span-2">
                     <!-- Boolean -->
@@ -834,10 +834,10 @@ onMounted(() => { load(); loadBrandsAndCategories() })
                       <input
                         type="checkbox"
                         :checked="!!getNestedValue(productData, field.path)"
-                        class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                        class="rounded border-line-strong bg-surface-sunken text-brown focus:ring-yellow-deep"
                         @change="setNestedValue(productData, field.path, ($event.target as HTMLInputElement).checked)"
                       />
-                      <span class="text-sm text-gray-400">{{ getNestedValue(productData, field.path) ? 'Yes' : 'No' }}</span>
+                      <span class="text-sm text-muted">{{ getNestedValue(productData, field.path) ? 'Yes' : 'No' }}</span>
                     </label>
                     <!-- Enum select -->
                     <select
@@ -877,9 +877,9 @@ onMounted(() => { load(); loadBrandsAndCategories() })
                       @input="setNestedValue(productData, field.path, ($event.target as HTMLInputElement).value || null)"
                     />
                     <div class="mt-1 flex items-center gap-2">
-                      <span class="text-xs text-gray-600">{{ field.property.type }}</span>
+                      <span class="text-xs text-muted">{{ field.property.type }}</span>
                       <span v-if="field.property.format" class="text-xs text-amber-600">{{ field.property.format }}</span>
-                      <span v-if="field.property.maxLength" class="text-xs text-gray-600">max: {{ field.property.maxLength }}</span>
+                      <span v-if="field.property.maxLength" class="text-xs text-muted">max: {{ field.property.maxLength }}</span>
                     </div>
                   </div>
                 </div>
@@ -889,23 +889,23 @@ onMounted(() => { load(); loadBrandsAndCategories() })
 
           <!-- JSON Schema View -->
           <div v-else-if="schemaView === 'json'" class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
-              <span class="text-sm font-medium text-white">Resolved JSON Schema</span>
+            <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
+              <span class="text-sm font-medium text-ink">Resolved JSON Schema</span>
             </div>
             <JsonView :data="resolvedSchema" max-height="600px" />
           </div>
 
           <!-- Raw Data View -->
           <div v-else-if="schemaView === 'raw'" class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
+            <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
               <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-white">Raw Product Data (JSONB)</span>
-                <span class="text-xs text-gray-500">Edit the JSON directly</span>
+                <span class="text-sm font-medium text-ink">Raw Product Data (JSONB)</span>
+                <span class="text-xs text-muted">Edit the JSON directly</span>
               </div>
             </div>
             <textarea
               :value="rawJsonText"
-              class="w-full bg-transparent p-4 font-mono text-sm text-gray-300 focus:outline-none min-h-[400px] resize-y"
+              class="w-full bg-transparent p-4 font-mono text-sm text-ink-soft focus:outline-none min-h-[400px] resize-y"
               @input="rawJsonText = ($event.target as HTMLTextAreaElement).value"
             />
           </div>
@@ -913,11 +913,11 @@ onMounted(() => { load(); loadBrandsAndCategories() })
 
         <!-- No schema assigned -->
         <div v-else class="card p-8 text-center">
-          <svg class="mx-auto h-10 w-10 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+          <svg class="mx-auto h-10 w-10 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
           </svg>
-          <h3 class="mt-3 text-sm font-medium text-white">No schema assigned</h3>
-          <p class="mt-1 text-sm text-gray-400">Select a schema above to enable dynamic product data entry.</p>
+          <h3 class="mt-3 text-sm font-medium text-ink">No schema assigned</h3>
+          <p class="mt-1 text-sm text-muted">Select a schema above to enable dynamic product data entry.</p>
         </div>
       </div>
 
@@ -925,8 +925,8 @@ onMounted(() => { load(); loadBrandsAndCategories() })
       <div v-if="product.is_canonical" v-show="activeTab === 'forks'" class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-semibold text-white">Renditions</h3>
-            <p class="mt-0.5 text-sm text-gray-400">Forks of this canonical product for different channels</p>
+            <h3 class="text-lg font-semibold text-ink">Renditions</h3>
+            <p class="mt-0.5 text-sm text-muted">Forks of this canonical product for different channels</p>
           </div>
           <button class="btn-primary" @click="showForkModal = true">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -950,7 +950,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
             v-for="fork in product.forks"
             :key="fork.id"
             :to="`/products/${fork.id}`"
-            class="card flex items-center justify-between p-4 transition-all hover:border-gray-700"
+            class="card flex items-center justify-between p-4 transition-all hover:border-line"
           >
             <div class="flex items-center gap-4">
               <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-600/10">
@@ -959,16 +959,16 @@ onMounted(() => { load(); loadBrandsAndCategories() })
                 </svg>
               </div>
               <div>
-                <p class="font-medium text-white">{{ fork.rendition_name || fork.title }}</p>
+                <p class="font-medium text-ink">{{ fork.rendition_name || fork.title }}</p>
                 <div class="mt-0.5 flex items-center gap-2">
-                  <span v-if="fork.export_target" class="badge bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/20">
+                  <span v-if="fork.export_target" class="badge bg-orange-500/10 text-warning ring-1 ring-inset ring-orange-500/20">
                     {{ fork.export_target }}
                   </span>
                   <StatusBadge :status="fork.status" />
                 </div>
               </div>
             </div>
-            <svg class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <svg class="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
             </svg>
           </NuxtLink>
@@ -979,8 +979,8 @@ onMounted(() => { load(); loadBrandsAndCategories() })
       <div v-show="activeTab === 'manuals'" class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-semibold text-white">Product Manuals</h3>
-            <p class="mt-0.5 text-sm text-gray-400">Create documentation exportable as .md or .txt</p>
+            <h3 class="text-lg font-semibold text-ink">Product Manuals</h3>
+            <p class="mt-0.5 text-sm text-muted">Create documentation exportable as .md or .txt</p>
           </div>
           <button class="btn-primary" @click="openNewManual">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -1004,14 +1004,14 @@ onMounted(() => { load(); loadBrandsAndCategories() })
             <div class="flex items-start justify-between">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <h4 class="font-semibold text-white">{{ m.title }}</h4>
-                  <span class="text-xs text-gray-500">v{{ m.version }}</span>
+                  <h4 class="font-semibold text-ink">{{ m.title }}</h4>
+                  <span class="text-xs text-muted">v{{ m.version }}</span>
                 </div>
-                <p class="mt-1 text-sm text-gray-400 line-clamp-2">{{ m.content || 'Empty manual' }}</p>
-                <p class="mt-2 text-xs text-gray-500">Updated {{ new Date(m.updated_at).toLocaleDateString() }}</p>
+                <p class="mt-1 text-sm text-muted line-clamp-2">{{ m.content || 'Empty manual' }}</p>
+                <p class="mt-2 text-xs text-muted">Updated {{ new Date(m.updated_at).toLocaleDateString() }}</p>
               </div>
               <div class="ml-4 flex items-center gap-1 shrink-0">
-                <button class="btn-ghost !p-1.5 text-indigo-400" title="Export .md" @click="exportManual(m, 'md')">
+                <button class="btn-ghost !p-1.5 text-brown" title="Export .md" @click="exportManual(m, 'md')">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                   </svg>
@@ -1021,7 +1021,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
                     <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                   </svg>
                 </button>
-                <button class="btn-ghost !p-1.5 text-red-400" @click="handleDeleteManual(m.id)">
+                <button class="btn-ghost !p-1.5 text-danger" @click="handleDeleteManual(m.id)">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                   </svg>
@@ -1029,7 +1029,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
               </div>
             </div>
             <!-- Export buttons -->
-            <div class="mt-3 flex gap-2 border-t border-gray-800 pt-3">
+            <div class="mt-3 flex gap-2 border-t border-line pt-3">
               <button class="btn-ghost !py-1 !px-2 !text-xs" @click="exportManual(m, 'md')">
                 Export .md
               </button>
@@ -1042,7 +1042,7 @@ onMounted(() => { load(); loadBrandsAndCategories() })
       </div>
     </template>
 
-    <div v-else class="py-20 text-center text-gray-400">
+    <div v-else class="py-20 text-center text-muted">
       {{ error || 'Product not found' }}
     </div>
 
@@ -1056,10 +1056,10 @@ onMounted(() => { load(); loadBrandsAndCategories() })
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showForkModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showForkModal = false">
+        <div v-if="showForkModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showForkModal = false">
           <div class="card w-full max-w-md p-6">
-            <h2 class="mb-1 text-lg font-semibold text-white">Fork Product</h2>
-            <p class="mb-4 text-sm text-gray-400">
+            <h2 class="mb-1 text-lg font-semibold text-ink">Fork Product</h2>
+            <p class="mb-4 text-sm text-muted">
               Create a rendition of "{{ product?.title }}" for a specific channel or export.
             </p>
             <form class="space-y-4" @submit.prevent="handleFork">
@@ -1103,9 +1103,9 @@ onMounted(() => { load(); loadBrandsAndCategories() })
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showManualModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showManualModal = false">
+        <div v-if="showManualModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showManualModal = false">
           <div class="card w-full max-w-2xl p-6">
-            <h2 class="mb-4 text-lg font-semibold text-white">
+            <h2 class="mb-4 text-lg font-semibold text-ink">
               {{ editingManual ? 'Edit Manual' : 'New Manual' }}
             </h2>
             <form class="space-y-4" @submit.prevent="handleSaveManual">

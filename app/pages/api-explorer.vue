@@ -155,41 +155,37 @@ function formatJSON(obj: any) {
 
 <template>
   <div class="mx-auto max-w-7xl">
-    <div class="mb-6">
-      <div class="flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-600/10">
-          <svg class="h-5 w-5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-          </svg>
-        </div>
-        <div>
-          <h1 class="text-2xl font-bold text-white">GraphQL API Explorer</h1>
-          <p class="text-sm text-gray-400">
-            Query your product data via the SKUMS GraphQL API at
-            <code class="rounded bg-gray-800 px-1.5 py-0.5 text-xs text-indigo-400">/api/graphql</code>
-          </p>
-        </div>
-      </div>
-    </div>
+    <UiPageHeader
+      eyebrow="API & agents"
+      title="GraphQL API Explorer"
+      subtitle="Query product data at /api/graphql — pair with MCP for agent workflows."
+    >
+      <template #actions>
+        <NuxtLink to="/settings#claude-connector">
+          <UiButton size="sm" variant="secondary">Connect Claude / MCP</UiButton>
+        </NuxtLink>
+      </template>
+    </UiPageHeader>
 
     <!-- Sample queries -->
     <div class="mb-4 flex flex-wrap gap-2">
       <button
         v-for="sample in sampleQueries"
         :key="sample.name"
-        class="rounded-full border border-gray-800 bg-gray-900 px-3 py-1 text-xs text-gray-400 transition-all hover:border-indigo-500/50 hover:text-indigo-400"
+        type="button"
+        class="press rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-semibold text-muted transition-all hover:border-yellow-deep hover:text-brown"
         @click="loadSample(sample)"
       >
         {{ sample.name }}
       </button>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid gap-4 lg:grid-cols-2">
       <!-- Editor Panel -->
       <div class="space-y-3">
         <div class="card overflow-hidden">
-          <div class="flex items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4 py-2.5">
-            <span class="text-xs font-medium text-gray-400">Query</span>
+          <div class="flex items-center justify-between border-b border-line bg-surface-sunken/80 px-4 py-2.5">
+            <span class="text-xs font-medium text-muted">Query</span>
             <button
               class="btn-primary !py-1 !px-3 text-xs"
               :disabled="loading"
@@ -207,19 +203,19 @@ function formatJSON(obj: any) {
           </div>
           <textarea
             v-model="query"
-            class="w-full bg-transparent p-4 font-mono text-sm text-gray-300 focus:outline-none resize-y"
+            class="w-full bg-transparent p-4 font-mono text-sm text-ink-soft focus:outline-none resize-y"
             rows="18"
             spellcheck="false"
           />
         </div>
 
         <div class="card overflow-hidden">
-          <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-2.5">
-            <span class="text-xs font-medium text-gray-400">Variables (JSON)</span>
+          <div class="border-b border-line bg-surface-sunken/80 px-4 py-2.5">
+            <span class="text-xs font-medium text-muted">Variables (JSON)</span>
           </div>
           <textarea
             v-model="variables"
-            class="w-full bg-transparent p-4 font-mono text-sm text-gray-300 focus:outline-none resize-y"
+            class="w-full bg-transparent p-4 font-mono text-sm text-ink-soft focus:outline-none resize-y"
             rows="5"
             spellcheck="false"
           />
@@ -228,17 +224,17 @@ function formatJSON(obj: any) {
 
       <!-- Result Panel -->
       <div class="card overflow-hidden flex flex-col">
-        <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-2.5">
-          <span class="text-xs font-medium text-gray-400">Result</span>
+        <div class="border-b border-line bg-surface-sunken/80 px-4 py-2.5">
+          <span class="text-xs font-medium text-muted">Result</span>
         </div>
 
-        <div v-if="errorMsg" class="border-b border-red-800/30 bg-red-500/5 px-4 py-3 text-xs text-red-400 font-mono whitespace-pre-wrap">
+        <div v-if="errorMsg" class="border-b border-red-800/30 bg-red-500/5 px-4 py-3 text-xs text-danger font-mono whitespace-pre-wrap">
           {{ errorMsg }}
         </div>
 
         <JsonView v-if="result" :data="result" class="flex-1" />
 
-        <div v-else class="flex flex-1 items-center justify-center p-8 text-gray-600">
+        <div v-else class="flex flex-1 items-center justify-center p-8 text-muted">
           <div class="text-center">
             <svg class="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />

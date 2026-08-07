@@ -1,16 +1,16 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-    <div class="w-full max-w-md">
+  <div class="flex min-h-screen items-center justify-center bg-cream px-4 py-10">
+    <div class="w-full max-w-sm">
       <div class="mb-8 text-center">
-        <h1 class="text-3xl font-bold tracking-tight text-white">
-          Fran <span class="text-indigo-400">SKUMS</span>
+        <p class="eyebrow">Fran product ops</p>
+        <h1 class="h1-display text-[36px]">
+          Fran <span class="text-brown">SKUMS</span>
         </h1>
-        <p class="mt-2 text-sm text-gray-400">Product Operations</p>
+        <p class="mt-1 text-[13px] text-muted">Catalogue, inventory, API &amp; MCP</p>
       </div>
       <slot />
     </div>
 
-    <!-- Action feedback (login/invite errors surface here too) -->
     <ToastHost />
   </div>
 </template>

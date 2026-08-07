@@ -21,21 +21,21 @@ export function useResearch() {
 
   function statusClass(status: string) {
     const s = (status || '').toLowerCase()
-    if (s === 'open') return 'bg-sky-500/10 text-sky-300 ring-sky-500/30'
-    if (s === 'briefed') return 'bg-violet-500/10 text-violet-300 ring-violet-500/30'
-    if (s === 'proposed') return 'bg-amber-500/10 text-amber-300 ring-amber-500/30'
-    if (s === 'closed') return 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30'
-    if (s === 'cancelled') return 'bg-gray-500/10 text-gray-400 ring-gray-500/30'
-    return 'bg-gray-500/10 text-gray-400 ring-gray-500/30'
+    if (s === 'open') return 'bg-blue-soft text-brown ring-sky-500/30'
+    if (s === 'briefed') return 'bg-peach-soft text-brown ring-peach'
+    if (s === 'proposed') return 'bg-warning-soft text-warning ring-amber-500/30'
+    if (s === 'closed') return 'bg-success-soft text-success ring-emerald-500/30'
+    if (s === 'cancelled') return 'bg-surface-sunken text-muted ring-line'
+    return 'bg-surface-sunken text-muted ring-line'
   }
 
   function artifactBadge(type: string) {
     const t = (type || '').toLowerCase()
-    if (t === 'note') return 'bg-indigo-500/10 text-indigo-300 ring-indigo-500/30'
-    if (t === 'brief') return 'bg-violet-500/10 text-violet-300 ring-violet-500/30'
-    if (t === 'match') return 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30'
-    if (t === 'serp_table') return 'bg-amber-500/10 text-amber-300 ring-amber-500/30'
-    return 'bg-gray-500/10 text-gray-400 ring-gray-500/30'
+    if (t === 'note') return 'bg-yellow-deep/10 text-brown ring-yellow-deep/30'
+    if (t === 'brief') return 'bg-peach-soft text-brown ring-peach'
+    if (t === 'match') return 'bg-success-soft text-success ring-emerald-500/30'
+    if (t === 'serp_table') return 'bg-warning-soft text-warning ring-amber-500/30'
+    return 'bg-surface-sunken text-muted ring-line'
   }
 
   function relativeTime(iso: string | null | undefined) {

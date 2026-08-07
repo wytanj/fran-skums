@@ -223,19 +223,19 @@ watch(() => currentWorkspace.value?.id, async () => {
     <!-- Header -->
     <div class="flex items-start justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-white">Inventory</h1>
-        <p class="mt-1 text-sm text-gray-400">Track stock across all locations — warehouse, in transit, and channel reservations.</p>
+        <h1 class="text-2xl font-bold text-ink">Inventory</h1>
+        <p class="mt-1 text-sm text-muted">Track stock across all locations — warehouse, in transit, and channel reservations.</p>
       </div>
     </div>
 
     <!-- Toast -->
 
     <!-- Tabs -->
-    <div class="flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">
+    <div class="flex gap-1 rounded-lg border border-line bg-white p-1">
       <button
         v-for="tab in tabs" :key="tab.key"
         :class="['flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all',
-          activeTab === tab.key ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white']"
+          activeTab === tab.key ? 'bg-surface-sunken text-ink shadow-sm' : 'text-muted hover:text-ink']"
         @click="activeTab = tab.key as any"
       >{{ tab.label }}</button>
     </div>
@@ -248,32 +248,32 @@ watch(() => currentWorkspace.value?.id, async () => {
       <!-- Stat cards -->
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <div class="card p-4">
-          <p class="text-xs uppercase tracking-wide text-gray-400">SKUs Tracked</p>
-          <p class="mt-1 text-2xl font-bold text-white">{{ stockStats.skus }}</p>
+          <p class="text-xs uppercase tracking-wide text-muted">SKUs Tracked</p>
+          <p class="mt-1 text-2xl font-bold text-ink">{{ stockStats.skus }}</p>
         </div>
         <div class="card p-4">
-          <p class="text-xs uppercase tracking-wide text-gray-400">Available to Sell</p>
-          <p class="mt-1 text-2xl font-bold text-emerald-400">{{ stockStats.available.toLocaleString() }}</p>
-          <p class="text-xs text-gray-500">units</p>
+          <p class="text-xs uppercase tracking-wide text-muted">Available to Sell</p>
+          <p class="mt-1 text-2xl font-bold text-success">{{ stockStats.available.toLocaleString() }}</p>
+          <p class="text-xs text-muted">units</p>
         </div>
         <div class="card p-4">
-          <p class="text-xs uppercase tracking-wide text-gray-400">In Transit</p>
-          <p class="mt-1 text-2xl font-bold text-amber-400">{{ stockStats.inTransit.toLocaleString() }}</p>
-          <p class="text-xs text-gray-500">incoming</p>
+          <p class="text-xs uppercase tracking-wide text-muted">In Transit</p>
+          <p class="mt-1 text-2xl font-bold text-warning">{{ stockStats.inTransit.toLocaleString() }}</p>
+          <p class="text-xs text-muted">incoming</p>
         </div>
         <div class="card p-4">
-          <p class="text-xs uppercase tracking-wide text-gray-400">Low Stock</p>
-          <p class="mt-1 text-2xl font-bold" :class="stockStats.lowStock > 0 ? 'text-yellow-400' : 'text-white'">
+          <p class="text-xs uppercase tracking-wide text-muted">Low Stock</p>
+          <p class="mt-1 text-2xl font-bold" :class="stockStats.lowStock > 0 ? 'text-warning' : 'text-ink'">
             {{ stockStats.lowStock }}
           </p>
-          <p class="text-xs text-gray-500">≤ 10 units ATS</p>
+          <p class="text-xs text-muted">≤ 10 units ATS</p>
         </div>
         <div class="card p-4">
-          <p class="text-xs uppercase tracking-wide text-gray-400">Out of Stock</p>
-          <p class="mt-1 text-2xl font-bold" :class="stockStats.outOfStock > 0 ? 'text-red-400' : 'text-white'">
+          <p class="text-xs uppercase tracking-wide text-muted">Out of Stock</p>
+          <p class="mt-1 text-2xl font-bold" :class="stockStats.outOfStock > 0 ? 'text-danger' : 'text-ink'">
             {{ stockStats.outOfStock }}
           </p>
-          <p class="text-xs text-gray-500">0 ATS</p>
+          <p class="text-xs text-muted">0 ATS</p>
         </div>
       </div>
 
@@ -284,12 +284,12 @@ watch(() => currentWorkspace.value?.id, async () => {
           class="input-field w-56"
           placeholder="Search SKU or product…"
         />
-        <div class="flex rounded-lg border border-gray-700 overflow-hidden text-sm">
+        <div class="flex rounded-lg border border-line overflow-hidden text-sm">
           <button
             v-for="f in [{ key: 'all', label: 'All' }, { key: 'low', label: 'Low Stock' }, { key: 'out', label: 'Out of Stock' }, { key: 'transit', label: 'In Transit' }]"
             :key="f.key"
             :class="['px-3 py-1.5 font-medium transition-colors',
-              stockFilter === f.key ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white']"
+              stockFilter === f.key ? 'bg-line text-ink' : 'text-muted hover:text-ink']"
             @click="stockFilter = f.key as any"
           >{{ f.label }}</button>
         </div>
@@ -298,17 +298,17 @@ watch(() => currentWorkspace.value?.id, async () => {
       <!-- Stock table -->
       <div class="card overflow-hidden">
         <!-- Quantity legend -->
-        <div class="flex flex-wrap gap-4 border-b border-gray-800 px-5 py-3 text-xs text-gray-500">
-          <span><span class="font-semibold text-white">On Hand</span> — physically present</span>
-          <span><span class="font-semibold text-red-400">Reserved</span> — locked (orders, channels)</span>
-          <span><span class="font-semibold text-emerald-400">Available</span> — on hand − reserved (ATS)</span>
-          <span><span class="font-semibold text-amber-400">In Transit</span> — en route, not yet received</span>
-          <span><span class="font-semibold text-indigo-400">On Order</span> — confirmed PO, not shipped yet</span>
+        <div class="flex flex-wrap gap-4 border-b border-line px-5 py-3 text-xs text-muted">
+          <span><span class="font-semibold text-ink">On Hand</span> — physically present</span>
+          <span><span class="font-semibold text-danger">Reserved</span> — locked (orders, channels)</span>
+          <span><span class="font-semibold text-success">Available</span> — on hand − reserved (ATS)</span>
+          <span><span class="font-semibold text-warning">In Transit</span> — en route, not yet received</span>
+          <span><span class="font-semibold text-brown">On Order</span> — confirmed PO, not shipped yet</span>
         </div>
 
-        <div v-if="loading" class="py-12 text-center text-sm text-gray-500">Loading…</div>
+        <div v-if="loading" class="py-12 text-center text-sm text-muted">Loading…</div>
 
-        <div v-else-if="filteredStock.length === 0" class="py-12 text-center text-sm text-gray-500">
+        <div v-else-if="filteredStock.length === 0" class="py-12 text-center text-sm text-muted">
           <p>No stock records yet.</p>
           <p class="mt-1">Set up your locations then add inventory via Purchase Orders or Adjustments.</p>
         </div>
@@ -316,13 +316,13 @@ watch(() => currentWorkspace.value?.id, async () => {
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500">
+              <tr class="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
                 <th class="px-5 py-3">Product</th>
                 <th class="px-4 py-3 text-right">On Hand</th>
-                <th class="px-4 py-3 text-right text-red-400">Reserved</th>
-                <th class="px-4 py-3 text-right text-emerald-400 font-bold">Available</th>
-                <th class="px-4 py-3 text-right text-amber-400">In Transit</th>
-                <th class="px-4 py-3 text-right text-indigo-400">On Order</th>
+                <th class="px-4 py-3 text-right text-danger">Reserved</th>
+                <th class="px-4 py-3 text-right text-success font-bold">Available</th>
+                <th class="px-4 py-3 text-right text-warning">In Transit</th>
+                <th class="px-4 py-3 text-right text-brown">On Order</th>
                 <th class="px-4 py-3"></th>
               </tr>
             </thead>
@@ -330,74 +330,74 @@ watch(() => currentWorkspace.value?.id, async () => {
               <template v-for="row in filteredStock" :key="row.product_id + (row.variant_id || '')">
                 <!-- Summary row -->
                 <tr
-                  class="border-b border-gray-800 transition-colors hover:bg-gray-800/40 cursor-pointer"
+                  class="border-b border-line transition-colors hover:bg-surface-sunken/40 cursor-pointer"
                   :class="{ 'bg-red-950/20': row.total_available <= 0, 'bg-yellow-950/10': row.total_available > 0 && row.total_available <= 10 }"
                   @click="toggleExpand(row.product_id)"
                 >
                   <td class="px-5 py-3">
-                    <p class="font-medium text-white">{{ row.product_title }}</p>
-                    <p class="text-xs text-gray-500 font-mono">{{ row.product_sku || '—' }}</p>
+                    <p class="font-medium text-ink">{{ row.product_title }}</p>
+                    <p class="text-xs text-muted font-mono">{{ row.product_sku || '—' }}</p>
                   </td>
-                  <td class="px-4 py-3 text-right text-gray-300">{{ row.total_on_hand.toLocaleString() }}</td>
-                  <td class="px-4 py-3 text-right" :class="row.total_reserved > 0 ? 'text-red-400' : 'text-gray-500'">
+                  <td class="px-4 py-3 text-right text-ink-soft">{{ row.total_on_hand.toLocaleString() }}</td>
+                  <td class="px-4 py-3 text-right" :class="row.total_reserved > 0 ? 'text-danger' : 'text-muted'">
                     {{ row.total_reserved.toLocaleString() }}
                   </td>
-                  <td class="px-4 py-3 text-right font-semibold" :class="row.total_available <= 0 ? 'text-red-400' : row.total_available <= 10 ? 'text-yellow-400' : 'text-emerald-400'">
+                  <td class="px-4 py-3 text-right font-semibold" :class="row.total_available <= 0 ? 'text-danger' : row.total_available <= 10 ? 'text-warning' : 'text-success'">
                     {{ row.total_available.toLocaleString() }}
                   </td>
-                  <td class="px-4 py-3 text-right" :class="row.total_in_transit > 0 ? 'text-amber-400' : 'text-gray-500'">
+                  <td class="px-4 py-3 text-right" :class="row.total_in_transit > 0 ? 'text-warning' : 'text-muted'">
                     {{ row.total_in_transit.toLocaleString() }}
                   </td>
-                  <td class="px-4 py-3 text-right" :class="row.total_on_order > 0 ? 'text-indigo-400' : 'text-gray-500'">
+                  <td class="px-4 py-3 text-right" :class="row.total_on_order > 0 ? 'text-brown' : 'text-muted'">
                     {{ row.total_on_order.toLocaleString() }}
                   </td>
                   <td class="px-4 py-3 text-right">
-                    <svg class="h-4 w-4 text-gray-600 inline transition-transform" :class="{ 'rotate-90': expandedProduct === row.product_id }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <svg class="h-4 w-4 text-muted inline transition-transform" :class="{ 'rotate-90': expandedProduct === row.product_id }" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                   </td>
                 </tr>
 
                 <!-- Expanded location breakdown -->
-                <tr v-if="expandedProduct === row.product_id" class="border-b border-gray-800 bg-gray-900/60">
+                <tr v-if="expandedProduct === row.product_id" class="border-b border-line bg-white/60">
                   <td colspan="7" class="px-8 py-3">
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">By Location</p>
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">By Location</p>
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       <div
                         v-for="loc in row.by_location" :key="loc.location_id"
-                        class="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-3"
+                        class="rounded-lg border border-line bg-surface-sunken/60 px-4 py-3"
                       >
                         <div class="flex items-center gap-2 mb-2">
-                          <span class="text-sm font-medium text-white">{{ loc.location_name }}</span>
+                          <span class="text-sm font-medium text-ink">{{ loc.location_name }}</span>
                           <span :class="['rounded-full px-2 py-0.5 text-[10px] font-medium', locationTypeBadge(loc.location_type as any).cls]">
                             {{ locationTypeBadge(loc.location_type as any).label }}
                           </span>
                         </div>
                         <div class="grid grid-cols-3 gap-2 text-xs">
                           <div>
-                            <p class="text-gray-500">On Hand</p>
-                            <p class="font-semibold text-white">{{ loc.on_hand }}</p>
+                            <p class="text-muted">On Hand</p>
+                            <p class="font-semibold text-ink">{{ loc.on_hand }}</p>
                           </div>
                           <div>
-                            <p class="text-red-400/80">Reserved</p>
-                            <p class="font-semibold" :class="loc.reserved > 0 ? 'text-red-400' : 'text-gray-500'">{{ loc.reserved }}</p>
+                            <p class="text-danger/80">Reserved</p>
+                            <p class="font-semibold" :class="loc.reserved > 0 ? 'text-danger' : 'text-muted'">{{ loc.reserved }}</p>
                           </div>
                           <div>
-                            <p class="text-emerald-400/80">Available</p>
-                            <p class="font-semibold" :class="loc.available <= 0 ? 'text-red-400' : 'text-emerald-400'">{{ loc.available }}</p>
+                            <p class="text-success/80">Available</p>
+                            <p class="font-semibold" :class="loc.available <= 0 ? 'text-danger' : 'text-success'">{{ loc.available }}</p>
                           </div>
                           <div v-if="loc.in_transit > 0">
-                            <p class="text-amber-400/80">In Transit</p>
-                            <p class="font-semibold text-amber-400">{{ loc.in_transit }}</p>
+                            <p class="text-warning/80">In Transit</p>
+                            <p class="font-semibold text-warning">{{ loc.in_transit }}</p>
                           </div>
                           <div v-if="loc.on_order > 0">
-                            <p class="text-indigo-400/80">On Order</p>
-                            <p class="font-semibold text-indigo-400">{{ loc.on_order }}</p>
+                            <p class="text-brown/80">On Order</p>
+                            <p class="font-semibold text-brown">{{ loc.on_order }}</p>
                           </div>
                         </div>
                         <!-- Virtual location explanation chips -->
                         <div v-if="loc.location_type === 'virtual'" class="mt-2">
-                          <span v-if="loc.location_code === 'READY-SHIP'" class="text-[10px] text-amber-400/70">
+                          <span v-if="loc.location_code === 'READY-SHIP'" class="text-[10px] text-warning/70">
                             Picked &amp; packed — awaiting carrier
                           </span>
                         </div>
@@ -419,10 +419,10 @@ watch(() => currentWorkspace.value?.id, async () => {
       <div class="card p-6">
         <div class="flex items-start justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold text-white">Locations</h2>
-            <p class="mt-1 text-sm text-gray-400">
+            <h2 class="text-lg font-semibold text-ink">Locations</h2>
+            <p class="mt-1 text-sm text-muted">
               Physical and virtual places where stock lives.
-              <span class="text-gray-500">Channel locks (Shopify, Amazon) are reservations — not locations.</span>
+              <span class="text-muted">Channel locks (Shopify, Amazon) are reservations — not locations.</span>
             </p>
           </div>
           <div class="flex gap-2">
@@ -436,7 +436,7 @@ watch(() => currentWorkspace.value?.id, async () => {
         </div>
 
         <!-- Create form -->
-        <div v-if="showLocationForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-3">
+        <div v-if="showLocationForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4 space-y-3">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="label-field">Name *</label>
@@ -462,7 +462,7 @@ watch(() => currentWorkspace.value?.id, async () => {
               </select>
             </div>
             <div class="flex items-end">
-              <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+              <label class="flex items-center gap-2 text-sm text-ink-soft cursor-pointer">
                 <input v-model="newLocation.is_default" type="checkbox" class="rounded" />
                 Set as default pick location
               </label>
@@ -481,76 +481,76 @@ watch(() => currentWorkspace.value?.id, async () => {
         <div v-if="locations.length > 0" class="grid gap-3 sm:grid-cols-2">
           <div
             v-for="loc in locations" :key="loc.id"
-            class="rounded-lg border border-gray-700 bg-gray-800/40 p-4"
+            class="rounded-lg border border-line bg-surface-sunken/40 p-4"
           >
             <div class="flex items-start justify-between">
               <div>
                 <div class="flex items-center gap-2">
-                  <p class="font-medium text-white">{{ loc.name }}</p>
-                  <span v-if="loc.is_default" class="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-400">Default</span>
+                  <p class="font-medium text-ink">{{ loc.name }}</p>
+                  <span v-if="loc.is_default" class="rounded-full bg-yellow-deep/10 px-2 py-0.5 text-[10px] font-medium text-brown">Default</span>
                 </div>
-                <p class="mt-0.5 font-mono text-xs text-gray-500">{{ loc.code }}</p>
+                <p class="mt-0.5 font-mono text-xs text-muted">{{ loc.code }}</p>
               </div>
               <span :class="['rounded-full px-2.5 py-1 text-xs font-medium', locationTypeBadge(loc.location_type).cls]">
                 {{ locationTypeBadge(loc.location_type).label }}
               </span>
             </div>
-            <p v-if="loc.notes" class="mt-2 text-xs text-gray-500 leading-relaxed">{{ loc.notes }}</p>
+            <p v-if="loc.notes" class="mt-2 text-xs text-muted leading-relaxed">{{ loc.notes }}</p>
 
             <!-- Virtual location explanation -->
-            <div v-if="loc.location_type === 'virtual' || loc.location_type === 'in_transit'" class="mt-2 rounded bg-gray-900/60 px-3 py-2 text-xs text-gray-500">
+            <div v-if="loc.location_type === 'virtual' || loc.location_type === 'in_transit'" class="mt-2 rounded bg-white/60 px-3 py-2 text-xs text-muted">
               <span v-if="loc.code === 'READY-SHIP'">
-                Stock here has been picked &amp; packed. It's still counted as <span class="text-white">on hand</span> at this location until the carrier collects.
+                Stock here has been picked &amp; packed. It's still counted as <span class="text-ink">on hand</span> at this location until the carrier collects.
               </span>
               <span v-else-if="loc.code === 'IN-TRANSIT'">
-                Stock here is physically en route. Appears in the <span class="text-amber-400">In Transit</span> column of the stock table.
+                Stock here is physically en route. Appears in the <span class="text-warning">In Transit</span> column of the stock table.
               </span>
               <span v-else>
                 Virtual locations hold stock logically — useful for channel staging or accounting.
               </span>
             </div>
 
-            <div v-if="loc.location_type === 'warehouse' && loc.code === 'WH-MAIN'" class="mt-2 rounded bg-gray-900/60 px-3 py-2 text-xs text-gray-500">
-              Channel locks (Shopify reserved, Amazon allocated) appear as <span class="text-red-400">Reserved</span> on this location's stock.
-              <span class="text-emerald-400">Available = On Hand − Reserved.</span>
+            <div v-if="loc.location_type === 'warehouse' && loc.code === 'WH-MAIN'" class="mt-2 rounded bg-white/60 px-3 py-2 text-xs text-muted">
+              Channel locks (Shopify reserved, Amazon allocated) appear as <span class="text-danger">Reserved</span> on this location's stock.
+              <span class="text-success">Available = On Hand − Reserved.</span>
             </div>
           </div>
         </div>
 
-        <p v-else class="py-8 text-center text-sm text-gray-500">
+        <p v-else class="py-8 text-center text-sm text-muted">
           No locations yet.
-          <button class="text-indigo-400 hover:text-indigo-300" @click="handleSeedLocations">Seed defaults</button>
+          <button class="text-brown hover:text-brown" @click="handleSeedLocations">Seed defaults</button>
           or create one above.
         </p>
       </div>
 
       <!-- Quantity model explainer -->
       <div class="card p-5">
-        <h3 class="mb-3 text-sm font-semibold text-white">How quantities work</h3>
+        <h3 class="mb-3 text-sm font-semibold text-ink">How quantities work</h3>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs">
-          <div class="rounded-lg border border-gray-700 p-3">
-            <p class="font-semibold text-white">On Hand</p>
-            <p class="mt-1 text-gray-400">Physically present at a location. Includes stock that's reserved (locked).</p>
+          <div class="rounded-lg border border-line p-3">
+            <p class="font-semibold text-ink">On Hand</p>
+            <p class="mt-1 text-muted">Physically present at a location. Includes stock that's reserved (locked).</p>
           </div>
           <div class="rounded-lg border border-red-900/40 bg-red-950/10 p-3">
-            <p class="font-semibold text-red-400">Reserved</p>
-            <p class="mt-1 text-gray-400">Locked portion of on-hand stock. Examples: Shopify pending orders, Amazon channel allocation, manual holds.</p>
+            <p class="font-semibold text-danger">Reserved</p>
+            <p class="mt-1 text-muted">Locked portion of on-hand stock. Examples: Shopify pending orders, Amazon channel allocation, manual holds.</p>
           </div>
           <div class="rounded-lg border border-emerald-900/40 bg-emerald-950/10 p-3">
-            <p class="font-semibold text-emerald-400">Available to Sell (ATS)</p>
-            <p class="mt-1 text-gray-400">= On Hand − Reserved. What you can actually sell right now across all channels.</p>
+            <p class="font-semibold text-success">Available to Sell (ATS)</p>
+            <p class="mt-1 text-muted">= On Hand − Reserved. What you can actually sell right now across all channels.</p>
           </div>
           <div class="rounded-lg border border-amber-900/40 bg-amber-950/10 p-3">
-            <p class="font-semibold text-amber-400">In Transit</p>
-            <p class="mt-1 text-gray-400">Stock en route — either from a supplier PO marked as shipped, or a transfer between locations.</p>
+            <p class="font-semibold text-warning">In Transit</p>
+            <p class="mt-1 text-muted">Stock en route — either from a supplier PO marked as shipped, or a transfer between locations.</p>
           </div>
-          <div class="rounded-lg border border-indigo-900/40 bg-indigo-950/10 p-3">
-            <p class="font-semibold text-indigo-400">On Order</p>
-            <p class="mt-1 text-gray-400">Open PO lines confirmed with your supplier but not yet shipped.</p>
+          <div class="rounded-lg border border-line bg-yellow-soft/40 p-3">
+            <p class="font-semibold text-brown">On Order</p>
+            <p class="mt-1 text-muted">Open PO lines confirmed with your supplier but not yet shipped.</p>
           </div>
-          <div class="rounded-lg border border-gray-700 p-3">
-            <p class="font-semibold text-white">Total Owned</p>
-            <p class="mt-1 text-gray-400">= On Hand + In Transit + On Order. Everything you own or expect to receive.</p>
+          <div class="rounded-lg border border-line p-3">
+            <p class="font-semibold text-ink">Total Owned</p>
+            <p class="mt-1 text-muted">= On Hand + In Transit + On Order. Everything you own or expect to receive.</p>
           </div>
         </div>
       </div>
@@ -563,13 +563,13 @@ watch(() => currentWorkspace.value?.id, async () => {
       <div class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold text-white">Purchase Orders</h2>
-            <p class="mt-1 text-sm text-gray-400">
+            <h2 class="text-lg font-semibold text-ink">Purchase Orders</h2>
+            <p class="mt-1 text-sm text-muted">
               Warehouse inbound stock from suppliers. Confirm → mark shipped (ASN) → receive goods.
             </p>
-            <p class="mt-2 text-xs text-gray-500">
+            <p class="mt-2 text-xs text-muted">
               Looking for agent / decision-layer POs (MCP drafts, approvals)?
-              <NuxtLink to="/actions" class="text-indigo-400 hover:underline">Open Actions →</NuxtLink>
+              <NuxtLink to="/actions" class="text-brown hover:underline">Open Actions →</NuxtLink>
             </p>
           </div>
           <button class="btn-primary" @click="showPoForm = !showPoForm">
@@ -578,7 +578,7 @@ watch(() => currentWorkspace.value?.id, async () => {
         </div>
 
         <!-- Create PO form -->
-        <div v-if="showPoForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-4">
+        <div v-if="showPoForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4 space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="label-field">Supplier Name *</label>
@@ -611,9 +611,9 @@ watch(() => currentWorkspace.value?.id, async () => {
           <div>
             <div class="flex items-center justify-between mb-2">
               <label class="label-field mb-0">Product Lines</label>
-              <button class="text-xs text-indigo-400 hover:text-indigo-300" @click="addPoLine">+ Add Line</button>
+              <button class="text-xs text-brown hover:text-brown" @click="addPoLine">+ Add Line</button>
             </div>
-            <div v-if="poLines.length === 0" class="rounded-lg border border-dashed border-gray-700 py-4 text-center text-xs text-gray-500">
+            <div v-if="poLines.length === 0" class="rounded-lg border border-dashed border-line py-4 text-center text-xs text-muted">
               No lines yet. Click "+ Add Line".
             </div>
             <div class="space-y-2">
@@ -630,7 +630,7 @@ watch(() => currentWorkspace.value?.id, async () => {
                   <label class="label-field">Unit Cost</label>
                   <input v-model.number="line.unit_cost" type="number" step="0.01" class="input-field" placeholder="0.00" />
                 </div>
-                <button class="mb-0.5 text-xs text-red-400 hover:text-red-300" @click="removePoLine(i)">Remove</button>
+                <button class="mb-0.5 text-xs text-danger hover:text-danger" @click="removePoLine(i)">Remove</button>
               </div>
             </div>
           </div>
@@ -648,27 +648,27 @@ watch(() => currentWorkspace.value?.id, async () => {
         <div v-if="purchaseOrders.length > 0" class="space-y-2">
           <div
             v-for="po in purchaseOrders" :key="po.id"
-            class="rounded-lg border border-gray-800 px-4 py-3 hover:border-gray-700 transition-colors"
+            class="rounded-lg border border-line px-4 py-3 hover:border-line transition-colors"
           >
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <p class="font-medium text-white font-mono text-sm">{{ po.po_number }}</p>
+                  <p class="font-medium text-ink font-mono text-sm">{{ po.po_number }}</p>
                   <span :class="['rounded-full px-2.5 py-0.5 text-xs font-medium', poStatusBadge(po.status).cls]">
                     {{ poStatusBadge(po.status).label }}
                   </span>
                 </div>
-                <p class="mt-0.5 text-xs text-gray-400">
+                <p class="mt-0.5 text-xs text-muted">
                   {{ po.supplier_name }}
-                  <span v-if="po.supplier_ref" class="text-gray-600"> · {{ po.supplier_ref }}</span>
-                  <span class="text-gray-600"> · {{ po.destination_name }}</span>
+                  <span v-if="po.supplier_ref" class="text-muted"> · {{ po.supplier_ref }}</span>
+                  <span class="text-muted"> · {{ po.destination_name }}</span>
                 </p>
-                <p class="mt-0.5 text-xs text-gray-500">
+                <p class="mt-0.5 text-xs text-muted">
                   {{ po.line_count }} line{{ po.line_count !== 1 ? 's' : '' }}
                   · {{ po.total_ordered }} ordered
                   · {{ po.total_received }} received
-                  <span v-if="po.tracking_number" class="ml-2 text-amber-400/80">📦 {{ po.tracking_number }}</span>
-                  <span v-if="po.expected_arrival" class="ml-2 text-gray-500">ETA {{ po.expected_arrival }}</span>
+                  <span v-if="po.tracking_number" class="ml-2 text-warning/80">📦 {{ po.tracking_number }}</span>
+                  <span v-if="po.expected_arrival" class="ml-2 text-muted">ETA {{ po.expected_arrival }}</span>
                 </p>
               </div>
 
@@ -676,32 +676,32 @@ watch(() => currentWorkspace.value?.id, async () => {
               <div class="flex shrink-0 items-center gap-2 text-xs">
                 <button
                   v-if="po.status === 'draft' || po.status === 'submitted'"
-                  class="rounded px-2.5 py-1 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition-colors"
+                  class="rounded px-2.5 py-1 bg-yellow-soft text-brown hover:bg-yellow/30 transition-colors"
                   @click="handleConfirmPo(po.id)"
                 >Confirm</button>
 
                 <button
                   v-if="po.status === 'confirmed'"
-                  class="rounded px-2.5 py-1 bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
+                  class="rounded px-2.5 py-1 bg-amber-600/20 text-warning hover:bg-amber-600/30 transition-colors"
                   @click="openShipModal(po)"
                 >Mark Shipped</button>
 
                 <button
                   v-if="po.status === 'in_transit' || po.status === 'partially_received'"
-                  class="rounded px-2.5 py-1 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition-colors"
+                  class="rounded px-2.5 py-1 bg-success-soft text-success hover:bg-emerald-600/30 transition-colors"
                   @click="openReceiveModal(po)"
                 >Receive Goods</button>
 
                 <button
                   v-if="!['received', 'cancelled'].includes(po.status)"
-                  class="rounded px-2.5 py-1 text-red-400 hover:text-red-300 transition-colors"
+                  class="rounded px-2.5 py-1 text-danger hover:text-danger transition-colors"
                   @click="handleCancelPo(po.id)"
                 >Cancel</button>
               </div>
             </div>
           </div>
         </div>
-        <p v-else class="py-8 text-center text-sm text-gray-500">No purchase orders yet.</p>
+        <p v-else class="py-8 text-center text-sm text-muted">No purchase orders yet.</p>
       </div>
     </div>
 
@@ -712,8 +712,8 @@ watch(() => currentWorkspace.value?.id, async () => {
       <div class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="text-lg font-semibold text-white">Transfers</h2>
-            <p class="mt-1 text-sm text-gray-400">Move stock between locations — e.g. warehouse → Ready to Ship, or warehouse → store.</p>
+            <h2 class="text-lg font-semibold text-ink">Transfers</h2>
+            <p class="mt-1 text-sm text-muted">Move stock between locations — e.g. warehouse → Ready to Ship, or warehouse → store.</p>
           </div>
           <button class="btn-primary" @click="showTransferForm = !showTransferForm">
             {{ showTransferForm ? 'Cancel' : '+ New Transfer' }}
@@ -721,7 +721,7 @@ watch(() => currentWorkspace.value?.id, async () => {
         </div>
 
         <!-- Create form -->
-        <div v-if="showTransferForm" class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-3">
+        <div v-if="showTransferForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4 space-y-3">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="label-field">From Location *</label>
@@ -753,26 +753,26 @@ watch(() => currentWorkspace.value?.id, async () => {
         <div v-if="transfers.length > 0" class="space-y-2">
           <div
             v-for="tr in transfers" :key="tr.id"
-            class="rounded-lg border border-gray-800 px-4 py-3 hover:border-gray-700 transition-colors"
+            class="rounded-lg border border-line px-4 py-3 hover:border-line transition-colors"
           >
             <div class="flex items-start justify-between">
               <div>
                 <div class="flex items-center gap-2">
-                  <p class="font-medium text-white font-mono text-sm">{{ tr.transfer_number }}</p>
+                  <p class="font-medium text-ink font-mono text-sm">{{ tr.transfer_number }}</p>
                   <span :class="['rounded-full px-2.5 py-0.5 text-xs font-medium', transferStatusBadge(tr.status).cls]">
                     {{ transferStatusBadge(tr.status).label }}
                   </span>
                 </div>
-                <p class="mt-0.5 text-xs text-gray-400">
+                <p class="mt-0.5 text-xs text-muted">
                   {{ tr.from_location_name }} → {{ tr.to_location_name }}
-                  <span v-if="tr.tracking_number" class="ml-2 text-amber-400/80">📦 {{ tr.tracking_number }}</span>
-                  <span v-if="tr.expected_arrival" class="ml-2 text-gray-500">ETA {{ tr.expected_arrival }}</span>
+                  <span v-if="tr.tracking_number" class="ml-2 text-warning/80">📦 {{ tr.tracking_number }}</span>
+                  <span v-if="tr.expected_arrival" class="ml-2 text-muted">ETA {{ tr.expected_arrival }}</span>
                 </p>
               </div>
             </div>
           </div>
         </div>
-        <p v-else class="py-8 text-center text-sm text-gray-500">No transfers yet.</p>
+        <p v-else class="py-8 text-center text-sm text-muted">No transfers yet.</p>
       </div>
     </div>
 
@@ -780,11 +780,11 @@ watch(() => currentWorkspace.value?.id, async () => {
          MODAL: Mark as Shipped
     ═══════════════════════════════════════════════════════ -->
     <Teleport to="body">
-      <div v-if="shipModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="shipModal = null">
-        <div class="w-full max-w-md rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
-          <h3 class="text-lg font-semibold text-white mb-1">Mark as Shipped</h3>
-          <p class="text-sm text-gray-400 mb-4">{{ shipModal.po_number }} — {{ shipModal.supplier_name }}</p>
-          <p class="text-xs text-gray-500 mb-4 rounded bg-amber-950/30 border border-amber-900/30 px-3 py-2 text-amber-400/80">
+      <div v-if="shipModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="shipModal = null">
+        <div class="w-full max-w-md rounded-xl border border-line bg-white p-6 shadow-2xl">
+          <h3 class="text-lg font-semibold text-ink mb-1">Mark as Shipped</h3>
+          <p class="text-sm text-muted mb-4">{{ shipModal.po_number }} — {{ shipModal.supplier_name }}</p>
+          <p class="text-xs text-muted mb-4 rounded bg-amber-950/30 border border-amber-900/30 px-3 py-2 text-warning/80">
             This will move all unshipped quantities from <strong>On Order → In Transit</strong> at {{ shipModal.destination_name }}.
           </p>
 
@@ -831,11 +831,11 @@ watch(() => currentWorkspace.value?.id, async () => {
          MODAL: Receive Goods
     ═══════════════════════════════════════════════════════ -->
     <Teleport to="body">
-      <div v-if="receiveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="receiveModal = null">
-        <div class="w-full max-w-2xl rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
-          <h3 class="text-lg font-semibold text-white mb-1">Receive Goods</h3>
-          <p class="text-sm text-gray-400 mb-1">{{ receiveModal.po_number }} — {{ receiveModal.supplier_name }}</p>
-          <p class="text-xs text-gray-500 mb-4 rounded bg-emerald-950/30 border border-emerald-900/30 px-3 py-2 text-emerald-400/80">
+      <div v-if="receiveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="receiveModal = null">
+        <div class="w-full max-w-2xl rounded-xl border border-line bg-white p-6 shadow-2xl">
+          <h3 class="text-lg font-semibold text-ink mb-1">Receive Goods</h3>
+          <p class="text-sm text-muted mb-1">{{ receiveModal.po_number }} — {{ receiveModal.supplier_name }}</p>
+          <p class="text-xs text-muted mb-4 rounded bg-emerald-950/30 border border-emerald-900/30 px-3 py-2 text-success/80">
             Received quantities will move <strong>In Transit → On Hand</strong> at {{ receiveModal.destination_name }}.
             Adjust quantities for partial receipts.
           </p>
@@ -843,7 +843,7 @@ watch(() => currentWorkspace.value?.id, async () => {
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
-                <tr class="border-b border-gray-800 text-left text-xs uppercase tracking-wide text-gray-500">
+                <tr class="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
                   <th class="pb-2 pr-4">Product</th>
                   <th class="pb-2 pr-4 text-right">Ordered</th>
                   <th class="pb-2 pr-4 text-right">Already Received</th>
@@ -851,13 +851,13 @@ watch(() => currentWorkspace.value?.id, async () => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="line in receiveLines" :key="line.id" class="border-b border-gray-800">
+                <tr v-for="line in receiveLines" :key="line.id" class="border-b border-line">
                   <td class="py-2.5 pr-4">
-                    <p class="text-white font-medium">{{ line.product_title || line.product_id }}</p>
-                    <p class="text-xs text-gray-500 font-mono">{{ line.product_sku || '' }}</p>
+                    <p class="text-ink font-medium">{{ line.product_title || line.product_id }}</p>
+                    <p class="text-xs text-muted font-mono">{{ line.product_sku || '' }}</p>
                   </td>
-                  <td class="py-2.5 pr-4 text-right text-gray-300">{{ line.ordered_qty }}</td>
-                  <td class="py-2.5 pr-4 text-right text-gray-400">{{ line.received_qty }}</td>
+                  <td class="py-2.5 pr-4 text-right text-ink-soft">{{ line.ordered_qty }}</td>
+                  <td class="py-2.5 pr-4 text-right text-muted">{{ line.received_qty }}</td>
                   <td class="py-2.5 text-right">
                     <input
                       v-model.number="receiveQtys[line.id]"

@@ -115,8 +115,8 @@ async function onCreate() {
   <div class="mx-auto max-w-5xl">
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-white">Research</h1>
-        <p class="mt-1 text-sm text-gray-400">
+        <h1 class="text-2xl font-bold text-ink">Research</h1>
+        <p class="mt-1 text-sm text-muted">
           Product & brand notebooks — park discoveries (Sephora, buyer notes) without starting a Shopee crawl.
           Harvest is opt-in later via Actions pipeline.
         </p>
@@ -137,12 +137,12 @@ async function onCreate() {
     </div>
 
     <div
-      class="mb-4 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3 text-xs text-gray-400"
+      class="mb-4 rounded-lg border border-line bg-surface-sunken/80 px-4 py-3 text-xs text-muted"
     >
-      <strong class="text-gray-300">Notebook ≠ crawl.</strong>
+      <strong class="text-ink-soft">Notebook ≠ crawl.</strong>
       Opening a notebook never enqueues Shopee. When ready to watch Mall prices, propose a
       <code class="text-violet-300">watchlist_seed</code> from MCP and accept it under
-      <NuxtLink to="/actions" class="text-indigo-400 hover:underline">Actions</NuxtLink>.
+      <NuxtLink to="/actions" class="text-brown hover:underline">Actions</NuxtLink>.
       Agents use <code class="text-violet-300">study_start</code> / <code class="text-violet-300">study_add_note</code>.
     </div>
 
@@ -160,8 +160,8 @@ async function onCreate() {
         :class="[
           'rounded-full px-3 py-1.5 text-xs font-medium transition-colors ring-1',
           statusFilter === t.key
-            ? 'bg-indigo-500/20 text-indigo-300 ring-indigo-500/40'
-            : 'bg-gray-900 text-gray-400 ring-gray-800 hover:text-white',
+            ? 'bg-yellow-deep/20 text-brown ring-indigo-500/40'
+            : 'bg-white text-muted ring-gray-800 hover:text-ink',
         ]"
         @click="statusFilter = t.key as typeof statusFilter"
       >
@@ -170,13 +170,13 @@ async function onCreate() {
       </button>
     </div>
 
-    <div v-if="error" class="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+    <div v-if="error" class="mb-4 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
       {{ error }}
     </div>
 
     <!-- Create form -->
     <div v-if="showForm" class="card mb-6 p-5">
-      <h2 class="mb-4 text-sm font-semibold text-white">New research notebook</h2>
+      <h2 class="mb-4 text-sm font-semibold text-ink">New research notebook</h2>
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="sm:col-span-2">
           <label class="label-field">Title (product / brand name) *</label>
@@ -261,15 +261,15 @@ async function onCreate() {
     </div>
 
     <div v-if="loading && !sessions.length" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="card h-20 animate-pulse bg-gray-900/80" />
+      <div v-for="i in 3" :key="i" class="card h-20 animate-pulse bg-surface-sunken" />
     </div>
 
-    <div v-else-if="filtered.length === 0" class="card p-10 text-center text-sm text-gray-500">
+    <div v-else-if="filtered.length === 0" class="card p-10 text-center text-sm text-muted">
       No notebooks{{ statusFilter !== 'all' ? ` with status “${statusFilter}”` : '' }}.
       <button
         v-if="canWrite"
         type="button"
-        class="mt-3 block mx-auto text-indigo-400 hover:underline"
+        class="mt-3 block mx-auto text-brown hover:underline"
         @click="openCreate"
       >
         Open one from a product or brand idea
@@ -281,15 +281,15 @@ async function onCreate() {
         v-for="s in filtered"
         :key="s.id"
         :to="`/research/${s.id}`"
-        class="card block p-4 transition-colors hover:border-indigo-500/40"
+        class="card block p-4 transition-colors hover:border-line"
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-white line-clamp-2">{{ titleOf(s) }}</p>
-            <p v-if="descriptionOf(s)" class="mt-0.5 text-xs text-gray-400 line-clamp-2">
+            <p class="text-sm font-medium text-ink line-clamp-2">{{ titleOf(s) }}</p>
+            <p v-if="descriptionOf(s)" class="mt-0.5 text-xs text-muted line-clamp-2">
               {{ descriptionOf(s) }}
             </p>
-            <p class="mt-1 text-xs text-gray-500">
+            <p class="mt-1 text-xs text-muted">
               {{ subjectLabel(s) }}
               <span v-if="metaOf(s).brand_key"> · {{ metaOf(s).brand_key }}</span>
               <span v-if="s.query"> · query “{{ s.query }}”</span>
@@ -297,7 +297,7 @@ async function onCreate() {
             </p>
             <p
               v-if="metaOf(s).discovery?.length || metaOf(s).discovery_url"
-              class="mt-1 truncate text-xs text-sky-400/80"
+              class="mt-1 truncate text-xs text-brown/80"
             >
               {{ metaOf(s).discovery?.[0]?.url || metaOf(s).discovery_url }}
             </p>
@@ -307,7 +307,7 @@ async function onCreate() {
               {{ s.status }}
             </span>
             <span
-              class="rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-gray-700 text-gray-400"
+              class="rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-line text-muted"
             >
               crawl: {{ crawlIntent(s) }}
             </span>

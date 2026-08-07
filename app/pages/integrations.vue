@@ -178,14 +178,14 @@ const skincareTab = ref<'catalog' | 'url-analyser' | 'methodology'>('catalog')
 
 // ── URL Analyser (embedded in Skincare Intelligence) ──────────
 const URL_CHECK_PLATFORMS = [
-  { key: 'hwahae',     label: 'Hwahae',      domain: 'hwahae.com',     color: 'bg-pink-500/20 text-pink-300 border-pink-500/30' },
-  { key: 'oliveyoung', label: 'Olive Young',  domain: 'oliveyoung.com', color: 'bg-green-500/20 text-green-300 border-green-500/30' },
-  { key: 'sephora_sg', label: 'Sephora SG',   domain: 'sephora.sg',     color: 'bg-gray-400/20 text-gray-200 border-gray-400/30' },
-  { key: 'sephora_us', label: 'Sephora US',   domain: 'sephora.com',    color: 'bg-gray-400/20 text-gray-200 border-gray-400/30' },
-  { key: 'shopee_sg',  label: 'Shopee SG',    domain: 'shopee.sg',      color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  { key: 'hwahae',     label: 'Hwahae',      domain: 'hwahae.com',     color: 'bg-pink-500/20 text-pink-300 border-peach' },
+  { key: 'oliveyoung', label: 'Olive Young',  domain: 'oliveyoung.com', color: 'bg-success-soft text-success border-green-500/30' },
+  { key: 'sephora_sg', label: 'Sephora SG',   domain: 'sephora.sg',     color: 'bg-surface-sunken text-ink-soft border-line' },
+  { key: 'sephora_us', label: 'Sephora US',   domain: 'sephora.com',    color: 'bg-surface-sunken text-ink-soft border-line' },
+  { key: 'shopee_sg',  label: 'Shopee SG',    domain: 'shopee.sg',      color: 'bg-orange-500/20 text-orange-300 border-warning/30' },
   { key: 'lazada_sg',  label: 'Lazada SG',    domain: 'lazada.sg',      color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
   { key: 'amazon',     label: 'Amazon',       domain: 'amazon.com',     color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-  { key: 'iherb',      label: 'iHerb',        domain: 'iherb.com',      color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+  { key: 'iherb',      label: 'iHerb',        domain: 'iherb.com',      color: 'bg-emerald-500/20 text-success border-success/30' },
 ]
 
 const uaInput = ref('')
@@ -351,29 +351,29 @@ async function uaSaveQualityAnalysis(productId: string) {
 }
 
 function uaSc(score: number | null) {
-  if (score === null) return 'text-gray-500'
-  if (score >= 80) return 'text-emerald-400'
-  if (score >= 60) return 'text-yellow-400'
-  if (score >= 40) return 'text-orange-400'
-  return 'text-red-400'
+  if (score === null) return 'text-muted'
+  if (score >= 80) return 'text-success'
+  if (score >= 60) return 'text-warning'
+  if (score >= 40) return 'text-warning'
+  return 'text-danger'
 }
 function uaScBg(score: number | null) {
-  if (score === null) return 'bg-gray-800 border-gray-700'
-  if (score >= 80) return 'bg-emerald-500/10 border-emerald-500/30'
-  if (score >= 60) return 'bg-yellow-500/10 border-yellow-500/30'
-  if (score >= 40) return 'bg-orange-500/10 border-orange-500/30'
-  return 'bg-red-500/10 border-red-500/30'
+  if (score === null) return 'bg-surface-sunken border-line'
+  if (score >= 80) return 'bg-success-soft border-success/30'
+  if (score >= 60) return 'bg-yellow-soft border-yellow-500/30'
+  if (score >= 40) return 'bg-orange-500/10 border-warning/30'
+  return 'bg-danger-soft border-danger/30'
 }
 function uaPosClass(p: string | null) {
-  const m: Record<string, string> = { market_leader: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', competitive: 'bg-blue-500/20 text-blue-400 border-blue-500/30', at_risk: 'bg-orange-500/20 text-orange-400 border-orange-500/30', lagging: 'bg-red-500/20 text-red-400 border-red-500/30', niche: 'bg-purple-500/20 text-purple-400 border-purple-500/30' }
-  return p ? (m[p] ?? 'bg-gray-700 text-gray-400') : 'bg-gray-700 text-gray-400'
+  const m: Record<string, string> = { market_leader: 'bg-emerald-500/20 text-success border-success/30', competitive: 'bg-blue-500/20 text-blue-400 border-blue-500/30', at_risk: 'bg-orange-500/20 text-warning border-warning/30', lagging: 'bg-danger-soft text-danger border-danger/30', niche: 'bg-purple-500/20 text-brown border-peach' }
+  return p ? (m[p] ?? 'bg-line text-muted') : 'bg-line text-muted'
 }
 function uaPosText(p: string | null) {
   const m: Record<string, string> = { market_leader: 'Market Leader', competitive: 'Competitive', at_risk: 'At Risk', lagging: 'Lagging', niche: 'Niche' }
   return p ? (m[p] ?? p) : '—'
 }
 function uaPlatformColor(key: string) {
-  return URL_CHECK_PLATFORMS.find(p => p.key === key)?.color ?? 'bg-gray-700 text-gray-300'
+  return URL_CHECK_PLATFORMS.find(p => p.key === key)?.color ?? 'bg-line text-ink-soft'
 }
 
 // ── Skincare Intelligence ──
@@ -506,9 +506,9 @@ async function pollLogs() {
 }
 
 function logLevelColor(level: string): string {
-  if (level === 'error') return 'text-red-400'
-  if (level === 'warn') return 'text-amber-400'
-  return 'text-gray-400'
+  if (level === 'error') return 'text-danger'
+  if (level === 'warn') return 'text-warning'
+  return 'text-muted'
 }
 
 async function loadSkincareStats() {
@@ -610,19 +610,19 @@ async function openSkincareProduct(product: any) {
 }
 
 function ipsColor(score: number | null): string {
-  if (!score) return 'text-gray-500'
-  if (score >= 85) return 'text-emerald-400'
+  if (!score) return 'text-muted'
+  if (score >= 85) return 'text-success'
   if (score >= 60) return 'text-blue-400'
-  if (score >= 30) return 'text-amber-400'
-  return 'text-red-400'
+  if (score >= 30) return 'text-warning'
+  return 'text-danger'
 }
 
 function ipsBg(score: number | null): string {
-  if (!score) return 'bg-gray-800'
-  if (score >= 85) return 'bg-emerald-500/10'
+  if (!score) return 'bg-surface-sunken'
+  if (score >= 85) return 'bg-success-soft'
   if (score >= 60) return 'bg-blue-500/10'
-  if (score >= 30) return 'bg-amber-500/10'
-  return 'bg-red-500/10'
+  if (score >= 30) return 'bg-warning-soft'
+  return 'bg-danger-soft'
 }
 
 function ipsLabel(score: number | null): string {
@@ -640,9 +640,9 @@ function trendIcon(trend: string | null): string {
 }
 
 function trendColor(trend: string | null): string {
-  if (trend === 'rising') return 'text-emerald-400'
-  if (trend === 'declining') return 'text-red-400'
-  return 'text-gray-400'
+  if (trend === 'rising') return 'text-success'
+  if (trend === 'declining') return 'text-danger'
+  return 'text-muted'
 }
 
 function tierLabel(tier: string | null): string {
@@ -651,11 +651,11 @@ function tierLabel(tier: string | null): string {
 }
 
 function tierColor(tier: string | null): string {
-  if (tier === 'tier1') return 'text-amber-300'
+  if (tier === 'tier1') return 'text-warning'
   if (tier === 'tier2') return 'text-blue-400'
-  if (tier === 'tier3') return 'text-purple-400'
-  if (tier === 'tier4') return 'text-gray-400'
-  return 'text-gray-500'
+  if (tier === 'tier3') return 'text-brown'
+  if (tier === 'tier4') return 'text-muted'
+  return 'text-muted'
 }
 
 function skinTypeFitBar(fit: Record<string, number> | null, type: string): number {
@@ -949,10 +949,10 @@ async function handlePullWorldsyntechInventory(conn: IntegrationConnection, rese
 
 function getStatusClass(status: ConnectionStatus) {
   const map: Record<string, string> = {
-    active: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
-    inactive: 'bg-gray-500/10 text-gray-400 ring-gray-500/20',
-    paused: 'bg-yellow-500/10 text-yellow-400 ring-yellow-500/20',
-    error: 'bg-red-500/10 text-red-400 ring-red-500/20',
+    active: 'bg-success-soft text-success ring-success/20',
+    inactive: 'bg-surface-sunken text-muted ring-line',
+    paused: 'bg-yellow-soft text-warning ring-yellow-deep/30',
+    error: 'bg-danger-soft text-danger ring-red-500/20',
   }
   return map[status] || map.inactive
 }
@@ -960,12 +960,12 @@ function getStatusClass(status: ConnectionStatus) {
 function getExecStatusClass(status: string) {
   const map: Record<string, string> = {
     running: 'text-blue-400',
-    success: 'text-emerald-400',
-    error: 'text-red-400',
-    cancelled: 'text-gray-400',
-    timeout: 'text-yellow-400',
+    success: 'text-success',
+    error: 'text-danger',
+    cancelled: 'text-muted',
+    timeout: 'text-warning',
   }
-  return map[status] || 'text-gray-400'
+  return map[status] || 'text-muted'
 }
 
 function formatDuration(ms: number | null): string {
@@ -1016,8 +1016,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
   <div>
     <div class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-white">Integrations</h1>
-        <p class="mt-1 text-sm text-gray-400">Connect external systems using the node-based integration framework</p>
+        <h1 class="text-2xl font-bold text-ink">Integrations</h1>
+        <p class="mt-1 text-sm text-muted">Connect external systems using the node-based integration framework</p>
       </div>
       <div class="flex gap-2">
         <button class="btn-secondary" @click="openCreateCredential()">
@@ -1033,18 +1033,18 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <div class="card mb-6 p-5">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="text-lg font-semibold text-white">Fran CRM (POS loyalty)</h2>
-          <p class="mt-1 max-w-2xl text-sm text-gray-400">
+          <h2 class="text-lg font-semibold text-ink">Fran CRM (POS loyalty)</h2>
+          <p class="mt-1 max-w-2xl text-sm text-muted">
             Link this workspace to Fran CRM so POS registers only need a
-            <strong class="text-gray-300">SKUMS API key</strong>. Loyalty traffic is
-            <code class="text-xs text-indigo-300">POS → SKUMS /fran/pos/loyalty/* → CRM</code>.
+            <strong class="text-ink-soft">SKUMS API key</strong>. Loyalty traffic is
+            <code class="text-xs text-brown">POS → SKUMS /fran/pos/loyalty/* → CRM</code>.
             SKUMS does not store points — CRM remains the ledger.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <span
             v-if="crmLinkMeta?.linked"
-            class="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30"
+            class="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-success ring-1 ring-emerald-500/30"
           >
             Linked{{ crmLinkMeta.source === 'env' ? ' (env)' : '' }}
           </span>
@@ -1056,23 +1056,23 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           </span>
           <span
             v-if="crmLinkMeta?.last_health_status"
-            class="rounded-full bg-gray-800 px-2.5 py-1 text-xs text-gray-300"
+            class="rounded-full bg-surface-sunken px-2.5 py-1 text-xs text-ink-soft"
           >
             Health: {{ crmLinkMeta.last_health_status }}
           </span>
         </div>
       </div>
 
-      <p v-if="crmLinkLoading" class="mt-3 text-sm text-gray-500">Loading CRM link…</p>
-      <p v-if="crmLinkError" class="mt-3 text-sm text-red-400">{{ crmLinkError }}</p>
-      <p v-if="crmLinkNotice" class="mt-3 text-sm text-emerald-400">{{ crmLinkNotice }}</p>
-      <p v-if="crmLinkMeta?.last_error" class="mt-2 text-xs text-amber-400/90">
+      <p v-if="crmLinkLoading" class="mt-3 text-sm text-muted">Loading CRM link…</p>
+      <p v-if="crmLinkError" class="mt-3 text-sm text-danger">{{ crmLinkError }}</p>
+      <p v-if="crmLinkNotice" class="mt-3 text-sm text-success">{{ crmLinkNotice }}</p>
+      <p v-if="crmLinkMeta?.last_error" class="mt-2 text-xs text-warning/90">
         Last error: {{ crmLinkMeta.last_error }}
       </p>
 
       <div class="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-400">CRM base URL</label>
+          <label class="mb-1 block text-xs font-medium text-muted">CRM base URL</label>
           <input
             v-model="crmLinkForm.crm_base_url"
             type="url"
@@ -1082,7 +1082,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-400">CRM workspace ID (optional)</label>
+          <label class="mb-1 block text-xs font-medium text-muted">CRM workspace ID (optional)</label>
           <input
             v-model="crmLinkForm.crm_workspace_id"
             type="text"
@@ -1092,7 +1092,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-400">Auth mode</label>
+          <label class="mb-1 block text-xs font-medium text-muted">Auth mode</label>
           <select
             v-model="crmLinkForm.auth_mode"
             class="input-field w-full"
@@ -1103,9 +1103,9 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           </select>
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-400">
+          <label class="mb-1 block text-xs font-medium text-muted">
             Service token
-            <span v-if="crmLinkMeta?.has_service_token" class="text-emerald-400">(set)</span>
+            <span v-if="crmLinkMeta?.has_service_token" class="text-success">(set)</span>
           </label>
           <input
             v-model="crmLinkForm.service_token"
@@ -1116,19 +1116,19 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           />
           <label
             v-if="canManageCrmLink && crmLinkMeta?.has_service_token"
-            class="mt-1 flex items-center gap-2 text-xs text-gray-500"
+            class="mt-1 flex items-center gap-2 text-xs text-muted"
           >
-            <input v-model="crmLinkForm.clear_token" type="checkbox" class="rounded border-gray-600" />
+            <input v-model="crmLinkForm.clear_token" type="checkbox" class="rounded border-line-strong" />
             Clear stored token on save
           </label>
         </div>
       </div>
 
-      <p v-if="crmLinkMeta?.source === 'env'" class="mt-3 text-xs text-sky-300/90">
+      <p v-if="crmLinkMeta?.source === 'env'" class="mt-3 text-xs text-brown/90">
         Link is provided by server env <code class="text-sky-200">FRAN_CRM_BASE_URL</code>. Clear env or save a
         database row to override via this UI.
       </p>
-      <p v-if="!canManageCrmLink" class="mt-3 text-xs text-gray-500">
+      <p v-if="!canManageCrmLink" class="mt-3 text-xs text-muted">
         Only workspace owners/admins can change the CRM link.
       </p>
 
@@ -1153,7 +1153,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
         <button
           v-if="canManageCrmLink && crmLinkMeta?.linked && crmLinkMeta?.source !== 'env'"
           type="button"
-          class="btn-secondary text-red-300"
+          class="btn-secondary text-danger"
           :disabled="crmLinkSaving"
           @click="clearCrmLink"
         >
@@ -1163,7 +1163,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     </div>
 
     <!-- Tabs -->
-    <div class="mb-6 flex gap-1 rounded-lg border border-gray-800 bg-gray-900 p-1">
+    <div class="mb-6 flex gap-1 rounded-lg border border-line bg-white p-1">
       <button
         v-for="tab in [
           { key: 'nodes', label: 'Node Catalog' },
@@ -1174,14 +1174,14 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
         :key="tab.key"
         :class="[
           'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all',
-          activeTab === tab.key ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white',
+          activeTab === tab.key ? 'bg-surface-sunken text-ink shadow-sm' : 'text-muted hover:text-ink',
         ]"
         @click="activeTab = tab.key as any"
       >
         {{ tab.label }}
         <span
           v-if="tab.key === 'connections' && connections.length > 0"
-          class="ml-1.5 rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-xs text-indigo-400"
+          class="ml-1.5 rounded-full bg-yellow-deep/10 px-1.5 py-0.5 text-xs text-brown"
         >{{ connections.length }}</span>
       </button>
     </div>
@@ -1190,38 +1190,38 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <div v-if="activeTab === 'nodes' && !skincareMode" class="space-y-8">
       <template v-for="cat in CATEGORY_ORDER" :key="cat">
         <div v-if="nodesByCategory[cat]?.length">
-          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">{{ CATEGORY_LABELS[cat] }}</h2>
+          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">{{ CATEGORY_LABELS[cat] }}</h2>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div
               v-for="node in nodesByCategory[cat]"
               :key="node.id"
-              class="card p-5 transition-all hover:border-gray-700 cursor-pointer"
+              class="card p-5 transition-all hover:border-line cursor-pointer"
               @click="openNode(node)"
             >
               <div class="flex items-start gap-4">
-                <div :class="['flex h-10 w-10 items-center justify-center rounded-lg ring-1 ring-inset text-lg', node.color || 'bg-gray-800 text-gray-400']">
+                <div :class="['flex h-10 w-10 items-center justify-center rounded-lg ring-1 ring-inset text-lg', node.color || 'bg-surface-sunken text-muted']">
                   {{ nodeGlyph(node.icon) }}
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
-                    <h3 class="font-semibold text-white truncate">{{ node.name }}</h3>
-                    <span v-if="node.is_coming_soon" class="shrink-0 rounded-full bg-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                    <h3 class="font-semibold text-ink truncate">{{ node.name }}</h3>
+                    <span v-if="node.is_coming_soon" class="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium text-muted">
                       Soon
                     </span>
-                    <span v-if="node.node_type === 'both'" class="shrink-0 rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-400">
+                    <span v-if="node.node_type === 'both'" class="shrink-0 rounded-full bg-yellow-deep/10 px-2 py-0.5 text-[10px] font-medium text-brown">
                       Trigger + Action
                     </span>
-                    <span v-else-if="node.node_type === 'trigger'" class="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                    <span v-else-if="node.node_type === 'trigger'" class="shrink-0 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
                       Trigger
                     </span>
                     <span v-else class="shrink-0 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
                       Action
                     </span>
                   </div>
-                  <p class="mt-1 text-sm text-gray-400 line-clamp-2">{{ node.description }}</p>
+                  <p class="mt-1 text-sm text-muted line-clamp-2">{{ node.description }}</p>
                 </div>
               </div>
-              <div class="mt-3 flex items-center gap-2 text-xs text-gray-600">
+              <div class="mt-3 flex items-center gap-2 text-xs text-muted">
                 <span v-if="node.actions?.length">{{ node.actions.length }} action{{ node.actions.length !== 1 ? 's' : '' }}</span>
                 <span v-if="node.actions?.length && node.triggers?.length">&middot;</span>
                 <span v-if="node.triggers?.length">{{ node.triggers.length }} trigger{{ node.triggers.length !== 1 ? 's' : '' }}</span>
@@ -1234,10 +1234,10 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
       <!-- ── Intelligence Apps ── -->
       <div>
-        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">Intelligence Apps</h2>
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Intelligence Apps</h2>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div
-            class="card p-5 transition-all hover:border-pink-500/30 cursor-pointer border-pink-500/10"
+            class="card p-5 transition-all hover:border-peach cursor-pointer border-pink-500/10"
             @click="skincareMode = true"
           >
             <div class="flex items-start gap-4">
@@ -1246,15 +1246,15 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <h3 class="font-semibold text-white">Skincare Intelligence</h3>
-                  <span class="shrink-0 rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-medium text-pink-400">
+                  <h3 class="font-semibold text-ink">Skincare Intelligence</h3>
+                  <span class="shrink-0 rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-medium text-streak">
                     App
                   </span>
                 </div>
-                <p class="mt-1 text-sm text-gray-400 line-clamp-2">Crawl Hwahae and Olive Young for skincare product data, ingredient analysis, IPS scoring, skin type compatibility, and conflict detection.</p>
+                <p class="mt-1 text-sm text-muted line-clamp-2">Crawl Hwahae and Olive Young for skincare product data, ingredient analysis, IPS scoring, skin type compatibility, and conflict detection.</p>
               </div>
             </div>
-            <div class="mt-3 flex items-center gap-2 text-xs text-gray-600">
+            <div class="mt-3 flex items-center gap-2 text-xs text-muted">
               <span>2 sources</span>
               <span>&middot;</span>
               <span>IPS scoring</span>
@@ -1269,34 +1269,34 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <!-- ═══ CONNECTIONS ═══ -->
     <div v-if="activeTab === 'connections'">
       <div v-if="connections.length === 0" class="card p-12 text-center">
-        <svg class="mx-auto h-10 w-10 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <svg class="mx-auto h-10 w-10 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
         </svg>
-        <h3 class="mt-3 text-lg font-semibold text-white">No connections yet</h3>
-        <p class="mt-1 text-sm text-gray-400">Browse the Node Catalog and set up your first connection.</p>
+        <h3 class="mt-3 text-lg font-semibold text-ink">No connections yet</h3>
+        <p class="mt-1 text-sm text-muted">Browse the Node Catalog and set up your first connection.</p>
       </div>
       <div v-else class="space-y-4">
         <div v-for="conn in connections" :key="conn.id" class="card p-5">
           <div class="flex items-start justify-between">
             <div class="flex items-start gap-4">
-              <div :class="['flex h-10 w-10 items-center justify-center rounded-lg ring-1 ring-inset text-lg', conn.node_definition?.color || 'bg-gray-800']">
+              <div :class="['flex h-10 w-10 items-center justify-center rounded-lg ring-1 ring-inset text-lg', conn.node_definition?.color || 'bg-surface-sunken']">
                 {{ nodeGlyph(conn.node_definition?.icon) }}
               </div>
               <div>
-                <h3 class="font-semibold text-white">{{ conn.name }}</h3>
-                <p class="text-sm text-gray-400">{{ conn.node_definition?.name || 'Unknown node' }}</p>
+                <h3 class="font-semibold text-ink">{{ conn.name }}</h3>
+                <p class="text-sm text-muted">{{ conn.node_definition?.name || 'Unknown node' }}</p>
                 <div class="mt-2 flex items-center gap-3">
                   <span :class="['inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset capitalize', getStatusClass(conn.status)]">
                     {{ conn.status }}
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-xs text-muted">
                     {{ conn.sync_direction }} &middot; {{ conn.sync_frequency }}
                   </span>
-                  <span v-if="conn.last_synced_at" class="text-xs text-gray-600">
+                  <span v-if="conn.last_synced_at" class="text-xs text-muted">
                     Last sync: {{ new Date(conn.last_synced_at).toLocaleString() }}
                   </span>
                 </div>
-                <div v-if="conn.last_error" class="mt-1 text-xs text-red-400">{{ conn.last_error }}</div>
+                <div v-if="conn.last_error" class="mt-1 text-xs text-danger">{{ conn.last_error }}</div>
               </div>
             </div>
             <div class="flex items-center gap-2">
@@ -1347,7 +1347,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                 {{ conn.status === 'active' ? 'Pause' : 'Activate' }}
               </button>
               <button
-                class="btn-ghost !p-1.5 text-red-400 hover:text-red-300"
+                class="btn-ghost !p-1.5 text-danger hover:text-danger"
                 @click="handleDeleteConnection(conn)"
               >
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1356,15 +1356,15 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               </button>
             </div>
           </div>
-          <div v-if="conn.total_synced > 0 || conn.total_errors > 0" class="mt-3 flex gap-4 border-t border-gray-800 pt-3 text-xs">
-            <span class="text-gray-500">{{ conn.total_synced }} synced</span>
-            <span v-if="conn.total_errors" class="text-red-400">{{ conn.total_errors }} errors</span>
+          <div v-if="conn.total_synced > 0 || conn.total_errors > 0" class="mt-3 flex gap-4 border-t border-line pt-3 text-xs">
+            <span class="text-muted">{{ conn.total_synced }} synced</span>
+            <span v-if="conn.total_errors" class="text-danger">{{ conn.total_errors }} errors</span>
           </div>
-          <div v-if="pullResults[conn.id]" class="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300">
+          <div v-if="pullResults[conn.id]" class="mt-3 rounded-lg border border-success/20 bg-emerald-500/5 px-3 py-2 text-xs text-success">
             WooCommerce pull: {{ pullResults[conn.id].created }} created, {{ pullResults[conn.id].updated }} updated, {{ pullResults[conn.id].failed }} failed.
             <span v-if="pullResults[conn.id].has_more"> More products available from page {{ pullResults[conn.id].next_page }}.</span>
           </div>
-          <div v-if="pullErrors[conn.id]" class="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+          <div v-if="pullErrors[conn.id]" class="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-danger">
             {{ pullErrors[conn.id] }}
           </div>
           <div v-if="worldsyntechActionResults[conn.id]" class="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200">
@@ -1379,7 +1379,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <span v-if="worldsyntechActionResults[conn.id].has_more"> More inventory available from offset {{ worldsyntechActionResults[conn.id].next_offset }}.</span>
             </template>
           </div>
-          <div v-if="worldsyntechActionErrors[conn.id]" class="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+          <div v-if="worldsyntechActionErrors[conn.id]" class="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-danger">
             {{ worldsyntechActionErrors[conn.id] }}
           </div>
         </div>
@@ -1389,33 +1389,33 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <!-- ═══ CREDENTIALS ═══ -->
     <div v-if="activeTab === 'credentials'">
       <div v-if="credentials.length === 0" class="card p-12 text-center">
-        <svg class="mx-auto h-10 w-10 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <svg class="mx-auto h-10 w-10 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
         </svg>
-        <h3 class="mt-3 text-lg font-semibold text-white">No credentials yet</h3>
-        <p class="mt-1 text-sm text-gray-400">Credentials are encrypted and stored separately from connections for security.</p>
+        <h3 class="mt-3 text-lg font-semibold text-ink">No credentials yet</h3>
+        <p class="mt-1 text-sm text-muted">Credentials are encrypted and stored separately from connections for security.</p>
         <button class="btn-primary mt-4" @click="openCreateCredential()">Create Credential</button>
       </div>
       <div v-else class="space-y-3">
         <div v-for="cred in credentials" :key="cred.id" class="card flex items-center justify-between p-4">
           <div class="flex items-center gap-4">
-            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-800 text-lg">
-              <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-sunken text-lg">
+              <svg class="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
               </svg>
             </div>
             <div>
-              <h3 class="font-medium text-white">{{ cred.name }}</h3>
-              <p class="text-xs text-gray-500">
+              <h3 class="font-medium text-ink">{{ cred.name }}</h3>
+              <p class="text-xs text-muted">
                 {{ cred.node_definition?.name || 'Unknown' }}
                 &middot; Created {{ new Date(cred.created_at).toLocaleDateString() }}
               </p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span v-if="cred.is_valid === true" class="text-xs text-emerald-400">Verified</span>
-            <span v-else-if="cred.is_valid === false" class="text-xs text-red-400">Invalid</span>
-            <span v-else class="text-xs text-gray-600">Untested</span>
+            <span v-if="cred.is_valid === true" class="text-xs text-success">Verified</span>
+            <span v-else-if="cred.is_valid === false" class="text-xs text-danger">Invalid</span>
+            <span v-else class="text-xs text-muted">Untested</span>
             <button
               v-if="isWooCommerceCredential(cred) || isWorldsyntechCredential(cred)"
               class="btn-ghost text-xs"
@@ -1425,7 +1425,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               {{ testingCredentialId === cred.id ? 'Testing...' : 'Test' }}
             </button>
             <button class="btn-ghost text-xs" @click="openEditCredential(cred)">Edit</button>
-            <button class="btn-ghost !p-1.5 text-red-400" @click="handleDeleteCredential(cred)">
+            <button class="btn-ghost !p-1.5 text-danger" @click="handleDeleteCredential(cred)">
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
               </svg>
@@ -1438,37 +1438,37 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <!-- ═══ EXECUTION LOG ═══ -->
     <div v-if="activeTab === 'executions'">
       <div v-if="executions.length === 0" class="card p-12 text-center">
-        <svg class="mx-auto h-10 w-10 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <svg class="mx-auto h-10 w-10 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
         </svg>
-        <h3 class="mt-3 text-lg font-semibold text-white">No executions yet</h3>
-        <p class="mt-1 text-sm text-gray-400">Execution logs will appear here when connections run.</p>
+        <h3 class="mt-3 text-lg font-semibold text-ink">No executions yet</h3>
+        <p class="mt-1 text-sm text-muted">Execution logs will appear here when connections run.</p>
       </div>
-      <div v-else class="overflow-hidden rounded-lg border border-gray-800">
+      <div v-else class="overflow-hidden rounded-lg border border-line">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-800 bg-gray-900/50">
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Status</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Type</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Action / Trigger</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Items</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Duration</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-400">Time</th>
+            <tr class="border-b border-line bg-surface-sunken/80">
+              <th class="px-4 py-3 text-left text-xs font-medium text-muted">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-muted">Type</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-muted">Action / Trigger</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-muted">Items</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-muted">Duration</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-muted">Time</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-800/50">
-            <tr v-for="exec in executions" :key="exec.id" class="hover:bg-gray-800/20">
+          <tbody class="divide-y divide-line-soft">
+            <tr v-for="exec in executions" :key="exec.id" class="hover:bg-surface-sunken/20">
               <td class="px-4 py-3">
                 <span :class="['font-medium capitalize', getExecStatusClass(exec.status)]">{{ exec.status }}</span>
               </td>
-              <td class="px-4 py-3 text-gray-400 capitalize">{{ exec.execution_type }}</td>
-              <td class="px-4 py-3 text-gray-300">{{ exec.action_key || exec.trigger_key || '—' }}</td>
-              <td class="px-4 py-3 text-gray-400">
+              <td class="px-4 py-3 text-muted capitalize">{{ exec.execution_type }}</td>
+              <td class="px-4 py-3 text-ink-soft">{{ exec.action_key || exec.trigger_key || '—' }}</td>
+              <td class="px-4 py-3 text-muted">
                 {{ exec.items_processed }} processed
-                <span v-if="exec.items_failed" class="text-red-400">({{ exec.items_failed }} failed)</span>
+                <span v-if="exec.items_failed" class="text-danger">({{ exec.items_failed }} failed)</span>
               </td>
-              <td class="px-4 py-3 text-gray-500">{{ formatDuration(exec.duration_ms) }}</td>
-              <td class="px-4 py-3 text-gray-600 text-xs">{{ new Date(exec.started_at).toLocaleString() }}</td>
+              <td class="px-4 py-3 text-muted">{{ formatDuration(exec.duration_ms) }}</td>
+              <td class="px-4 py-3 text-muted text-xs">{{ new Date(exec.started_at).toLocaleString() }}</td>
             </tr>
           </tbody>
         </table>
@@ -1478,7 +1478,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <!-- ═══ SKINCARE INTELLIGENCE APP ═══ -->
     <div v-if="skincareMode" class="space-y-6">
       <!-- Back Button -->
-      <button class="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors" @click="skincareMode = false">
+      <button class="flex items-center gap-2 text-sm text-muted hover:text-ink transition-colors" @click="skincareMode = false">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
         </svg>
@@ -1489,18 +1489,18 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
         <div class="flex items-center gap-3">
           <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-500/10 ring-1 ring-inset ring-pink-500/20 text-lg">🧴</div>
           <div>
-            <h2 class="text-xl font-bold text-white">Skincare Intelligence</h2>
-            <p class="text-sm text-gray-400">Crawl, analyze, and score skincare products from Hwahae and Olive Young</p>
+            <h2 class="text-xl font-bold text-ink">Skincare Intelligence</h2>
+            <p class="text-sm text-muted">Crawl, analyze, and score skincare products from Hwahae and Olive Young</p>
           </div>
         </div>
         <!-- Sub-tabs -->
-        <div class="flex rounded-lg border border-gray-800 bg-gray-900 p-1 gap-1">
+        <div class="flex rounded-lg border border-line bg-white p-1 gap-1">
           <button
-            :class="['rounded-md px-4 py-1.5 text-sm font-medium transition-all', skincareTab === 'catalog' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white']"
+            :class="['rounded-md px-4 py-1.5 text-sm font-medium transition-all', skincareTab === 'catalog' ? 'bg-surface-sunken text-ink shadow-sm' : 'text-muted hover:text-ink']"
             @click="skincareTab = 'catalog'"
           >Product Catalog</button>
           <button
-            :class="['rounded-md px-4 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5', skincareTab === 'url-analyser' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white']"
+            :class="['rounded-md px-4 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5', skincareTab === 'url-analyser' ? 'bg-surface-sunken text-ink shadow-sm' : 'text-muted hover:text-ink']"
             @click="skincareTab = 'url-analyser'"
           >
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1509,7 +1509,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
             URL Analyser
           </button>
           <button
-            :class="['rounded-md px-4 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5', skincareTab === 'methodology' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-white']"
+            :class="['rounded-md px-4 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5', skincareTab === 'methodology' ? 'bg-surface-sunken text-ink shadow-sm' : 'text-muted hover:text-ink']"
             @click="skincareTab = 'methodology'"
           >
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1526,41 +1526,41 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
       <!-- Crawl Controls & Stats -->
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="card p-4">
-          <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Products</p>
-          <p class="mt-1 text-2xl font-bold text-white">{{ skincareStats?.total_products ?? '—' }}</p>
-          <div class="mt-2 flex gap-3 text-xs text-gray-400">
+          <p class="text-xs font-medium uppercase tracking-wider text-muted">Total Products</p>
+          <p class="mt-1 text-2xl font-bold text-ink">{{ skincareStats?.total_products ?? '—' }}</p>
+          <div class="mt-2 flex gap-3 text-xs text-muted">
             <span>Hwahae: {{ skincareStats?.by_source?.hwahae ?? 0 }}</span>
             <span>Olive Young: {{ skincareStats?.by_source?.oliveyoung ?? 0 }}</span>
           </div>
         </div>
         <div class="card p-4">
-          <p class="text-xs font-medium uppercase tracking-wider text-gray-500">IPS Distribution</p>
+          <p class="text-xs font-medium uppercase tracking-wider text-muted">IPS Distribution</p>
           <div class="mt-2 space-y-1">
             <div class="flex items-center justify-between text-xs">
-              <span class="text-emerald-400">Clean (85+)</span>
-              <span class="text-white font-medium">{{ skincareStats?.ips_distribution?.clean ?? 0 }}</span>
+              <span class="text-success">Clean (85+)</span>
+              <span class="text-ink font-medium">{{ skincareStats?.ips_distribution?.clean ?? 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-xs">
               <span class="text-blue-400">Standard (60-84)</span>
-              <span class="text-white font-medium">{{ skincareStats?.ips_distribution?.standard ?? 0 }}</span>
+              <span class="text-ink font-medium">{{ skincareStats?.ips_distribution?.standard ?? 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-xs">
-              <span class="text-amber-400">Caution (30-59)</span>
-              <span class="text-white font-medium">{{ skincareStats?.ips_distribution?.caution ?? 0 }}</span>
+              <span class="text-warning">Caution (30-59)</span>
+              <span class="text-ink font-medium">{{ skincareStats?.ips_distribution?.caution ?? 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-xs">
-              <span class="text-red-400">Avoid (&lt;30)</span>
-              <span class="text-white font-medium">{{ skincareStats?.ips_distribution?.avoid ?? 0 }}</span>
+              <span class="text-danger">Avoid (&lt;30)</span>
+              <span class="text-ink font-medium">{{ skincareStats?.ips_distribution?.avoid ?? 0 }}</span>
             </div>
           </div>
         </div>
         <div class="card p-4">
-          <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Trending</p>
-          <p class="mt-1 text-2xl font-bold text-emerald-400">{{ skincareStats?.trending_products ?? 0 }}</p>
-          <p class="mt-1 text-xs text-gray-400">Products with rising ingredients</p>
+          <p class="text-xs font-medium uppercase tracking-wider text-muted">Trending</p>
+          <p class="mt-1 text-2xl font-bold text-success">{{ skincareStats?.trending_products ?? 0 }}</p>
+          <p class="mt-1 text-xs text-muted">Products with rising ingredients</p>
         </div>
         <div class="card p-4">
-          <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Actions</p>
+          <p class="text-xs font-medium uppercase tracking-wider text-muted">Actions</p>
           <div class="mt-2 flex flex-col gap-1.5">
             <button class="btn-ghost !py-1 !px-2 !text-xs self-start" @click="refreshSkincare()">Refresh Data</button>
           </div>
@@ -1569,8 +1569,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
       <!-- ── Crawl Batch Selector ── -->
       <div class="card overflow-hidden">
-        <div class="flex items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4 py-3">
-          <h3 class="text-sm font-semibold text-white">Crawl Batch</h3>
+        <div class="flex items-center justify-between border-b border-line bg-surface-sunken/80 px-4 py-3">
+          <h3 class="text-sm font-semibold text-ink">Crawl Batch</h3>
           <div class="flex items-center gap-2">
             <!-- Source toggle -->
             <button
@@ -1579,8 +1579,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               :class="[
                 'rounded-md px-3 py-1 text-xs font-medium transition-all',
                 crawlSource === src
-                  ? (src === 'hwahae' ? 'bg-pink-500/15 text-pink-400 ring-1 ring-pink-500/30' : 'bg-green-500/15 text-green-400 ring-1 ring-green-500/30')
-                  : 'text-gray-500 hover:text-gray-300'
+                  ? (src === 'hwahae' ? 'bg-pink-500/15 text-streak ring-1 ring-pink-500/30' : 'bg-green-500/15 text-green-400 ring-1 ring-green-500/30')
+                  : 'text-muted hover:text-ink-soft'
               ]"
               @click="crawlSource = src"
             >
@@ -1593,8 +1593,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <!-- Skincare categories -->
           <div>
             <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Skincare</span>
-              <button class="text-[10px] text-indigo-400 hover:text-indigo-300" @click="selectAllCategories('skincare')">Select all</button>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-muted">Skincare</span>
+              <button class="text-[10px] text-brown hover:text-brown" @click="selectAllCategories('skincare')">Select all</button>
             </div>
             <div class="flex flex-wrap gap-1.5">
               <button
@@ -1603,8 +1603,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                 :class="[
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-all ring-1 ring-inset',
                   crawlSelectedCategories.includes(cat.id)
-                    ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30'
-                    : 'bg-gray-800/50 text-gray-500 ring-gray-700/50 hover:text-gray-300 hover:ring-gray-600'
+                    ? 'bg-yellow-deep/15 text-brown ring-yellow-deep/30'
+                    : 'bg-surface-sunken text-muted ring-line/50 hover:text-ink-soft hover:ring-gray-600'
                 ]"
                 @click="toggleCategory(cat.id)"
               >
@@ -1616,8 +1616,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <!-- Makeup categories -->
           <div v-if="crawlMakeupCategories.length">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Makeup</span>
-              <button class="text-[10px] text-indigo-400 hover:text-indigo-300" @click="selectAllCategories('makeup')">Select all</button>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-muted">Makeup</span>
+              <button class="text-[10px] text-brown hover:text-brown" @click="selectAllCategories('makeup')">Select all</button>
             </div>
             <div class="flex flex-wrap gap-1.5">
               <button
@@ -1626,8 +1626,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                 :class="[
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-all ring-1 ring-inset',
                   crawlSelectedCategories.includes(cat.id)
-                    ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30'
-                    : 'bg-gray-800/50 text-gray-500 ring-gray-700/50 hover:text-gray-300 hover:ring-gray-600'
+                    ? 'bg-yellow-deep/15 text-brown ring-yellow-deep/30'
+                    : 'bg-surface-sunken text-muted ring-line/50 hover:text-ink-soft hover:ring-gray-600'
                 ]"
                 @click="toggleCategory(cat.id)"
               >
@@ -1639,8 +1639,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <!-- Extra categories (OY only) -->
           <div v-if="crawlExtraCategories.length">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Other</span>
-              <button class="text-[10px] text-indigo-400 hover:text-indigo-300" @click="selectAllCategories('extra')">Select all</button>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-muted">Other</span>
+              <button class="text-[10px] text-brown hover:text-brown" @click="selectAllCategories('extra')">Select all</button>
             </div>
             <div class="flex flex-wrap gap-1.5">
               <button
@@ -1649,8 +1649,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                 :class="[
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-all ring-1 ring-inset',
                   crawlSelectedCategories.includes(cat.id)
-                    ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30'
-                    : 'bg-gray-800/50 text-gray-500 ring-gray-700/50 hover:text-gray-300 hover:ring-gray-600'
+                    ? 'bg-yellow-deep/15 text-brown ring-yellow-deep/30'
+                    : 'bg-surface-sunken text-muted ring-line/50 hover:text-ink-soft hover:ring-gray-600'
                 ]"
                 @click="toggleCategory(cat.id)"
               >
@@ -1660,14 +1660,14 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           </div>
 
           <!-- Options + Run -->
-          <div class="flex items-center justify-between border-t border-gray-800/50 pt-3">
+          <div class="flex items-center justify-between border-t border-line-soft pt-3">
             <div class="flex items-center gap-4">
-              <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
-                <input type="checkbox" v-model="crawlDetailPages" class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 h-3.5 w-3.5" />
+              <label class="flex items-center gap-1.5 text-xs text-muted cursor-pointer">
+                <input type="checkbox" v-model="crawlDetailPages" class="rounded border-line-strong bg-surface-sunken text-brown focus:ring-yellow-deep focus:ring-offset-0 h-3.5 w-3.5" />
                 Scrape detail pages
               </label>
-              <span class="text-[10px] text-gray-600">{{ crawlSelectedCategories.length }} selected</span>
-              <button v-if="crawlSelectedCategories.length > 0" class="text-[10px] text-gray-500 hover:text-gray-300" @click="deselectAllCategories()">Clear</button>
+              <span class="text-[10px] text-muted">{{ crawlSelectedCategories.length }} selected</span>
+              <button v-if="crawlSelectedCategories.length > 0" class="text-[10px] text-muted hover:text-ink-soft" @click="deselectAllCategories()">Clear</button>
             </div>
             <button
               class="btn-primary !py-1.5 !px-4 !text-xs"
@@ -1682,10 +1682,10 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
       <!-- Active/Recent Crawl Jobs -->
       <div v-if="skincareJobs.length > 0" class="card overflow-hidden">
-        <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
-          <h3 class="text-sm font-semibold text-white">Recent Crawl Jobs</h3>
+        <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
+          <h3 class="text-sm font-semibold text-ink">Recent Crawl Jobs</h3>
         </div>
-        <div class="divide-y divide-gray-800/50">
+        <div class="divide-y divide-line-soft">
           <div v-for="job in skincareJobs.slice(0, 5)" :key="job.id" class="px-4 py-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
@@ -1693,31 +1693,31 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   'inline-flex h-2 w-2 rounded-full',
                   job.status === 'running' ? 'bg-blue-400 animate-pulse' :
                   job.status === 'completed' ? 'bg-emerald-400' :
-                  job.status === 'failed' ? 'bg-red-400' : 'bg-gray-500'
+                  job.status === 'failed' ? 'bg-danger' : 'bg-muted'
                 ]" />
-                <span class="text-sm text-white capitalize">{{ job.source }}</span>
-                <span class="text-xs text-gray-500">{{ job.job_type }}</span>
+                <span class="text-sm text-ink capitalize">{{ job.source }}</span>
+                <span class="text-xs text-muted">{{ job.job_type }}</span>
               </div>
-              <div class="flex items-center gap-4 text-xs text-gray-400">
+              <div class="flex items-center gap-4 text-xs text-muted">
                 <span v-if="job.status === 'running'">
                   {{ job.processed_products }}/{{ job.total_products }} products
-                  <span v-if="job.current_category" class="text-gray-500">({{ job.current_category }})</span>
+                  <span v-if="job.current_category" class="text-muted">({{ job.current_category }})</span>
                 </span>
                 <span v-else>
                   {{ job.processed_products }}/{{ job.total_products }} products
-                  <span v-if="job.failed_products > 0" class="text-red-400">({{ job.failed_products }} failed)</span>
+                  <span v-if="job.failed_products > 0" class="text-danger">({{ job.failed_products }} failed)</span>
                 </span>
                 <span :class="[
                   'rounded px-1.5 py-0.5 text-[10px] font-medium uppercase',
-                  job.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                  job.status === 'completed' ? 'bg-success-soft text-success' :
                   job.status === 'running' ? 'bg-blue-500/10 text-blue-400' :
-                  job.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-gray-800 text-gray-500'
+                  job.status === 'failed' ? 'bg-danger-soft text-danger' : 'bg-surface-sunken text-muted'
                 ]">{{ job.status }}</span>
               </div>
             </div>
-            <p v-if="job.error" class="mt-1 text-xs text-red-400/70 truncate pl-5">{{ job.error }}</p>
+            <p v-if="job.error" class="mt-1 text-xs text-danger/70 truncate pl-5">{{ job.error }}</p>
             <button
-              class="mt-1 pl-5 text-[10px] text-indigo-400 hover:text-indigo-300"
+              class="mt-1 pl-5 text-[10px] text-brown hover:text-brown"
               @click.stop="viewLogs(job.id)"
             >View Logs</button>
           </div>
@@ -1726,27 +1726,27 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
       <!-- ── Crawl Log Viewer ── -->
       <div v-if="crawlLogJobId" class="card overflow-hidden">
-        <div class="flex items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4 py-2">
-          <h3 class="text-xs font-semibold text-white font-mono">
+        <div class="flex items-center justify-between border-b border-line bg-surface-sunken/80 px-4 py-2">
+          <h3 class="text-xs font-semibold text-ink font-mono">
             Crawl Log
-            <span class="text-gray-500 ml-2">{{ crawlLogJobId.slice(0, 8) }}...</span>
+            <span class="text-muted ml-2">{{ crawlLogJobId.slice(0, 8) }}...</span>
           </h3>
           <div class="flex items-center gap-3">
-            <span class="text-[10px] text-gray-500">{{ crawlLogs.length }} lines</span>
-            <button class="text-[10px] text-gray-400 hover:text-white" @click="stopLogPolling()">Close</button>
+            <span class="text-[10px] text-muted">{{ crawlLogs.length }} lines</span>
+            <button class="text-[10px] text-muted hover:text-ink" @click="stopLogPolling()">Close</button>
           </div>
         </div>
         <div
           id="crawl-log-container"
-          class="max-h-64 overflow-y-auto bg-gray-950 p-3 font-mono text-[11px] leading-relaxed"
+          class="max-h-64 overflow-y-auto bg-cream p-3 font-mono text-[11px] leading-relaxed"
         >
-          <div v-if="crawlLogs.length === 0" class="text-gray-600">Waiting for logs...</div>
+          <div v-if="crawlLogs.length === 0" class="text-muted">Waiting for logs...</div>
           <div
             v-for="(entry, idx) in crawlLogs"
             :key="idx"
             class="flex gap-2"
           >
-            <span class="shrink-0 text-gray-600">{{ entry.timestamp.slice(11, 19) }}</span>
+            <span class="shrink-0 text-muted">{{ entry.timestamp.slice(11, 19) }}</span>
             <span :class="[
               'shrink-0 w-8 text-right uppercase',
               logLevelColor(entry.level)
@@ -1819,31 +1819,31 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
       </div>
 
       <!-- Product Table -->
-      <div class="overflow-hidden rounded-lg border border-gray-800">
-        <div v-if="skincareLoading" class="p-12 text-center text-gray-500">Loading products...</div>
+      <div class="overflow-hidden rounded-lg border border-line">
+        <div v-if="skincareLoading" class="p-12 text-center text-muted">Loading products...</div>
         <div v-else-if="skincareProducts.length === 0" class="p-12 text-center">
-          <h3 class="text-lg font-semibold text-white">No products yet</h3>
-          <p class="mt-1 text-sm text-gray-400">Start a crawl to discover skincare products from Hwahae or Olive Young.</p>
+          <h3 class="text-lg font-semibold text-ink">No products yet</h3>
+          <p class="mt-1 text-sm text-muted">Start a crawl to discover skincare products from Hwahae or Olive Young.</p>
         </div>
         <table v-else class="w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-800 bg-gray-900/50">
-              <th class="px-3 py-3 text-left text-xs font-medium text-gray-400">Product</th>
-              <th class="px-3 py-3 text-left text-xs font-medium text-gray-400">Source</th>
-              <th class="px-3 py-3 text-center text-xs font-medium text-gray-400">IPS</th>
-              <th class="px-3 py-3 text-center text-xs font-medium text-gray-400">Rating</th>
-              <th class="px-3 py-3 text-center text-xs font-medium text-gray-400">Reviews</th>
-              <th class="px-3 py-3 text-center text-xs font-medium text-gray-400">Top Tier</th>
-              <th class="px-3 py-3 text-center text-xs font-medium text-gray-400">Trend</th>
-              <th class="px-3 py-3 text-left text-xs font-medium text-gray-400">Concerns</th>
-              <th class="px-3 py-3 text-left text-xs font-medium text-gray-400">Skin Fit</th>
+            <tr class="border-b border-line bg-surface-sunken/80">
+              <th class="px-3 py-3 text-left text-xs font-medium text-muted">Product</th>
+              <th class="px-3 py-3 text-left text-xs font-medium text-muted">Source</th>
+              <th class="px-3 py-3 text-center text-xs font-medium text-muted">IPS</th>
+              <th class="px-3 py-3 text-center text-xs font-medium text-muted">Rating</th>
+              <th class="px-3 py-3 text-center text-xs font-medium text-muted">Reviews</th>
+              <th class="px-3 py-3 text-center text-xs font-medium text-muted">Top Tier</th>
+              <th class="px-3 py-3 text-center text-xs font-medium text-muted">Trend</th>
+              <th class="px-3 py-3 text-left text-xs font-medium text-muted">Concerns</th>
+              <th class="px-3 py-3 text-left text-xs font-medium text-muted">Skin Fit</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-800/50">
+          <tbody class="divide-y divide-line-soft">
             <tr
               v-for="product in skincareProducts"
               :key="product.id"
-              class="cursor-pointer hover:bg-gray-800/20 transition-colors"
+              class="cursor-pointer hover:bg-surface-sunken/20 transition-colors"
               @click="openSkincareProduct(product)"
             >
               <td class="px-3 py-3">
@@ -1851,20 +1851,20 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   <img
                     v-if="product.image_url"
                     :src="product.image_url"
-                    class="h-10 w-10 rounded-lg object-cover bg-gray-800"
+                    class="h-10 w-10 rounded-lg object-cover bg-surface-sunken"
                     loading="lazy"
                   />
-                  <div class="h-10 w-10 rounded-lg bg-gray-800" v-else />
+                  <div class="h-10 w-10 rounded-lg bg-surface-sunken" v-else />
                   <div class="min-w-0">
-                    <p class="truncate text-sm font-medium text-white max-w-[280px]">{{ product.product_name }}</p>
-                    <p class="text-xs text-gray-500">{{ product.brand_name || 'Unknown Brand' }}</p>
+                    <p class="truncate text-sm font-medium text-ink max-w-[280px]">{{ product.product_name }}</p>
+                    <p class="text-xs text-muted">{{ product.brand_name || 'Unknown Brand' }}</p>
                   </div>
                 </div>
               </td>
               <td class="px-3 py-3">
                 <span :class="[
                   'rounded px-1.5 py-0.5 text-[10px] font-medium uppercase',
-                  product.source === 'hwahae' ? 'bg-pink-500/10 text-pink-400' : 'bg-green-500/10 text-green-400'
+                  product.source === 'hwahae' ? 'bg-pink-500/10 text-streak' : 'bg-green-500/10 text-green-400'
                 ]">{{ product.source === 'hwahae' ? 'HH' : 'OY' }}</span>
               </td>
               <td class="px-3 py-3 text-center">
@@ -1872,10 +1872,10 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   {{ product.ips_score ?? '—' }}
                 </span>
               </td>
-              <td class="px-3 py-3 text-center text-gray-300">
+              <td class="px-3 py-3 text-center text-ink-soft">
                 {{ product.rating ? product.rating.toFixed(1) : '—' }}
               </td>
-              <td class="px-3 py-3 text-center text-gray-400">
+              <td class="px-3 py-3 text-center text-muted">
                 {{ product.review_count ? product.review_count.toLocaleString() : '—' }}
               </td>
               <td class="px-3 py-3 text-center">
@@ -1893,7 +1893,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   <span
                     v-for="tag in (product.concern_tags || []).slice(0, 3)"
                     :key="tag"
-                    class="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-400"
+                    class="rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] text-muted"
                   >{{ tag.replace('_', ' ') }}</span>
                 </div>
               </td>
@@ -1904,17 +1904,17 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                     :key="type"
                     class="flex flex-col items-center"
                   >
-                    <div class="h-4 w-1.5 rounded-full bg-gray-800 overflow-hidden">
+                    <div class="h-4 w-1.5 rounded-full bg-surface-sunken overflow-hidden">
                       <div
                         :style="{ height: skinTypeFitBar(product.skin_type_fit, type) + '%' }"
                         :class="[
                           'w-full rounded-full transition-all',
                           skinTypeFitBar(product.skin_type_fit, type) > 70 ? 'bg-emerald-400' :
-                          skinTypeFitBar(product.skin_type_fit, type) > 40 ? 'bg-blue-400' : 'bg-gray-600'
+                          skinTypeFitBar(product.skin_type_fit, type) > 40 ? 'bg-blue-400' : 'bg-muted'
                         ]"
                       />
                     </div>
-                    <span class="mt-0.5 text-[8px] text-gray-600">{{ type[0].toUpperCase() }}</span>
+                    <span class="mt-0.5 text-[8px] text-muted">{{ type[0].toUpperCase() }}</span>
                   </div>
                 </div>
               </td>
@@ -1925,14 +1925,14 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
       <!-- Pagination -->
       <div v-if="skincareProductsTotal > 50" class="flex items-center justify-between text-sm">
-        <p class="text-gray-500">{{ skincareProductsTotal }} products total</p>
+        <p class="text-muted">{{ skincareProductsTotal }} products total</p>
         <div class="flex gap-2">
           <button
             class="btn-ghost !py-1 !px-3 !text-xs"
             :disabled="skincareFilters.page <= 1"
             @click="skincareFilters.page--; loadSkincareProducts()"
           >Previous</button>
-          <span class="py-1 px-2 text-xs text-gray-400">Page {{ skincareFilters.page }}</span>
+          <span class="py-1 px-2 text-xs text-muted">Page {{ skincareFilters.page }}</span>
           <button
             class="btn-ghost !py-1 !px-3 !text-xs"
             :disabled="skincareFilters.page * 50 >= skincareProductsTotal"
@@ -1948,7 +1948,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
       <template v-if="skincareTab === 'url-analyser'">
         <!-- Input bar -->
         <div class="card overflow-hidden">
-          <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
+          <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
             <div class="flex gap-3">
               <div class="relative flex-1">
                 <input
@@ -1982,15 +1982,15 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <button v-if="uaResult" class="btn-secondary text-sm" @click="resetUaCheck">New URL</button>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
-              <span v-if="uaChecking" class="text-xs text-indigo-400 animate-pulse">Fetching page → extracting data → scoring competitiveness...</span>
-              <span v-else-if="uaError" class="text-xs text-red-400">{{ uaError }}</span>
+              <span v-if="uaChecking" class="text-xs text-brown animate-pulse">Fetching page → extracting data → scoring competitiveness...</span>
+              <span v-else-if="uaError" class="text-xs text-danger">{{ uaError }}</span>
               <template v-else-if="!uaResult">
-                <span class="text-xs text-gray-600 mr-1">Supports:</span>
+                <span class="text-xs text-muted mr-1">Supports:</span>
                 <span v-for="p in URL_CHECK_PLATFORMS" :key="p.key" class="rounded border px-1.5 py-0.5 text-xs" :class="p.color">{{ p.label }}</span>
               </template>
               <template v-else>
-                <span class="text-xs text-gray-500">Analysed · Not saved</span>
-                <span v-if="uaSavedProductId" class="ml-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
+                <span class="text-xs text-muted">Analysed · Not saved</span>
+                <span v-if="uaSavedProductId" class="ml-2 rounded border border-success/30 bg-success-soft px-2 py-0.5 text-xs text-success">
                   ✓ Saved
                   <NuxtLink :to="`/products/${uaSavedProductId}`" class="ml-1 underline">View product →</NuxtLink>
                 </span>
@@ -2001,80 +2001,80 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
         <!-- Empty state -->
         <div v-if="!uaResult && !uaChecking" class="flex flex-col items-center justify-center py-20 text-center">
-          <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-gray-700 bg-gray-800">
-            <svg class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-line bg-surface-sunken">
+            <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
           </div>
-          <p class="text-base font-semibold text-white">Paste any product URL above</p>
-          <p class="mt-1 text-sm text-gray-500">Extracts rating, price, ingredients, popularity and scores competitive position</p>
+          <p class="text-base font-semibold text-ink">Paste any product URL above</p>
+          <p class="mt-1 text-sm text-muted">Extracts rating, price, ingredients, popularity and scores competitive position</p>
           <div class="mt-8 grid grid-cols-2 gap-3 text-left sm:grid-cols-4">
-            <div v-for="p in URL_CHECK_PLATFORMS" :key="p.key" class="rounded-lg border border-gray-700/60 bg-gray-800/30 p-3">
+            <div v-for="p in URL_CHECK_PLATFORMS" :key="p.key" class="rounded-lg border border-line/60 bg-surface-sunken/60 p-3">
               <span class="inline-flex rounded border px-1.5 py-0.5 text-xs mb-2" :class="p.color">{{ p.label }}</span>
-              <p class="text-xs text-gray-600">{{ p.domain }}</p>
+              <p class="text-xs text-muted">{{ p.domain }}</p>
             </div>
           </div>
         </div>
 
         <!-- Loading skeleton -->
         <div v-else-if="uaChecking" class="space-y-4">
-          <div class="h-28 animate-pulse rounded-xl bg-gray-800" />
+          <div class="h-28 animate-pulse rounded-xl bg-surface-sunken" />
           <div class="grid grid-cols-4 gap-3">
-            <div v-for="i in 4" :key="i" class="h-20 animate-pulse rounded-lg bg-gray-800" />
+            <div v-for="i in 4" :key="i" class="h-20 animate-pulse rounded-lg bg-surface-sunken" />
           </div>
-          <div class="h-32 animate-pulse rounded-lg bg-gray-800" />
+          <div class="h-32 animate-pulse rounded-lg bg-surface-sunken" />
         </div>
 
         <!-- Results -->
         <div v-else-if="uaResult" class="space-y-4">
           <!-- Product card -->
-          <div class="rounded-xl border border-gray-700 bg-gray-800/50 p-5">
+          <div class="rounded-xl border border-line bg-surface-sunken p-5">
             <div class="flex items-start gap-4">
               <div class="flex-1 min-w-0">
                 <div class="flex flex-wrap items-center gap-2 mb-2">
                   <span class="rounded border px-2 py-0.5 text-xs font-medium" :class="uaPlatformColor(uaResult.platform?.key)">{{ uaResult.platform?.label ?? 'Unknown' }}</span>
-                  <span v-if="uaResult.html_fetched" class="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">Page fetched</span>
-                  <span v-else class="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">AI knowledge</span>
-                  <span v-if="uaResult.scope?.data_quality === 'high'" class="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">High confidence</span>
-                  <span v-else-if="uaResult.scope?.data_quality === 'medium'" class="rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-400">Partial data</span>
+                  <span v-if="uaResult.html_fetched" class="rounded border border-success/30 bg-success-soft px-2 py-0.5 text-xs text-success">Page fetched</span>
+                  <span v-else class="rounded border border-amber-500/30 bg-warning-soft px-2 py-0.5 text-xs text-warning">AI knowledge</span>
+                  <span v-if="uaResult.scope?.data_quality === 'high'" class="rounded border border-success/30 bg-success-soft px-2 py-0.5 text-xs text-success">High confidence</span>
+                  <span v-else-if="uaResult.scope?.data_quality === 'medium'" class="rounded border border-yellow-500/30 bg-yellow-soft px-2 py-0.5 text-xs text-warning">Partial data</span>
                 </div>
-                <h2 class="text-lg font-bold text-white leading-snug">{{ uaResult.product?.name ?? '—' }}</h2>
-                <p class="mt-0.5 text-sm text-gray-400">{{ uaResult.product?.brand ?? '—' }}</p>
+                <h2 class="text-lg font-bold text-ink leading-snug">{{ uaResult.product?.name ?? '—' }}</h2>
+                <p class="mt-0.5 text-sm text-muted">{{ uaResult.product?.brand ?? '—' }}</p>
                 <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
                   <div v-if="uaResult.product?.price_sgd" class="flex items-baseline gap-1">
-                    <span class="text-xs text-gray-500">SGD</span>
-                    <span class="font-bold text-white">{{ Number(uaResult.product.price_sgd).toFixed(2) }}</span>
+                    <span class="text-xs text-muted">SGD</span>
+                    <span class="font-bold text-ink">{{ Number(uaResult.product.price_sgd).toFixed(2) }}</span>
                   </div>
                   <div v-else-if="uaResult.product?.price_original" class="flex items-baseline gap-1">
-                    <span class="text-xs text-gray-500">{{ uaResult.product.price_original_currency }}</span>
-                    <span class="font-bold text-white">{{ uaResult.product.price_original }}</span>
+                    <span class="text-xs text-muted">{{ uaResult.product.price_original_currency }}</span>
+                    <span class="font-bold text-ink">{{ uaResult.product.price_original }}</span>
                   </div>
                   <div v-if="uaResult.product?.rating" class="flex items-center gap-0.5">
-                    <span class="text-yellow-400">★</span>
-                    <span class="font-semibold text-white">{{ Number(uaResult.product.rating).toFixed(1) }}</span>
+                    <span class="text-warning">★</span>
+                    <span class="font-semibold text-ink">{{ Number(uaResult.product.rating).toFixed(1) }}</span>
                   </div>
-                  <div v-if="uaResult.product?.review_count" class="flex items-center gap-1 text-gray-300">
-                    <span class="text-xs text-gray-500">Reviews</span>
+                  <div v-if="uaResult.product?.review_count" class="flex items-center gap-1 text-ink-soft">
+                    <span class="text-xs text-muted">Reviews</span>
                     <span>{{ uaResult.product.review_count >= 1000 ? (uaResult.product.review_count / 1000).toFixed(1) + 'k' : uaResult.product.review_count }}</span>
                   </div>
-                  <div v-if="uaResult.product?.sold_in_30_days" class="flex items-center gap-1 text-gray-300">
-                    <span class="text-xs text-gray-500">30d sales</span><span class="font-semibold">{{ uaResult.product.sold_in_30_days >= 1000 ? (uaResult.product.sold_in_30_days / 1000).toFixed(1) + 'k+' : uaResult.product.sold_in_30_days + '+' }}</span>
+                  <div v-if="uaResult.product?.sold_in_30_days" class="flex items-center gap-1 text-ink-soft">
+                    <span class="text-xs text-muted">30d sales</span><span class="font-semibold">{{ uaResult.product.sold_in_30_days >= 1000 ? (uaResult.product.sold_in_30_days / 1000).toFixed(1) + 'k+' : uaResult.product.sold_in_30_days + '+' }}</span>
                   </div>
-                  <div v-else-if="uaResult.product?.units_sold_label" class="flex items-center gap-1 text-gray-300">
-                    <span class="text-xs text-gray-500">Sold</span><span>{{ uaResult.product.units_sold_label }}</span>
+                  <div v-else-if="uaResult.product?.units_sold_label" class="flex items-center gap-1 text-ink-soft">
+                    <span class="text-xs text-muted">Sold</span><span>{{ uaResult.product.units_sold_label }}</span>
                   </div>
-                  <div v-if="uaResult.product?.rank_in_category" class="text-gray-300">
-                    <span class="text-xs text-gray-500">Rank </span>#{{ uaResult.product.rank_in_category }}
+                  <div v-if="uaResult.product?.rank_in_category" class="text-ink-soft">
+                    <span class="text-xs text-muted">Rank </span>#{{ uaResult.product.rank_in_category }}
                   </div>
-                  <div v-if="uaResult.product?.volume_size" class="text-gray-400">{{ uaResult.product.volume_size }}</div>
+                  <div v-if="uaResult.product?.volume_size" class="text-muted">{{ uaResult.product.volume_size }}</div>
                 </div>
               </div>
               <div class="shrink-0">
                 <div class="flex h-20 w-20 flex-col items-center justify-center rounded-2xl border-2" :class="uaScBg(uaResult.analysis?.overall_score)">
                   <span class="text-3xl font-black leading-none" :class="uaSc(uaResult.analysis?.overall_score)">{{ uaResult.analysis?.overall_score ?? '—' }}</span>
-                  <span class="text-xs text-gray-600 mt-0.5">/ 100</span>
+                  <span class="text-xs text-muted mt-0.5">/ 100</span>
                 </div>
-                <p class="mt-1 text-center text-xs text-gray-600">Overall</p>
+                <p class="mt-1 text-center text-xs text-muted">Overall</p>
               </div>
             </div>
           </div>
@@ -2088,8 +2088,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               { label: 'Value (Alpha proxy)', val: uaResult.analysis?.value_score, sub: uaResult.product?.volume_size ?? null },
             ]" :key="label" class="rounded-xl border p-4 text-center" :class="uaScBg(val)">
               <div class="text-2xl font-bold" :class="uaSc(val)">{{ val ?? '—' }}</div>
-              <div class="mt-1 text-xs text-gray-500">{{ label }}</div>
-              <div v-if="sub" class="mt-1 text-xs text-gray-600">{{ sub }}</div>
+              <div class="mt-1 text-xs text-muted">{{ label }}</div>
+              <div v-if="sub" class="mt-1 text-xs text-muted">{{ sub }}</div>
             </div>
           </div>
 
@@ -2099,15 +2099,15 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <!-- Skin Type Fit -->
             <div v-if="uaResult.analysis.skincare.skin_type_fit">
-              <p class="mb-2 text-xs text-gray-500">Skin Type Fit (from ingredient analysis)</p>
+              <p class="mb-2 text-xs text-muted">Skin Type Fit (from ingredient analysis)</p>
               <div class="flex flex-wrap gap-2">
                 <div v-for="(val, type) in uaResult.analysis.skincare.skin_type_fit" :key="type"
                   class="flex items-center gap-1.5 rounded-lg border px-3 py-1.5"
-                  :class="Number(val) >= 0.7 ? 'border-emerald-500/30 bg-emerald-500/10' : Number(val) >= 0.4 ? 'border-yellow-500/20 bg-yellow-500/5' : 'border-gray-700 bg-gray-800/30'">
-                  <span class="text-xs font-medium" :class="Number(val) >= 0.7 ? 'text-emerald-300' : Number(val) >= 0.4 ? 'text-yellow-300' : 'text-gray-500'">
+                  :class="Number(val) >= 0.7 ? 'border-success/30 bg-success-soft' : Number(val) >= 0.4 ? 'border-yellow-500/20 bg-yellow-500/5' : 'border-line bg-surface-sunken/60'">
+                  <span class="text-xs font-medium" :class="Number(val) >= 0.7 ? 'text-success' : Number(val) >= 0.4 ? 'text-yellow-300' : 'text-muted'">
                     {{ String(type).charAt(0).toUpperCase() + String(type).slice(1) }}
                   </span>
-                  <span class="text-xs font-mono" :class="Number(val) >= 0.7 ? 'text-emerald-400' : Number(val) >= 0.4 ? 'text-yellow-400' : 'text-gray-600'">
+                  <span class="text-xs font-mono" :class="Number(val) >= 0.7 ? 'text-success' : Number(val) >= 0.4 ? 'text-warning' : 'text-muted'">
                     {{ (Number(val) * 100).toFixed(0) }}%
                   </span>
                 </div>
@@ -2116,7 +2116,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <!-- Concern Tags -->
             <div v-if="uaResult.analysis.skincare.concern_tags?.length">
-              <p class="mb-2 text-xs text-gray-500">Concerns Addressed (matched from ingredients)</p>
+              <p class="mb-2 text-xs text-muted">Concerns Addressed (matched from ingredients)</p>
               <div class="flex flex-wrap gap-1.5">
                 <span v-for="c in uaResult.analysis.skincare.concern_tags" :key="c"
                   class="rounded-full bg-purple-500/10 border border-purple-500/20 px-3 py-0.5 text-xs text-purple-300">
@@ -2127,171 +2127,171 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <!-- Ingredient Trend Signal -->
             <div v-if="uaResult.analysis.skincare.ingredient_trend_signal" class="flex items-center gap-2">
-              <span class="text-xs text-gray-500">Ingredient Trend:</span>
+              <span class="text-xs text-muted">Ingredient Trend:</span>
               <span class="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                :class="uaResult.analysis.skincare.ingredient_trend_signal === 'rising' ? 'bg-green-500/20 text-green-300' : uaResult.analysis.skincare.ingredient_trend_signal === 'stable' ? 'bg-gray-500/20 text-gray-300' : 'bg-red-500/20 text-red-300'">
+                :class="uaResult.analysis.skincare.ingredient_trend_signal === 'rising' ? 'bg-success-soft text-success' : uaResult.analysis.skincare.ingredient_trend_signal === 'stable' ? 'bg-surface-sunken text-ink-soft' : 'bg-danger-soft text-danger'">
                 {{ uaResult.analysis.skincare.ingredient_trend_signal.toUpperCase() }}
               </span>
             </div>
 
             <!-- Conflict Flags -->
             <div v-if="uaResult.analysis.skincare.conflict_flags?.length">
-              <p class="mb-2 text-xs text-red-400 font-medium">Conflict Flags</p>
+              <p class="mb-2 text-xs text-danger font-medium">Conflict Flags</p>
               <div class="space-y-1.5">
                 <div v-for="flag in uaResult.analysis.skincare.conflict_flags" :key="flag.family"
                   class="flex items-start gap-2 rounded border border-red-500/20 bg-red-500/5 px-3 py-2">
-                  <span class="shrink-0 text-red-400 mt-0.5 text-xs">⚠</span>
+                  <span class="shrink-0 text-danger mt-0.5 text-xs">⚠</span>
                   <div>
-                    <span class="text-xs font-medium text-red-300">{{ flag.family.replace(/_/g, ' ') }}</span>
-                    <span class="text-xs text-gray-500"> — found: {{ flag.ingredients.join(', ') }}</span>
+                    <span class="text-xs font-medium text-danger">{{ flag.family.replace(/_/g, ' ') }}</span>
+                    <span class="text-xs text-muted"> — found: {{ flag.ingredients.join(', ') }}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <p class="text-xs text-gray-600">{{ uaResult.analysis.skincare.ingredients_matched ?? 0 }} ingredients scored against safety database</p>
+            <p class="text-xs text-muted">{{ uaResult.analysis.skincare.ingredients_matched ?? 0 }} ingredients scored against safety database</p>
           </div>
 
           <!-- Position + Lifecycle + availability -->
           <div class="grid gap-3 sm:grid-cols-3">
-            <div class="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
-              <p class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500">Competitive Position</p>
+            <div class="rounded-lg border border-line bg-surface-sunken/60 p-4">
+              <p class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">Competitive Position</p>
               <span class="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium" :class="uaPosClass(uaResult.analysis?.competitive_position)">
                 {{ uaPosText(uaResult.analysis?.competitive_position) }}
               </span>
             </div>
-            <div v-if="uaResult.analysis?.lifecycle_stage" class="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
-              <p class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500">Lifecycle Stage</p>
+            <div v-if="uaResult.analysis?.lifecycle_stage" class="rounded-lg border border-line bg-surface-sunken/60 p-4">
+              <p class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">Lifecycle Stage</p>
               <span class="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium"
                 :class="{
                   'border-violet-500/30 bg-violet-500/10 text-violet-300': uaResult.analysis.lifecycle_stage === 'launch',
-                  'border-green-500/30 bg-green-500/10 text-green-300': uaResult.analysis.lifecycle_stage === 'rising',
+                  'border-green-500/30 bg-green-500/10 text-success': uaResult.analysis.lifecycle_stage === 'rising',
                   'border-blue-500/30 bg-blue-500/10 text-blue-300': uaResult.analysis.lifecycle_stage === 'mature',
-                  'border-yellow-500/30 bg-yellow-500/10 text-yellow-300': uaResult.analysis.lifecycle_stage === 'hall_of_fame',
-                  'border-red-500/30 bg-red-500/10 text-red-300': uaResult.analysis.lifecycle_stage === 'declining',
-                  'border-gray-600 bg-gray-800 text-gray-400': !['launch','rising','mature','hall_of_fame','declining'].includes(uaResult.analysis.lifecycle_stage),
+                  'border-yellow-500/30 bg-yellow-soft text-yellow-300': uaResult.analysis.lifecycle_stage === 'hall_of_fame',
+                  'border-danger/30 bg-danger-soft text-danger': uaResult.analysis.lifecycle_stage === 'declining',
+                  'border-line-strong bg-surface-sunken text-muted': !['launch','rising','mature','hall_of_fame','declining'].includes(uaResult.analysis.lifecycle_stage),
                 }">
                 {{ uaResult.analysis.lifecycle_stage.replace('_', ' ').toUpperCase() }}
               </span>
             </div>
-            <div v-if="uaResult.product?.availability" class="rounded-lg border border-gray-700 bg-gray-800/30 p-4">
-              <p class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500">Availability</p>
+            <div v-if="uaResult.product?.availability" class="rounded-lg border border-line bg-surface-sunken/60 p-4">
+              <p class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">Availability</p>
               <span class="inline-flex rounded-full px-4 py-1.5 text-sm"
-                :class="uaResult.product.availability === 'in_stock' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-400'">
+                :class="uaResult.product.availability === 'in_stock' ? 'bg-emerald-500/20 text-success' : 'bg-line text-muted'">
                 {{ uaResult.product.availability === 'in_stock' ? 'In Stock' : uaResult.product.availability }}
               </span>
             </div>
           </div>
 
           <!-- AI Assessment -->
-          <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-5 space-y-3">
-            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400">AI Assessment</p>
-            <p v-if="uaResult.analysis?.market_context" class="text-sm text-gray-300 leading-relaxed">{{ uaResult.analysis.market_context }}</p>
-            <div v-if="uaResult.analysis?.sg_market_fit" class="border-t border-indigo-500/20 pt-3">
-              <p class="mb-1 text-xs font-medium text-indigo-300">SG Market Fit</p>
-              <p class="text-sm text-gray-300 leading-relaxed">{{ uaResult.analysis.sg_market_fit }}</p>
+          <div class="rounded-xl border border-yellow-deep/40 bg-yellow-soft/40 p-5 space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-brown">AI Assessment</p>
+            <p v-if="uaResult.analysis?.market_context" class="text-sm text-ink-soft leading-relaxed">{{ uaResult.analysis.market_context }}</p>
+            <div v-if="uaResult.analysis?.sg_market_fit" class="border-t border-yellow-deep/40 pt-3">
+              <p class="mb-1 text-xs font-medium text-brown">SG Market Fit</p>
+              <p class="text-sm text-ink-soft leading-relaxed">{{ uaResult.analysis.sg_market_fit }}</p>
             </div>
           </div>
 
           <!-- Product profile: ingredients & claims -->
           <div v-if="uaResult.product?.skin_types?.length || uaResult.product?.concerns?.length || uaResult.product?.notable_ingredients?.length || uaResult.product?.key_claims?.length || uaResult.product?.ingredients_full?.length"
-            class="rounded-xl border border-gray-700 bg-gray-800/30 p-5 space-y-4">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Product Profile</p>
+            class="rounded-xl border border-line bg-surface-sunken/60 p-5 space-y-4">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Product Profile</p>
             <div v-if="uaResult.product?.skin_types?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Skin types (from listing)</p>
+              <p class="mb-1.5 text-xs text-muted">Skin types (from listing)</p>
               <div class="flex flex-wrap gap-1.5">
                 <span v-for="s in uaResult.product.skin_types" :key="s" class="rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-0.5 text-xs text-blue-300">{{ s }}</span>
               </div>
             </div>
             <div v-if="uaResult.product?.concerns?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Concerns (from listing)</p>
+              <p class="mb-1.5 text-xs text-muted">Concerns (from listing)</p>
               <div class="flex flex-wrap gap-1.5">
                 <span v-for="c in uaResult.product.concerns" :key="c" class="rounded-full bg-purple-500/10 border border-purple-500/20 px-3 py-0.5 text-xs text-purple-300">{{ c }}</span>
               </div>
             </div>
             <div v-if="uaResult.product?.notable_ingredients?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Hero ingredients</p>
+              <p class="mb-1.5 text-xs text-muted">Hero ingredients</p>
               <div class="flex flex-wrap gap-1.5">
-                <span v-for="i in uaResult.product.notable_ingredients" :key="i" class="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-0.5 text-xs text-emerald-300">{{ i }}</span>
+                <span v-for="i in uaResult.product.notable_ingredients" :key="i" class="rounded-full bg-success-soft border border-success/20 px-3 py-0.5 text-xs text-success">{{ i }}</span>
               </div>
             </div>
             <div v-if="uaResult.product?.ingredients_full?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Full INCI list <span class="text-gray-600">({{ uaResult.product.ingredients_full.length }} ingredients)</span></p>
-              <div class="max-h-32 overflow-y-auto rounded bg-gray-900 px-3 py-2">
-                <p class="text-xs text-gray-400 leading-relaxed">{{ uaResult.product.ingredients_full.join(', ') }}</p>
+              <p class="mb-1.5 text-xs text-muted">Full INCI list <span class="text-muted">({{ uaResult.product.ingredients_full.length }} ingredients)</span></p>
+              <div class="max-h-32 overflow-y-auto rounded bg-white px-3 py-2">
+                <p class="text-xs text-muted leading-relaxed">{{ uaResult.product.ingredients_full.join(', ') }}</p>
               </div>
             </div>
             <div v-if="uaResult.product?.key_claims?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Key claims</p>
+              <p class="mb-1.5 text-xs text-muted">Key claims</p>
               <div class="flex flex-wrap gap-1.5">
-                <span v-for="c in uaResult.product.key_claims" :key="c" class="rounded bg-gray-700 px-2.5 py-0.5 text-xs text-gray-300">{{ c }}</span>
+                <span v-for="c in uaResult.product.key_claims" :key="c" class="rounded bg-line px-2.5 py-0.5 text-xs text-ink-soft">{{ c }}</span>
               </div>
             </div>
             <div v-if="uaResult.product?.certifications?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Certifications</p>
+              <p class="mb-1.5 text-xs text-muted">Certifications</p>
               <div class="flex flex-wrap gap-1.5">
                 <span v-for="c in uaResult.product.certifications" :key="c" class="rounded-full bg-teal-500/10 border border-teal-500/20 px-3 py-0.5 text-xs text-teal-300">{{ c }}</span>
               </div>
             </div>
             <div v-if="uaResult.product?.awards_badges?.length">
-              <p class="mb-1.5 text-xs text-gray-500">Awards & badges</p>
+              <p class="mb-1.5 text-xs text-muted">Awards & badges</p>
               <div class="flex flex-wrap gap-1.5">
-                <span v-for="a in uaResult.product.awards_badges" :key="a" class="rounded-full bg-yellow-500/10 border border-yellow-500/20 px-3 py-0.5 text-xs text-yellow-300">{{ a }}</span>
+                <span v-for="a in uaResult.product.awards_badges" :key="a" class="rounded-full bg-yellow-soft border border-yellow-500/20 px-3 py-0.5 text-xs text-yellow-300">{{ a }}</span>
               </div>
             </div>
             <!-- Metadata row: UPC, category, package qty -->
-            <div v-if="uaResult.product?.upc || uaResult.product?.category || uaResult.product?.package_quantity" class="flex flex-wrap gap-x-6 gap-y-2 border-t border-gray-700 pt-3">
+            <div v-if="uaResult.product?.upc || uaResult.product?.category || uaResult.product?.package_quantity" class="flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-3">
               <div v-if="uaResult.product.upc">
-                <span class="text-xs text-gray-500">UPC</span>
-                <p class="text-xs font-mono text-gray-300">{{ uaResult.product.upc }}</p>
+                <span class="text-xs text-muted">UPC</span>
+                <p class="text-xs font-mono text-ink-soft">{{ uaResult.product.upc }}</p>
               </div>
               <div v-if="uaResult.product.package_quantity">
-                <span class="text-xs text-gray-500">Package</span>
-                <p class="text-xs text-gray-300">{{ uaResult.product.package_quantity }}</p>
+                <span class="text-xs text-muted">Package</span>
+                <p class="text-xs text-ink-soft">{{ uaResult.product.package_quantity }}</p>
               </div>
               <div v-if="uaResult.product.category">
-                <span class="text-xs text-gray-500">Category</span>
-                <p class="text-xs text-gray-300">{{ uaResult.product.category }}</p>
+                <span class="text-xs text-muted">Category</span>
+                <p class="text-xs text-ink-soft">{{ uaResult.product.category }}</p>
               </div>
             </div>
           </div>
 
           <!-- Strengths & weaknesses -->
           <div v-if="uaResult.analysis?.strengths?.length || uaResult.analysis?.weaknesses?.length" class="grid gap-3 sm:grid-cols-2">
-            <div v-if="uaResult.analysis?.strengths?.length" class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-              <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-emerald-500">Strengths</p>
+            <div v-if="uaResult.analysis?.strengths?.length" class="rounded-xl border border-success/20 bg-emerald-500/5 p-4">
+              <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-success">Strengths</p>
               <ul class="space-y-1.5">
-                <li v-for="s in uaResult.analysis.strengths" :key="s" class="flex items-start gap-2 text-sm text-gray-300">
-                  <span class="shrink-0 text-emerald-400 mt-0.5">✓</span>{{ s }}
+                <li v-for="s in uaResult.analysis.strengths" :key="s" class="flex items-start gap-2 text-sm text-ink-soft">
+                  <span class="shrink-0 text-success mt-0.5">✓</span>{{ s }}
                 </li>
               </ul>
             </div>
             <div v-if="uaResult.analysis?.weaknesses?.length" class="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-              <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-red-400">Weaknesses</p>
+              <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-danger">Weaknesses</p>
               <ul class="space-y-1.5">
-                <li v-for="w in uaResult.analysis.weaknesses" :key="w" class="flex items-start gap-2 text-sm text-gray-300">
-                  <span class="shrink-0 text-red-400 mt-0.5">✗</span>{{ w }}
+                <li v-for="w in uaResult.analysis.weaknesses" :key="w" class="flex items-start gap-2 text-sm text-ink-soft">
+                  <span class="shrink-0 text-danger mt-0.5">✗</span>{{ w }}
                 </li>
               </ul>
             </div>
           </div>
 
           <!-- Recommendations -->
-          <div v-if="uaResult.analysis?.recommendations?.length" class="rounded-xl border border-gray-700 bg-gray-800/30 p-5">
-            <p class="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Recommendations</p>
+          <div v-if="uaResult.analysis?.recommendations?.length" class="rounded-xl border border-line bg-surface-sunken/60 p-5">
+            <p class="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">Recommendations</p>
             <div class="space-y-3">
               <div v-for="(rec, i) in uaResult.analysis.recommendations" :key="i" class="flex gap-3">
-                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-bold text-indigo-400">{{ i + 1 }}</div>
-                <p class="text-sm text-gray-300 leading-relaxed">{{ rec }}</p>
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-yellow-deep/20 text-xs font-bold text-brown">{{ i + 1 }}</div>
+                <p class="text-sm text-ink-soft leading-relaxed">{{ rec }}</p>
               </div>
             </div>
           </div>
 
           <!-- Footer CTA -->
-          <div class="flex items-center justify-between rounded-xl border border-gray-700 bg-gray-800/20 px-5 py-4">
+          <div class="flex items-center justify-between rounded-xl border border-line bg-surface-sunken/20 px-5 py-4">
             <div>
-              <p class="text-sm font-medium text-gray-300">Save this analysis to your database?</p>
-              <p class="text-xs text-gray-500 mt-0.5">Link to an existing product or create a new one</p>
+              <p class="text-sm font-medium text-ink-soft">Save this analysis to your database?</p>
+              <p class="text-xs text-muted mt-0.5">Link to an existing product or create a new one</p>
             </div>
             <div class="flex items-center gap-2">
               <a :href="uaResult.url" target="_blank" rel="noopener noreferrer" class="btn-secondary text-xs flex items-center gap-1.5">
@@ -2320,25 +2320,25 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               </svg>
               <div>
                 <h3 class="text-sm font-semibold text-blue-300">About This Scoring System</h3>
-                <p class="mt-1 text-sm text-gray-400">Products are scored using a quantitative finance-inspired framework combined with skincare-specific domain knowledge. The methodology draws from dermatologist consensus studies, EWG hazard scoring, Hwahae ingredient analysis, and K-beauty trend data.</p>
+                <p class="mt-1 text-sm text-muted">Products are scored using a quantitative finance-inspired framework combined with skincare-specific domain knowledge. The methodology draws from dermatologist consensus studies, EWG hazard scoring, Hwahae ingredient analysis, and K-beauty trend data.</p>
               </div>
             </div>
           </div>
 
           <!-- ── Section 1: Quantitative Framework ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Quantitative Product Metrics</h3>
-              <p class="mt-1 text-sm text-gray-400">Finance-inspired metrics adapted for retail procurement</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Quantitative Product Metrics</h3>
+              <p class="mt-1 text-sm text-muted">Finance-inspired metrics adapted for retail procurement</p>
             </div>
-            <div class="divide-y divide-gray-800/50">
+            <div class="divide-y divide-line-soft">
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <span class="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-mono font-bold text-emerald-300">Alpha</span>
-                  <span class="text-sm font-medium text-white">Excess Margin Potential</span>
+                  <span class="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-mono font-bold text-success">Alpha</span>
+                  <span class="text-sm font-medium text-ink">Excess Margin Potential</span>
                 </div>
-                <p class="mt-2 text-sm text-gray-400">Product Alpha = (Your achievable margin) - (Category average margin). A product with +18% Alpha generates excess margin above its category peers. Negative Alpha means margin-dilutive — only stock for strategic reasons.</p>
-                <div class="mt-2 rounded bg-gray-900 px-3 py-2 font-mono text-xs text-gray-300">
+                <p class="mt-2 text-sm text-muted">Product Alpha = (Your achievable margin) - (Category average margin). A product with +18% Alpha generates excess margin above its category peers. Negative Alpha means margin-dilutive — only stock for strategic reasons.</p>
+                <div class="mt-2 rounded bg-white px-3 py-2 font-mono text-xs text-ink-soft">
                   achievable_margin = (marketplace_avg_price - cost_price) / marketplace_avg_price<br>
                   Alpha = achievable_margin - category_avg_margin
                 </div>
@@ -2346,162 +2346,162 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-mono font-bold text-blue-300">Beta</span>
-                  <span class="text-sm font-medium text-white">Demand Market Sensitivity</span>
+                  <span class="text-sm font-medium text-ink">Demand Market Sensitivity</span>
                 </div>
-                <p class="mt-2 text-sm text-gray-400">How sensitive is product demand to category-wide movements? Beta &gt; 1.0 amplifies trends (buy aggressively before seasonal events, destock after). Beta &lt; 1.0 is defensive (steady reorder cycles).</p>
-                <div class="mt-2 rounded bg-gray-900 px-3 py-2 font-mono text-xs text-gray-300">
+                <p class="mt-2 text-sm text-muted">How sensitive is product demand to category-wide movements? Beta &gt; 1.0 amplifies trends (buy aggressively before seasonal events, destock after). Beta &lt; 1.0 is defensive (steady reorder cycles).</p>
+                <div class="mt-2 rounded bg-white px-3 py-2 font-mono text-xs text-ink-soft">
                   Beta = covariance(product_velocity, category_velocity) / variance(category_velocity)
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <span class="rounded bg-amber-500/20 px-2 py-0.5 text-xs font-mono font-bold text-amber-300">Sigma (σ)</span>
-                  <span class="text-sm font-medium text-white">Demand Volatility</span>
+                  <span class="rounded bg-amber-500/20 px-2 py-0.5 text-xs font-mono font-bold text-warning">Sigma (σ)</span>
+                  <span class="text-sm font-medium text-ink">Demand Volatility</span>
                 </div>
-                <p class="mt-2 text-sm text-gray-400">Coefficient of variation of demand — how erratic sales are. σ &lt; 0.3 = steady, safe to forecast. σ &gt; 0.7 = lumpy, dangerous to overstock. σ &gt; 1.5 = extreme, viral/trend-driven — test batches only.</p>
+                <p class="mt-2 text-sm text-muted">Coefficient of variation of demand — how erratic sales are. σ &lt; 0.3 = steady, safe to forecast. σ &gt; 0.7 = lumpy, dangerous to overstock. σ &gt; 1.5 = extreme, viral/trend-driven — test batches only.</p>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-mono font-bold text-purple-300">Sharpe</span>
-                  <span class="text-sm font-medium text-white">Risk-Adjusted Procurement Value</span>
+                  <span class="text-sm font-medium text-ink">Risk-Adjusted Procurement Value</span>
                 </div>
-                <p class="mt-2 text-sm text-gray-400"><strong class="text-white">The single most important metric.</strong> For every unit of demand uncertainty, how much net margin is generated? Sharpe &gt; 2.0 = stock aggressively. Sharpe 1.0–2.0 = reliable. Sharpe &lt; 0.5 = consider dropping.</p>
-                <div class="mt-2 rounded bg-gray-900 px-3 py-2 font-mono text-xs text-gray-300">
+                <p class="mt-2 text-sm text-muted"><strong class="text-ink">The single most important metric.</strong> For every unit of demand uncertainty, how much net margin is generated? Sharpe &gt; 2.0 = stock aggressively. Sharpe 1.0–2.0 = reliable. Sharpe &lt; 0.5 = consider dropping.</p>
+                <div class="mt-2 rounded bg-white px-3 py-2 font-mono text-xs text-ink-soft">
                   Sharpe = (margin_velocity - holding_cost) / σ_demand<br>
-                  <span class="text-gray-500">where holding_cost = capital cost + storage + expiry write-off risk</span>
+                  <span class="text-muted">where holding_cost = capital cost + storage + expiry write-off risk</span>
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-cyan-500/20 px-2 py-0.5 text-xs font-mono font-bold text-cyan-300">Liquidity</span>
-                  <span class="text-sm font-medium text-white">Exit Optionality (0–100)</span>
+                  <span class="text-sm font-medium text-ink">Exit Optionality (0–100)</span>
                 </div>
-                <p class="mt-2 text-sm text-gray-400">How easily can you sell without discounting? Based on platform coverage, marketplace volume signals, and stock turn rate. Liquidity &gt; 70 = easy to move. &lt; 40 = hard to exit. Keep PO sizes small for illiquid products.</p>
+                <p class="mt-2 text-sm text-muted">How easily can you sell without discounting? Based on platform coverage, marketplace volume signals, and stock turn rate. Liquidity &gt; 70 = easy to move. &lt; 40 = hard to exit. Keep PO sizes small for illiquid products.</p>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-pink-500/20 px-2 py-0.5 text-xs font-mono font-bold text-pink-300">Momentum</span>
-                  <span class="text-sm font-medium text-white">Review &amp; Price Trends</span>
+                  <span class="text-sm font-medium text-ink">Review &amp; Price Trends</span>
                 </div>
-                <p class="mt-2 text-sm text-gray-400">Review momentum = Δ reviews over 30 days. Rising momentum + high rating = stock up. Declining momentum = product past peak. Price momentum tracks marketplace pricing trends over 90 days.</p>
+                <p class="mt-2 text-sm text-muted">Review momentum = Δ reviews over 30 days. Rising momentum + high rating = stock up. Declining momentum = product past peak. Price momentum tracks marketplace pricing trends over 90 days.</p>
               </div>
             </div>
           </div>
 
           <!-- ── Section 2: Portfolio Matrix ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Portfolio Risk-Return Matrix</h3>
-              <p class="mt-1 text-sm text-gray-400">Classify all products into four quadrants — like managing an investment portfolio</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Portfolio Risk-Return Matrix</h3>
+              <p class="mt-1 text-sm text-muted">Classify all products into four quadrants — like managing an investment portfolio</p>
             </div>
             <div class="p-5">
               <div class="grid grid-cols-2 gap-3">
-                <div class="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+                <div class="rounded-lg border border-success/20 bg-emerald-500/5 p-4">
                   <div class="flex items-center gap-2">
                     <span class="text-lg">🐄</span>
-                    <span class="text-sm font-bold text-emerald-300">Cash Cows</span>
+                    <span class="text-sm font-bold text-success">Cash Cows</span>
                   </div>
-                  <p class="mt-1 text-xs text-gray-400">High Sharpe, Low Beta — 40–50% of budget</p>
-                  <p class="mt-1 text-xs text-emerald-400/80">Stable margin base. Steady reorders.</p>
+                  <p class="mt-1 text-xs text-muted">High Sharpe, Low Beta — 40–50% of budget</p>
+                  <p class="mt-1 text-xs text-success/80">Stable margin base. Steady reorders.</p>
                 </div>
                 <div class="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4">
                   <div class="flex items-center gap-2">
                     <span class="text-lg">⭐</span>
                     <span class="text-sm font-bold text-yellow-300">Stars</span>
                   </div>
-                  <p class="mt-1 text-xs text-gray-400">High Sharpe, High Beta — 30–40% of budget</p>
-                  <p class="mt-1 text-xs text-yellow-400/80">Growth drivers. Stock aggressively.</p>
+                  <p class="mt-1 text-xs text-muted">High Sharpe, High Beta — 30–40% of budget</p>
+                  <p class="mt-1 text-xs text-warning/80">Growth drivers. Stock aggressively.</p>
                 </div>
-                <div class="rounded-lg border border-gray-600/30 bg-gray-800/30 p-4">
+                <div class="rounded-lg border border-line-strong/30 bg-surface-sunken/60 p-4">
                   <div class="flex items-center gap-2">
                     <span class="text-lg">🪨</span>
-                    <span class="text-sm font-bold text-gray-400">Dead Weight</span>
+                    <span class="text-sm font-bold text-muted">Dead Weight</span>
                   </div>
-                  <p class="mt-1 text-xs text-gray-500">Low Sharpe, Low Beta — 0–5% of budget</p>
-                  <p class="mt-1 text-xs text-gray-500">Delist or renegotiate cost.</p>
+                  <p class="mt-1 text-xs text-muted">Low Sharpe, Low Beta — 0–5% of budget</p>
+                  <p class="mt-1 text-xs text-muted">Delist or renegotiate cost.</p>
                 </div>
                 <div class="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4">
                   <div class="flex items-center gap-2">
                     <span class="text-lg">🎰</span>
                     <span class="text-sm font-bold text-violet-300">Lottery Tickets</span>
                   </div>
-                  <p class="mt-1 text-xs text-gray-400">Low Sharpe, High Beta — 5–10% of budget</p>
+                  <p class="mt-1 text-xs text-muted">Low Sharpe, High Beta — 5–10% of budget</p>
                   <p class="mt-1 text-xs text-violet-400/80">Small test batches only.</p>
                 </div>
               </div>
-              <div class="mt-4 space-y-1 text-xs text-gray-500">
-                <p><strong class="text-gray-400">Concentration limits:</strong> No single product &gt; 8% of inventory value. No single supplier &gt; 30% of PO value. No single category &gt; 25% of inventory.</p>
+              <div class="mt-4 space-y-1 text-xs text-muted">
+                <p><strong class="text-muted">Concentration limits:</strong> No single product &gt; 8% of inventory value. No single supplier &gt; 30% of PO value. No single category &gt; 25% of inventory.</p>
               </div>
             </div>
           </div>
 
           <!-- ── Section 3: Skincare-Specific Scoring (IPS) ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Ingredient Profile Score (IPS)</h3>
-              <p class="mt-1 text-sm text-gray-400">Skincare-specific safety and quality scoring — 0 to 100</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Ingredient Profile Score (IPS)</h3>
+              <p class="mt-1 text-sm text-muted">Skincare-specific safety and quality scoring — 0 to 100</p>
             </div>
             <div class="p-5 space-y-4">
-              <div class="rounded bg-gray-900 px-4 py-3 font-mono text-xs text-gray-300 space-y-1">
+              <div class="rounded bg-white px-4 py-3 font-mono text-xs text-ink-soft space-y-1">
                 <p>ingredient_penalty = count(EWG_score &gt; 5) × 5</p>
                 <p>blacklist_penalty = count(hwahae_blacklisted) × 10</p>
                 <p>active_bonus = count(tier1_or_tier2_active) × 3</p>
-                <p class="text-white font-bold">IPS = max(0, 100 - ingredient_penalty - blacklist_penalty + active_bonus)</p>
+                <p class="text-ink font-bold">IPS = max(0, 100 - ingredient_penalty - blacklist_penalty + active_bonus)</p>
               </div>
               <div class="grid gap-3 sm:grid-cols-3">
-                <div class="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-center">
-                  <p class="text-2xl font-bold text-emerald-300">85+</p>
-                  <p class="text-xs text-gray-400">"Clean Beauty" positioning</p>
-                  <p class="text-xs text-emerald-400/70">Premium pricing, low return risk</p>
+                <div class="rounded-lg border border-success/20 bg-emerald-500/5 px-4 py-3 text-center">
+                  <p class="text-2xl font-bold text-success">85+</p>
+                  <p class="text-xs text-muted">"Clean Beauty" positioning</p>
+                  <p class="text-xs text-success/70">Premium pricing, low return risk</p>
                 </div>
                 <div class="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-center">
                   <p class="text-2xl font-bold text-yellow-300">60–85</p>
-                  <p class="text-xs text-gray-400">Standard formulation</p>
-                  <p class="text-xs text-yellow-400/70">Acceptable for mass market</p>
+                  <p class="text-xs text-muted">Standard formulation</p>
+                  <p class="text-xs text-warning/70">Acceptable for mass market</p>
                 </div>
                 <div class="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-center">
-                  <p class="text-2xl font-bold text-red-300">&lt; 60</p>
-                  <p class="text-xs text-gray-400">Multiple flagged ingredients</p>
-                  <p class="text-xs text-red-400/70">Regulatory risk, sensitive-skin returns</p>
+                  <p class="text-2xl font-bold text-danger">&lt; 60</p>
+                  <p class="text-xs text-muted">Multiple flagged ingredients</p>
+                  <p class="text-xs text-danger/70">Regulatory risk, sensitive-skin returns</p>
                 </div>
               </div>
-              <p class="text-xs text-gray-500">The Skincare Sharpe formula inflates volatility by the Ingredient Risk Factor: <code class="text-gray-400">1 + (100 - IPS) / 200</code>. A product with IPS = 50 gets a 25% risk penalty.</p>
+              <p class="text-xs text-muted">The Skincare Sharpe formula inflates volatility by the Ingredient Risk Factor: <code class="text-muted">1 + (100 - IPS) / 200</code>. A product with IPS = 50 gets a 25% risk penalty.</p>
             </div>
           </div>
 
           <!-- ── Section 4: Ingredient Tiers ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Ingredient Tier Rankings</h3>
-              <p class="mt-1 text-sm text-gray-400">Ranked by dermatologist consensus, clinical evidence, and commercial demand</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Ingredient Tier Rankings</h3>
+              <p class="mt-1 text-sm text-muted">Ranked by dermatologist consensus, clinical evidence, and commercial demand</p>
             </div>
-            <div class="divide-y divide-gray-800/50">
+            <div class="divide-y divide-line-soft">
               <!-- Tier 1 -->
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">TIER 1</span>
-                  <span class="text-sm font-medium text-white">Gold Standard</span>
-                  <span class="text-xs text-gray-500">85%+ dermatologist consensus</span>
+                  <span class="text-sm font-medium text-ink">Gold Standard</span>
+                  <span class="text-xs text-muted">85%+ dermatologist consensus</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Retinoids <span class="text-yellow-500/60">96.8%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Zinc Oxide <span class="text-yellow-500/60">96.8%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Hydroquinone <span class="text-yellow-500/60">98.4%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Benzoyl Peroxide <span class="text-yellow-500/60">95.2%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Salicylic Acid <span class="text-yellow-500/60">93.6%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Vitamin C <span class="text-yellow-500/60">88.7%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Azelaic Acid <span class="text-yellow-500/60">88.7%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Kojic Acid <span class="text-yellow-500/60">93.6%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Tranexamic Acid <span class="text-yellow-500/60">87.1%</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Glycolic Acid <span class="text-yellow-500/60">91.9%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Retinoids <span class="text-yellow-500/60">96.8%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Zinc Oxide <span class="text-yellow-500/60">96.8%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Hydroquinone <span class="text-yellow-500/60">98.4%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Benzoyl Peroxide <span class="text-yellow-500/60">95.2%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Salicylic Acid <span class="text-yellow-500/60">93.6%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Vitamin C <span class="text-yellow-500/60">88.7%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Azelaic Acid <span class="text-yellow-500/60">88.7%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Kojic Acid <span class="text-yellow-500/60">93.6%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Tranexamic Acid <span class="text-yellow-500/60">87.1%</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Glycolic Acid <span class="text-yellow-500/60">91.9%</span></span>
                 </div>
               </div>
               <!-- Tier 2 -->
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-bold text-blue-300">TIER 2</span>
-                  <span class="text-sm font-medium text-white">Strong Evidence</span>
-                  <span class="text-xs text-gray-500">70–85% consensus</span>
+                  <span class="text-sm font-medium text-ink">Strong Evidence</span>
+                  <span class="text-xs text-muted">70–85% consensus</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
                   <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">Niacinamide <span class="text-blue-500/60">79%</span></span>
@@ -2516,8 +2516,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-violet-500/20 px-2 py-0.5 text-xs font-bold text-violet-300">TIER 3</span>
-                  <span class="text-sm font-medium text-white">Emerging / Trending</span>
-                  <span class="text-xs text-gray-500">High demand, early evidence</span>
+                  <span class="text-sm font-medium text-ink">Emerging / Trending</span>
+                  <span class="text-xs text-muted">High demand, early evidence</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
                   <span class="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">Peptides <span class="text-green-400">↑</span></span>
@@ -2536,21 +2536,21 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <!-- Tier 4 -->
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <span class="rounded bg-gray-600/30 px-2 py-0.5 text-xs font-bold text-gray-300">TIER 4</span>
-                  <span class="text-sm font-medium text-white">Supportive</span>
-                  <span class="text-xs text-gray-500">Essential but not star actives</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs font-bold text-ink-soft">TIER 4</span>
+                  <span class="text-sm font-medium text-ink">Supportive</span>
+                  <span class="text-xs text-muted">Essential but not star actives</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Glycerin</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Squalane</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Panthenol</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Allantoin</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Vitamin E</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Shea Butter</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Jojoba Oil</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Aloe Vera</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Green Tea</span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-300">Propolis</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Glycerin</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Squalane</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Panthenol</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Allantoin</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Vitamin E</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Shea Butter</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Jojoba Oil</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Aloe Vera</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Green Tea</span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-ink-soft">Propolis</span>
                 </div>
               </div>
             </div>
@@ -2558,34 +2558,34 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
           <!-- ── Section 5: Ingredients to Avoid ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Ingredients to Avoid / Watch</h3>
-              <p class="mt-1 text-sm text-gray-400">Hwahae 20 blacklist + extended watchlist — IPS penalties applied per ingredient</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Ingredients to Avoid / Watch</h3>
+              <p class="mt-1 text-sm text-muted">Hwahae 20 blacklist + extended watchlist — IPS penalties applied per ingredient</p>
             </div>
-            <div class="divide-y divide-gray-800/50">
+            <div class="divide-y divide-line-soft">
               <!-- Level 1: Avoid -->
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <span class="rounded bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">AVOID</span>
-                  <span class="text-sm font-medium text-white">Regulatory bans, strong evidence of harm</span>
+                  <span class="rounded bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">AVOID</span>
+                  <span class="text-sm font-medium text-ink">Regulatory bans, strong evidence of harm</span>
                 </div>
                 <div class="mt-3 overflow-x-auto">
                   <table class="w-full text-xs">
-                    <thead><tr class="text-left text-gray-500">
+                    <thead><tr class="text-left text-muted">
                       <th class="pb-2 pr-4 font-medium">Ingredient</th>
                       <th class="pb-2 pr-4 font-medium">Function</th>
                       <th class="pb-2 pr-4 font-medium">Why Avoid</th>
                       <th class="pb-2 pr-4 font-medium text-center">EWG</th>
                       <th class="pb-2 font-medium text-center">Penalty</th>
                     </tr></thead>
-                    <tbody class="text-gray-300">
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">Formaldehyde</td><td class="pr-4 text-gray-400">Preservative</td><td class="pr-4">IARC Group 1 carcinogen. Banned in EU.</td><td class="text-center"><span class="rounded bg-red-500/20 px-1.5 text-red-300">10</span></td><td class="text-center text-red-400 font-bold">-15</td></tr>
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">DMDM Hydantoin</td><td class="pr-4 text-gray-400">Preservative (FA releaser)</td><td class="pr-4">Releases formaldehyde. Class-action lawsuits.</td><td class="text-center"><span class="rounded bg-red-500/20 px-1.5 text-red-300">7-8</span></td><td class="text-center text-red-400 font-bold">-10</td></tr>
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">Imidazolidinyl Urea</td><td class="pr-4 text-gray-400">Preservative (FA releaser)</td><td class="pr-4">Formaldehyde releaser. Cross-reacts with family.</td><td class="text-center"><span class="rounded bg-orange-500/20 px-1.5 text-orange-300">7</span></td><td class="text-center text-red-400 font-bold">-10</td></tr>
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">Oxybenzone</td><td class="pr-4 text-gray-400">UV Filter</td><td class="pr-4">Endocrine disruptor. Coral reef toxic. Banned in Hawaii.</td><td class="text-center"><span class="rounded bg-red-500/20 px-1.5 text-red-300">8</span></td><td class="text-center text-red-400 font-bold">-12</td></tr>
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">Triclosan</td><td class="pr-4 text-gray-400">Antimicrobial</td><td class="pr-4">Endocrine disruptor. Antibiotic resistance. Banned EU leave-on.</td><td class="text-center"><span class="rounded bg-red-500/20 px-1.5 text-red-300">7-8</span></td><td class="text-center text-red-400 font-bold">-12</td></tr>
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">Hormones</td><td class="pr-4 text-gray-400">Anti-aging (historical)</td><td class="pr-4">Endocrine disruptors. Breast cancer risk.</td><td class="text-center"><span class="rounded bg-red-500/20 px-1.5 text-red-300">9-10</span></td><td class="text-center text-red-400 font-bold">-15</td></tr>
-                      <tr><td class="py-1.5 pr-4 font-medium text-red-300">Mercury compounds</td><td class="pr-4 text-gray-400">Skin lightener (illegal)</td><td class="pr-4">Neurotoxin. Banned globally.</td><td class="text-center"><span class="rounded bg-red-500/20 px-1.5 text-red-300">10</span></td><td class="text-center text-red-400 font-bold">-15</td></tr>
+                    <tbody class="text-ink-soft">
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">Formaldehyde</td><td class="pr-4 text-muted">Preservative</td><td class="pr-4">IARC Group 1 carcinogen. Banned in EU.</td><td class="text-center"><span class="rounded bg-danger-soft px-1.5 text-danger">10</span></td><td class="text-center text-danger font-bold">-15</td></tr>
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">DMDM Hydantoin</td><td class="pr-4 text-muted">Preservative (FA releaser)</td><td class="pr-4">Releases formaldehyde. Class-action lawsuits.</td><td class="text-center"><span class="rounded bg-danger-soft px-1.5 text-danger">7-8</span></td><td class="text-center text-danger font-bold">-10</td></tr>
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">Imidazolidinyl Urea</td><td class="pr-4 text-muted">Preservative (FA releaser)</td><td class="pr-4">Formaldehyde releaser. Cross-reacts with family.</td><td class="text-center"><span class="rounded bg-orange-500/20 px-1.5 text-orange-300">7</span></td><td class="text-center text-danger font-bold">-10</td></tr>
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">Oxybenzone</td><td class="pr-4 text-muted">UV Filter</td><td class="pr-4">Endocrine disruptor. Coral reef toxic. Banned in Hawaii.</td><td class="text-center"><span class="rounded bg-danger-soft px-1.5 text-danger">8</span></td><td class="text-center text-danger font-bold">-12</td></tr>
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">Triclosan</td><td class="pr-4 text-muted">Antimicrobial</td><td class="pr-4">Endocrine disruptor. Antibiotic resistance. Banned EU leave-on.</td><td class="text-center"><span class="rounded bg-danger-soft px-1.5 text-danger">7-8</span></td><td class="text-center text-danger font-bold">-12</td></tr>
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">Hormones</td><td class="pr-4 text-muted">Anti-aging (historical)</td><td class="pr-4">Endocrine disruptors. Breast cancer risk.</td><td class="text-center"><span class="rounded bg-danger-soft px-1.5 text-danger">9-10</span></td><td class="text-center text-danger font-bold">-15</td></tr>
+                      <tr><td class="py-1.5 pr-4 font-medium text-danger">Mercury compounds</td><td class="pr-4 text-muted">Skin lightener (illegal)</td><td class="pr-4">Neurotoxin. Banned globally.</td><td class="text-center"><span class="rounded bg-danger-soft px-1.5 text-danger">10</span></td><td class="text-center text-danger font-bold">-15</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -2594,34 +2594,34 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">CAUTION</span>
-                  <span class="text-sm font-medium text-white">Debated, dose-dependent, or notable sensitization</span>
+                  <span class="text-sm font-medium text-ink">Debated, dose-dependent, or notable sensitization</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Parabens <span class="text-yellow-500/60">-5</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">SLS/SLES <span class="text-yellow-500/60">-3</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Fragrance/Parfum <span class="text-yellow-500/60">-5</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Phenoxyethanol <span class="text-yellow-500/60">-2</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">PEG compounds <span class="text-yellow-500/60">-3</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">BHT <span class="text-yellow-500/60">-3</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">BHA (preservative) <span class="text-yellow-500/60">-4</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Avobenzone <span class="text-yellow-500/60">-3</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Synthetic Colors <span class="text-yellow-500/60">-2</span></span>
-                  <span class="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-200">Mineral Oil <span class="text-yellow-500/60">-1</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Parabens <span class="text-yellow-500/60">-5</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">SLS/SLES <span class="text-yellow-500/60">-3</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Fragrance/Parfum <span class="text-yellow-500/60">-5</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Phenoxyethanol <span class="text-yellow-500/60">-2</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">PEG compounds <span class="text-yellow-500/60">-3</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">BHT <span class="text-yellow-500/60">-3</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">BHA (preservative) <span class="text-yellow-500/60">-4</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Avobenzone <span class="text-yellow-500/60">-3</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Synthetic Colors <span class="text-yellow-500/60">-2</span></span>
+                  <span class="rounded-full border border-yellow-500/30 bg-yellow-soft px-3 py-1 text-xs text-yellow-200">Mineral Oil <span class="text-yellow-500/60">-1</span></span>
                 </div>
               </div>
               <!-- Level 3: Watch -->
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <span class="rounded bg-gray-500/20 px-2 py-0.5 text-xs font-bold text-gray-300">WATCH</span>
-                  <span class="text-sm font-medium text-white">Controversial, not conclusively harmful</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs font-bold text-ink-soft">WATCH</span>
+                  <span class="text-sm font-medium text-ink">Controversial, not conclusively harmful</span>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-400">MI (Methylisothiazolinone) <span class="text-red-400/60">-8</span></span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-400">Isopropyl Alcohol <span class="text-gray-500">-1</span></span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-400">TEA <span class="text-gray-500">-2</span></span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-400">Propylene Glycol <span class="text-gray-500">-1</span></span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-400">Alcohol Denat. <span class="text-gray-500">-1</span></span>
-                  <span class="rounded-full border border-gray-600/30 bg-gray-800/50 px-3 py-1 text-xs text-gray-400">CAPB <span class="text-gray-500">-1</span></span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-muted">MI (Methylisothiazolinone) <span class="text-danger/60">-8</span></span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-muted">Isopropyl Alcohol <span class="text-muted">-1</span></span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-muted">TEA <span class="text-muted">-2</span></span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-muted">Propylene Glycol <span class="text-muted">-1</span></span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-muted">Alcohol Denat. <span class="text-muted">-1</span></span>
+                  <span class="rounded-full border border-line-strong/30 bg-surface-sunken px-3 py-1 text-xs text-muted">CAPB <span class="text-muted">-1</span></span>
                 </div>
               </div>
             </div>
@@ -2629,13 +2629,13 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
           <!-- ── Section 6: Ingredient Conflict Matrix ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Ingredient Usage Conflict Matrix</h3>
-              <p class="mt-1 text-sm text-gray-400">Chemistry conflicts — combining these causes irritation, deactivation, or pH clash</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Ingredient Usage Conflict Matrix</h3>
+              <p class="mt-1 text-sm text-muted">Chemistry conflicts — combining these causes irritation, deactivation, or pH clash</p>
             </div>
             <div class="p-5 overflow-x-auto">
               <table class="w-full text-xs">
-                <thead><tr class="text-gray-400">
+                <thead><tr class="text-muted">
                   <th class="pb-2 pr-2 text-left font-medium"></th>
                   <th class="pb-2 px-2 font-medium text-center">Retinol</th>
                   <th class="pb-2 px-2 font-medium text-center">Vit C</th>
@@ -2647,101 +2647,101 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   <th class="pb-2 px-2 font-medium text-center">Peptides</th>
                 </tr></thead>
                 <tbody class="text-center">
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">Retinol</td>     <td class="px-2 text-gray-600">—</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-yellow-400">⚠️</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">Vitamin C</td>   <td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-gray-600">—</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">AHA</td>         <td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-gray-600">—</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-red-400">✗</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">BHA</td>         <td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-gray-600">—</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-red-400">✗</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">BPO</td>         <td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-gray-600">—</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-red-400">✗</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">Niacinamide</td> <td class="px-2 text-emerald-400">✓</td><td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-gray-600">—</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">HA</td>          <td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-gray-600">—</td><td class="px-2 text-emerald-400">✓</td></tr>
-                  <tr><td class="py-1.5 pr-2 text-left font-medium text-gray-300">Peptides</td>    <td class="px-2 text-yellow-400">⚠️</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-red-400">✗</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-emerald-400">✓</td><td class="px-2 text-gray-600">—</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">Retinol</td>     <td class="px-2 text-muted">—</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-warning">⚠️</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">Vitamin C</td>   <td class="px-2 text-warning">⚠️</td><td class="px-2 text-muted">—</td><td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">AHA</td>         <td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-muted">—</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-danger">✗</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">BHA</td>         <td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-muted">—</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-danger">✗</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">BPO</td>         <td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-muted">—</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-danger">✗</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">Niacinamide</td> <td class="px-2 text-success">✓</td><td class="px-2 text-warning">⚠️</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-muted">—</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">HA</td>          <td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-muted">—</td><td class="px-2 text-success">✓</td></tr>
+                  <tr><td class="py-1.5 pr-2 text-left font-medium text-ink-soft">Peptides</td>    <td class="px-2 text-warning">⚠️</td><td class="px-2 text-success">✓</td><td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-danger">✗</td><td class="px-2 text-success">✓</td><td class="px-2 text-success">✓</td><td class="px-2 text-muted">—</td></tr>
                 </tbody>
               </table>
-              <div class="mt-3 flex gap-4 text-xs text-gray-500">
-                <span><span class="text-emerald-400">✓</span> Safe together</span>
-                <span><span class="text-yellow-400">⚠️</span> Separate AM/PM</span>
-                <span><span class="text-red-400">✗</span> Do not combine</span>
+              <div class="mt-3 flex gap-4 text-xs text-muted">
+                <span><span class="text-success">✓</span> Safe together</span>
+                <span><span class="text-warning">⚠️</span> Separate AM/PM</span>
+                <span><span class="text-danger">✗</span> Do not combine</span>
               </div>
             </div>
           </div>
 
           <!-- ── Section 7: Cross-Sensitivity Families ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Cross-Sensitivity Families</h3>
-              <p class="mt-1 text-sm text-gray-400">If a user is sensitive to one member, flag ALL members of the family</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Cross-Sensitivity Families</h3>
+              <p class="mt-1 text-sm text-muted">If a user is sensitive to one member, flag ALL members of the family</p>
             </div>
-            <div class="divide-y divide-gray-800/50">
+            <div class="divide-y divide-line-soft">
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-2">
-                  <span class="rounded bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">HIGH</span>
-                  <span class="text-sm font-medium text-white">Formaldehyde Releasers</span>
-                  <span class="text-xs text-gray-500">40-60% cross-reaction rate</span>
+                  <span class="rounded bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">HIGH</span>
+                  <span class="text-sm font-medium text-ink">Formaldehyde Releasers</span>
+                  <span class="text-xs text-muted">40-60% cross-reaction rate</span>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">DMDM Hydantoin</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Imidazolidinyl Urea</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Diazolidinyl Urea</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Quaternium-15</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Bronopol</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Sod. Hydroxymethylglycinate</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">DMDM Hydantoin</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Imidazolidinyl Urea</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Diazolidinyl Urea</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Quaternium-15</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Bronopol</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Sod. Hydroxymethylglycinate</span>
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-2">
-                  <span class="rounded bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">HIGH</span>
-                  <span class="text-sm font-medium text-white">Fragrance Allergens</span>
-                  <span class="text-xs text-gray-500">Broadest cross-reactivity web</span>
+                  <span class="rounded bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">HIGH</span>
+                  <span class="text-sm font-medium text-ink">Fragrance Allergens</span>
+                  <span class="text-xs text-muted">Broadest cross-reactivity web</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-2">If sensitive to ANY fragrance → safest to avoid ALL fragranced products. <strong class="text-gray-300">Balsam of Peru</strong> is the "super cross-reactor" — reacts with cinnamon, vanilla, citrus oils, clove, eugenol.</p>
+                <p class="text-xs text-muted mb-2">If sensitive to ANY fragrance → safest to avoid ALL fragranced products. <strong class="text-ink-soft">Balsam of Peru</strong> is the "super cross-reactor" — reacts with cinnamon, vanilla, citrus oils, clove, eugenol.</p>
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Parfum</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Limonene</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Linalool</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Geraniol</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Citronellol</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Eugenol</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Coumarin</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Cinnamal</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Parfum</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Limonene</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Linalool</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Geraniol</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Citronellol</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Eugenol</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Coumarin</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Cinnamal</span>
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-2">
-                  <span class="rounded bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">HIGH</span>
-                  <span class="text-sm font-medium text-white">Para-Amino Compounds (PPD family)</span>
+                  <span class="rounded bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">HIGH</span>
+                  <span class="text-sm font-medium text-ink">Para-Amino Compounds (PPD family)</span>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">PPD (hair dye)</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Benzocaine</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">PABA</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Azo dyes (FD&amp;C)</span>
-                </div>
-              </div>
-              <div class="px-5 py-4">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">MOD</span>
-                  <span class="text-sm font-medium text-white">Asteraceae / Compositae Botanicals</span>
-                  <span class="text-xs text-gray-500">Cross-reacts with ragweed pollen allergy</span>
-                </div>
-                <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Chamomile</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Arnica</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Calendula</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Echinacea</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Feverfew</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Chrysanthemum</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">PPD (hair dye)</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Benzocaine</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">PABA</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Azo dyes (FD&amp;C)</span>
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-2">
                   <span class="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">MOD</span>
-                  <span class="text-sm font-medium text-white">Benzophenone UV Filters</span>
+                  <span class="text-sm font-medium text-ink">Asteraceae / Compositae Botanicals</span>
+                  <span class="text-xs text-muted">Cross-reacts with ragweed pollen allergy</span>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Oxybenzone (BP-3)</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">BP-1</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">BP-4</span>
-                  <span class="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">Octocrylene ↔ Ketoprofen</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Chamomile</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Arnica</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Calendula</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Echinacea</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Feverfew</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Chrysanthemum</span>
+                </div>
+              </div>
+              <div class="px-5 py-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">MOD</span>
+                  <span class="text-sm font-medium text-ink">Benzophenone UV Filters</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Oxybenzone (BP-3)</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">BP-1</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">BP-4</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs text-ink-soft">Octocrylene ↔ Ketoprofen</span>
                 </div>
               </div>
             </div>
@@ -2749,13 +2749,13 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
           <!-- ── Section 8: Skincare Concern Matrix ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Ingredient × Concern Mapping</h3>
-              <p class="mt-1 text-sm text-gray-400">Which ingredients address which skincare concerns — powers the concern coverage gap analysis</p>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Ingredient × Concern Mapping</h3>
+              <p class="mt-1 text-sm text-muted">Which ingredients address which skincare concerns — powers the concern coverage gap analysis</p>
             </div>
             <div class="p-5 overflow-x-auto">
               <table class="w-full text-xs">
-                <thead><tr class="text-gray-400">
+                <thead><tr class="text-muted">
                   <th class="pb-2 pr-3 text-left font-medium"></th>
                   <th class="pb-2 px-1 font-medium text-center">Hydrate</th>
                   <th class="pb-2 px-1 font-medium text-center">Soothe</th>
@@ -2766,20 +2766,20 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   <th class="pb-2 px-1 font-medium text-center">Exfol</th>
                   <th class="pb-2 px-1 font-medium text-center">Barrier</th>
                 </tr></thead>
-                <tbody class="text-center text-gray-500">
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Retinoids</td>       <td>—</td><td>—</td><td class="text-yellow-400/80">★★</td><td class="text-emerald-400 font-bold">★★★★★</td><td class="text-yellow-400/80">★★★</td><td class="text-emerald-400">★★★★</td><td class="text-yellow-400/80">★★</td><td>—</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Vitamin C</td>       <td>—</td><td>—</td><td class="text-emerald-400 font-bold">★★★★★</td><td class="text-yellow-400/80">★★★</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Niacinamide</td>     <td class="text-gray-400">★</td><td class="text-yellow-400/80">★★★</td><td class="text-yellow-400/80">★★★</td><td class="text-yellow-400/80">★★</td><td class="text-yellow-400/80">★★★</td><td class="text-yellow-400/80">★★</td><td>—</td><td class="text-yellow-400/80">★★</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">HA</td>              <td class="text-emerald-400 font-bold">★★★★★</td><td>—</td><td>—</td><td class="text-gray-400">★</td><td>—</td><td>—</td><td>—</td><td class="text-gray-400">★</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Ceramides</td>       <td class="text-yellow-400/80">★★★</td><td class="text-yellow-400/80">★★</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="text-emerald-400 font-bold">★★★★★</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Salicylic Acid</td>  <td>—</td><td>—</td><td>—</td><td>—</td><td class="text-emerald-400 font-bold">★★★★★</td><td class="text-emerald-400 font-bold">★★★★★</td><td class="text-emerald-400">★★★★</td><td>—</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Glycolic Acid</td>   <td>—</td><td>—</td><td class="text-yellow-400/80">★★★</td><td class="text-yellow-400/80">★★</td><td class="text-yellow-400/80">★★</td><td class="text-yellow-400/80">★★★</td><td class="text-emerald-400 font-bold">★★★★★</td><td>—</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Azelaic Acid</td>    <td>—</td><td class="text-yellow-400/80">★★</td><td class="text-emerald-400">★★★★</td><td>—</td><td class="text-yellow-400/80">★★</td><td class="text-emerald-400">★★★★</td><td class="text-yellow-400/80">★★</td><td>—</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Tranexamic</td>      <td>—</td><td>—</td><td class="text-emerald-400 font-bold">★★★★★</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Centella/Cica</td>   <td>—</td><td class="text-emerald-400 font-bold">★★★★★</td><td>—</td><td class="text-gray-400">★</td><td>—</td><td class="text-yellow-400/80">★★</td><td>—</td><td class="text-yellow-400/80">★★★</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">PDRN</td>            <td class="text-yellow-400/80">★★</td><td class="text-yellow-400/80">★★</td><td>—</td><td class="text-emerald-400">★★★★</td><td>—</td><td>—</td><td>—</td><td class="text-yellow-400/80">★★</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Peptides</td>        <td>—</td><td>—</td><td>—</td><td class="text-emerald-400">★★★★</td><td>—</td><td>—</td><td>—</td><td class="text-gray-400">★</td></tr>
-                  <tr><td class="py-1 pr-3 text-left font-medium text-gray-300">Beta-Glucan</td>     <td class="text-emerald-400">★★★★</td><td class="text-yellow-400/80">★★★</td><td>—</td><td class="text-yellow-400/80">★★</td><td>—</td><td>—</td><td>—</td><td class="text-yellow-400/80">★★</td></tr>
+                <tbody class="text-center text-muted">
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Retinoids</td>       <td>—</td><td>—</td><td class="text-warning/80">★★</td><td class="text-success font-bold">★★★★★</td><td class="text-warning/80">★★★</td><td class="text-success">★★★★</td><td class="text-warning/80">★★</td><td>—</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Vitamin C</td>       <td>—</td><td>—</td><td class="text-success font-bold">★★★★★</td><td class="text-warning/80">★★★</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Niacinamide</td>     <td class="text-muted">★</td><td class="text-warning/80">★★★</td><td class="text-warning/80">★★★</td><td class="text-warning/80">★★</td><td class="text-warning/80">★★★</td><td class="text-warning/80">★★</td><td>—</td><td class="text-warning/80">★★</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">HA</td>              <td class="text-success font-bold">★★★★★</td><td>—</td><td>—</td><td class="text-muted">★</td><td>—</td><td>—</td><td>—</td><td class="text-muted">★</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Ceramides</td>       <td class="text-warning/80">★★★</td><td class="text-warning/80">★★</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="text-success font-bold">★★★★★</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Salicylic Acid</td>  <td>—</td><td>—</td><td>—</td><td>—</td><td class="text-success font-bold">★★★★★</td><td class="text-success font-bold">★★★★★</td><td class="text-success">★★★★</td><td>—</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Glycolic Acid</td>   <td>—</td><td>—</td><td class="text-warning/80">★★★</td><td class="text-warning/80">★★</td><td class="text-warning/80">★★</td><td class="text-warning/80">★★★</td><td class="text-success font-bold">★★★★★</td><td>—</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Azelaic Acid</td>    <td>—</td><td class="text-warning/80">★★</td><td class="text-success">★★★★</td><td>—</td><td class="text-warning/80">★★</td><td class="text-success">★★★★</td><td class="text-warning/80">★★</td><td>—</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Tranexamic</td>      <td>—</td><td>—</td><td class="text-success font-bold">★★★★★</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Centella/Cica</td>   <td>—</td><td class="text-success font-bold">★★★★★</td><td>—</td><td class="text-muted">★</td><td>—</td><td class="text-warning/80">★★</td><td>—</td><td class="text-warning/80">★★★</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">PDRN</td>            <td class="text-warning/80">★★</td><td class="text-warning/80">★★</td><td>—</td><td class="text-success">★★★★</td><td>—</td><td>—</td><td>—</td><td class="text-warning/80">★★</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Peptides</td>        <td>—</td><td>—</td><td>—</td><td class="text-success">★★★★</td><td>—</td><td>—</td><td>—</td><td class="text-muted">★</td></tr>
+                  <tr><td class="py-1 pr-3 text-left font-medium text-ink-soft">Beta-Glucan</td>     <td class="text-success">★★★★</td><td class="text-warning/80">★★★</td><td>—</td><td class="text-warning/80">★★</td><td>—</td><td>—</td><td>—</td><td class="text-warning/80">★★</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2787,55 +2787,55 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
           <!-- ── Section 9: Trend Trajectory ── -->
           <div class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-5 py-4">
-              <h3 class="text-base font-semibold text-white">Ingredient Trend Trajectory (2024 → 2026)</h3>
+            <div class="border-b border-line bg-surface-sunken/80 px-5 py-4">
+              <h3 class="text-base font-semibold text-ink">Ingredient Trend Trajectory (2024 → 2026)</h3>
             </div>
-            <div class="divide-y divide-gray-800/50">
+            <div class="divide-y divide-line-soft">
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-3">
-                  <span class="rounded bg-green-500/20 px-2 py-0.5 text-xs font-bold text-green-300">RISING</span>
-                  <span class="text-xs text-gray-500">Procure aggressively — ride the wave</span>
+                  <span class="rounded bg-success-soft px-2 py-0.5 text-xs font-bold text-success">RISING</span>
+                  <span class="text-xs text-muted">Procure aggressively — ride the wave</span>
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2">
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">PDRN (Salmon DNA)</span><span class="text-xs font-bold text-green-400">+700%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Beta-Glucan</span><span class="text-xs font-bold text-green-400">+181%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Tranexamic Acid</span><span class="text-xs font-bold text-green-400">+120%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">NAD+</span><span class="text-xs font-bold text-green-400">+90%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Exosomes</span><span class="text-xs font-bold text-green-400">+81%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Bakuchiol</span><span class="text-xs font-bold text-green-400">+60%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Polyglutamic Acid</span><span class="text-xs font-bold text-green-400">+55%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Peptides (multi-blend)</span><span class="text-xs font-bold text-green-400">+40%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Mineral Sunscreens</span><span class="text-xs font-bold text-green-400">+35%</span></div>
-                  <div class="flex items-center justify-between rounded bg-gray-900 px-3 py-2"><span class="text-xs text-gray-300">Spicules</span><span class="text-xs font-bold text-green-400">NEW</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">PDRN (Salmon DNA)</span><span class="text-xs font-bold text-green-400">+700%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Beta-Glucan</span><span class="text-xs font-bold text-green-400">+181%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Tranexamic Acid</span><span class="text-xs font-bold text-green-400">+120%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">NAD+</span><span class="text-xs font-bold text-green-400">+90%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Exosomes</span><span class="text-xs font-bold text-green-400">+81%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Bakuchiol</span><span class="text-xs font-bold text-green-400">+60%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Polyglutamic Acid</span><span class="text-xs font-bold text-green-400">+55%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Peptides (multi-blend)</span><span class="text-xs font-bold text-green-400">+40%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Mineral Sunscreens</span><span class="text-xs font-bold text-green-400">+35%</span></div>
+                  <div class="flex items-center justify-between rounded bg-white px-3 py-2"><span class="text-xs text-ink-soft">Spicules</span><span class="text-xs font-bold text-green-400">NEW</span></div>
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-3">
-                  <span class="rounded bg-gray-500/20 px-2 py-0.5 text-xs font-bold text-gray-300">STABLE</span>
-                  <span class="text-xs text-gray-500">Maintain steady stock</span>
+                  <span class="rounded bg-surface-sunken px-2 py-0.5 text-xs font-bold text-ink-soft">STABLE</span>
+                  <span class="text-xs text-muted">Maintain steady stock</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Retinoids</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Vitamin C</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Niacinamide</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Hyaluronic Acid</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Centella / Cica</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Glycolic Acid</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Salicylic Acid</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Ceramides</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-300">Adenosine</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Retinoids</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Vitamin C</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Niacinamide</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Hyaluronic Acid</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Centella / Cica</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Glycolic Acid</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Salicylic Acid</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Ceramides</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-ink-soft">Adenosine</span>
                 </div>
               </div>
               <div class="px-5 py-4">
                 <div class="flex items-center gap-2 mb-3">
-                  <span class="rounded bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">DECLINING</span>
-                  <span class="text-xs text-gray-500">Reduce exposure</span>
+                  <span class="rounded bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">DECLINING</span>
+                  <span class="text-xs text-muted">Reduce exposure</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-400">Chemical sunscreens (oxybenzone, octinoxate)</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-400">Topical collagen</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-400">Snail mucin (cyclical)</span>
-                  <span class="rounded bg-gray-900 px-3 py-1 text-xs text-gray-400">Harsh physical exfoliants</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-muted">Chemical sunscreens (oxybenzone, octinoxate)</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-muted">Topical collagen</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-muted">Snail mucin (cyclical)</span>
+                  <span class="rounded bg-white px-3 py-1 text-xs text-muted">Harsh physical exfoliants</span>
                 </div>
               </div>
             </div>
@@ -2843,8 +2843,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
           <!-- Sources -->
           <div class="card p-5">
-            <h3 class="text-sm font-semibold text-gray-300 mb-3">Sources</h3>
-            <div class="space-y-1 text-xs text-gray-500">
+            <h3 class="text-sm font-semibold text-ink-soft mb-3">Sources</h3>
+            <div class="space-y-1 text-xs text-muted">
               <p>Northwestern Medicine — Delphi consensus study (80 dermatologists, 43 institutions)</p>
               <p>PMC3065000 — Contact-Allergic Reactions to Cosmetics (cross-reactivity patterns)</p>
               <p>PMC3858659 — Allergy to Selected Cosmetic Ingredients</p>
@@ -2869,17 +2869,17 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
         @click.self="showSkincareDetailModal = false"
       >
-        <div class="w-full max-w-3xl rounded-xl border border-gray-800 bg-gray-950 shadow-2xl">
-          <div class="flex items-start justify-between border-b border-gray-800 p-6">
+        <div class="w-full max-w-3xl rounded-xl border border-line bg-cream shadow-2xl">
+          <div class="flex items-start justify-between border-b border-line p-6">
             <div class="flex items-start gap-4">
               <img
                 v-if="selectedSkincareProduct.image_url"
                 :src="selectedSkincareProduct.image_url"
-                class="h-16 w-16 rounded-lg object-cover bg-gray-800"
+                class="h-16 w-16 rounded-lg object-cover bg-surface-sunken"
               />
               <div>
-                <h2 class="text-lg font-bold text-white">{{ selectedSkincareProduct.product_name }}</h2>
-                <p class="text-sm text-gray-400">{{ selectedSkincareProduct.brand_name }}</p>
+                <h2 class="text-lg font-bold text-ink">{{ selectedSkincareProduct.product_name }}</h2>
+                <p class="text-sm text-muted">{{ selectedSkincareProduct.brand_name }}</p>
                 <div class="mt-2 flex items-center gap-3">
                   <span :class="['rounded-full px-2 py-0.5 text-xs font-semibold', ipsBg(selectedSkincareProduct.ips_score), ipsColor(selectedSkincareProduct.ips_score)]">
                     IPS {{ selectedSkincareProduct.ips_score ?? '—' }} / {{ ipsLabel(selectedSkincareProduct.ips_score) }}
@@ -2900,44 +2900,44 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
             </button>
           </div>
 
-          <div v-if="skincareDetailLoading" class="p-12 text-center text-gray-500">Loading details...</div>
+          <div v-if="skincareDetailLoading" class="p-12 text-center text-muted">Loading details...</div>
           <div v-else-if="skincareDetailData" class="max-h-[60vh] overflow-y-auto p-6 space-y-6">
             <!-- Skin Type Fit -->
             <div>
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">Skin Type Compatibility</h3>
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Skin Type Compatibility</h3>
               <div class="grid grid-cols-5 gap-3">
                 <div v-for="type in ['dry', 'oily', 'combination', 'sensitive', 'acne']" :key="type" class="text-center">
-                  <div class="mx-auto h-20 w-3 rounded-full bg-gray-800 overflow-hidden flex flex-col-reverse">
+                  <div class="mx-auto h-20 w-3 rounded-full bg-surface-sunken overflow-hidden flex flex-col-reverse">
                     <div
                       :style="{ height: skinTypeFitBar(selectedSkincareProduct.skin_type_fit, type) + '%' }"
                       :class="[
                         'w-full rounded-full transition-all',
                         skinTypeFitBar(selectedSkincareProduct.skin_type_fit, type) > 70 ? 'bg-emerald-400' :
-                        skinTypeFitBar(selectedSkincareProduct.skin_type_fit, type) > 40 ? 'bg-blue-400' : 'bg-gray-600'
+                        skinTypeFitBar(selectedSkincareProduct.skin_type_fit, type) > 40 ? 'bg-blue-400' : 'bg-muted'
                       ]"
                     />
                   </div>
-                  <p class="mt-1 text-xs text-gray-400 capitalize">{{ type }}</p>
-                  <p class="text-xs font-medium text-white">{{ skinTypeFitBar(selectedSkincareProduct.skin_type_fit, type) }}%</p>
+                  <p class="mt-1 text-xs text-muted capitalize">{{ type }}</p>
+                  <p class="text-xs font-medium text-ink">{{ skinTypeFitBar(selectedSkincareProduct.skin_type_fit, type) }}%</p>
                 </div>
               </div>
             </div>
 
             <!-- Concerns -->
             <div v-if="selectedSkincareProduct.concern_tags?.length">
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">Concerns Addressed</h3>
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Concerns Addressed</h3>
               <div class="flex flex-wrap gap-2">
                 <span
                   v-for="tag in selectedSkincareProduct.concern_tags"
                   :key="tag"
-                  class="rounded-full bg-indigo-500/10 px-3 py-1 text-xs text-indigo-400"
+                  class="rounded-full bg-yellow-deep/10 px-3 py-1 text-xs text-brown"
                 >{{ tag.replace('_', ' ') }}</span>
               </div>
             </div>
 
             <!-- Ingredients Analysis -->
             <div v-if="skincareDetailData.ingredient_details?.length">
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
                 Ingredients ({{ skincareDetailData.ingredient_details.length }})
               </h3>
               <div class="max-h-48 overflow-y-auto space-y-1">
@@ -2947,21 +2947,21 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   class="flex items-center justify-between rounded px-2 py-1 text-xs"
                   :class="ing.tier === 'avoid' ? 'bg-red-500/5' : ing.tier === 'caution' ? 'bg-amber-500/5' : ing.tier?.startsWith('tier') ? 'bg-emerald-500/5' : ''"
                 >
-                  <span class="text-gray-300">{{ ing.inci_name }}</span>
+                  <span class="text-ink-soft">{{ ing.inci_name }}</span>
                   <div class="flex items-center gap-2">
                     <span v-if="ing.tier" :class="[
                       'rounded px-1.5 py-0.5 text-[10px] font-medium',
-                      ing.tier === 'tier1' ? 'bg-amber-500/10 text-amber-300' :
+                      ing.tier === 'tier1' ? 'bg-warning-soft text-warning' :
                       ing.tier === 'tier2' ? 'bg-blue-500/10 text-blue-400' :
-                      ing.tier === 'tier3' ? 'bg-purple-500/10 text-purple-400' :
-                      ing.tier === 'tier4' ? 'bg-gray-800 text-gray-400' :
-                      ing.tier === 'avoid' ? 'bg-red-500/10 text-red-400' :
-                      ing.tier === 'caution' ? 'bg-amber-500/10 text-amber-400' :
-                      'bg-gray-800 text-gray-500'
+                      ing.tier === 'tier3' ? 'bg-purple-500/10 text-brown' :
+                      ing.tier === 'tier4' ? 'bg-surface-sunken text-muted' :
+                      ing.tier === 'avoid' ? 'bg-danger-soft text-danger' :
+                      ing.tier === 'caution' ? 'bg-warning-soft text-warning' :
+                      'bg-surface-sunken text-muted'
                     ]">{{ ing.tier }}</span>
                     <span v-if="ing.ewg_score" :class="[
                       'text-[10px]',
-                      ing.ewg_score <= 2 ? 'text-emerald-500' :
+                      ing.ewg_score <= 2 ? 'text-success' :
                       ing.ewg_score <= 5 ? 'text-amber-500' : 'text-red-500'
                     ]">EWG {{ ing.ewg_score }}</span>
                     <span v-if="ing.trend && ing.trend !== 'stable'" :class="trendColor(ing.trend)" class="text-[10px]">
@@ -2974,25 +2974,25 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <!-- Conflict Flags -->
             <div v-if="selectedSkincareProduct.conflict_flags?.length || skincareDetailData.pairwise_conflicts?.length">
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-red-400">Conflict Flags</h3>
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-danger">Conflict Flags</h3>
               <div class="space-y-2">
                 <div
                   v-for="flag in selectedSkincareProduct.conflict_flags"
                   :key="flag.family"
                   class="rounded-lg bg-red-500/5 border border-red-500/10 p-3"
                 >
-                  <p class="text-xs font-medium text-red-400">{{ flag.family.replace(/_/g, ' ') }}</p>
-                  <p class="text-xs text-gray-400 mt-1">Contains: {{ flag.ingredients.join(', ') }}</p>
+                  <p class="text-xs font-medium text-danger">{{ flag.family.replace(/_/g, ' ') }}</p>
+                  <p class="text-xs text-muted mt-1">Contains: {{ flag.ingredients.join(', ') }}</p>
                 </div>
                 <div
                   v-for="conflict in skincareDetailData.pairwise_conflicts"
                   :key="conflict.ingredient_a + conflict.ingredient_b"
                   class="rounded-lg bg-amber-500/5 border border-amber-500/10 p-3"
                 >
-                  <p class="text-xs font-medium text-amber-400">
+                  <p class="text-xs font-medium text-warning">
                     {{ conflict.ingredient_a }} + {{ conflict.ingredient_b }}
                   </p>
-                  <p class="text-xs text-gray-400 mt-1">{{ conflict.conflict_type }} — {{ conflict.resolution }}</p>
+                  <p class="text-xs text-muted mt-1">{{ conflict.conflict_type }} — {{ conflict.resolution }}</p>
                 </div>
               </div>
             </div>
@@ -3000,32 +3000,32 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
             <!-- Product Meta -->
             <div class="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span class="text-gray-500">Source:</span>
-                <span class="ml-2 text-gray-300 capitalize">{{ selectedSkincareProduct.source }}</span>
+                <span class="text-muted">Source:</span>
+                <span class="ml-2 text-ink-soft capitalize">{{ selectedSkincareProduct.source }}</span>
               </div>
               <div>
-                <span class="text-gray-500">Category:</span>
-                <span class="ml-2 text-gray-300">{{ selectedSkincareProduct.subcategory }}</span>
+                <span class="text-muted">Category:</span>
+                <span class="ml-2 text-ink-soft">{{ selectedSkincareProduct.subcategory }}</span>
               </div>
               <div>
-                <span class="text-gray-500">Price:</span>
-                <span class="ml-2 text-gray-300">{{ selectedSkincareProduct.price ? `S$${Number(selectedSkincareProduct.price).toFixed(2)}` : 'N/A' }}</span>
+                <span class="text-muted">Price:</span>
+                <span class="ml-2 text-ink-soft">{{ selectedSkincareProduct.price ? `S$${Number(selectedSkincareProduct.price).toFixed(2)}` : 'N/A' }}</span>
               </div>
               <div>
-                <span class="text-gray-500">Volume:</span>
-                <span class="ml-2 text-gray-300">{{ selectedSkincareProduct.volume || 'N/A' }}</span>
+                <span class="text-muted">Volume:</span>
+                <span class="ml-2 text-ink-soft">{{ selectedSkincareProduct.volume || 'N/A' }}</span>
               </div>
               <div>
-                <span class="text-gray-500">Crawled:</span>
-                <span class="ml-2 text-gray-300">{{ new Date(selectedSkincareProduct.crawled_at).toLocaleDateString() }}</span>
+                <span class="text-muted">Crawled:</span>
+                <span class="ml-2 text-ink-soft">{{ new Date(selectedSkincareProduct.crawled_at).toLocaleDateString() }}</span>
               </div>
               <div v-if="selectedSkincareProduct.source_url">
-                <a :href="selectedSkincareProduct.source_url" target="_blank" class="text-indigo-400 hover:underline">View on source</a>
+                <a :href="selectedSkincareProduct.source_url" target="_blank" class="text-brown hover:underline">View on source</a>
               </div>
             </div>
           </div>
 
-          <div class="border-t border-gray-800 p-4 flex justify-end">
+          <div class="border-t border-line p-4 flex justify-end">
             <button class="btn-secondary" @click="showSkincareDetailModal = false">Close</button>
           </div>
         </div>
@@ -3034,16 +3034,16 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
     <!-- ═══ NODE DETAIL MODAL ═══ -->
     <Teleport to="body">
-      <div v-if="showNodeModal && selectedNode" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showNodeModal = false">
-        <div class="w-full max-w-2xl rounded-xl border border-gray-800 bg-gray-900 shadow-2xl">
-          <div class="flex items-start justify-between border-b border-gray-800 p-6">
+      <div v-if="showNodeModal && selectedNode" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showNodeModal = false">
+        <div class="w-full max-w-2xl rounded-xl border border-line bg-white shadow-2xl">
+          <div class="flex items-start justify-between border-b border-line p-6">
             <div class="flex items-start gap-4">
-              <div :class="['flex h-12 w-12 items-center justify-center rounded-lg ring-1 ring-inset text-2xl', selectedNode.color || 'bg-gray-800']">
+              <div :class="['flex h-12 w-12 items-center justify-center rounded-lg ring-1 ring-inset text-2xl', selectedNode.color || 'bg-surface-sunken']">
                 {{ nodeGlyph(selectedNode.icon) }}
               </div>
               <div>
-                <h2 class="text-xl font-bold text-white">{{ selectedNode.name }}</h2>
-                <p class="mt-1 text-sm text-gray-400">{{ selectedNode.description }}</p>
+                <h2 class="text-xl font-bold text-ink">{{ selectedNode.name }}</h2>
+                <p class="mt-1 text-sm text-muted">{{ selectedNode.description }}</p>
               </div>
             </div>
             <button class="btn-ghost !p-1.5" @click="showNodeModal = false">
@@ -3055,17 +3055,17 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <div class="max-h-[60vh] overflow-y-auto p-6 space-y-6">
             <!-- Actions -->
             <div v-if="selectedNode.actions?.length">
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">Actions</h3>
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Actions</h3>
               <div class="space-y-2">
-                <div v-for="action in selectedNode.actions" :key="action.key" class="flex items-start gap-3 rounded-lg bg-gray-800/50 p-3">
+                <div v-for="action in selectedNode.actions" :key="action.key" class="flex items-start gap-3 rounded-lg bg-surface-sunken p-3">
                   <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-cyan-500/10 text-cyan-400">
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
                     </svg>
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-white">{{ action.label }}</p>
-                    <p class="text-xs text-gray-400">{{ action.description }}</p>
+                    <p class="text-sm font-medium text-ink">{{ action.label }}</p>
+                    <p class="text-xs text-muted">{{ action.description }}</p>
                   </div>
                 </div>
               </div>
@@ -3073,17 +3073,17 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <!-- Triggers -->
             <div v-if="selectedNode.triggers?.length">
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">Triggers</h3>
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Triggers</h3>
               <div class="space-y-2">
-                <div v-for="trigger in selectedNode.triggers" :key="trigger.key" class="flex items-start gap-3 rounded-lg bg-gray-800/50 p-3">
-                  <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-amber-500/10 text-amber-400">
+                <div v-for="trigger in selectedNode.triggers" :key="trigger.key" class="flex items-start gap-3 rounded-lg bg-surface-sunken p-3">
+                  <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-warning-soft text-warning">
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
                     </svg>
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-white">{{ trigger.label }}</p>
-                    <p class="text-xs text-gray-400">{{ trigger.description }}</p>
+                    <p class="text-sm font-medium text-ink">{{ trigger.label }}</p>
+                    <p class="text-xs text-muted">{{ trigger.description }}</p>
                   </div>
                 </div>
               </div>
@@ -3091,27 +3091,27 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <!-- Credential Requirements -->
             <div v-if="Object.keys(selectedNode.credential_schema?.properties || {}).length">
-              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">Required Credentials</h3>
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Required Credentials</h3>
               <div class="space-y-1">
                 <div
                   v-for="[key, prop] in Object.entries(selectedNode.credential_schema.properties)"
                   :key="key"
                   class="flex items-center gap-2 text-sm"
                 >
-                  <svg v-if="prop.secret" class="h-4 w-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <svg v-if="prop.secret" class="h-4 w-4 shrink-0 text-warning" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                   </svg>
-                  <svg v-else class="h-4 w-4 shrink-0 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <svg v-else class="h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 0 0 15 0m-15 0a7.5 7.5 0 1 1 15 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077 1.41-.513m14.095-5.13 1.41-.513M5.106 17.785l1.15-.964m11.49-9.642 1.149-.964M7.501 19.795l.75-1.3m7.5-12.99.75-1.3m-6.063 16.658.26-1.477m2.605-14.772.26-1.477m0 17.726-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205 12 12m6.894 5.785-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495" />
                   </svg>
-                  <span class="text-gray-300">{{ prop.label }}</span>
-                  <span v-if="prop.required" class="text-red-400 text-xs">*</span>
-                  <span v-if="prop.secret" class="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">secret</span>
+                  <span class="text-ink-soft">{{ prop.label }}</span>
+                  <span v-if="prop.required" class="text-danger text-xs">*</span>
+                  <span v-if="prop.secret" class="rounded bg-warning-soft px-1.5 py-0.5 text-[10px] text-warning">secret</span>
                 </div>
               </div>
             </div>
           </div>
-          <div class="border-t border-gray-800 p-6 flex justify-end gap-3">
+          <div class="border-t border-line p-6 flex justify-end gap-3">
             <button class="btn-secondary" @click="showNodeModal = false">Close</button>
             <button
               v-if="selectedNode.is_available && !selectedNode.is_coming_soon"
@@ -3137,15 +3137,15 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
     <!-- ═══ CREDENTIAL MODAL ═══ -->
     <Teleport to="body">
-      <div v-if="showCredModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showCredModal = false">
-        <div class="w-full max-w-lg rounded-xl border border-gray-800 bg-gray-900 shadow-2xl">
-          <div class="border-b border-gray-800 p-6">
-            <h2 class="text-lg font-bold text-white">
+      <div v-if="showCredModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showCredModal = false">
+        <div class="w-full max-w-lg rounded-xl border border-line bg-white shadow-2xl">
+          <div class="border-b border-line p-6">
+            <h2 class="text-lg font-bold text-ink">
               {{ credModalMode === 'create' ? 'New Credential' : 'Edit Credential' }}
             </h2>
           </div>
           <div class="max-h-[60vh] overflow-y-auto p-6 space-y-4">
-            <div v-if="credError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ credError }}</div>
+            <div v-if="credError" class="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">{{ credError }}</div>
 
             <div v-if="credModalMode === 'create'">
               <label class="label-field">Integration Type</label>
@@ -3170,8 +3170,8 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <div v-for="[key, prop] in credSchemaFields" :key="key">
                 <label class="label-field">
                   {{ prop.label }}
-                  <span v-if="prop.required" class="text-red-400">*</span>
-                  <span v-if="prop.secret" class="ml-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">encrypted</span>
+                  <span v-if="prop.required" class="text-danger">*</span>
+                  <span v-if="prop.secret" class="ml-1 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] text-warning">encrypted</span>
                 </label>
                 <textarea
                   v-if="prop.multiline"
@@ -3194,11 +3194,11 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   class="input-field"
                   :placeholder="prop.description || ''"
                 />
-                <p v-if="prop.description && !prop.multiline" class="mt-0.5 text-xs text-gray-600">{{ prop.description }}</p>
+                <p v-if="prop.description && !prop.multiline" class="mt-0.5 text-xs text-muted">{{ prop.description }}</p>
               </div>
             </template>
           </div>
-          <div class="border-t border-gray-800 p-6 flex justify-end gap-3">
+          <div class="border-t border-line p-6 flex justify-end gap-3">
             <button class="btn-secondary" @click="showCredModal = false">Cancel</button>
             <button class="btn-primary" :disabled="credSaving || !credForm.name || !credForm.nodeDefId" @click="handleSaveCredential">
               {{ credSaving ? 'Saving...' : (credModalMode === 'create' ? 'Create' : 'Update') }}
@@ -3210,13 +3210,13 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
     <!-- ═══ CONNECTION MODAL ═══ -->
     <Teleport to="body">
-      <div v-if="showConnModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showConnModal = false">
-        <div class="w-full max-w-lg rounded-xl border border-gray-800 bg-gray-900 shadow-2xl">
-          <div class="border-b border-gray-800 p-6">
-            <h2 class="text-lg font-bold text-white">New Connection</h2>
+      <div v-if="showConnModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showConnModal = false">
+        <div class="w-full max-w-lg rounded-xl border border-line bg-white shadow-2xl">
+          <div class="border-b border-line p-6">
+            <h2 class="text-lg font-bold text-ink">New Connection</h2>
           </div>
           <div class="max-h-[60vh] overflow-y-auto p-6 space-y-4">
-            <div v-if="connError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ connError }}</div>
+            <div v-if="connError" class="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">{{ connError }}</div>
 
             <div>
               <label class="label-field">Integration</label>
@@ -3245,7 +3245,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                   {{ cred.name }}
                 </option>
               </select>
-              <p v-if="connAvailableCreds.length === 0" class="mt-1 text-xs text-amber-400">
+              <p v-if="connAvailableCreds.length === 0" class="mt-1 text-xs text-warning">
                 No credentials for this integration.
                 <button class="underline" @click="showConnModal = false; openCreateCredential(connForm.nodeDefId)">Create one first.</button>
               </p>
@@ -3274,7 +3274,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               </div>
             </div>
           </div>
-          <div class="border-t border-gray-800 p-6 flex justify-end gap-3">
+          <div class="border-t border-line p-6 flex justify-end gap-3">
             <button class="btn-secondary" @click="showConnModal = false">Cancel</button>
             <button class="btn-primary" :disabled="connSaving || !connForm.name || !connForm.nodeDefId" @click="handleSaveConnection">
               {{ connSaving ? 'Creating...' : 'Create Connection' }}
@@ -3287,20 +3287,20 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <!-- ═══ URL ANALYSER SAVE MODAL ═══ -->
     <Teleport to="body">
       <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition-opacity duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
-        <div v-if="showUaSaveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showUaSaveModal = false">
-          <div class="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
-            <div class="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-              <h2 class="text-base font-semibold text-white">Save to Database</h2>
-              <button class="text-gray-500 hover:text-white" @click="showUaSaveModal = false">
+        <div v-if="showUaSaveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 backdrop-blur-sm" @click.self="showUaSaveModal = false">
+          <div class="w-full max-w-md rounded-2xl border border-line bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b border-line px-5 py-4">
+              <h2 class="text-base font-semibold text-ink">Save to Database</h2>
+              <button class="text-muted hover:text-ink" @click="showUaSaveModal = false">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             <div class="p-5 space-y-4">
-              <div class="flex rounded-lg border border-gray-700 p-1 gap-1">
-                <button class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors" :class="uaSaveMode === 'new' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'" @click="uaSaveMode = 'new'">Create new product</button>
-                <button class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors" :class="uaSaveMode === 'link' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'" @click="uaSaveMode = 'link'">Link to existing</button>
+              <div class="flex rounded-lg border border-line p-1 gap-1">
+                <button class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors" :class="uaSaveMode === 'new' ? 'bg-yellow text-brown' : 'text-muted hover:text-ink'" @click="uaSaveMode = 'new'">Create new product</button>
+                <button class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors" :class="uaSaveMode === 'link' ? 'bg-yellow text-brown' : 'text-muted hover:text-ink'" @click="uaSaveMode = 'link'">Link to existing</button>
               </div>
               <div v-if="uaSaveMode === 'new'" class="space-y-3">
                 <div>
@@ -3333,38 +3333,38 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                     <input v-model="uaNewForm.ean" type="text" class="input-field w-full" />
                   </div>
                 </div>
-                <p class="text-xs text-gray-500">Product created as Draft. Quality analysis attached automatically.</p>
+                <p class="text-xs text-muted">Product created as Draft. Quality analysis attached automatically.</p>
               </div>
               <div v-else class="space-y-3">
                 <div class="relative">
                   <label class="label-field">Search your catalog</label>
                   <input v-model="uaLinkSearch" type="text" placeholder="Type product name or SKU..." class="input-field w-full" />
                   <div v-if="uaLinkSearchLoading" class="absolute right-3 top-8">
-                    <svg class="h-4 w-4 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
+                    <svg class="h-4 w-4 animate-spin text-muted" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z" />
                     </svg>
                   </div>
-                  <div v-if="uaLinkResults.length" class="absolute z-10 mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
+                  <div v-if="uaLinkResults.length" class="absolute z-10 mt-1 w-full rounded-lg border border-line bg-white shadow-xl">
                     <button v-for="p in uaLinkResults" :key="p.id"
-                      class="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-gray-800 first:rounded-t-lg last:rounded-b-lg"
+                      class="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-surface-sunken first:rounded-t-lg last:rounded-b-lg"
                       @click="uaSelectedLink = p; uaLinkSearch = p.title; uaLinkResults = []">
                       <div>
-                        <p class="text-sm text-white">{{ p.title }}</p>
-                        <p class="text-xs text-gray-500">{{ p.sku ?? 'No SKU' }}</p>
+                        <p class="text-sm text-ink">{{ p.title }}</p>
+                        <p class="text-xs text-muted">{{ p.sku ?? 'No SKU' }}</p>
                       </div>
-                      <span v-if="p.retail_price" class="text-xs text-gray-400">{{ p.currency }} {{ Number(p.retail_price).toFixed(2) }}</span>
+                      <span v-if="p.retail_price" class="text-xs text-muted">{{ p.currency }} {{ Number(p.retail_price).toFixed(2) }}</span>
                     </button>
                   </div>
                 </div>
-                <div v-if="uaSelectedLink" class="rounded-lg border border-indigo-500/30 bg-indigo-500/5 px-3 py-2.5">
-                  <p class="text-sm font-medium text-white">{{ uaSelectedLink.title }}</p>
-                  <p class="text-xs text-gray-500 mt-0.5">Quality analysis will be attached to this product</p>
+                <div v-if="uaSelectedLink" class="rounded-lg border border-line bg-yellow-soft/40 px-3 py-2.5">
+                  <p class="text-sm font-medium text-ink">{{ uaSelectedLink.title }}</p>
+                  <p class="text-xs text-muted mt-0.5">Quality analysis will be attached to this product</p>
                 </div>
               </div>
-              <p v-if="uaSaveError" class="text-xs text-red-400">{{ uaSaveError }}</p>
+              <p v-if="uaSaveError" class="text-xs text-danger">{{ uaSaveError }}</p>
             </div>
-            <div class="flex justify-end gap-3 border-t border-gray-800 px-5 py-4">
+            <div class="flex justify-end gap-3 border-t border-line px-5 py-4">
               <button class="btn-secondary" @click="showUaSaveModal = false">Cancel</button>
               <button class="btn-primary" :disabled="uaSaving || (uaSaveMode === 'link' && !uaSelectedLink)" @click="uaSaveToDatabase">
                 {{ uaSaving ? 'Saving...' : 'Save' }}

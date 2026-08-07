@@ -1,26 +1,24 @@
 <script setup lang="ts">
 /**
  * Fixed-position host for action feedback.
- *
- * Teleported to <body> and fixed, so it stays visible no matter where the user
- * is scrolled inside `<main>` — the failure mode of the old per-page banners.
+ * Teleported to <body> so it stays visible regardless of <main> scroll.
  */
 const { toasts, dismiss } = useActionFeedback()
 
 const styles: Record<string, { wrap: string; icon: string; label: string }> = {
   success: {
-    wrap: 'border-emerald-500/30 bg-emerald-500/10',
-    icon: 'text-emerald-400',
+    wrap: 'border-success/25 bg-success-soft',
+    icon: 'text-success',
     label: 'Success',
   },
   error: {
-    wrap: 'border-red-500/30 bg-red-500/10',
-    icon: 'text-red-400',
+    wrap: 'border-danger/25 bg-danger-soft',
+    icon: 'text-danger',
     label: 'Error',
   },
   info: {
-    wrap: 'border-sky-500/30 bg-sky-500/10',
-    icon: 'text-sky-400',
+    wrap: 'border-blue/40 bg-blue-soft',
+    icon: 'text-brown',
     label: 'Info',
   },
 }
@@ -45,23 +43,23 @@ const styles: Record<string, { wrap: string; icon: string; label: string }> = {
           v-for="toast in toasts"
           :key="toast.id"
           :class="[
-            'pointer-events-auto w-full max-w-md rounded-lg border px-4 py-3 shadow-lg backdrop-blur',
+            'pointer-events-auto w-full max-w-md rounded-lg border px-4 py-3 shadow-warm-md bg-white',
             (styles[toast.kind] || styles.info).wrap,
           ]"
         >
           <div class="flex items-start gap-3">
-            <span :class="['mt-0.5 text-sm font-semibold', (styles[toast.kind] || styles.info).icon]">
+            <span :class="['mt-0.5 text-[12px] font-semibold uppercase tracking-wide', (styles[toast.kind] || styles.info).icon]">
               {{ (styles[toast.kind] || styles.info).label }}
             </span>
             <div class="min-w-0 flex-1">
-              <p class="text-sm text-white">{{ toast.message }}</p>
-              <p v-if="toast.detail" class="mt-1 break-words text-xs text-gray-400">
+              <p class="text-sm text-ink">{{ toast.message }}</p>
+              <p v-if="toast.detail" class="mt-1 break-words text-xs text-muted">
                 {{ toast.detail }}
               </p>
             </div>
             <button
               type="button"
-              class="shrink-0 rounded p-1 text-gray-400 transition hover:bg-white/10 hover:text-white"
+              class="press shrink-0 rounded p-1 text-muted transition hover:bg-surface-sunken hover:text-ink"
               aria-label="Dismiss"
               @click="dismiss(toast.id)"
             >

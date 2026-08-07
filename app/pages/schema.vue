@@ -160,26 +160,26 @@ async function handleDeleteSchema() {
 
 function getTypeColor(type: string) {
   const map: Record<string, string> = {
-    string: 'text-emerald-400',
+    string: 'text-success',
     number: 'text-blue-400',
     integer: 'text-blue-400',
-    boolean: 'text-amber-400',
-    array: 'text-purple-400',
+    boolean: 'text-warning',
+    array: 'text-brown',
     object: 'text-cyan-400',
   }
-  return map[type] || 'text-gray-400'
+  return map[type] || 'text-muted'
 }
 
 function getTypeBadge(type: string) {
   const map: Record<string, string> = {
-    string: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
+    string: 'bg-success-soft text-success ring-success/20',
     number: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',
     integer: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',
-    boolean: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
-    array: 'bg-purple-500/10 text-purple-400 ring-purple-500/20',
+    boolean: 'bg-warning-soft text-warning ring-amber-500/20',
+    array: 'bg-purple-500/10 text-brown ring-purple-500/20',
     object: 'bg-cyan-500/10 text-cyan-400 ring-cyan-500/20',
   }
-  return map[type] || 'bg-gray-500/10 text-gray-400 ring-gray-500/20'
+  return map[type] || 'bg-surface-sunken text-muted ring-line'
 }
 
 function formatJSON(obj: any) {
@@ -219,8 +219,8 @@ onMounted(async () => {
   <div class="mx-auto max-w-7xl">
     <div class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-white">Product Schema Builder</h1>
-        <p class="mt-1 text-sm text-gray-400">Define the structure of your product data. Extend the global base schema with workspace-specific properties.</p>
+        <h1 class="text-2xl font-bold text-ink">Product Schema Builder</h1>
+        <p class="mt-1 text-sm text-muted">Define the structure of your product data. Extend the global base schema with workspace-specific properties.</p>
       </div>
       <button class="btn-primary" @click="showCreateModal = true">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -236,7 +236,7 @@ onMounted(async () => {
       <div class="w-72 shrink-0 space-y-4">
         <!-- Global Schemas -->
         <div>
-          <p class="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Global Base</p>
+          <p class="mb-2 text-xs font-medium uppercase tracking-wider text-muted">Global Base</p>
           <div class="space-y-1">
             <button
               v-for="s in globalSchemas"
@@ -244,26 +244,26 @@ onMounted(async () => {
               :class="[
                 'w-full rounded-lg border px-3 py-2.5 text-left text-sm transition-all',
                 activeSchemaId === s.id
-                  ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
-                  : 'border-gray-800 bg-gray-900 text-gray-400 hover:border-gray-700 hover:text-white',
+                  ? 'border-yellow-deep bg-yellow-deep/10 text-brown'
+                  : 'border-line bg-white text-muted hover:border-line hover:text-ink',
               ]"
               @click="activeSchemaId = s.id"
             >
               <div class="flex items-center gap-2">
-                <svg class="h-4 w-4 shrink-0 text-purple-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <svg class="h-4 w-4 shrink-0 text-brown" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
                 </svg>
                 <span class="truncate font-medium">{{ s.name }}</span>
               </div>
-              <p class="mt-0.5 truncate text-xs text-gray-500">v{{ s.version }}</p>
+              <p class="mt-0.5 truncate text-xs text-muted">v{{ s.version }}</p>
             </button>
           </div>
         </div>
 
         <!-- Workspace Schemas -->
         <div>
-          <p class="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Workspace Extensions</p>
-          <div v-if="workspaceSchemas.length === 0" class="rounded-lg border border-dashed border-gray-800 px-3 py-4 text-center text-xs text-gray-500">
+          <p class="mb-2 text-xs font-medium uppercase tracking-wider text-muted">Workspace Extensions</p>
+          <div v-if="workspaceSchemas.length === 0" class="rounded-lg border border-dashed border-line px-3 py-4 text-center text-xs text-muted">
             No custom schemas yet.<br />Create one to extend the base.
           </div>
           <div v-else class="space-y-1">
@@ -273,8 +273,8 @@ onMounted(async () => {
               :class="[
                 'w-full rounded-lg border px-3 py-2.5 text-left text-sm transition-all',
                 activeSchemaId === s.id
-                  ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
-                  : 'border-gray-800 bg-gray-900 text-gray-400 hover:border-gray-700 hover:text-white',
+                  ? 'border-yellow-deep bg-yellow-deep/10 text-brown'
+                  : 'border-line bg-white text-muted hover:border-line hover:text-ink',
               ]"
               @click="activeSchemaId = s.id"
             >
@@ -284,7 +284,7 @@ onMounted(async () => {
                 </svg>
                 <span class="truncate font-medium">{{ s.name }}</span>
               </div>
-              <p class="mt-0.5 truncate text-xs text-gray-500">{{ s.description || `v${s.version}` }}</p>
+              <p class="mt-0.5 truncate text-xs text-muted">{{ s.description || `v${s.version}` }}</p>
             </button>
           </div>
         </div>
@@ -297,34 +297,34 @@ onMounted(async () => {
           <div class="mb-4 flex items-start justify-between">
             <div>
               <div class="flex items-center gap-3">
-                <h2 class="text-xl font-semibold text-white">{{ activeSchema.name }}</h2>
-                <span v-if="isGlobalSchema" class="badge bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/20 text-xs">
+                <h2 class="text-xl font-semibold text-ink">{{ activeSchema.name }}</h2>
+                <span v-if="isGlobalSchema" class="badge bg-purple-500/10 text-brown ring-1 ring-inset ring-purple-500/20 text-xs">
                   Global
                 </span>
                 <span v-else class="badge bg-cyan-500/10 text-cyan-400 ring-1 ring-inset ring-cyan-500/20 text-xs">
                   Workspace
                 </span>
               </div>
-              <p v-if="activeSchema.description" class="mt-1 text-sm text-gray-400">{{ activeSchema.description }}</p>
-              <p class="mt-0.5 text-xs text-gray-500">
-                Slug: <code class="rounded bg-gray-800 px-1.5 py-0.5">{{ activeSchema.slug }}</code>
+              <p v-if="activeSchema.description" class="mt-1 text-sm text-muted">{{ activeSchema.description }}</p>
+              <p class="mt-0.5 text-xs text-muted">
+                Slug: <code class="rounded bg-surface-sunken px-1.5 py-0.5">{{ activeSchema.slug }}</code>
                 &middot; Version {{ activeSchema.version }}
                 <template v-if="activeSchema.extends_schema_id">
                   &middot; Extends:
-                  <button class="text-indigo-400 hover:underline" @click="activeSchemaId = activeSchema.extends_schema_id">
+                  <button class="text-brown hover:underline" @click="activeSchemaId = activeSchema.extends_schema_id">
                     {{ schemas.find(s => s.id === activeSchema.extends_schema_id)?.name || 'Parent' }}
                   </button>
                 </template>
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <div class="flex rounded-lg border border-gray-800 bg-gray-900 p-0.5">
+              <div class="flex rounded-lg border border-line bg-white p-0.5">
                 <button
                   v-for="v in [{ key: 'tree', label: 'Tree' }, { key: 'json', label: 'JSON' }, { key: 'resolved', label: 'Resolved' }]"
                   :key="v.key"
                   :class="[
                     'rounded-md px-3 py-1.5 text-xs font-medium transition-all',
-                    view === v.key ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white',
+                    view === v.key ? 'bg-surface-sunken text-ink' : 'text-muted hover:text-ink',
                   ]"
                   @click="view = v.key as any"
                 >
@@ -334,7 +334,7 @@ onMounted(async () => {
               <button v-if="isWorkspaceSchema" class="btn-secondary text-xs" @click="openAddProperty()">
                 + Add Property
               </button>
-              <button v-if="isWorkspaceSchema" class="btn-ghost text-red-400 text-xs" @click="handleDeleteSchema">
+              <button v-if="isWorkspaceSchema" class="btn-ghost text-danger text-xs" @click="handleDeleteSchema">
                 Delete
               </button>
             </div>
@@ -344,40 +344,40 @@ onMounted(async () => {
           <div v-if="view === 'tree'" class="space-y-4">
             <template v-for="group in getPropertyGroups(resolvedSchema)" :key="group.key">
               <div class="card overflow-hidden">
-                <div class="flex items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4 py-3">
+                <div class="flex items-center justify-between border-b border-line bg-surface-sunken/80 px-4 py-3">
                   <div class="flex items-center gap-2">
                     <span :class="[getTypeBadge('object'), 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset']">
                       object
                     </span>
-                    <span class="font-mono text-sm font-semibold text-white">{{ group.key }}</span>
-                    <span v-if="group.description" class="text-xs text-gray-500">— {{ group.description }}</span>
+                    <span class="font-mono text-sm font-semibold text-ink">{{ group.key }}</span>
+                    <span v-if="group.description" class="text-xs text-muted">— {{ group.description }}</span>
                   </div>
                   <button
                     v-if="isWorkspaceSchema"
-                    class="text-xs text-indigo-400 hover:text-indigo-300"
+                    class="text-xs text-brown hover:text-brown"
                     @click="openAddProperty(group.key)"
                   >
                     + Add
                   </button>
                 </div>
-                <div class="divide-y divide-gray-800/50">
+                <div class="divide-y divide-line-soft">
                   <div
                     v-for="[propKey, propVal] in group.properties"
                     :key="propKey"
-                    class="group flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/30"
+                    class="group flex items-center justify-between px-4 py-2.5 hover:bg-surface-sunken/60"
                   >
                     <div class="flex items-center gap-3 min-w-0">
                       <span :class="[getTypeBadge(propVal.type), 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset shrink-0']">
                         {{ propVal.type }}
                       </span>
-                      <span class="font-mono text-sm text-white">{{ propKey }}</span>
-                      <span v-if="propVal.description" class="truncate text-xs text-gray-500">{{ propVal.description }}</span>
+                      <span class="font-mono text-sm text-ink">{{ propKey }}</span>
+                      <span v-if="propVal.description" class="truncate text-xs text-muted">{{ propVal.description }}</span>
                     </div>
                     <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span v-if="propVal.enum" class="text-xs text-gray-500">
+                      <span v-if="propVal.enum" class="text-xs text-muted">
                         {{ propVal.enum.join(' | ') }}
                       </span>
-                      <span v-if="propVal.default !== undefined" class="text-xs text-gray-500">
+                      <span v-if="propVal.default !== undefined" class="text-xs text-muted">
                         default: {{ propVal.default }}
                       </span>
                       <span v-if="propVal.format" class="text-xs text-amber-500">
@@ -385,7 +385,7 @@ onMounted(async () => {
                       </span>
                       <button
                         v-if="isWorkspaceSchema && activeSchema.schema?.properties?.[group.key]?.properties?.[propKey]"
-                        class="text-red-400 hover:text-red-300"
+                        class="text-danger hover:text-danger"
                         @click="removeProperty(group.key, propKey)"
                       >
                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -400,26 +400,26 @@ onMounted(async () => {
 
             <!-- Top-level non-object properties -->
             <div v-if="getTopLevelProperties(resolvedSchema).length > 0" class="card overflow-hidden">
-              <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
-                <span class="font-mono text-sm font-semibold text-white">Top-level Properties</span>
+              <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
+                <span class="font-mono text-sm font-semibold text-ink">Top-level Properties</span>
               </div>
-              <div class="divide-y divide-gray-800/50">
+              <div class="divide-y divide-line-soft">
                 <div
                   v-for="[propKey, propVal] in getTopLevelProperties(resolvedSchema)"
                   :key="propKey"
-                  class="group flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/30"
+                  class="group flex items-center justify-between px-4 py-2.5 hover:bg-surface-sunken/60"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <span :class="[getTypeBadge(propVal.type), 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset shrink-0']">
                       {{ propVal.type }}
                     </span>
-                    <span class="font-mono text-sm text-white">{{ propKey }}</span>
-                    <span v-if="propVal.description" class="truncate text-xs text-gray-500">{{ propVal.description }}</span>
+                    <span class="font-mono text-sm text-ink">{{ propKey }}</span>
+                    <span v-if="propVal.description" class="truncate text-xs text-muted">{{ propVal.description }}</span>
                   </div>
                   <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       v-if="isWorkspaceSchema && activeSchema.schema?.properties?.[propKey]"
-                      class="text-red-400 hover:text-red-300"
+                      class="text-danger hover:text-danger"
                       @click="removeProperty('', propKey)"
                     >
                       <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -434,18 +434,18 @@ onMounted(async () => {
 
           <!-- JSON View (This Schema Only) -->
           <div v-else-if="view === 'json'" class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
-              <span class="text-sm font-medium text-white">Schema Definition (this level only)</span>
+            <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
+              <span class="text-sm font-medium text-ink">Schema Definition (this level only)</span>
             </div>
             <JsonView :data="activeSchema.schema" max-height="600px" />
           </div>
 
           <!-- Resolved View (Merged with parent) -->
           <div v-else-if="view === 'resolved'" class="card overflow-hidden">
-            <div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
+            <div class="border-b border-line bg-surface-sunken/80 px-4 py-3">
               <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-white">Resolved Schema (merged with all parents)</span>
-                <span class="text-xs text-gray-500">This is what GraphQL and products will use</span>
+                <span class="text-sm font-medium text-ink">Resolved Schema (merged with all parents)</span>
+                <span class="text-xs text-muted">This is what GraphQL and products will use</span>
               </div>
             </div>
             <JsonView :data="resolvedSchema" max-height="600px" />
@@ -454,11 +454,11 @@ onMounted(async () => {
 
         <!-- Empty state -->
         <div v-else class="flex flex-col items-center justify-center py-20">
-          <svg class="h-12 w-12 text-gray-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+          <svg class="h-12 w-12 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
           </svg>
-          <h3 class="mt-4 text-base font-medium text-white">Select a schema</h3>
-          <p class="mt-1 text-sm text-gray-400">Choose a schema from the left to view and edit its structure.</p>
+          <h3 class="mt-4 text-base font-medium text-ink">Select a schema</h3>
+          <p class="mt-1 text-sm text-muted">Choose a schema from the left to view and edit its structure.</p>
         </div>
       </div>
     </div>
@@ -473,10 +473,10 @@ onMounted(async () => {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showCreateModal = false">
+        <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showCreateModal = false">
           <div class="card w-full max-w-md p-6">
-            <h2 class="mb-1 text-lg font-semibold text-white">New Schema Extension</h2>
-            <p class="mb-4 text-sm text-gray-400">
+            <h2 class="mb-1 text-lg font-semibold text-ink">New Schema Extension</h2>
+            <p class="mb-4 text-sm text-muted">
               Create a workspace schema that extends the global base. Add properties specific to your business needs.
             </p>
             <form class="space-y-4" @submit.prevent="handleCreate">
@@ -514,12 +514,12 @@ onMounted(async () => {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showAddPropertyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="showAddPropertyModal = false">
+        <div v-if="showAddPropertyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-brown/40 p-4" @click.self="showAddPropertyModal = false">
           <div class="card w-full max-w-lg p-6">
-            <h2 class="mb-1 text-lg font-semibold text-white">Add Property</h2>
-            <p class="mb-4 text-sm text-gray-400">
+            <h2 class="mb-1 text-lg font-semibold text-ink">Add Property</h2>
+            <p class="mb-4 text-sm text-muted">
               <template v-if="propertyForm.group">
-                Adding to group <code class="rounded bg-gray-800 px-1.5 py-0.5 text-cyan-400">{{ propertyForm.group }}</code>
+                Adding to group <code class="rounded bg-surface-sunken px-1.5 py-0.5 text-cyan-400">{{ propertyForm.group }}</code>
               </template>
               <template v-else>Adding as a top-level property or a new group</template>
             </p>
@@ -564,7 +564,7 @@ onMounted(async () => {
               <div v-if="!propertyForm.group">
                 <label class="label-field">Group (optional)</label>
                 <input v-model="propertyForm.group" type="text" class="input-field font-mono text-sm" placeholder="e.g. compliance, logistics" />
-                <p class="mt-1 text-xs text-gray-500">Leave empty for a top-level property, or specify a group name to nest it.</p>
+                <p class="mt-1 text-xs text-muted">Leave empty for a top-level property, or specify a group name to nest it.</p>
               </div>
               <div class="flex justify-end gap-3 pt-2">
                 <button type="button" class="btn-secondary" @click="showAddPropertyModal = false">Cancel</button>

@@ -179,10 +179,10 @@ async function handleDeleteItem(id: string) {
 function urgencyClass(year: number, month: number, day?: number | null) {
   const days = daysUntilExpiry(year, month, day)
   const u = expiryUrgency(days)
-  if (u === 'expired') return 'bg-red-500/10 text-red-400'
-  if (u === 'critical') return 'bg-orange-500/10 text-orange-400'
-  if (u === 'warning') return 'bg-yellow-500/10 text-yellow-400'
-  return 'bg-emerald-500/10 text-emerald-400'
+  if (u === 'expired') return 'bg-danger-soft text-danger'
+  if (u === 'critical') return 'bg-orange-500/10 text-warning'
+  if (u === 'warning') return 'bg-yellow-soft text-warning'
+  return 'bg-success-soft text-success'
 }
 
 function exportCsv() {
@@ -217,16 +217,16 @@ onMounted(loadData)
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
-      <NuxtLink to="/expiry" class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white">
+      <NuxtLink to="/expiry" class="rounded-lg p-2 text-muted transition-colors hover:bg-surface-sunken hover:text-ink">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
       </NuxtLink>
       <div v-if="batch" class="flex-1">
-        <h1 class="text-2xl font-bold text-white">Batch: {{ batch.batch_code }}</h1>
-        <p class="mt-1 text-sm text-gray-400">
+        <h1 class="text-2xl font-bold text-ink">Batch: {{ batch.batch_code }}</h1>
+        <p class="mt-1 text-sm text-muted">
           Received {{ batch.received_at }}
-          <span v-if="batch.source !== 'manual'" class="ml-1 rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-400">{{ batch.source }}</span>
+          <span v-if="batch.source !== 'manual'" class="ml-1 rounded bg-line px-1.5 py-0.5 text-[10px] text-muted">{{ batch.source }}</span>
           <span v-if="batch.notes"> · {{ batch.notes }}</span>
         </p>
       </div>
@@ -238,15 +238,15 @@ onMounted(loadData)
     <!-- Add actions -->
     <div class="flex flex-wrap gap-2">
       <button
-        :class="['rounded-lg border px-3 py-2 text-sm transition-colors', showItemForm ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300' : 'border-gray-700 text-gray-400 hover:border-gray-600']"
+        :class="['rounded-lg border px-3 py-2 text-sm transition-colors', showItemForm ? 'border-indigo-500 bg-yellow-deep/10 text-brown' : 'border-line text-muted hover:border-line-strong']"
         @click="showItemForm = !showItemForm; showBulkForm = false; showCsvImport = false"
       >+ Add Item</button>
       <button
-        :class="['rounded-lg border px-3 py-2 text-sm transition-colors', showBulkForm ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300' : 'border-gray-700 text-gray-400 hover:border-gray-600']"
+        :class="['rounded-lg border px-3 py-2 text-sm transition-colors', showBulkForm ? 'border-indigo-500 bg-yellow-deep/10 text-brown' : 'border-line text-muted hover:border-line-strong']"
         @click="showBulkForm = !showBulkForm; showItemForm = false; showCsvImport = false"
       >Bulk Paste</button>
       <button
-        :class="['rounded-lg border px-3 py-2 text-sm transition-colors', showCsvImport ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300' : 'border-gray-700 text-gray-400 hover:border-gray-600']"
+        :class="['rounded-lg border px-3 py-2 text-sm transition-colors', showCsvImport ? 'border-indigo-500 bg-yellow-deep/10 text-brown' : 'border-line text-muted hover:border-line-strong']"
         @click="showCsvImport = !showCsvImport; showItemForm = false; showBulkForm = false"
       >Import CSV</button>
     </div>
@@ -299,18 +299,18 @@ onMounted(loadData)
 
     <!-- CSV import -->
     <div v-if="showCsvImport" class="card p-4 space-y-3">
-      <p class="text-sm text-gray-400">Upload a CSV with columns: SKU, QTY, EXPIRY (MM/YYYY). Headers are auto-detected.</p>
+      <p class="text-sm text-muted">Upload a CSV with columns: SKU, QTY, EXPIRY (MM/YYYY). Headers are auto-detected.</p>
       <input type="file" accept=".csv" class="input-field text-sm" @change="handleCsvUpload" />
-      <p v-if="csvSaving" class="text-sm text-indigo-400">Importing…</p>
+      <p v-if="csvSaving" class="text-sm text-brown">Importing…</p>
     </div>
 
     <!-- Items table -->
     <div class="card p-6">
-      <h2 class="mb-4 text-lg font-semibold text-white">Items ({{ items.length }})</h2>
+      <h2 class="mb-4 text-lg font-semibold text-ink">Items ({{ items.length }})</h2>
       <div v-if="items.length > 0" class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-700 text-left text-gray-400">
+            <tr class="border-b border-line text-left text-muted">
               <th class="pb-2 pr-4">SKU</th>
               <th class="pb-2 pr-4">Product</th>
               <th class="pb-2 pr-4 text-right">Qty</th>
@@ -320,12 +320,12 @@ onMounted(loadData)
               <th class="pb-2"></th>
             </tr>
           </thead>
-          <tbody class="text-gray-300">
-            <tr v-for="item in items" :key="item.id" class="border-b border-gray-800">
+          <tbody class="text-ink-soft">
+            <tr v-for="item in items" :key="item.id" class="border-b border-line">
               <td class="py-2.5 pr-4 font-mono text-xs">{{ item.raw_sku }}</td>
-              <td class="py-2.5 pr-4 text-white">
+              <td class="py-2.5 pr-4 text-ink">
                 <template v-if="item.product">
-                  <NuxtLink :to="`/products/${item.product.id}`" class="text-indigo-400 hover:underline">{{ (item.product as any).title }}</NuxtLink>
+                  <NuxtLink :to="`/products/${item.product.id}`" class="text-brown hover:underline">{{ (item.product as any).title }}</NuxtLink>
                 </template>
                 <span v-else class="text-yellow-500 text-xs">Unresolved</span>
               </td>
@@ -339,7 +339,7 @@ onMounted(loadData)
               <td class="py-2.5 pr-4">
                 <select
                   :value="item.status"
-                  class="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-300"
+                  class="rounded border border-line bg-surface-sunken px-2 py-1 text-xs text-ink-soft"
                   @change="handleStatusChange(item.id, ($event.target as HTMLSelectElement).value as ExpiryItemStatus)"
                 >
                   <option value="in_stock">In Stock</option>
@@ -350,13 +350,13 @@ onMounted(loadData)
                 </select>
               </td>
               <td class="py-2.5 text-right">
-                <button class="text-xs text-red-400 hover:text-red-300" @click="handleDeleteItem(item.id)">Delete</button>
+                <button class="text-xs text-danger hover:text-danger" @click="handleDeleteItem(item.id)">Delete</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-else-if="!loading" class="py-8 text-center text-sm text-gray-500">No items in this batch yet. Add items above.</p>
+      <p v-else-if="!loading" class="py-8 text-center text-sm text-muted">No items in this batch yet. Add items above.</p>
     </div>
   </div>
 </template>
