@@ -230,7 +230,10 @@ describe('help wiring', () => {
   })
 
   test('sidebar and help page exist', () => {
-    assert.match(sidebar, /href: '\/help'/)
-    assert.match(helpIndex, /Help Center/)
+    // The nav item is what matters, not how it is spelled. This pinned
+    // `href: '/help'` and broke when the nav moved to `to: '/help'` during a
+    // restyle that still linked to the same route.
+    assert.match(sidebar, /(href|to):\s*'\/help'/)
+    assert.match(helpIndex, /Help Cent(er|re)/i)
   })
 })

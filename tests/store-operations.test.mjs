@@ -86,7 +86,10 @@ test('store operations composable loads queues and writes manager actions', () =
 })
 
 test('Store Ops page exposes manager UI for queue, orders, receiving, and exceptions', () => {
-  assert.match(page, /<h1 class="text-2xl font-bold text-white">Store Ops<\/h1>/)
+  // Heading text only. Pinning the full class attribute made this fail on a
+  // pure restyle (text-white → text-ink) that changed nothing about the UI this
+  // test exists to guard.
+  assert.match(page, /<h1[^>]*>Store Ops<\/h1>/)
   assert.match(page, /activeTab === 'queue'/)
   assert.match(page, /activeTab === 'orders'/)
   assert.match(page, /activeTab === 'receiving'/)
@@ -95,5 +98,6 @@ test('Store Ops page exposes manager UI for queue, orders, receiving, and except
   assert.match(page, /handleCreateReceivingSession/)
   assert.match(page, /handleCreateException/)
   assert.match(page, /setOrderStatus\(order, 'sent_to_3pl'\)/)
-  assert.match(sidebar, /href: '\/store-ops'/)
+  // Route presence, not the prop name — see the same fix in help-resolve.
+  assert.match(sidebar, /(href|to):\s*'\/store-ops'/)
 })

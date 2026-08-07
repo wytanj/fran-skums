@@ -3,7 +3,7 @@
 Task for the next session: **schema + harvest worker**. Parsers are done and
 tested; do not rewrite them.
 
-Base commit `ed07ace`. Suite is green at **778 pass / 0 fail** — keep it there.
+Base commit `main` at or after `ce0c073`. Suite is green at **778 pass / 0 fail** — keep it there.
 
 ---
 
