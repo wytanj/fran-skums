@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>SKUMS iHerb Probe</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; padding: 12px;
+        font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: #0b0f14; color: #e6edf3;
+      }
+      h1 { font-size: 14px; margin: 0 0 2px; }
+      .sub { color: #8b949e; font-size: 11px; margin-bottom: 12px; }
+      fieldset { border: 1px solid #1f2933; border-radius: 8px; padding: 10px; margin: 0 0 10px; }
+      legend { color: #8b949e; font-size: 11px; padding: 0 4px; }
+      label { display: block; color: #8b949e; font-size: 11px; margin: 6px 0 2px; }
+      input, select {
+        width: 100%; box-sizing: border-box; padding: 6px 8px;
+        background: #0d1117; color: #e6edf3;
+        border: 1px solid #243040; border-radius: 6px; font: inherit;
+      }
+      button {
+        width: 100%; padding: 8px; margin-top: 8px; cursor: pointer;
+        background: #1f6feb; color: #fff; border: 0; border-radius: 6px;
+        font: inherit; font-weight: 600;
+      }
+      button.secondary { background: #21262d; color: #e6edf3; }
+      button:disabled { opacity: .5; cursor: default; }
+      .row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+      .row .k { color: #8b949e; }
+      .ok { color: #3fb950; }
+      .no { color: #8b949e; }
+      .warn { color: #d29922; }
+      .bad { color: #f85149; }
+      code { font: 11px/1.4 ui-monospace, monospace; color: #a5d6ff; word-break: break-all; }
+      #verdict { border-radius: 6px; padding: 8px; font-size: 12px; margin-top: 8px; }
+      #fields { max-height: 260px; overflow-y: auto; }
+      .muted { color: #8b949e; font-size: 11px; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>iHerb probe</h1>
+    <div class="sub">Observes page structure. Extracts nothing, writes nothing.</div>
+
+    <fieldset>
+      <legend>Connection</legend>
+      <label>API base</label>
+      <input id="apiBase" placeholder="https://fran-skums.vercel.app" />
+      <label>API key</label>
+      <input id="apiKey" type="password" placeholder="sk_live_…" />
+      <button class="secondary" id="save">Save</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Catalogue</legend>
+      <div class="row"><span class="k">Page</span><span id="pageUrl">—</span></div>
+      <div class="row"><span class="k">Slug</span><span id="slug">—</span></div>
+      <button id="probe">Probe structure</button>
+      <div class="muted">Open an iHerb brand page first, e.g. sg.iherb.com/c/anua</div>
+    </fieldset>
+
+    <fieldset id="resultBox" style="display:none">
+      <legend>Result</legend>
+      <div class="row"><span class="k">Tile selector</span><code id="tileSel">—</code></div>
+      <div class="row"><span class="k">Tiles</span><span id="tileCount">—</span></div>
+      <div class="row"><span class="k">Payload</span><span id="payload">—</span></div>
+      <div class="row"><span class="k">Pagination</span><span id="pagination">—</span></div>
+      <div class="row"><span class="k">Currency</span><span id="currency">—</span></div>
+      <div id="verdict"></div>
+      <div id="fields"></div>
+      <button class="secondary" id="download">Download HTML + report</button>
+      <div class="muted">
+        Drop both into <code>extensions/</code> so the parser can be written and
+        tested offline.
+      </div>
+    </fieldset>
+
+    <script src="panel.js"></script>
+  </body>
+</html>

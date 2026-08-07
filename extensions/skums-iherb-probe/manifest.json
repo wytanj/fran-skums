@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "SKUMS iHerb Probe",
+  "version": "0.1.0",
+  "description": "Probe an iHerb brand catalogue for structure, link it to a Fran SKUMS brand, then harvest.",
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs", "downloads"],
+  "host_permissions": [
+    "https://sg.iherb.com/*",
+    "https://*.iherb.com/*",
+    "https://fran-skums.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "action": {
+    "default_title": "SKUMS iHerb Probe (side panel)"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://sg.iherb.com/*", "https://*.iherb.com/*"],
+      "js": ["probeFields.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
