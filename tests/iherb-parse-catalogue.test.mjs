@@ -179,5 +179,15 @@ test('parsing an empty or junk page yields nothing rather than throwing', () => 
 
 test('breadcrumb and pagination degrade quietly on a junk page', () => {
   assert.equal(parseBreadcrumb('<html></html>'), null)
-  assert.deepEqual(parsePagination('<html></html>'), { next_url: null, max_page_seen: 1 })
+  assert.deepEqual(parsePagination('<html></html>'), {
+    next_url: null,
+    max_page_seen: 1,
+    is_last_page: true,
+  })
+})
+
+test('a stray ?p=0 never becomes a page count of zero', () => {
+  // SKIN1004 fits on one page and carries exactly one "?p=0" link.
+  const r = parsePagination('<a href="/c/skin1004?p=0">x</a>')
+  assert.equal(r.max_page_seen, 1)
 })

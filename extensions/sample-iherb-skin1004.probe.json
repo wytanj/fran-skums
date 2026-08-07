@@ -1,0 +1,114 @@
+{
+  "url": "https://sg.iherb.com/c/skin1004",
+  "captured_at": "2026-08-07T18:38:20.459Z",
+  "html_bytes": 2434853,
+  "structured_payloads": [
+    {
+      "type": "ld+json",
+      "count": 0
+    }
+  ],
+  "tile_candidates": [
+    {
+      "selector": "[data-testid=\"product-card\"]",
+      "count": 0
+    },
+    {
+      "selector": "[data-testid*=\"product-card\"]",
+      "count": 0
+    },
+    {
+      "selector": ".product-cell-container",
+      "count": 41
+    },
+    {
+      "selector": "[class*=\"product-card\"]",
+      "count": 0
+    },
+    {
+      "selector": ".product-inner",
+      "count": 48
+    },
+    {
+      "selector": "li[class*=\"product\"]",
+      "count": 0
+    },
+    {
+      "selector": "[itemtype*=\"schema.org/Product\"]",
+      "count": 0
+    }
+  ],
+  "pagination": {
+    "kind": "none-or-infinite-scroll",
+    "pages": null,
+    "next_href": null
+  },
+  "currency_text": "$30.00",
+  "fields": {
+    "name": {
+      "found": true,
+      "via": "attribute",
+      "sample": "SKIN1004, Madagascar Centella Ampoule, 1.85 fl oz (55 ml)"
+    },
+    "brand": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "price": {
+      "found": true,
+      "via": "selector",
+      "sample": "SG$21.86"
+    },
+    "list_price": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "currency": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "rating": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "review_count": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "sold_per_month": {
+      "found": true,
+      "via": "text",
+      "sample": "3,000+ sold"
+    },
+    "category_breadcrumb": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "product_code": {
+      "found": true,
+      "via": "attribute",
+      "sample": "SIO-26060"
+    },
+    "pack_size": {
+      "found": true,
+      "via": "text",
+      "sample": "1.85 fl oz"
+    },
+    "in_stock": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "product_url": {
+      "found": true,
+      "via": "attribute",
+      "sample": "SIO-26060"
+    }
+  }
+}

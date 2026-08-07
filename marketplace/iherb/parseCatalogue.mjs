@@ -182,10 +182,17 @@ export function parseBreadcrumb(html) {
 export function parsePagination(html) {
   const next = String(html).match(/<link[^>]*rel="next"[^>]*href="([^"]+)"/i)
     || String(html).match(/<a[^>]*rel="next"[^>]*href="([^"]+)"/i)
-  const pageNums = [...String(html).matchAll(/[?&]p=(\d+)/g)].map((m) => Number(m[1]))
+  // SKIN1004 fits on one page and carries a single stray "?p=0", which used to
+  // report max_page_seen: 0 — a page count that cannot exist. Floor at 1 and
+  // ignore zero, so "one page" and "no pagination found" read the same.
+  const pageNums = [...String(html).matchAll(/[?&]p=(\d+)/g)]
+    .map((m) => Number(m[1]))
+    .filter((n) => Number.isFinite(n) && n > 0)
   return {
     next_url: next ? decodeEntities(next[1]) : null,
-    max_page_seen: pageNums.length ? Math.max(...pageNums) : 1,
+    max_page_seen: pageNums.length ? Math.max(1, ...pageNums) : 1,
+    // Explicit, so a caller does not have to infer "complete" from a null.
+    is_last_page: !next,
   }
 }
 
