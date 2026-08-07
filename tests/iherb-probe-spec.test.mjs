@@ -98,11 +98,30 @@ test('every catalogued field appears in the report even when unobserved', () => 
   assert.equal(report.missing.length, IHERB_PROBE_FIELDS.length)
 })
 
-test('the busiest repeating tile wins, and empty candidates are dropped', () => {
+test('the most specific repeating tile wins, and empty candidates are dropped', () => {
   const report = summarizeProbe(raw())
   assert.equal(report.tile_selector, '[data-testid="product-card"]')
   assert.equal(report.tile_count, 24)
   assert.ok(!report.tile_candidates.some((t) => t.count === 0))
+})
+
+test('a busier generic selector does not beat a specific one', () => {
+  // The real Anua capture: .product-cell-container × 48 is the grid, while
+  // .product-inner × 88 matches a wrapper inside each tile plus a second
+  // carousel. Picking the busier one would split 48 products into 88 fragments
+  // and silently double every aggregate built on top.
+  const report = summarizeProbe(
+    raw({
+      structured_payloads: [{ type: 'ld+json', count: 0 }],
+      tile_candidates: [
+        { selector: '[data-testid="product-card"]', count: 0 },
+        { selector: '.product-cell-container', count: 48 },
+        { selector: '.product-inner', count: 88 },
+      ],
+    }),
+  )
+  assert.equal(report.tile_selector, '.product-cell-container')
+  assert.equal(report.tile_count, 48)
 })
 
 test('currency is normalised from the rendered text, not assumed', () => {

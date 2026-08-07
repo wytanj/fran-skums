@@ -1,0 +1,114 @@
+{
+  "url": "https://sg.iherb.com/c/anua",
+  "captured_at": "2026-08-07T10:05:51.489Z",
+  "html_bytes": 2686819,
+  "structured_payloads": [
+    {
+      "type": "ld+json",
+      "count": 0
+    }
+  ],
+  "tile_candidates": [
+    {
+      "selector": "[data-testid=\"product-card\"]",
+      "count": 0
+    },
+    {
+      "selector": "[data-testid*=\"product-card\"]",
+      "count": 0
+    },
+    {
+      "selector": ".product-cell-container",
+      "count": 48
+    },
+    {
+      "selector": "[class*=\"product-card\"]",
+      "count": 0
+    },
+    {
+      "selector": ".product-inner",
+      "count": 88
+    },
+    {
+      "selector": "li[class*=\"product\"]",
+      "count": 0
+    },
+    {
+      "selector": "[itemtype*=\"schema.org/Product\"]",
+      "count": 0
+    }
+  ],
+  "pagination": {
+    "kind": "rel-next",
+    "pages": 2,
+    "next_href": "https://sg.iherb.com/c/anua?p=2"
+  },
+  "currency_text": "$30.00",
+  "fields": {
+    "name": {
+      "found": true,
+      "via": "attribute",
+      "sample": "Anua, Heartleaf Quercetinol™ Pore Deep Cleansing Foam, 5.07 fl oz (150 ml)"
+    },
+    "brand": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "price": {
+      "found": true,
+      "via": "selector",
+      "sample": "SG$17.31"
+    },
+    "list_price": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "currency": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "rating": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "review_count": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "sold_per_month": {
+      "found": true,
+      "via": "text",
+      "sample": "4,000+ sold"
+    },
+    "category_breadcrumb": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "product_code": {
+      "found": true,
+      "via": "attribute",
+      "sample": "AUU-73442"
+    },
+    "pack_size": {
+      "found": true,
+      "via": "text",
+      "sample": "5.07 fl oz"
+    },
+    "in_stock": {
+      "found": false,
+      "via": "none",
+      "sample": null
+    },
+    "product_url": {
+      "found": true,
+      "via": "attribute",
+      "sample": "AUU-73442"
+    }
+  }
+}

@@ -39,6 +39,11 @@ export function detectSoldPeriod(raw) {
   const s = String(raw || '')
   if (!s.trim()) return null
   if (/sold\s*\/\s*month|monthly\s*sales?|\/\s*mo\b/i.test(s)) return 'month'
+  // iHerb states it outright: "4,000+ sold in 30 days". A 30-day window is the
+  // same kind of measure as Shopee's "Sold/Month" — a rate — so it maps to the
+  // same period rather than inventing a third vocabulary. The distinction that
+  // matters downstream is rate vs lifetime, not 30 days vs a calendar month.
+  if (/in\s*(the\s*)?(past\s*)?30\s*days?|past\s*month/i.test(s)) return 'month'
   if (/\bsold\b/i.test(s)) return 'lifetime'
   return null
 }

@@ -169,9 +169,19 @@ export function rankEvidence(via) {
  */
 export function summarizeProbe(raw = {}) {
   const payloads = Array.isArray(raw.structured_payloads) ? raw.structured_payloads : []
-  const tiles = [...(Array.isArray(raw.tile_candidates) ? raw.tile_candidates : [])]
+
+  // Order matters more than count. The real Anua capture had
+  // .product-cell-container × 48 (the grid) and .product-inner × 88 — the latter
+  // matches a wrapper inside each tile *plus* a second carousel elsewhere on the
+  // page. Taking the busiest would have split 48 products into 88 fragments and
+  // silently doubled every aggregate. IHERB_TILE_CANDIDATES is ordered
+  // specific → generic, so the first candidate that repeats is the grid.
+  const present = (Array.isArray(raw.tile_candidates) ? raw.tile_candidates : [])
     .filter((t) => t && t.count > 0)
-    .sort((a, b) => b.count - a.count)
+  const repeating = present.filter((t) => t.count > 1)
+  const tiles = repeating.length
+    ? [repeating[0], ...repeating.slice(1)]
+    : [...present].sort((a, b) => b.count - a.count)
 
   const fieldsRaw = raw.fields && typeof raw.fields === 'object' ? raw.fields : {}
   const fields = IHERB_PROBE_FIELDS.map((spec) => {
