@@ -10,6 +10,12 @@
  * @see docs/IHERB_COLLECT_DESIGN.md
  */
 ;(() => {
+  // The panel re-injects this file when the tab predates the extension being
+  // loaded. Without a guard that registers a second listener, and two listeners
+  // both calling sendResponse throws "message channel closed".
+  if (window.__SKUMS_IHERB_PROBE_READY__) return
+  window.__SKUMS_IHERB_PROBE_READY__ = true
+
   /** Brand slug from /c/<slug>. On iHerb the URL is the brand — unlike Shopee. */
   function detectCatalogue() {
     const m = location.pathname.match(/^\/c\/([^/?#]+)/i)

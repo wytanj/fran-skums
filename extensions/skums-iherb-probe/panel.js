@@ -73,13 +73,46 @@ function renderReport(report) {
     .join('')
 }
 
+/**
+ * Ask the page to probe, injecting the content script first if it is not there.
+ *
+ * A tab that was already open when the extension was loaded never received the
+ * declarative content script, and sendMessage fails with "Receiving end does not
+ * exist". Injecting on demand fixes that without making the operator reload —
+ * content.js is idempotent, so a redundant injection is harmless.
+ */
+async function askPage(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: 'SKUMS_IHERB_PROBE' })
+  } catch {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['probeFields.js', 'content.js'],
+    })
+    return chrome.tabs.sendMessage(tabId, { type: 'SKUMS_IHERB_PROBE' })
+  }
+}
+
 async function probe() {
   $('probe').disabled = true
   $('probe').textContent = 'Probing…'
   try {
     const tab = await activeTab()
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'SKUMS_IHERB_PROBE' })
-    if (!res?.ok) throw new Error(res?.error || 'Probe failed — reload the page and retry.')
+    if (!tab?.id) throw new Error('No active tab.')
+    if (!/^https:\/\/([a-z]+\.)?iherb\.com\//i.test(tab.url || '')) {
+      throw new Error(`Not an iHerb tab — this panel is looking at ${tab.url || 'nothing'}.`)
+    }
+
+    let res
+    try {
+      res = await askPage(tab.id)
+    } catch (e) {
+      throw new Error(
+        `Could not reach the page (${e?.message || e}). If it keeps happening, reload the iHerb tab — `
+        + 'Chrome only injects content scripts into tabs opened after the extension was loaded.',
+      )
+    }
+    if (!res?.ok) throw new Error(res?.error || 'Probe returned nothing.')
 
     lastCapture = res
 
