@@ -1,7 +1,7 @@
 # iHerb collect — handoff brief
 
-Task for the next session: **live Anua harvest + MCP `market_brand_compare`**.
-Parsers, schema, writer, and harvest worker are done; do not rewrite them.
+Task for the next session: **MCP `market_brand_compare`** (and optional full K-Beauty fan-out run).
+Parsers, schema, writer, mono harvest, and K-Beauty `bids=` harvest are done.
 
 Base commit `main` at or after `6044b86`. Keep the suite green.
 
@@ -15,8 +15,10 @@ Base commit `main` at or after `6044b86`. Keep the suite green.
 | `marketplace/iherb/parseProduct.mjs` | Done. Parses `/pr/<slug>/<id>` from ld+json. |
 | `marketplace/iherb/probeSpec.mjs` | Done. Structure probe + `diffProbes()`. |
 | `marketplace/iherb/upsertCatalogue.mjs` | **Done.** Upsert products + snapshots; refuses mixed currency. |
-| `marketplace/iherb/harvestWorker.mjs` | **Done.** CDP harvest, health, pagination, write. |
+| `marketplace/iherb/harvestWorker.mjs` | **Done.** CDP harvest, health, pagination, write + K-Beauty bids. |
+| `marketplace/iherb/kBeauty.mjs` | **Done.** `bids=` URLs, facet parse, brand grouping. |
 | `scripts/iherb-brand-cycle.mjs` | **Done.** CLI: `--brand anua --connect`. |
+| `scripts/iherb-kbeauty-cycle.mjs` | **Done.** Discover Brands facet → harvest `?bids=CODE`. |
 | `core/db/086_iherb_catalogue.sql` | **Done + applied.** `iherb_products` / `iherb_product_snapshots`. |
 | `extensions/skums-iherb-probe/` | Done. Side panel: probe → download fixture. |
 | `docs/IHERB_COLLECT_DESIGN.md` | The design. Read it first. |

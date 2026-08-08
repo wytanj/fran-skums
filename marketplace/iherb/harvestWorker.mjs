@@ -23,6 +23,16 @@ import {
 } from '../computerHarvest.mjs'
 import { parseIherbCatalogue } from './parseCatalogue.mjs'
 import { upsertIherbCatalogue } from './upsertCatalogue.mjs'
+import {
+  browserExtractBrandFacetEvaluate,
+  groupProductsByBrand,
+  kBeautyBidsUrl,
+  kBeautyPageUrl,
+  parseKBeautyBrandFacet,
+  parseResultCount,
+  stampBrandKeysOnProducts,
+} from './kBeauty.mjs'
+import { brandKeyFromDisplayName } from '../brandKey.mjs'
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
@@ -80,7 +90,7 @@ export function detectIherbHealth(probe = {}) {
   const productCount = Number(probe.productCount) || 0
 
   if (
-    /access denied|request blocked|permission denied|unusual traffic|bot detection|cf-error|just a moment|checking your browser|rate limit|too many requests/.test(
+    /access denied|request blocked|permission denied|unusual traffic|bot detection|cf-error|just a moment|checking your browser|rate limit|too many requests|recaptcha|captcha|verify you are human|are you a human/.test(
       blob,
     )
   ) {
@@ -275,16 +285,19 @@ export async function openAndParseIherbPage(page, url, opts = {}) {
     })
   }
 
-  // Sustained 403 path — exponential-ish poll; notify only if still blocked after recovery.
+  // Sustained 403 / captcha path — poll until clear or deadline.
   let recovery = null
   if (health === 'blocked') {
+    console.error(
+      `[iherb] ${label}: BLOCKED (status=${status ?? '?'}) title=${JSON.stringify(probe.title?.slice(0, 80) || '')} — waiting for recovery (solve captcha in Chrome if shown)…`,
+    )
     const maxAttempts = opts.maxBlockedAttempts ?? 5
     let attempt = 0
     const probeFn = async () => {
       attempt += 1
       const backoff = Math.min(90_000, 5000 * 2 ** Math.min(attempt - 1, 4))
       console.error(
-        `[iherb] ${label}: blocked (status=${status ?? '?'}) — backoff ${Math.round(backoff / 1000)}s (attempt ${attempt}/${maxAttempts})`,
+        `[iherb] ${label}: still blocked — backoff ${Math.round(backoff / 1000)}s (attempt ${attempt}/${maxAttempts})`,
       )
       await sleep(jitterMs(backoff, 0.2))
       try {
@@ -518,4 +531,281 @@ export async function loadIherbHarvestTargets(db, workspaceId, filter = {}) {
   const { data, error } = await q.limit(filter.limit ?? 200)
   if (error) throw new Error(error.message)
   return data || []
+}
+
+/**
+ * Discover all brands on the K-Beauty hub facet (checkbox list + lazy stubs).
+ *
+ * @param {import('puppeteer').Page} page
+ * @param {{ hubUrl?: string, expandShowMore?: boolean }} [opts]
+ * @returns {Promise<{
+ *   brands: Array<{ code: string, name: string|null, count: number|null, url: string|null, brand_key: string|null }>
+ *   listCount: number|null
+ *   hubUrl: string
+ *   resultCount: number|null
+ * }>}
+ */
+export async function discoverKBeautyBrands(page, opts = {}) {
+  const hubUrl = opts.hubUrl || 'https://sg.iherb.com/c/k-beauty'
+  console.error(`[iherb-kbeauty] discover brands ${hubUrl}`)
+
+  await openAndParseIherbPage(page, hubUrl, {
+    label: 'k-beauty hub',
+    skipPreNavPause: opts.skipPreNavPause,
+  })
+
+  // Try expand "show more" inside Brands facet only
+  if (opts.expandShowMore !== false) {
+    await page.evaluate(() => {
+      const root =
+        document.querySelector('.filter-section.brands-search')
+        || document.querySelector('.brands-search')
+      if (!root) return
+      for (const el of root.querySelectorAll('button, a')) {
+        const t = (el.textContent || '').trim()
+        if (/show more|see all|view all/i.test(t) && t.length < 28) {
+          try { el.click() } catch { /* */ }
+        }
+      }
+    }).catch(() => {})
+    await sleep(1200)
+  }
+
+  let extracted = await page.evaluate(browserExtractBrandFacetEvaluate).catch(() => null)
+  let brands = extracted?.brands || []
+
+  // Fallback: parse full HTML (includes lazy-load-filter-item data-id)
+  if (brands.length < 20) {
+    const html = await page.content().catch(() => '')
+    const fromHtml = parseKBeautyBrandFacet(html)
+    if (fromHtml.length > brands.length) {
+      brands = fromHtml
+      extracted = { brands: fromHtml, listCount: fromHtml.length, error: null }
+    }
+  }
+
+  const resultCountText = await page.evaluate(() =>
+    (document.body?.innerText || '').match(/of\s+[\d,]+\s+results?/i)?.[0] || null,
+  ).catch(() => null)
+
+  const enriched = brands.map((b) => ({
+    ...b,
+    brand_key: b.name ? brandKeyFromDisplayName(b.name) : null,
+  }))
+
+  console.error(
+    `[iherb-kbeauty] discovered ${enriched.length} brands`
+    + (extracted?.listCount != null ? ` (facet listCount=${extracted.listCount})` : '')
+    + (resultCountText ? ` hub ${resultCountText}` : ''),
+  )
+
+  return {
+    brands: enriched,
+    listCount: extracted?.listCount ?? enriched.length,
+    hubUrl: page.url(),
+    resultCount: parseResultCount(resultCountText),
+  }
+}
+
+/**
+ * Harvest K-Beauty products for one or more brand codes via ?bids=.
+ *
+ * @param {import('puppeteer').Page} page
+ * @param {{
+ *   workspace_id: string
+ *   codes: string | string[]
+ *   brand_name?: string
+ *   brand_key?: string
+ *   db?: any
+ *   dry_run?: boolean
+ *   max_pages?: number
+ *   delay_ms?: number
+ *   expect_currency?: string
+ *   category_path?: string
+ *   onBlocked?: Function
+ *   onResolved?: Function
+ * }} opts
+ */
+export async function harvestKBeautyByBids(page, opts) {
+  const workspace_id = opts.workspace_id
+  if (!workspace_id) throw new Error('harvestKBeautyByBids: workspace_id required')
+
+  const codes = (Array.isArray(opts.codes) ? opts.codes : String(opts.codes || '').split(/[,|]/))
+    .map((c) => String(c || '').trim())
+    .filter(Boolean)
+  if (!codes.length) throw new Error('harvestKBeautyByBids: codes required')
+
+  const maxPages = Math.min(Math.max(opts.max_pages ?? 40, 1), 80)
+  const delayMs = opts.delay_ms ?? 3500
+  const expectCurrency = opts.expect_currency || 'SGD'
+  const categoryPath = opts.category_path || 'K-Beauty'
+
+  const startUrl = kBeautyBidsUrl(codes, { page: 1 })
+  const pageCatalogues = []
+  let pagesFetched = 0
+  let stopReason = null
+  let sustainedBlocked = false
+  let pageNum = 1
+
+  while (pageNum <= maxPages) {
+    const url = pageNum === 1 ? startUrl : kBeautyPageUrl(startUrl, pageNum, codes)
+    const label = `k-beauty bids=${codes.join('+')} p${pageNum}`
+    console.error(`[iherb-kbeauty] ${label} ${url}`)
+
+    const opened = await openAndParseIherbPage(page, url, {
+      label,
+      recoveryDeadlineMs: opts.recoveryDeadlineMs,
+      recoveryPollMs: opts.recoveryPollMs,
+      onBlocked: opts.onBlocked,
+      onResolved: opts.onResolved,
+      skipPreNavPause: pageNum > 1 ? false : opts.skipPreNavPause,
+      preNavMinMs: opts.preNavMinMs,
+      preNavMaxMs: opts.preNavMaxMs,
+    })
+
+    if (opened.health === 'blocked') {
+      stopReason = 'session_health=blocked'
+      sustainedBlocked = true
+      break
+    }
+
+    const products = opened.catalogue?.products || []
+    if (opened.health === 'unknown' && !products.length) {
+      // empty last page is normal end
+      if (pagesFetched > 0) {
+        stopReason = 'empty_page'
+        break
+      }
+      stopReason = 'empty_or_unknown_page'
+      console.error(`[iherb-kbeauty] ${label}: unknown/empty — stop`)
+      break
+    }
+
+    if (!products.length) {
+      stopReason = 'empty_page'
+      break
+    }
+
+    if (pagesFetched === 0) {
+      assertRunCurrency(opened.catalogue.coverage, { expectCurrency })
+    }
+
+    // Stamp category on each product for warehouse
+    opened.catalogue.products = products.map((p) => ({
+      ...p,
+      category_path_text: categoryPath,
+      category_leaf: categoryPath,
+    }))
+    pageCatalogues.push(opened.catalogue)
+    pagesFetched += 1
+
+    // Next page: never trust rel=next for bids — rebuild
+    const expectedTotal = parseResultCount(
+      await page.evaluate(() =>
+        (document.body?.innerText || '').match(/of\s+[\d,]+\s+results?/i)?.[0] || null,
+      ).catch(() => null),
+    )
+    const soFar = mergeIherbProducts(pageCatalogues.map((c) => c.products)).length
+    if (expectedTotal != null && soFar >= expectedTotal) break
+    if (products.length < 48 && (opened.catalogue.pagination?.is_last_page || !opened.catalogue.pagination?.next_url)) {
+      // short page usually means last
+      break
+    }
+
+    pageNum += 1
+    if (delayMs > 0 && pageNum <= maxPages) {
+      const gap = Math.floor(delayMs * (0.7 + Math.random() * 0.7))
+      console.error(`[iherb-kbeauty] page gap ${Math.round(gap / 1000)}s`)
+      await sleep(gap)
+    }
+  }
+
+  let products = stampBrandKeysOnProducts(
+    mergeIherbProducts(pageCatalogues.map((c) => c.products)),
+  )
+  // Prefer explicit brand for single-code harvest
+  if (codes.length === 1 && opts.brand_name) {
+    const bk = opts.brand_key || brandKeyFromDisplayName(opts.brand_name)
+    products = products.map((p) => ({
+      ...p,
+      brand_name: p.brand_name || opts.brand_name,
+      brand_id: p.brand_id || codes[0],
+      brand_key: bk,
+    }))
+  }
+
+  const coverage = coverageFromProducts(products)
+  const result = {
+    codes,
+    pages_fetched: pagesFetched,
+    product_count: products.length,
+    coverage,
+    stop_reason: stopReason,
+    sustained_blocked: sustainedBlocked,
+    dry_run: opts.dry_run === true,
+    writes: /** @type {any[]} */ ([]),
+    brands: [],
+  }
+
+  if (!products.length) {
+    console.error(`[iherb-kbeauty] bids=${codes.join(',')} — 0 products, skip write`)
+    return result
+  }
+
+  assertRunCurrency(coverage, { expectCurrency })
+
+  const groups = groupProductsByBrand(products)
+  result.brands = [...groups.values()].map((g) => ({
+    brand_id: g.brand_id,
+    brand_name: g.brand_name,
+    brand_key: g.brand_key,
+    products: g.products.length,
+  }))
+
+  if (opts.dry_run) {
+    console.error(
+      `[iherb-kbeauty] dry-run bids=${codes.join(',')}: ${products.length} products across ${groups.size} brand(s)`,
+    )
+    return result
+  }
+
+  if (!opts.db) throw new Error('harvestKBeautyByBids: db required unless dry_run')
+
+  for (const [, g] of groups) {
+    const brand_key =
+      (codes.length === 1 && opts.brand_key)
+      || g.brand_key
+      || (g.brand_name ? brandKeyFromDisplayName(g.brand_name) : null)
+      || 'unknown'
+
+    const catalogue = {
+      url: kBeautyBidsUrl(g.brand_id || codes),
+      captured_at: new Date().toISOString(),
+      breadcrumb: { path_text: categoryPath, path: ['K-Beauty'], scope: 'category' },
+      pagination: { pages_fetched: pagesFetched },
+      products: g.products,
+      coverage: coverageFromProducts(g.products),
+    }
+
+    const write = await upsertIherbCatalogue(opts.db, {
+      workspace_id,
+      brand_key,
+      country: 'sg',
+      catalogue,
+    })
+    result.writes.push({
+      brand_key,
+      brand_id: g.brand_id,
+      brand_name: g.brand_name,
+      products_upserted: write.products_upserted,
+      snapshots_inserted: write.snapshots_inserted,
+      errors: write.errors,
+    })
+    console.error(
+      `[iherb-kbeauty] wrote ${brand_key} (${g.brand_id || '?'}): `
+      + `products=${write.products_upserted} snapshots=${write.snapshots_inserted}`,
+    )
+  }
+
+  return result
 }

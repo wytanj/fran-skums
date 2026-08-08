@@ -37,6 +37,10 @@ test('detectIherbHealth: 403 / access denied ⇒ blocked', () => {
     detectIherbHealth({ title: 'Access Denied', bodyText: 'Request blocked', productCount: 0 }),
     'blocked',
   )
+  assert.equal(
+    detectIherbHealth({ bodyText: 'recaptcha enterprise verify you are human', productCount: 0 }),
+    'blocked',
+  )
 })
 
 test('detectIherbHealth: empty / unknown never returns ok', () => {
