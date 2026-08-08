@@ -1,9 +1,9 @@
 # iHerb collect — handoff brief
 
-Task for the next session: **schema + harvest worker**. Parsers are done and
-tested; do not rewrite them.
+Task for the next session: **harvest worker** (and then MCP `market_brand_compare`).
+Parsers, schema, and writer are done and tested; do not rewrite them.
 
-Base commit `main` at or after `ce0c073`. Suite is green at **778 pass / 0 fail** — keep it there.
+Base commit `main` at or after `6044b86`. Keep the suite green.
 
 ---
 
@@ -14,9 +14,11 @@ Base commit `main` at or after `ce0c073`. Suite is green at **778 pass / 0 fail*
 | `marketplace/iherb/parseCatalogue.mjs` | Done. Parses `/c/<brand>` grid. |
 | `marketplace/iherb/parseProduct.mjs` | Done. Parses `/pr/<slug>/<id>` from ld+json. |
 | `marketplace/iherb/probeSpec.mjs` | Done. Structure probe + `diffProbes()`. |
+| `marketplace/iherb/upsertCatalogue.mjs` | **Done.** Upsert products + snapshots; refuses mixed currency. |
+| `core/db/086_iherb_catalogue.sql` | **Done + applied.** `iherb_products` / `iherb_product_snapshots`. |
 | `extensions/skums-iherb-probe/` | Done. Side panel: probe → download fixture. |
 | `docs/IHERB_COLLECT_DESIGN.md` | The design. Read it first. |
-| `tests/iherb-*.test.mjs` | 54 tests against real fixtures. |
+| `tests/iherb-*.test.mjs` | Parser + probe + writer tests against real fixtures. |
 
 Fixtures (real captures — iHerb 403s every non-browser request, so these are the
 only way to test offline):
@@ -93,9 +95,9 @@ present on every row.
 
 ---
 
-## Task 1 — migration `086_iherb_catalogue.sql`
+## Task 1 — migration `086_iherb_catalogue.sql` ✅
 
-Next free number is **086** (085 is latest applied).
+**Done.** Applied via `node scripts/migrate.mjs --only 086`.
 
 Two tables, mirroring the listing/snapshot split that works on the Shopee side:
 
@@ -115,9 +117,9 @@ RLS **on**, workspace-scoped policies matching the pattern in
 
 Apply with `node scripts/migrate.mjs --only 086`. `SUPABASE_DB_URL` is in `.env`.
 
-## Task 2 — writer
+## Task 2 — writer ✅
 
-`marketplace/iherb/upsertCatalogue.mjs`: takes `parseIherbCatalogue()` output +
+**Done.** `marketplace/iherb/upsertCatalogue.mjs` takes `parseIherbCatalogue()` output +
 `{ workspace_id, brand_key }`, upserts products on `(workspace_id, country,
 part_number)`, inserts one snapshot per product per run.
 
