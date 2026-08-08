@@ -7,6 +7,11 @@ import {
 } from '../../../marketplace/brandListingsQuery.mjs'
 import { queryBrandRollup } from '../../../marketplace/brandRollupQuery.mjs'
 import {
+  compareBrandShopeeIherb,
+  queryIherbBrands,
+  queryIherbProducts,
+} from '../../../marketplace/iherb/query.mjs'
+import {
   buildExportTable,
   computeSellerMixMetrics,
   exportRowsToCsv,
@@ -325,6 +330,38 @@ export async function brandWorkbookFull(workspaceId, filters = {}) {
 /** @deprecated alias — prefer brandWorkbookFull({ recipe: 'full_sales' }) */
 export async function brandWorkbookFullSales(workspaceId, filters = {}) {
   return brandWorkbookFull(workspaceId, { ...filters, recipe: 'full_sales' })
+}
+
+/**
+ * iHerb warehouse — brand rollup (K-Beauty harvest etc.).
+ */
+export async function iherbBrands(workspaceId, filters = {}) {
+  const db = getDb()
+  return queryIherbBrands(db, workspaceId, filters)
+}
+
+/**
+ * iHerb warehouse — product rows with latest snapshot.
+ */
+export async function iherbProducts(workspaceId, filters = {}) {
+  const db = getDb()
+  return queryIherbProducts(db, workspaceId, filters)
+}
+
+/**
+ * Shopee Mall vs iHerb for one brand_key (no sold ratio).
+ */
+export async function brandCompareShopeeIherb(workspaceId, filters = {}) {
+  const db = getDb()
+  return compareBrandShopeeIherb(
+    db,
+    workspaceId,
+    { brand_key: filters.brand_key },
+    {
+      queryBrandRollup,
+      queryBrandSummary,
+    },
+  )
 }
 
 /**

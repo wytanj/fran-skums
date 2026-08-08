@@ -20,6 +20,8 @@ Composite-first (prefer ONE tool, then answer):
 | Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
 | Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** recipe **full** or **full_sales** → give download_url (sheets include **price** + sold + MH-4 path) | summing listings in chat; market_brand_listings dump |
 | Shopee Mall **Top Sales / period movers** | market_brand_export_full **recipe: full_sales** or listings with sales_rank | saying "monthly units sold"; inventing ranks |
+| **iHerb** — brands / K-Beauty assortment | **market_iherb_brands** then **market_iherb_products** (brand_key) | market_brand_* (those are Shopee only) |
+| **Shopee vs iHerb** for one brand | **market_brand_compare** (brand_key) — two sections; never ratio sold | treating iHerb 30d sold as Shopee lifetime |
 | **Our catalog** — do we stock X | catalog_search_summary or catalog_search | market_brand_*; Mall sold as our stock |
 | Stock / status of product X / in transit / at Loft | product_inventory_status | product.stock_quantity; market sold |
 | ATS / inventory by location | inventory_ats | catalog stock fields; Shopee harvest |
@@ -48,6 +50,7 @@ Composite-first (prefer ONE tool, then answer):
 
 Two data buckets (do not mix):
 1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = lifetime market signal · sales_rank = Top Sales sort position · path = platform crumbs — none of these are our ATS.
+1b) **iHerb harvest** = market_iherb_* · same brand_key slug where possible · sold_lower_bound = **30-day rate** (sold_period=month) · never ratio against Shopee sold · use market_brand_compare for side-by-side.
 2) **Our catalog + stock** = catalog_* · inventory_ats · product_inventory_status · never product.stock_quantity as ATS.
 `.trim()
 

@@ -136,6 +136,18 @@ export const TOOL_SCOPE_CATALOG = {
     scope: 'intel:read',
     action: 'Brand-radar summary: sold bands, top SKUs, shelf/platform mix',
   },
+  market_iherb_brands: {
+    scope: 'intel:read',
+    action: 'iHerb harvest brand rollup (30-day sold rate; K-Beauty warehouse)',
+  },
+  market_iherb_products: {
+    scope: 'intel:read',
+    action: 'iHerb product rows with latest price/rating/sold-30d snapshot',
+  },
+  market_brand_compare: {
+    scope: 'intel:read',
+    action: 'Compare Shopee Mall vs iHerb for one brand_key (no sold ratio)',
+  },
   bi_list_seeds: { scope: 'intel:read', action: 'List crawl seeds' },
   bi_job_status: { scope: 'intel:read', action: 'Crawl job status' },
   bi_query_snapshots: { scope: 'intel:read', action: 'Query market snapshots' },

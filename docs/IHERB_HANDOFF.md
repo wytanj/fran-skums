@@ -1,7 +1,7 @@
 # iHerb collect — handoff brief
 
-Task for the next session: **MCP `market_brand_compare`** (and optional full K-Beauty fan-out run).
-Parsers, schema, writer, mono harvest, and K-Beauty `bids=` harvest are done.
+Task for the next session: optional polish (export xlsx, API routes). Core path done:
+Parsers, schema, writer, mono + K-Beauty harvest, and MCP read tools.
 
 Base commit `main` at or after `6044b86`. Keep the suite green.
 
@@ -164,20 +164,22 @@ Differences from Shopee, already established:
 
 Follow pagination via `pagination.next_url` until `is_last_page`.
 
-## Task 4 — MCP tool `market_brand_compare`
+## Task 4 — MCP tools ✅
 
-Brand-level only:
+| Tool | Purpose |
+|------|---------|
+| `market_iherb_brands` | Brand rollup over `iherb_products` + latest snapshots |
+| `market_iherb_products` | SKU rows (columnar) for a `brand_key` |
+| `market_brand_compare` | Shopee Mall vs iHerb for one `brand_key` |
 
 ```
-{ brand_key } →
-  shopee: { listings, sold_sum, price_band }      // lifetime bucket
-  iherb:  { products, price_band, avg_rating,
-            review_sum, sold_30d_sum, coverage }  // 30-day rate
-  caveat: "…"                                     // required, non-empty
+market_brand_compare { brand_key } →
+  shopee: { listings, sold_sum, … }   // lifetime bucket
+  iherb:  { products, price_band, sold_30d_sum_lower, coverage }
+  caveat: non-empty — no sold ratio
 ```
 
-Two hard rules: no ratio between the two sold measures, and `coverage` must state
-how many iHerb rows carried a sold figure.
+Scope: `intel:read`. Impl: `marketplace/iherb/query.mjs` + `mcp/src/lib/bi.mjs`.
 
 ---
 

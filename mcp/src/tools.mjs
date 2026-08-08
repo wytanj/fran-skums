@@ -554,6 +554,52 @@ export const toolDefinitions = [
     },
   },
   {
+    name: 'market_iherb_brands',
+    description:
+      'iHerb harvest brand rollup (K-Beauty catalogue warehouse). Lists brand_key, product counts, price band, rating, 30-day sold_sum_lower and with_sold coverage. sold is a 30-DAY RATE — not Shopee lifetime. For SKUs use market_iherb_products. For Shopee Mall use market_brand_*.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand_key: { type: 'string', description: 'e.g. cosrx, anua, skin1004' },
+        brand_keys: { type: 'array', items: { type: 'string' } },
+        min_products: { type: 'number', description: 'Filter brands with fewer products' },
+        limit: { type: 'number', description: 'Max brands 1–300 (default 100)' },
+      },
+    },
+  },
+  {
+    name: 'market_iherb_products',
+    description:
+      'iHerb product rows with latest snapshot (price, rating, sold 30-day label/bound, stock). Filter by brand_key. Columnar rows + objects. ALWAYS read caveat: sold_period=month is a rate, not lifetime. Not our catalog ATS.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand_key: { type: 'string', description: 'Required for focused queries e.g. cosrx' },
+        brand_keys: { type: 'array', items: { type: 'string' } },
+        q: { type: 'string', description: 'Search name / part_number / brand_name' },
+        min_sold: { type: 'number', description: 'Min sold_lower_bound (30-day rate floor)' },
+        in_stock: { type: 'boolean' },
+        limit: { type: 'number', description: 'Max rows 1–500 (default 100)' },
+        offset: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'market_brand_compare',
+    description:
+      'Shopee Mall vs iHerb for one brand_key. Returns two blocks: shopee (lifetime sold) and iherb (30-day sold rate + rating + coverage). NEVER ratio the two sold fields. Use when asked how a brand does on Shopee vs iHerb.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        brand_key: {
+          type: 'string',
+          description: 'Shared brand slug e.g. cosrx, anua, skin1004, beauty-of-joseon',
+        },
+      },
+      required: ['brand_key'],
+    },
+  },
+  {
     name: 'market_listing_history',
     description: 'Time series snapshots for a listing (listing_id or shop_id+item_id).',
     inputSchema: {
@@ -2185,6 +2231,36 @@ export async function handleTool(name, args = {}) {
           q: a.q,
           limit: a.limit ?? 500,
           top_n: a.top_n ?? 10,
+        })
+        return jsonResult(result)
+      }
+      case 'market_iherb_brands': {
+        requireScope('intel:read')
+        const result = await bi.iherbBrands(requireWorkspaceId(), {
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          min_products: a.min_products,
+          limit: a.limit ?? 100,
+        })
+        return jsonResult(result)
+      }
+      case 'market_iherb_products': {
+        requireScope('intel:read')
+        const result = await bi.iherbProducts(requireWorkspaceId(), {
+          brand_key: a.brand_key,
+          brand_keys: a.brand_keys,
+          q: a.q,
+          min_sold: a.min_sold,
+          in_stock: a.in_stock,
+          limit: a.limit ?? 100,
+          offset: a.offset,
+        })
+        return jsonResult(result)
+      }
+      case 'market_brand_compare': {
+        requireScope('intel:read')
+        const result = await bi.brandCompareShopeeIherb(requireWorkspaceId(), {
+          brand_key: a.brand_key,
         })
         return jsonResult(result)
       }
