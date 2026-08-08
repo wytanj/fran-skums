@@ -1,7 +1,7 @@
 # iHerb collect — handoff brief
 
-Task for the next session: **harvest worker** (and then MCP `market_brand_compare`).
-Parsers, schema, and writer are done and tested; do not rewrite them.
+Task for the next session: **live Anua harvest + MCP `market_brand_compare`**.
+Parsers, schema, writer, and harvest worker are done; do not rewrite them.
 
 Base commit `main` at or after `6044b86`. Keep the suite green.
 
@@ -15,6 +15,8 @@ Base commit `main` at or after `6044b86`. Keep the suite green.
 | `marketplace/iherb/parseProduct.mjs` | Done. Parses `/pr/<slug>/<id>` from ld+json. |
 | `marketplace/iherb/probeSpec.mjs` | Done. Structure probe + `diffProbes()`. |
 | `marketplace/iherb/upsertCatalogue.mjs` | **Done.** Upsert products + snapshots; refuses mixed currency. |
+| `marketplace/iherb/harvestWorker.mjs` | **Done.** CDP harvest, health, pagination, write. |
+| `scripts/iherb-brand-cycle.mjs` | **Done.** CLI: `--brand anua --connect`. |
 | `core/db/086_iherb_catalogue.sql` | **Done + applied.** `iherb_products` / `iherb_product_snapshots`. |
 | `extensions/skums-iherb-probe/` | Done. Side panel: probe → download fixture. |
 | `docs/IHERB_COLLECT_DESIGN.md` | The design. Read it first. |
@@ -131,9 +133,15 @@ complete becomes a fake decline downstream.
 **Refuse the write if `currency_consistent` is false.** A page that flipped
 locale mid-scroll must not land in an SGD column.
 
-## Task 3 — harvest worker
+## Task 3 — harvest worker ✅
 
-`marketplace/iherb/harvestWorker.mjs`, CDP-attached like the Shopee one.
+**Done.** `marketplace/iherb/harvestWorker.mjs` + `scripts/iherb-brand-cycle.mjs`, CDP-attached like the Shopee one.
+
+Still need one **live** run to close the handoff bar:
+
+```
+node scripts/iherb-brand-cycle.mjs -w <workspace> --brand anua --connect
+```
 
 Reuse, do not rewrite:
 - `waitForRecovery()` from `marketplace/computerHarvest.mjs`
