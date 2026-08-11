@@ -232,7 +232,7 @@ SOW inbound template wants: SKU, description, tracking, qty (UOM), **UPC**, **ex
 | SOW / ops need | OFS create payload (today) | SKUMS handling | Action |
 |----------------|----------------------------|----------------|--------|
 | SKU | `sku` (+ `product_id`) | Required | OK |
-| Description | `product_description` | Optional line text | OK |
+| Description / remarks | `product_description`, order `order_comment` | **Human label + trailing SKUMS JSON** (`buildWorldsyntechRemark`) for UPC/expiry/store/ref enrichment — OFS schema is legacy | Prefer remarks over inventing remote columns |
 | Tracking | `tracking_number` | Required on send | Unique per shipment |
 | Quantity | `quantity` | Required | OK |
 | Product name / price / dim / weight | optional product_* fields | Optional | For CBM later |

@@ -64,6 +64,19 @@ test('WorldSyntech/OFS mapping keeps ecommerce optional and names store replenis
   assert.match(mapping, /available_quantity/)
 })
 
+test('WorldSyntech/OFS mapping embeds SKUMS JSON in legacy remark fields', () => {
+  // Old OFS UI has few typed fields — enrich order_comment + product_description.
+  assert.match(mapping, /buildWorldsyntechRemark/)
+  assert.match(mapping, /parseWorldsyntechRemark/)
+  assert.match(mapping, /src: 'skums'/)
+  assert.match(mapping, /kind: 'store_replenishment'/)
+  assert.match(mapping, /kind: 'inbound_line'/)
+  assert.match(mapping, /order_comment: buildWorldsyntechRemark/)
+  assert.match(mapping, /product_description: buildWorldsyntechRemark/)
+  assert.match(mapping, /upc:/)
+  assert.match(mapping, /expiry:/)
+})
+
 test('WorldSyntech/OFS server routes require workspace access and write integration execution logs', () => {
   for (const route of [testRoute, referenceRoute, inventoryRoute, inboundRoute, replenishmentRoute]) {
     assert.match(route, /worldsyntech-ofs/)
