@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>K-Beauty Assortment Advisory — SKUMS</title>
+<style>
+:root{
+  --ground:#FDFCFA; --ink:#211E23; --muted:#6F6873; --accent:#B92A4E; --accent-ink:#8F1F3C;
+  --line:#E7E1E4; --card:#F6F2F1; --goal:#FBEAEE; --code:#F3EEF0;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --ground:#18161B; --ink:#ECE8EE; --muted:#9B93A1; --accent:#F0718F; --accent-ink:#F595AC;
+         --line:#332F38; --card:#211E26; --goal:#2C1E24; --code:#242028; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font:16px/1.65 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+main{max-width:56rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;line-height:1.25;text-wrap:balance}
+h1{font-size:2.1rem;margin:.2rem 0 .3rem}
+h1+h2{font-size:1.15rem;font-family:inherit;font-weight:400;color:var(--muted);margin:0 0 1rem;font-style:normal}
+h2{font-size:1.5rem;margin:2.8rem 0 .8rem;padding-top:1.2rem;border-top:1px solid var(--line)}
+h3{font-size:1.15rem;margin:1.8rem 0 .5rem}
+p{max-width:65ch}
+a{color:var(--accent-ink)}
+strong{color:inherit}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}
+blockquote{margin:1.4rem 0;padding:.9rem 1.2rem;border-left:3px solid var(--accent);background:var(--card);border-radius:0 6px 6px 0}
+blockquote p{margin:.2rem 0}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.9em}
+table{border-collapse:collapse;font-size:.85rem;display:block;overflow-x:auto;margin:1rem 0;
+  font-variant-numeric:tabular-nums}
+th,td{padding:.45rem .7rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:2px solid var(--line)}
+tbody tr:nth-child(even){background:var(--card)}
+li{margin:.25rem 0}
+.report-meta{color:var(--muted);font-size:.85rem;margin-bottom:.5rem}
+.dl{display:inline-block;margin:.4rem 0 0;font-size:.85rem;color:var(--accent-ink)}
+.flow{display:flex;align-items:stretch;gap:.5rem;flex-wrap:wrap;margin:1.4rem 0}
+.flow-box{flex:1 1 10rem;min-width:10rem;border:1px solid var(--line);border-radius:8px;padding:.8rem .9rem;background:var(--card);display:flex;flex-direction:column;gap:.3rem}
+.flow-box strong{font-size:.95rem}
+.flow-box span{font-size:.78rem;color:var(--muted);line-height:1.4}
+.flow-box em{font-size:.75rem;font-style:normal;color:var(--accent-ink);margin-top:auto}
+.flow-goal{background:var(--goal);border-color:var(--accent)}
+.flow-arrow{align-self:center;color:var(--muted);font-size:1.2rem}
+@media (max-width:720px){.flow{flex-direction:column}.flow-arrow{transform:rotate(90deg);align-self:flex-start;margin-left:1rem}}
+@media print{body{background:#fff;color:#000}h2{break-after:avoid}.report-meta{display:none}table{font-size:.72rem}}
+</style>
+</head>
+<body>
+<main>
+<p class="report-meta">SKUMS · marketplace intelligence · <a class="dl" href="/mcp/report.md">download .md</a> · <a class="dl" href="/mcp/report.pdf">download .pdf</a></p>
+<h1>K-Beauty Assortment Advisory</h1>
+<h2>Opening range &amp; basket architecture for a Gen Z Asian-beauty retail chain</h2>
+<p><strong>Prepared:</strong> 12 Aug 2026 · <strong>Evidence:</strong> Shopee SG Mall harvest (6,353 listings, 79 brands) + iHerb SG K-Beauty harvest (2,738 clean SKUs, 170 brands, full INCI/rank/spec depth) · <strong>Prices:</strong> SGD</p>
+<hr>
+<h2>1 · Executive summary</h2>
+<p><strong>The thesis: sell routines, not products.</strong> Both channels show the same shape — demand concentrates in serums, masks, cleansers and patches that Gen Z buys <em>in combination</em>, and the sellers winning right now are already selling combinations: bundle-titled listings hold <strong>1 in 5 of Shopee&#39;s current Top-Sales slots</strong> and carry a <strong>+45% ticket</strong> (S$28.57 vs S$19.74 median) over single units. A chain built on mix-and-match basket value — never single-SKU markdowns — is swimming with this current, not against it.</p>
+<p>Six decisions this data supports:</p>
+<ol>
+<li><strong>Open with ~250 SKUs across 25–30 brands</strong>, weighted to the routine steps where velocity actually lives: serums/essences (the demand core, ≥98k units/30d on iHerb alone), moisturizers, masks &amp; patches, cleansers.</li>
+<li><strong>Anchor on the 44 brands validated on both channels</strong> — COSRX, Anua, SKIN1004, Beauty of Joseon, Medicube, Biodance, TIRTIR, Some By Mi, VT, Mediheal, d&#39;Alba lead the list. Dual-channel presence is the cheapest de-risking you can buy.</li>
+<li><strong>Price the core wall at S$15–30.</strong> Median price is almost identical on both channels (S$21.50 Shopee / S$22.18 iHerb) — this band is where Gen Z K-beauty transacts. Reserve &lt;S$10 for the attach wall and &gt;S$40 for a small prestige capsule.</li>
+<li><strong>Build the value engine as basket tiers, not discounts</strong> — a Routine Builder (pick-3 / pick-5 across step zones), an attach wall of &lt;S$10 high-velocity items (patches, single-sheet masks, hand/foot masks), and cross-brand ingredient-story sets. Hero prices never move; value is only released when the basket deepens.</li>
+<li><strong>Stock the baseline actives as the wall, merchandise the emergent ones as the story.</strong> Hyaluronic acid, niacinamide and centella are table stakes (in 30–50% of all formulas). The heat is in <strong>PDRN, glutathione, tranexamic acid and collagen-film formats</strong> — fewer SKUs, much higher velocity per SKU.</li>
+<li><strong>Move fast on a weekly signal loop.</strong> The scrape infrastructure already tracks per-shop Top-Sales rank (refreshed harvests) and iHerb 30-day sold. Buy small, read weekly movers, kill/scale at 30–60–90 days.</li>
+</ol>
+<hr>
+<h2>2 · The evidence base</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Shopee SG (Mall / official stores)</th>
+<th>iHerb SG (K-Beauty facet)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Listings / SKUs</td>
+<td>6,353 (79 brands, 75 shops)</td>
+<td>2,738 clean (170 brands)</td>
+</tr>
+<tr>
+<td>Sales signal</td>
+<td><strong>Lifetime</strong> sold, bucketed lower bound (≥9.99M units total)</td>
+<td><strong>30-day</strong> sold rate, lower bound (≥372k units/mo across 841 SKUs showing it)</td>
+</tr>
+<tr>
+<td>Current-demand signal</td>
+<td>Per-shop <strong>Top Sales grid rank</strong> on 6,152 listings</td>
+<td><strong>Category best-seller rank</strong> on 94% of SKUs (58 SKUs hold a #1)</td>
+</tr>
+<tr>
+<td>Depth</td>
+<td>Title, price, rating, shelf, breadcrumb</td>
+<td>Full <strong>INCI ingredients (99.2%)</strong>, GTIN, specs, price/ml, suggested use</td>
+</tr>
+<tr>
+<td>Median price</td>
+<td>S$21.50 (p25 S$14.18 / p75 S$35.00)</td>
+<td>S$22.18 (p25 S$16.28 / p75 S$28.98)</td>
+</tr>
+<tr>
+<td>Freshness</td>
+<td>4 Aug 2026</td>
+<td>11 Aug 2026</td>
+</tr>
+</tbody></table>
+<p><strong>Read this before comparing channels.</strong> Shopee sold is <em>cumulative lifetime</em> (favours older listings); iHerb sold is a <em>30-day rate</em>. They must never be ratioed against each other — we use Shopee for &quot;proven at scale&quot; and iHerb for &quot;moving right now&quot;, and a SKU that shows on both is the strongest buy signal there is. iHerb only displays sold above a floor (~31% of SKUs show it), so absence means <em>below the floor</em>, not zero. 193 iHerb rows whose product pages redirected to non-K-beauty items were detected and excluded from every number in this report.</p>
+<hr>
+<h2>3 · Market shape</h2>
+<h3>3.1 Where the demand is (category × velocity)</h3>
+<p>iHerb 30-day units by routine step, with per-SKU velocity — the column that matters for shelf productivity:</p>
+<table>
+<thead>
+<tr>
+<th>Routine step</th>
+<th>SKUs</th>
+<th>Units/30d (≥)</th>
+<th>Units per SKU</th>
+<th>Median price</th>
+<th>Read</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Essence / serum / ampoule</td>
+<td>607</td>
+<td>98,050</td>
+<td>162</td>
+<td>S$26.10</td>
+<td><strong>The demand core.</strong> Deepest wall in the store.</td>
+</tr>
+<tr>
+<td>Moisturizer / cream</td>
+<td>451</td>
+<td>65,150</td>
+<td>144</td>
+<td>S$24.70</td>
+<td>Core wall #2.</td>
+</tr>
+<tr>
+<td>Sheet masks</td>
+<td>208</td>
+<td>34,050</td>
+<td>164</td>
+<td>S$21.60</td>
+<td>Splits: multipacks in core, singles (36 SKUs &lt;S$10) on attach.</td>
+</tr>
+<tr>
+<td>Cleanser (foam/gel)</td>
+<td>179</td>
+<td>24,200</td>
+<td>135</td>
+<td>S$19.80</td>
+<td>Routine entry point; gateway SKUs live here.</td>
+</tr>
+<tr>
+<td>Eye care</td>
+<td>108</td>
+<td>23,200</td>
+<td>215</td>
+<td>S$20.90</td>
+<td>Quietly outperforms — under-shopped, high velocity.</td>
+</tr>
+<tr>
+<td><strong>Pimple patches</strong></td>
+<td><strong>33</strong></td>
+<td><strong>20,300</strong></td>
+<td><strong>615</strong></td>
+<td>S$15.40</td>
+<td><strong>Highest velocity per SKU in the dataset.</strong> Small wall, huge traffic.</td>
+</tr>
+<tr>
+<td>Makeup (colour)</td>
+<td>230</td>
+<td>18,500</td>
+<td>80</td>
+<td>S$21.20</td>
+<td>iHerb under-indexes here — see Shopee signal below.</td>
+</tr>
+<tr>
+<td>Toner</td>
+<td>168</td>
+<td>18,300</td>
+<td>109</td>
+<td>S$24.30</td>
+<td>Core; toner <em>pads</em> (53 SKUs, S$26.90 med) are the growth format.</td>
+</tr>
+<tr>
+<td>Sunscreen</td>
+<td>39</td>
+<td>12,550</td>
+<td>322</td>
+<td>S$25.30</td>
+<td>Thin supply, strong velocity — stock deeper than the SKU count suggests.</td>
+</tr>
+<tr>
+<td>Hair &amp; scalp</td>
+<td>101</td>
+<td>10,550</td>
+<td>104</td>
+<td>S$19.90</td>
+<td>Real K-beauty adjacency (NARD, Kundal, Dr.FORHAIR).</td>
+</tr>
+<tr>
+<td>Lip care / tint</td>
+<td>278</td>
+<td>8,450</td>
+<td>30</td>
+<td>S$13.90</td>
+<td>Oversupplied on iHerb; on Shopee lip works (Skintific lip serum ≥50k lifetime). Curate hard.</td>
+</tr>
+</tbody></table>
+<p>Mascara deserves a flag: 16 iHerb SKUs move ≥13,350/30d (834/SKU) — Heimish&#39;s Dailism mascara alone is ≥10,000/30d at #1. K-beauty colour in <em>cushion + mascara + tint</em> form is a real Gen Z lane even though iHerb&#39;s catalogue barely carries it.</p>
+<h3>3.2 Brand power (the two leaderboards)</h3>
+<p><strong>Shopee lifetime units (proven at scale)</strong> · <strong>iHerb 30-day units (moving now)</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Shopee brand</th>
+<th>Lifetime ≥</th>
+<th></th>
+<th>iHerb brand</th>
+<th>30d ≥</th>
+<th>#1 ranks</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>cosrx</td>
+<td>1,322,780</td>
+<td></td>
+<td>medicube</td>
+<td>43,250</td>
+<td>2</td>
+</tr>
+<tr>
+<td>2</td>
+<td>skintific</td>
+<td>812,913</td>
+<td></td>
+<td>pyunkang-yul</td>
+<td>32,400</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>torriden</td>
+<td>705,779</td>
+<td></td>
+<td>vt-cosmetics</td>
+<td>32,300</td>
+<td>2</td>
+</tr>
+<tr>
+<td>4</td>
+<td>skin1004</td>
+<td>650,652</td>
+<td></td>
+<td>aplb</td>
+<td>29,750</td>
+<td>4</td>
+</tr>
+<tr>
+<td>5</td>
+<td>medicube</td>
+<td>559,469</td>
+<td></td>
+<td>cosrx</td>
+<td>28,550</td>
+<td>2</td>
+</tr>
+<tr>
+<td>6</td>
+<td>vt-cosmetics</td>
+<td>398,207</td>
+<td></td>
+<td>beauty-of-joseon</td>
+<td>23,850</td>
+<td>3</td>
+</tr>
+<tr>
+<td>7</td>
+<td>some-by-mi</td>
+<td>387,798</td>
+<td></td>
+<td>anua</td>
+<td>19,650</td>
+<td>2</td>
+</tr>
+<tr>
+<td>8</td>
+<td>nard (hair)</td>
+<td>327,552</td>
+<td></td>
+<td>skin1004</td>
+<td>19,650</td>
+<td>2</td>
+</tr>
+<tr>
+<td>9</td>
+<td>grafen (hair)</td>
+<td>282,165</td>
+<td></td>
+<td>heimish</td>
+<td>17,650</td>
+<td>2</td>
+</tr>
+<tr>
+<td>10</td>
+<td>tirtir</td>
+<td>254,865</td>
+<td></td>
+<td>some-by-mi</td>
+<td>17,150</td>
+<td>3</td>
+</tr>
+<tr>
+<td>11</td>
+<td>beauty-of-joseon</td>
+<td>248,482</td>
+<td></td>
+<td>dr-althea</td>
+<td>13,200</td>
+<td>3</td>
+</tr>
+<tr>
+<td>12</td>
+<td>dalba</td>
+<td>231,830</td>
+<td></td>
+<td>petitfee</td>
+<td>11,800</td>
+<td>3</td>
+</tr>
+</tbody></table>
+<p>Names appearing high on <strong>both</strong> lists — COSRX, Medicube, VT, SKIN1004, Beauty of Joseon, Some By Mi, Anua (top-20 both sides) — are the anchor roster. Channel-exclusive stars are also signals: <strong>Skintific and Torriden</strong> are Shopee giants absent from iHerb (SEA-native distribution — negotiate direct), while <strong>APLB</strong> (112 SKUs, ≥29,750/30d, 4 category #1s) is an iHerb-native riser most SG retailers haven&#39;t shelved yet — a differentiation pick.</p>
+<h3>3.3 Price architecture</h3>
+<p>Both channels agree on the shape of the money:</p>
+<ul>
+<li><strong>&lt;S$10 — traffic &amp; attach</strong> (12% of Shopee listings): patches, single masks, mists, hand/foot masks. This is impulse territory — the basket-builder zone.</li>
+<li><strong>S$10–30 — the transaction core</strong> (56% of Shopee listings; iHerb p25–p75 sits entirely inside it): cleansers, toners, serums, creams, cushions.</li>
+<li><strong>S$30–50 — considered</strong> (17%): premium serums, devices-adjacent, sets.</li>
+<li><strong>S$50+ — prestige capsule</strong> (14% of listings, mostly Laneige S$52 med / Sulwhasoo S$146): works at low depth; not the Gen Z engine.</li>
+</ul>
+<hr>
+<h2>4 · Trends</h2>
+<h3>4.1 Ingredient demand — the wall vs. the story</h3>
+<p>Mined from the full INCI corpus (2,718 SKUs with ingredients × 30-day sold). <strong>Baseline actives</strong> are ubiquitous — they&#39;re the wall, not a differentiator. <strong>Emergent actives</strong> have fewer SKUs but much higher per-SKU heat — they&#39;re the endcap story that changes monthly.</p>
+<table>
+<thead>
+<tr>
+<th>Ingredient family</th>
+<th>SKUs carrying it</th>
+<th>Units/30d (≥)</th>
+<th>Per-SKU heat</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hyaluronic acid</td>
+<td>1,361 (50%)</td>
+<td>228,850</td>
+<td>168</td>
+<td>Baseline — assumed, not advertised</td>
+</tr>
+<tr>
+<td>Niacinamide</td>
+<td>974 (36%)</td>
+<td>177,900</td>
+<td>183</td>
+<td>Baseline</td>
+</tr>
+<tr>
+<td>Centella / cica</td>
+<td>866 (32%)</td>
+<td>122,700</td>
+<td>142</td>
+<td>Baseline (barrier/calming wall)</td>
+</tr>
+<tr>
+<td>Collagen</td>
+<td>453</td>
+<td>96,400</td>
+<td>213</td>
+<td><strong>Rising</strong> — film/wrapping mask formats (Biodance, Medicube)</td>
+</tr>
+<tr>
+<td>Ferments / probiotics</td>
+<td>663</td>
+<td>90,000</td>
+<td>136</td>
+<td>Steady (glass-skin narrative)</td>
+</tr>
+<tr>
+<td>Ceramides</td>
+<td>574</td>
+<td>80,400</td>
+<td>140</td>
+<td>Steady (barrier)</td>
+</tr>
+<tr>
+<td>Peptides</td>
+<td>406</td>
+<td>69,950</td>
+<td>172</td>
+<td>Rising (COSRX &quot;6 Peptide Skin Booster&quot; = skin-flooding trend)</td>
+</tr>
+<tr>
+<td>Rice (oryza)</td>
+<td>309</td>
+<td>61,650</td>
+<td>200</td>
+<td>Rising (BOJ halo)</td>
+</tr>
+<tr>
+<td>Mugwort / green tea / tea tree</td>
+<td>~980</td>
+<td>~176,000</td>
+<td>140–210</td>
+<td>Steady calming/oil-control wall</td>
+</tr>
+<tr>
+<td>Glutathione</td>
+<td>150</td>
+<td>43,650</td>
+<td><strong>291</strong></td>
+<td><strong>Hot</strong> — brightening story (APLB&#39;s whole line)</td>
+</tr>
+<tr>
+<td>BHA (salicylic)</td>
+<td>222</td>
+<td>40,300</td>
+<td>182</td>
+<td>Steady (acne wall)</td>
+</tr>
+<tr>
+<td>Heartleaf (houttuynia)</td>
+<td>198</td>
+<td>33,450</td>
+<td>169</td>
+<td>Steady-rising (Anua&#39;s identity)</td>
+</tr>
+<tr>
+<td>Retinol / retinal</td>
+<td>128</td>
+<td>29,350</td>
+<td>229</td>
+<td>Rising (BOJ Ginseng+Retinal eye serum = #1 Eye Creams)</td>
+</tr>
+<tr>
+<td><strong>PDRN / DNA</strong></td>
+<td><strong>89</strong></td>
+<td><strong>28,850</strong></td>
+<td><strong>324</strong></td>
+<td><strong>Hottest per SKU</strong> — Medicube PDRN Pink Peptide wave</td>
+</tr>
+<tr>
+<td>Tranexamic acid</td>
+<td>87</td>
+<td>21,750</td>
+<td><strong>250</strong></td>
+<td>Hot (spot-brightening; Anua TXA serum)</td>
+</tr>
+<tr>
+<td>Snail mucin</td>
+<td>70</td>
+<td>14,050</td>
+<td>201</td>
+<td>Icon status — small wall, COSRX essence ≥70k lifetime on Shopee</td>
+</tr>
+</tbody></table>
+<p><strong>Merchandising translation:</strong> build permanent walls on <em>calming/barrier</em> (centella, heartleaf, ceramide, mugwort), <em>glow</em> (niacinamide, rice, vitamin C), <em>acne</em> (BHA, tea tree, patches). Rotate a monthly &quot;what&#39;s new in Seoul&quot; endcap through PDRN → glutathione → tranexamic → collagen-film → peptide-flooding. The heat column says these earn 1.5–2× the per-SKU velocity of the baselines.</p>
+<h3>4.2 Format trends Gen Z is actually buying</h3>
+<ul>
+<li><strong>Collagen film / overnight wrapping masks</strong> — Biodance Real Deep Mask: ≥90k lifetime, its bundle-of-2 is <em>currently #1</em> in its shop grid; Medicube Night Wrapping Mask #1 K-Beauty Face Masks.</li>
+<li><strong>Toner pads</strong> — Mediheal Daily Toner Pad ≥80k lifetime; Medicube Zero Pore Pad 2.0 #1 K-Beauty Toners. Jar formats built for the &quot;prep + pack&quot; ritual.</li>
+<li><strong>Cushions with shade-range depth</strong> — TIRTIR Mask Fit Red (≥80k, #1 slot), Skintific cushions (≥90k). The Gen Z colour entry point.</li>
+<li><strong>Spray/mist serums</strong> — d&#39;Alba White Truffle First Spray Serum ≥70k and #1 in-shop.</li>
+<li><strong>Patches beyond acne</strong> — microdart (Anua Triple Acid), eye hydrogel (Petitfee ≥3k/30d #1 Eye Masks), foot/hand masks (Petitfee foot pack S$2.88, ≥3k/30d).</li>
+<li><strong>K-hair crossover</strong> — NARD (≥328k lifetime, #1 shampoo slot), Kundal, Dr.FORHAIR, CP-1. A full aisle, not a token shelf.</li>
+</ul>
+<hr>
+<h2>5 · The assortment blueprint (~250 SKUs)</h2>
+<h3>5.1 Shelf plan by routine step</h3>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>SKUs</th>
+<th>Price band</th>
+<th>Anchor examples (all verified movers)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Serums &amp; ampoules</td>
+<td>45</td>
+<td>S$20–33</td>
+<td>Torriden DIVE-IN (≥90k), d&#39;Alba spray serum (≥70k), Axis-Y Dark Spot (#1 Brightening), Medicube PDRN Pink, Anua TXA 4, COSRX 6-Peptide, SKIN1004 Centella Ampoule, BOJ Glow Serum (#1 Propolis)</td>
+</tr>
+<tr>
+<td>Moisturizers &amp; creams</td>
+<td>30</td>
+<td>S$20–32</td>
+<td>Dr. Althea 345 Relief (#1 Moisturizers, S$40.58 — premium end), COSRX Snail 92 Cream, Anua Birch 70</td>
+</tr>
+<tr>
+<td>Cleansers</td>
+<td>25</td>
+<td>S$15–24</td>
+<td>COSRX Low pH Good Morning (≥100k, current #1), Anua Heartleaf Quercetinol (#1 Cleansers), April Skin Carrotene (current #1), Heimish All Clean Balm</td>
+</tr>
+<tr>
+<td>Masks &amp; patches (attach + core)</td>
+<td>35</td>
+<td>S$2.88–28</td>
+<td>COSRX Pimple Patch (≥300k + #1), Biodance film mask, Medicube singles S$3.50, SBM Clear Spot Patch, Petitfee eye/foot</td>
+</tr>
+<tr>
+<td>Toners &amp; pads</td>
+<td>25</td>
+<td>S$18–30</td>
+<td>Mediheal Toner Pad 2.0 (≥80k), Medicube Zero Pore Pad (#1), Anua Heartleaf 77</td>
+</tr>
+<tr>
+<td>Sunscreen</td>
+<td>15</td>
+<td>S$21–30</td>
+<td>BOJ Relief Sun (≥80k), APLB Glutathione SPF50 (#1 Sunscreen), Skintific sun mist (≥70k)</td>
+</tr>
+<tr>
+<td>Eye care</td>
+<td>12</td>
+<td>S$16–26</td>
+<td>BOJ Revive Eye Serum Ginseng+Retinal (≥10k/30d, #1), Petitfee Gold Hydrogel (#1), Axis-Y Vegan Collagen Eye (#1 Peptide)</td>
+</tr>
+<tr>
+<td>Colour (cushion-led)</td>
+<td>30</td>
+<td>S$12–30</td>
+<td>TIRTIR Mask Fit Red, Skintific cushions, Heimish mascara (#1), 3CE, Judydoll, Missha brow (S$8.35 attach)</td>
+</tr>
+<tr>
+<td>Hair &amp; scalp</td>
+<td>15</td>
+<td>S$13–25</td>
+<td>NARD shampoo, Kundal, Dr.FORHAIR Phyto Fresh (current #1), CP-1 treatments</td>
+</tr>
+<tr>
+<td>Mist / body / foot</td>
+<td>8</td>
+<td>S$3–18</td>
+<td>Enough Collagen Mist S$5.09 (#1 Face Mist), TonyMoly foot peel, Koelf hand/foot masks</td>
+</tr>
+<tr>
+<td>Discovery &amp; gift kits</td>
+<td>10</td>
+<td>S$13–35</td>
+<td>Idealove variety packs (#1 Gifts), brand starter kits (Celimax Noni kit = current #1 in-shop)</td>
+</tr>
+</tbody></table>
+<h3>5.2 Brand roster in three tiers</h3>
+<ul>
+<li><strong>Anchors (8–10, ~50% of units):</strong> COSRX · Anua · SKIN1004 · Beauty of Joseon · Medicube · Some By Mi · VT · Biodance · TIRTIR · Mediheal. Every one is top-tier on at least one channel and present on both.</li>
+<li><strong>Support (10–12):</strong> Torriden, Skintific, d&#39;Alba, Heimish, Pyunkang Yul, Isntree, Dear Klairs, Axis-Y, Dr. Althea, Round Lab, Petitfee, plus hair anchors NARD/Kundal.</li>
+<li><strong>Emergent rotation (6–8, refreshed quarterly):</strong> APLB (iHerb-native riser), Dr. Melaxin, Numbuzin, mixsoon (current #1 mover), Celimax, TFIT/fwee (colour), Abib. Small buys, fast reads.</li>
+</ul>
+<hr>
+<h2>6 · Basket architecture — the value engine</h2>
+<blockquote>
+<p><strong>Design rule: the price tag never lies.</strong> No single SKU is ever marked down. Value exists only as <em>basket depth</em> — the more steps of a routine you build, the better your rate. This protects hero-price integrity with every brand partner, trains members that value = combination, and directly lifts units per transaction.</p>
+</blockquote>
+<h3>6.1 Why the data says this works</h3>
+<ul>
+<li>Bundle-titled listings are already <strong>25.4% of the Shopee Mall assortment</strong>, hold <strong>19.7% of current top-3 Top-Sales slots</strong>, and take <strong>18.6% of all lifetime units</strong> — at a <strong>median ticket of S$28.57 vs S$19.74</strong> for singles (+45%).</li>
+<li>The current #1 movers include <em>bundles as the hero itself</em>: Biodance &quot;Bundle of 2 + Serum Duo SET&quot; (#1), Torriden &quot;Bundle of 2&quot; (≥50k), COSRX &quot;3/5/10 Packs&quot; patches (≥80k), Some By Mi &quot;3/5 Packs&quot; spot patch (≥50k). Multi-buy isn&#39;t a promo layer on Shopee — it <em>is</em> the product.</li>
+<li>The attach math exists at scale: patches average <strong>615 units/SKU/month</strong> on iHerb (highest in the dataset) at S$5–15; 36 sheet-mask SKUs sit under S$10; Enough&#39;s S$5.09 mist and Petitfee&#39;s S$2.88 foot pack each move ≥3,000/30d.</li>
+</ul>
+<h3>6.2 The three mechanics</h3>
+
+<div class="flow" role="img" aria-label="Basket engine: attach wall feeds the routine builder, which feeds story sets, ending at a basket of 3.5+ items with heroes never discounted">
+  <div class="flow-box"><strong>Attach Wall</strong><span>&lt;S$10 · patches, single masks, mists, hand/foot masks</span><em>any 3 = S$12 tier</em></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-box"><strong>Routine Builder</strong><span>pick 3 / pick 5 across step zones, cross-brand</span><em>pick 3 ≈ 10% · pick 5 ≈ 18% value</em></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-box"><strong>Story Sets</strong><span>curated cross-brand ingredient routines</span><em>named sets, seasonal rotation</em></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-box flow-goal"><strong>Basket ≥ 3.5 items</strong><span>heroes never discounted</span></div>
+</div>
+<p><strong>1 · The Attach Wall (traffic → +1 item on every basket).</strong> A permanent fixture at register and queue: COSRX patches (S$4.94), SBM spot patches (S$5.13), Medicube single sheet masks (S$3.50–3.74), Koelf hand/foot masks (S$3.15–3.65), Enough mist (S$5.09), Petitfee foot pack (S$2.88), Nu-Pore strips (S$2.88). Sold flat-price as <strong>&quot;any 3 for S$12 / any 5 for S$18&quot;</strong> — the tier is the only price event.</p>
+<p><strong>2 · The Routine Builder (the core engine).</strong> Every core-wall SKU carries a step tag (Cleanse / Tone / Treat / Moisturize / Protect / Eye). <strong>Pick any 3 steps → bundle price ≈ 10% under the sum; pick 5 → ≈ 18% under.</strong> Cross-brand by design — this is the mix-and-match promise, and it&#39;s what no brand&#39;s own store can offer. At median step prices (cleanser S$19.80 + toner S$24.30 + serum S$26.10 + moisturizer S$24.70 + SPF S$25.30 = <strong>S$120.20 shelf</strong>), the pick-5 lands at ~<strong>S$99</strong> — a &quot;complete routine under S$100&quot; flagship offer that discounts <em>nothing</em> individually.</p>
+<p><strong>3 · Story Sets (the rotation).</strong> Curated cross-brand routines named for the ingredient trend, refreshed with the endcap: <em>Heartleaf Reset</em> (Anua cleanser + toner + SBM patch), <em>Snail Repair</em> (COSRX essence + cream + Biodance mask), <em>Glass Skin Flooding</em> (Torriden serum + COSRX peptide booster + d&#39;Alba mist), <em>PDRN Glow</em> (Medicube serum + pink beauty mask + eye patch). Sets carry the pick-3 tier automatically and give TikTok-able names to what the ingredient heat table already shows selling.</p>
+<h3>6.3 Guardrails</h3>
+<ul>
+<li><strong>Hero–halo integrity:</strong> the ~25 hero SKUs (Appendix A) are never in any percentage event; they anchor tiers at full price. Value concentrates on the 2nd–5th items.</li>
+<li><strong>Tier math over percent-off:</strong> always express as bundle price (&quot;routine for S$99&quot;), never &quot;18% off&quot; — percent language erodes reference prices; bundle language builds routine habit.</li>
+<li><strong>Floor:</strong> no tier should breach ~22% blended value release; the Shopee evidence shows bundles winning at a +45% <em>ticket</em>, not a giveaway margin.</li>
+<li><strong>Member layer, not markdown layer:</strong> if loyalty is added, deepen tiers for members (pick-5 at 20% equivalent) instead of cutting entry prices.</li>
+</ul>
+<hr>
+<h2>7 · Speed playbook</h2>
+<p><strong>Days 0–30 — buy the proven.</strong>
+Order the anchor roster from the 44 dual-channel brands; SKU-level pick list = the 58 iHerb category #1s + Shopee ≥50k-lifetime movers (Appendix A). Shallow depth (4–6 weeks cover), wide steps. Stand up the Attach Wall and pick-3 tier on day one — it needs no systems beyond POS bundle pricing.</p>
+<p><strong>Days 30–60 — read and rotate.</strong>
+The harvest loop already exists: weekly Shopee Top-Sales re-harvest surfaces each shop&#39;s current #1s (this week: mixsoon Bean Essence, April Skin Carrotene cleanser, Dr.FORHAIR shampoo, Celimax Noni kit — all new-wave, none yet ubiquitous in SG retail). Add the first emergent-brand buys (APLB, Numbuzin, mixsoon) at test depth. Launch Story Set #1.</p>
+<p><strong>Days 60–90 — kill and scale.</strong>
+Rules, not meetings: a SKU below ~50% of its step&#39;s median velocity for 6 weeks exits into the next Story Set (clearance-by-bundle, still no markdown); a SKU above 2× step median gets depth + a duo/twin pack (the Torriden/Biodance play). Rotate the endcap active. First seasonal gift kits (Petitfee/Koelf/Idealove pattern) before Q4.</p>
+<p><strong>Cadence thereafter:</strong> weekly movers read → monthly endcap rotation → quarterly roster review (emergent tier in/out). The <code>market_iherb_products</code> / <code>market_brand_*</code> tools serve all of this on demand, including full ingredient lists for shelf-talker copy and story-set curation.</p>
+<hr>
+<h2>8 · Risks &amp; honest caveats</h2>
+<ol>
+<li><strong>Channel bias.</strong> iHerb skews skincare (colour = 8% of its corpus); the colour/cushion thesis rests on Shopee evidence. Weight accordingly.</li>
+<li><strong>Sold figures are lower bounds.</strong> Shopee buckets (&quot;4k+ sold&quot; → 4,000) favour tenured listings; iHerb hides sold below a display floor (31% coverage). Treat every unit figure as ≥, never exact; never compute cross-channel ratios.</li>
+<li><strong>SG-priced signals.</strong> Ladder levels transfer as <em>structure</em>, not absolute numbers, to other markets.</li>
+<li><strong>Freshness window.</strong> Shopee 4 Aug, iHerb 11 Aug 2026. Top-Sales rank is a weekly-moving signal — re-read before the opening buy is committed.</li>
+<li><strong>Excluded data.</strong> 193 iHerb rows (6.6%) were redirect-contaminated (discontinued pages bouncing to unrelated products) and are excluded everywhere; the underlying discontinuations also hint those SKUs are exiting iHerb&#39;s range.</li>
+<li><strong>Coverage.</strong> Shopee harvest covers 79 mall/official brands — the branded K-beauty universe, not all of Shopee. Grey-market resellers (often price-undercutters) are deliberately out of frame; monitor separately if price-matching policy matters.</li>
+</ol>
+<hr>
+<h2>Appendix A · Hero SKU shortlist (opening buy anchors)</h2>
+<table>
+<thead>
+<tr>
+<th>SKU</th>
+<th>Brand</th>
+<th>Evidence</th>
+<th>Price</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Acne Pimple Master Patch</td>
+<td>COSRX</td>
+<td>≥300k lifetime · #1 iHerb Beauty Face Masks · ≥10k/30d</td>
+<td>S$3.91–4.94</td>
+</tr>
+<tr>
+<td>Low pH Good Morning Cleanser</td>
+<td>COSRX</td>
+<td>≥100k lifetime · current #1 in-shop</td>
+<td>S$4.95–22</td>
+</tr>
+<tr>
+<td>Advanced Snail 96 Essence</td>
+<td>COSRX</td>
+<td>≥70k lifetime · #1 Snail Skin Care</td>
+<td>S$11.51–22.89</td>
+</tr>
+<tr>
+<td>6-Peptide Skin Booster</td>
+<td>COSRX</td>
+<td>≥50k lifetime (&quot;skin flooding&quot;)</td>
+<td>S$16.53</td>
+</tr>
+<tr>
+<td>Bio-Collagen Real Deep Mask</td>
+<td>Biodance</td>
+<td>≥90k lifetime · duo currently #1 · #1 Collagen</td>
+<td>S$18.79–27.35</td>
+</tr>
+<tr>
+<td>DIVE-IN Hyaluronic Serum</td>
+<td>Torriden</td>
+<td>≥90k lifetime · bundle ≥50k</td>
+<td>S$14.38</td>
+</tr>
+<tr>
+<td>Mask Fit Red Cushion</td>
+<td>TIRTIR</td>
+<td>≥80k lifetime · #1 slot</td>
+<td>S$12.60</td>
+</tr>
+<tr>
+<td>Daily Toner Pad 2.0</td>
+<td>Mediheal</td>
+<td>≥80k lifetime</td>
+<td>S$18.57</td>
+</tr>
+<tr>
+<td>Relief Sun Rice + Probiotics</td>
+<td>Beauty of Joseon</td>
+<td>≥80k lifetime</td>
+<td>S$16.44</td>
+</tr>
+<tr>
+<td>Revive Eye Serum Ginseng+Retinal</td>
+<td>Beauty of Joseon</td>
+<td>≥10k/30d · #1 Eye Creams</td>
+<td>S$23.00</td>
+</tr>
+<tr>
+<td>Glow Serum Propolis+Niacinamide</td>
+<td>Beauty of Joseon</td>
+<td>≥4k/30d · #1 Propolis</td>
+<td>S$26.83</td>
+</tr>
+<tr>
+<td>White Truffle First Spray Serum</td>
+<td>d&#39;Alba</td>
+<td>≥70k lifetime · #1 slot</td>
+<td>S$12.10</td>
+</tr>
+<tr>
+<td>Zero Pore Pad 2.0</td>
+<td>Medicube</td>
+<td>≥3k/30d · #1 K-Beauty Toners</td>
+<td>S$28.79</td>
+</tr>
+<tr>
+<td>PDRN Pink Peptide Serum</td>
+<td>Medicube</td>
+<td>≥5k/30d · PDRN wave leader</td>
+<td>S$26.82</td>
+</tr>
+<tr>
+<td>Beauty-mask singles (Collagen/PDRN/Zero Pore)</td>
+<td>Medicube</td>
+<td>≥2k/30d each · S$1.99 Shopee collection ≥70k</td>
+<td>S$1.99–3.74</td>
+</tr>
+<tr>
+<td>Heartleaf Quercetinol Cleansing Foam</td>
+<td>Anua</td>
+<td>≥4k/30d · #1 K-Beauty Cleansers</td>
+<td>S$17.31</td>
+</tr>
+<tr>
+<td>Niacinamide 10 + TXA 4 Serum</td>
+<td>Anua</td>
+<td>≥3k/30d · tranexamic wave</td>
+<td>S$36.57</td>
+</tr>
+<tr>
+<td>Madagascar Centella Ampoule</td>
+<td>SKIN1004</td>
+<td>≥3k/30d · #3 Centella · ≥650k brand lifetime</td>
+<td>S$21.86</td>
+</tr>
+<tr>
+<td>Clear Spot Patch</td>
+<td>Some By Mi</td>
+<td>≥5k/30d · #1 slot · multipacks ≥50k lifetime</td>
+<td>S$5.13–7.77</td>
+</tr>
+<tr>
+<td>Dailism Smudge Stop Mascara</td>
+<td>Heimish</td>
+<td>≥10k/30d · #1 Mascara</td>
+<td>S$15.50</td>
+</tr>
+<tr>
+<td>Dark Spot Correcting Glow Serum</td>
+<td>Axis-Y</td>
+<td>≥4k/30d · #1 Brightening Serums</td>
+<td>S$26.51</td>
+</tr>
+<tr>
+<td>Glutathione Niacinamide SPF50</td>
+<td>APLB</td>
+<td>≥7.5k/30d · #1 Sunscreen (differentiation pick)</td>
+<td>S$22.18</td>
+</tr>
+<tr>
+<td>345 Relief Cream</td>
+<td>Dr. Althea</td>
+<td>≥5k/30d · #1 Moisturizers</td>
+<td>S$40.58</td>
+</tr>
+<tr>
+<td>Gold Hydrogel Eye Patch (60)</td>
+<td>Petitfee</td>
+<td>≥3k/30d · #1 Eye Masks</td>
+<td>S$15.64</td>
+</tr>
+<tr>
+<td>Shampoo (all hair types)</td>
+<td>NARD</td>
+<td>≥50k lifetime · #1 slot (hair aisle anchor)</td>
+<td>S$21.57</td>
+</tr>
+</tbody></table>
+<h2>Appendix B · Reading the numbers</h2>
+<ul>
+<li><strong>&quot;≥&quot; everywhere:</strong> both platforms publish bucketed lower bounds (&quot;4,000+ sold&quot;). True figures are equal or higher.</li>
+<li><strong>Lifetime vs 30-day:</strong> Shopee = units since listing began; iHerb = units in the trailing 30 days. Different clocks — used side by side, never divided.</li>
+<li><strong>#1 ranks:</strong> iHerb = category best-seller rank scraped from each product page; Shopee &quot;#1 slot&quot; = first position on that shop&#39;s Top-Sales grid at harvest time.</li>
+<li><strong>Per-SKU heat:</strong> units/30d ÷ SKUs carrying the trait — the shelf-productivity proxy used for trend calls.</li>
+<li><strong>Source of truth:</strong> all figures queryable live via the Fran MCP (<code>market_iherb_brands</code>, <code>market_iherb_products</code>, <code>market_brand_rollup</code>, <code>market_brand_compare</code>), including full INCI lists for any SKU above.</li>
+</ul>
+
+</main>
+</body>
+</html>
