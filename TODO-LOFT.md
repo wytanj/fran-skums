@@ -1,12 +1,13 @@
 # TODO — Loft Logistics / WorldSyntech OFS (phased PR plan)
 
-**Status:** Phases **P–E** + operator docs + assistant Help shipped (2026-07-15); **Phase F in progress**; Phase 0 live OFS IDs still pending Loft  
-**Date:** 2026-07-15  
-**Assumption:** Loft is the production 3PL.  
+**Status:** Phases **P–E** + operator docs + Help shipped; **Phase F core** in; **sandbox REST live on demo3** (2026-08-11); Phase 0 live IDs + **clientportal** pilot still open  
+**Date:** 2026-08-11  
+**Assumption:** Loft is the production 3PL (WorldSyntech OFS).  
 **Permission foundation:** `docs/ORG_PERMISSION_SCOPES.md` (2026-07-13 design — Phase P catalog freeze).  
-**Summary:** `docs/Commit Summary 15072026.md` · Operator: `docs/SKUMS_OPERATOR_RUNBOOK.md`  
-**Commits (skums):** `38d4383` P/A/B/C · `a861eec` C.4 · `17d8665` D · (15072026 E + docs + Help AI)  
+**Summary:** `docs/Commit Summary 15072026.md` · Operator: `docs/SKUMS_OPERATOR_RUNBOOK.md` · Ops dict: `docs/LOFT_OPS_DICTIONARY.md`  
+**Commits (skums):** `38d4383` P/A/B/C · `a861eec` C.4 · `17d8665` D · (15072026 E + docs + Help AI) · `81247a8` OFS remark JSON + sandbox smoke  
 **Commits (pos):** `4148095` bind + request/receive · `e7d811f` fran receive · (15072026 cycle count + free-form receive gate)  
+**Apidoc (canonical for endpoint list):** https://clientportal.loftlogistic.com/apidoc — same 30-route OFS surface as demo3  
 **Boundary (locked):**
 
 ```text
@@ -338,23 +339,101 @@ Align with org scopes §6.
 ### PR-0.1 — Loft ops dictionary `[ops]` `[skums-docs]`
 
 - [x] Create `docs/LOFT_OPS_DICTIONARY.md` with:
-  - [ ] Production + sandbox base URLs _(structure + demo URL; LISE sandbox/prod **TBD Loft**)_
+  - [~] Production + sandbox base URLs _(partial — see env table below; paste official LISE answers)_
   - [x] Auth model (Basic token ownership, user/password rotation)
   - [x] Rate limits / concurrency guidance (or “unknown — use conservative poll”)
   - [ ] `delivery_method_id` map: `delivery` vs `self_collect` _(slots + credential defaults; IDs **TBD Loft**)_
   - [ ] Shipping address rules for self-collect orders _(SOW Krislite door unit noted; OFS field rule **TBD**)_
   - [x] Order status enum → SKUMS status map _(provisional heuristics aligned to `poll-orders`; official table **TBD**)_
   - [x] Inbound (`ship_to_warehouse`) status enum + partial/spoil fields _(provisional + identity fields; official ids **TBD**)_
-  - [x] SKU-only vs required `product_id` _(target: require mapped product_id; confirm with Loft)_
-  - [x] ASN field parity vs SOW (UPC, expiry, carton/pallet counts)
+  - [x] SKU-only vs required `product_id` _(target: require mapped product_id; ASN accepts sku + product_id:0 on demo3)_
+  - [x] ASN field parity vs SOW (UPC, expiry, carton/pallet counts) — **enrich via remarks JSON** until typed fields exist
   - [x] Confirm FEFO at Loft + LISE short-date rule (e.g. 9 months) _(SOW + SKUMS 9‑mo gate; reconfirm WMS with Loft)_
   - [x] M&P tracking: what goes in ASN metadata
 - [x] Structured email to Loft (and WorldSyntech if needed) — draft in dictionary; **send pending human**
 - [x] Update `docs/LOFT_SOW_KIV.md` “Locked-in” with product locks _(full OFS ID tables still after Loft reply)_
 
+### PR-0.2 — Known environments (sandbox proven 2026-08-11) `[ops]`
+
+| Env | Base URL | REST status (as of 2026-08-11) | Notes |
+|-----|----------|----------------------------------|-------|
+| Sandbox / UAT | `https://orderfulfillmentdemo3.worldsyntech.com` | **Working** with `LOFT_SANDBOX_TOKEN` + portal user/pass | Portal merchant login OK; smoke scripts pass |
+| Client portal / apidoc | `https://clientportal.loftlogistic.com` | **Not yet wired in SKUMS** | Same 30-route OFS apidoc; **target live host** once Rest + token confirmed |
+| Public OFS demo docs | `https://orderfulfillmentdemo*.worldsyntech.com` / `orderfulfillment.worldsyntech.com` | Often `Rest Admin API is disabled` | Do not treat as LISE pilot |
+| Live token (`LOFT_LIVE_TOKEN`) | — | **Not accepted** on hosts tried | Need Loft-issued Basic token for clientportal (or confirm live base) |
+
+**Smoke tools:** `scripts/_smoke_loft_sandbox.mjs`, `scripts/_smoke_loft_live.mjs`, `scripts/_loft_sandbox_test_action.mjs`  
+**Env keys (local `.env`, not committed):** `LOFT_SANDBOX_*`, `LOFT_LIVE_*`
+
 **Depends on:** nothing  
 **Unblocks:** live pilot + replacing poll heuristics; originally unblocked A–D (now shipped on placeholders)  
-**Parallel with:** Phase P / E–F
+**Parallel with:** Phase P / E–F / **G endpoint priority work**
+
+---
+
+## OFS endpoint priority map (clientportal apidoc · 30 routes)
+
+**Source:** https://clientportal.loftlogistic.com/apidoc (identical route set to demo3).  
+**Lesson from sandbox write:** OFS is legacy UI/schema — typed fields are thin; **park SKUMS enrichment in free-text** (`order_comment`, line `product_description`) via `buildWorldsyntechRemark` (`fulfillment/worldsyntech-ofs/mapping.ts`, commit `81247a8`).
+
+### P0 — Use every pilot day (build / harden first)
+
+| # | Route | LISE use | SKUMS today | Next work |
+|---|-------|----------|-------------|-----------|
+| 1 | `customer_security/api_login` | Auth | ✅ client | Live credential on **clientportal** |
+| 2 | `customer/user_get` | Connection test | ✅ test route | Keep as Integrations “Test” |
+| 3 | `product/get_list` (+ `product/get`) | Map OFS `product_id` ↔ SKU | ✅ pull-products | Empty on demo3 until products exist |
+| 4 | `inventory/get_list` (+ `inventory/get`) | Loft ATS | ✅ pull-inventory | Poll job + LOFT-SG snapshot trust policy |
+| 5 | `ship_to_warehouse/create` | KR/HK → Loft ASN | ✅ create-inbound | **Friendliest write** — proved on demo3 (`SKUMS-ASN-*`) |
+| 6 | `ship_to_warehouse/get_list` / `get` | Poll receiving | ✅ poll-inbound | Lock official status strings when known |
+| 7 | `order/create` | Store replenishment outbound | ✅ create-store-replenishment | Needs real `delivery_method_id` + address/zone |
+| 8 | `order/get_list` / `get` | Poll pick/ship/ready | ✅ poll-orders | Replace provisional heuristics with Phase 0 table |
+| 9 | `delivery_method/get_list` (+ get / by country) | Delivery vs self-collect | ✅ sync-reference-data | **Map LISE IDs** (demo3 returned Shopee geo methods — not final) |
+| 10 | `address/get_list`, `country/*`, `zone/*` | Valid create payloads | ✅ sync-reference-data | Cache defaults on connection; never `0` in prod |
+
+### P1 — Use weekly / exception paths (after P0 stable)
+
+| # | Route | LISE use | SKUMS today | Next work |
+|---|-------|----------|-------------|-----------|
+| 11 | `order/cancel` | Abort before pick | partial / orchestrator | **G.2** wire cancel + status guard |
+| 12 | `ship_to_warehouse/cancel` | Void bad ASN | partial | **G.2b** wire cancel + audit |
+| 13 | `product/create` | Onboard SKU into Loft | ❌ wrong shape tried | **G.1** apidoc shape: `title` + nested `skus[]` |
+| 14 | `product/update` | Fix UPC/dims/title | ❌ | **G.1** after create |
+| 15 | `order/update_order` | Address / tracking / comment | ❌ | **G.5** only safe statuses |
+| 16 | `order/update_order_item` | Line qty before pick | ❌ | **G.5** status-gated |
+
+### P2 — Rare / skip for LISE MVP
+
+| # | Route | Why deprioritize |
+|---|-------|------------------|
+| 17–18 | `product/create_update_kitting`, `get_by_product_kitting_id` | Bundles — not core single-SKU beauty path |
+| 19 | `product/get_by_main_product_id` | Parent/variant model only if multi-SKU parents matter |
+| 20 | Marketplace COD / airwaybill gymnastics on orders | Retail replen first; ecom = Phase H |
+| 21 | Parallel full-catalog hammers | Unknown rate limits — serial pages ≤250 |
+
+### Adapt patterns (do not invent remote columns)
+
+| Gap | OFS reality | SKUMS adaptation | Priority |
+|-----|-------------|------------------|----------|
+| UPC / expiry / batch / carton on ASN | Not typed on create; only free-text `product_description` | JSON in remarks (`buildWorldsyntechRemark`) | **Done** mapper; keep on all future writes |
+| Store / wave / SKUMS ids on outbound | `order_comment` only | Same remark helper on order create | **Done** mapper |
+| Product create field names | Requires `title` + `skus[]`, not flat `product_name` | Dedicated product push mapper **G.1** | **P0 eng** |
+| ASN without product map | Apidoc allows `product_id: 0` + `sku` | Prefer mapped id; allow sku-only ASN in sandbox | **P0 policy** |
+| Delivery method IDs | Tenant-specific | Block prod send if default still `0` / Shopee demo ids | **P0 gate** |
+| Status enums | String/id, undocumented tables | Provisional poll maps until Phase 0 paste | **P1** |
+| Live vs sandbox host | Different Basic tokens | Separate connection credentials; smoke scripts per env | **P0 ops** |
+
+### Recommended build order (connector-only, after F polish)
+
+```text
+G.0  Live/sandbox credential slots + smoke in CI-ish ops runbook     ★ ops
+G.1  Product create/update mapper (apidoc title + skus[])              ★ catalog map
+G.2  order/cancel + ship_to_warehouse/cancel                           ★ safety
+G.3  Inventory pull cadence + LOFT-SG reconciliation report            ★ ATS trust
+G.4  Integration card: Test / Sync refs / Pull / hide by scope         UX
+G.5  order update_* only if ops needs mid-flight fix                   later
+H.*  Ecommerce / kitting                                               deferred
+```
 
 ---
 
@@ -806,15 +885,62 @@ Workspace flag may force hold-all-until-verify later.
 
 ## Phase G — Connector completeness & ops polish `[skums]`
 
-All G routes: `integrations:execute` and/or `store_ops:execute_3pl` as appropriate; credentials remain admin-only.
+All G routes: `integrations:execute` and/or `store_ops:execute_3pl` as appropriate; credentials remain admin-only.  
+**Prioritize per “OFS endpoint priority map” above.** Sandbox REST + ASN write proven; product push + live host + cancels next.
 
-### PR-G.1 — OFS product push (if required)
+### PR-G.0 — Env credentials + smoke checklist `[ops]` `[skums]`  ★ first
 
-### PR-G.2 — Cancel / hold replenishment (`store_ops:execute_3pl`)
+- [ ] Document sandbox vs **clientportal** base URLs in `LOFT_OPS_DICTIONARY` (from PR-0.2 table)
+- [ ] Integrations UI: separate sandbox / live credential blobs (or labeled connections)
+- [ ] Operator runbook: run `scripts/_smoke_loft_sandbox.mjs` after token rotate
+- [ ] Block production `send` when `base_url` is demo-only unless `allow_demo_ofs` flag
+- [ ] Obtain working **live** Basic token for `clientportal.loftlogistic.com` (current `LOFT_LIVE_TOKEN` fails)
 
-### PR-G.3 — Snapshot reconciliation report (`inventory:read` + `integrations:read`)
+**Depends on:** Loft enabling Rest on clientportal + issuing token  
+**Unblocks:** true production pilot
 
-### PR-G.4 — Integration card UX (hide actions without scopes)
+### PR-G.1 — OFS product create/update (apidoc shape) `[skums]`  ★ P0 eng
+
+- [ ] Mapper: `products[].title`, `description`, nested `skus[]` (sku/upc/supplier_sku/price/cost/…)
+- [ ] Put SKUMS enrichment JSON in product `description` (same remark pattern as ASN/order)
+- [ ] `product/create` + `product/update` routes or extend pull-products with push action
+- [ ] After create, upsert `integration_entity_mappings` (`product_id` ↔ SKUMS product)
+- [ ] Do **not** use flat `product_name` body (demo3 rejected; apidoc requires `title`)
+- [ ] Skip kitting endpoints (P2)
+
+**Depends on:** G.0 or sandbox credential  
+**Unblocks:** clean catalog map before heavy order create; ASN can still use sku-only
+
+### PR-G.2 — Cancel outbound + inbound (`store_ops:execute_3pl`) `[skums]`  ★ P1 safety
+
+- [ ] Wire `order/cancel` with reason + local status `cancelled`
+- [ ] Wire `ship_to_warehouse/cancel` + local ASN terminal status
+- [ ] Status guards (no cancel after shipped / fully received — confirm with Loft)
+- [ ] Audit + integration_executions row
+
+### PR-G.3 — Snapshot reconciliation report (`inventory:read` + `integrations:read`) `[skums]`  ★ ATS
+
+- [ ] Scheduled / manual pull `inventory/get_list` → compare LOFT-SG vs OFS available
+- [ ] Attention item on material drift
+- [ ] Respect page limit 250; serial pages
+
+### PR-G.4 — Integration card UX (hide actions without scopes) `[skums]`
+
+- [ ] Test / Sync refs / Pull products / Pull inventory / Poll orders / Poll inbound
+- [ ] Hide execute actions without `store_ops:execute_3pl` / `integrations:execute`
+- [ ] Never show raw Basic token after save
+
+### PR-G.5 — Mid-flight order updates (optional) `[skums]`
+
+- [ ] `order/update_order` (address, tracking, comment) only when OFS status still editable
+- [ ] `order/update_order_item` qty fix before pick
+- [ ] Prefer cancel+recreate if status rules unclear
+
+### PR-G.6 — Remark round-trip (optional polish) `[skums]`
+
+- [x] Outbound: `buildWorldsyntechRemark` on `order_comment` + ASN `product_description`
+- [ ] Inbound poll: `parseWorldsyntechRemark` → surface UPC/expiry hints in SKUMS UI
+- [ ] Product description remark on G.1 create
 
 ---
 
@@ -862,8 +988,13 @@ D.1  ASN domain                    (store_ops:inbound)
 D.2  poll inbound + promote
 E.*  floor hygiene
 F.*  store door windows + allocation (extends B.1b)
-G.*  connector polish
-H.*  ecommerce
+G.0  sandbox/live credentials + smoke          ★ connector pilot
+G.1  product create/update apidoc shape        ★
+G.2  cancel order + cancel ASN                 ★
+G.3  inventory reconcile report
+G.4  integration card UX
+G.5–G.6  order updates / remark parse (optional)
+H.*  ecommerce / kitting
 ```
 
 **MVP for trustworthy store inventory under Loft:**
@@ -1018,7 +1149,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | Phase | Status | Evidence |
 |-------|--------|----------|
 | **P** Permissions | ✅ | `055`, `scopes.ts`, `scopeAuth.ts`, schemas store_associate/inventory_ops |
-| **0** Dictionary | ✅ expanded draft | `docs/LOFT_OPS_DICTIONARY.md` + Loft email; live URLs/IDs still TBD |
+| **0** Dictionary | ✅ expanded + sandbox env | Dict + email draft; demo3 REST proven; clientportal live IDs/token still TBD |
 | **A** Topology / catalog | ✅ | LOFT-SG seed, pull-products, catalog `pos_location_code` |
 | **B** Waves / decide / send | ✅ | `056`, storeReplenishment, decide/send/poll, MCP tools, POS request-stock |
 | **C** Receive / exceptions | ✅ core + C.4 | expected-deliveries, receive, verify, ready-for-collect, POS receive |
@@ -1030,10 +1161,15 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 ### Still open (do not treat as done)
 
 - [ ] **Send** Phase 0 email (`docs/LOFT_OPS_DICTIONARY.md`); paste Loft answers; set live credential + delivery_method_ids
+- [ ] Wire **live** connection to `https://clientportal.loftlogistic.com` once Rest + Basic token work
+- [ ] **G.1** product create/update mapper (apidoc `title` + `skus[]`)
+- [ ] **G.2** order + ASN cancel
+- [ ] **G.0** delivery_method_id map for LISE (not demo Shopee methods)
 - [ ] Full `requireScope` on every legacy integration route (P.3 completeness)
 - [ ] Empty API key scopes → deny/package (breaking change when ready)
 - [ ] Phase F wave cutoffs + allocation polish (in progress)
 - [x] Phase N bus on top of `store_ops_notifications` (in_app + Slack; email provider later)
+- [x] Sandbox REST smoke + remark-JSON on order/ASN mappers (`81247a8`)
 - [ ] POS never owns ASN (D.3 remains non-goal)
 
 ---
@@ -1057,6 +1193,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | 2026-07-15 | **Assistant Help:** resolve_help excerpts + store-ops scoring; `get_help_article` / MCP `help_get`; migration `060` operator-runbook; Store Ops page context |
 | 2026-07-15 | **Commit + deploy** `docs/Commit Summary 15072026.md`; Phase F started |
 | 2026-07-15 | **Phase F core:** migration `061` delivery calendars + cutoffs + wave allocations; Store Ops Waves tab; POS next-wave on request form |
+| 2026-08-11 | **Sandbox OFS live:** demo3 REST login OK (`LOFT_SANDBOX_TOKEN` + portal user); ASN create proved (`SKUMS-ASN-*`); live token still fails; clientportal apidoc = same 30 routes; remark JSON in mappers; endpoint priority map + Phase G.0–G.6 in this file |
 
 ---
 
@@ -1091,4 +1228,12 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 7. ~~No production path where MCP auto-approves or auto-sends to Loft.~~ ✅  
 8. ~~Inbound ASN → LISE confirm → LOFT-SG promote (Phase D).~~ ✅ code + migration 057  
 
-**Production pilot checklist:** Loft prod URL + delivery_method_ids · Vercel green · **055–060** on prod DB · Floor apply smoke · one store dry-run.
+**Production pilot checklist:**
+
+1. Sandbox smoke green (`_smoke_loft_sandbox.mjs`) — ✅ 2026-08-11  
+2. Live Basic token + Rest on `clientportal.loftlogistic.com` (or confirmed LISE host)  
+3. `delivery_method_id` + country/zone defaults for store door / self-collect  
+4. Product map (pull and/or G.1 push) for pilot SKUs  
+5. One ASN + one store replen order dry-run; cancel path tested  
+6. Vercel green · migrations **055–061** on prod DB · floor apply smoke · one store receive path  
+
