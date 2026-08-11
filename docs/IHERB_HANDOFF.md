@@ -1,7 +1,7 @@
 # iHerb collect — handoff brief
 
-Task for the next session: optional polish (export xlsx, API routes). Core path done:
-Parsers, schema, writer, mono + K-Beauty harvest, and MCP read tools.
+Core path done: parsers, schema, catalogue writer, mono + K-Beauty harvest, MCP
+read tools, **and PDP enrich (gtin + breadcrumb + rankings)**.
 
 Base commit `main` at or after `6044b86`. Keep the suite green.
 
@@ -12,17 +12,22 @@ Base commit `main` at or after `6044b86`. Keep the suite green.
 | Path | State |
 |---|---|
 | `marketplace/iherb/parseCatalogue.mjs` | Done. Parses `/c/<brand>` grid. |
-| `marketplace/iherb/parseProduct.mjs` | Done. Parses `/pr/<slug>/<id>` from ld+json. |
+| `marketplace/iherb/parseProduct.mjs` | Done. ld+json + **rankings** (`.best-selling-rank`). |
 | `marketplace/iherb/probeSpec.mjs` | Done. Structure probe + `diffProbes()`. |
 | `marketplace/iherb/upsertCatalogue.mjs` | **Done.** Upsert products + snapshots; refuses mixed currency. |
+| `marketplace/iherb/upsertPdp.mjs` | **Done.** PDP identity + snapshot with rankings in signals. |
+| `marketplace/iherb/pdpEnrich.mjs` | **Done.** Candidates, open PDP, write. |
 | `marketplace/iherb/harvestWorker.mjs` | **Done.** CDP harvest, health, pagination, write + K-Beauty bids. |
 | `marketplace/iherb/kBeauty.mjs` | **Done.** `bids=` URLs, facet parse, brand grouping. |
+| `marketplace/iherb/query.mjs` | **Done.** Brands / products / compare; surfaces rank_best_*. |
 | `scripts/iherb-brand-cycle.mjs` | **Done.** CLI: `--brand anua --connect`. |
 | `scripts/iherb-kbeauty-cycle.mjs` | **Done.** Discover Brands facet → harvest `?bids=CODE`. |
+| `scripts/iherb-pdp-enrich.mjs` | **Done.** Top-N PDP pass (MH-4 equivalent). |
 | `core/db/086_iherb_catalogue.sql` | **Done + applied.** `iherb_products` / `iherb_product_snapshots`. |
 | `extensions/skums-iherb-probe/` | Done. Side panel: probe → download fixture. |
 | `docs/IHERB_COLLECT_DESIGN.md` | The design. Read it first. |
-| `tests/iherb-*.test.mjs` | Parser + probe + writer tests against real fixtures. |
+| `docs/IHERB_PDP_PLAN.md` | **PDP slice** — rankings, storage, ops. |
+| `tests/iherb-*.test.mjs` | Parser + probe + writer + PDP tests against real fixtures. |
 
 Fixtures (real captures — iHerb 403s every non-browser request, so these are the
 only way to test offline):
@@ -30,7 +35,8 @@ only way to test offline):
 ```
 extensions/sample-iherb-anua.html          48 products, 2 pages
 extensions/sample-iherb-skin1004.html      41 products, 1 page
-extensions/skin1004-product-page.html      one PDP
+extensions/skin1004-product-page.html      one PDP (rankings + gtin)
+extensions/sample-iherb-pdp-rankings.html  Merrymonde eyeliner rankings fixture
 ```
 
 ---
@@ -92,10 +98,44 @@ as Shopee MH-4):
 ```
 gtin (gtin12 barcode)   breadcrumb (Beauty > Cleansers > Face Washes)
 weight_value/unit       description  category_name/id  brand_url
+rankings[]              rank_best { rank, category, category_slug, category_id }
+sold_label + sold_lower_bound (30-day rate, same caveat)
 ```
+
+Rankings example (Merrymonde Super Twim Pen Eyeliner):
+
+```
+#5 in K-Beauty Eyeliner → #39 Eyeliner → #159 Eyes → #614 Makeup → #1237 K-Beauty
+```
+
+Stored on `snapshot.signals.rankings` + `product.metadata.last_rankings` /
+`rank_best`. No new migration — jsonb + existing gtin/category/weight columns.
 
 `part_number` (`AUU-73442`, `SIO-26111`) is the natural key. It is stable and
 present on every row.
+
+## Task 5 — PDP enrich (iHerb MH-4) ✅
+
+**Done.** See `docs/IHERB_PDP_PLAN.md`.
+
+```
+# list candidates (no browser)
+node scripts/iherb-pdp-enrich.mjs -w <ws> --brand anua --top 15 --dry-run
+
+# live enrich one brand (CDP)
+node scripts/iherb-pdp-enrich.mjs -w <ws> --brand anua --top 15 --connect
+
+# overnight all brands from .iherb-kbeauty-brands.json (slow + resume)
+node scripts/iherb-pdp-cycle.mjs -w <ws> --dry-run
+node scripts/iherb-pdp-cycle.mjs -w <ws> --connect --overnight
+```
+
+Selection: highest `sold_lower_bound` first among rows missing `pdp_enriched_at`
+/ gtin. Prefer after a catalogue harvest so URLs exist. Progress:
+`.iherb-pdp-progress.json`.
+
+MCP: `market_iherb_products` returns `rank_best_rank`, `rank_best_category`,
+`rankings`, `gtin`, `pdp_enriched_at` when present.
 
 ---
 
@@ -152,9 +192,10 @@ Reuse, do not rewrite:
 
 Differences from Shopee, already established:
 - **No login needed** — public catalogue.
-- Binding constraint is **403 / rate limit**, not captcha. Recovery is
-  exponential backoff, usually with no human.
-- **Only notify on sustained 403** after backoff exhausts. Firing on the first
+- Binding constraint is usually **403 / rate limit**. Long PDP runs can also hit
+  a **press-and-hold** security check (bespoke, not classic captcha) — human
+  solves in Chrome; worker waits via `waitForRecovery`.
+- **Only notify on sustained block** after backoff exhausts. Firing on the first
   one pages the operator for something that clears in ninety seconds.
 - Health detection must return `'unknown'` for an unrecognised page, never
   `'ok'` — a false `ok` writes an empty harvest that reads as "brand delisted

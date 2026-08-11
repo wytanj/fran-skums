@@ -53,12 +53,13 @@ function parseArgs(argv) {
     maxBrands: 200,
     minCount: 0,
     maxPages: 40,
-    delayMs: 3500,
-    brandGapMs: 6000,
+    delayMs: 800,
+    brandGapMs: 2000,
     dryRun: false,
     notify: true,
     maxConsecutiveBlocked: 3,
-    recoveryMinutes: 10,
+    recoveryMinutes: 2,
+    fast: true,
     saveDiscover: resolve(ROOT, '.iherb-kbeauty-brands.json'),
   }
 
@@ -79,8 +80,12 @@ function parseArgs(argv) {
     else if (a === '--max-brands') opts.maxBrands = Number(argv[++i]) || 200
     else if (a === '--min-count') opts.minCount = Number(argv[++i]) || 0
     else if (a === '--max-pages') opts.maxPages = Number(argv[++i]) || 40
-    else if (a === '--delay-ms') opts.delayMs = Number(argv[++i]) || 3500
+    else if (a === '--delay-ms') opts.delayMs = Number(argv[++i]) || 800
+    else if (a === '--brand-gap-ms') opts.brandGapMs = Number(argv[++i]) || 2000
+    else if (a === '--slow') { opts.fast = false; opts.delayMs = 5000; opts.brandGapMs = 15000 }
+    else if (a === '--fast') opts.fast = true
     else if (a === '--dry-run') opts.dryRun = true
+    else if (a === '--from-json') opts.fromJson = argv[++i]
     else if (a === '--no-notify') opts.notify = false
     else if (a === '--recovery-minutes') opts.recoveryMinutes = Number(argv[++i]) || 10
     else if (a === '--save-discover') opts.saveDiscover = argv[++i]
@@ -120,8 +125,8 @@ async function main() {
     console.error('Need --connect')
     process.exit(1)
   }
-  if (!opts.discoverOnly && !opts.bids?.length && !opts.all) {
-    console.error('Need --discover-only, --bids CRX,SIO, or --all')
+  if (!opts.discoverOnly && !opts.bids?.length && !opts.all && !opts.fromJson) {
+    console.error('Need --discover-only, --bids CRX,SIO, --from-json file, or --all')
     process.exit(1)
   }
 
@@ -164,6 +169,25 @@ async function main() {
         brand_key: null,
         url: null,
       }))
+    } else if (opts.fromJson) {
+      const raw = JSON.parse(readFileSync(opts.fromJson, 'utf8'))
+      const brands = raw.brands || raw
+      if (!Array.isArray(brands)) throw new Error('--from-json must contain { brands: [...] }')
+      queue = brands
+        .filter((b) => b.code || b.brand_id)
+        .map((b) => ({
+          code: b.code || b.brand_id,
+          name: b.name || b.brand_name || null,
+          count: b.count ?? null,
+          brand_key: b.brand_key || null,
+          url: b.url || null,
+        }))
+        .filter((b) => (b.count == null || b.count >= opts.minCount))
+        // Larger catalogues first so a long run still lands the big brands
+        .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+        .slice(0, opts.maxBrands)
+      summary.discover = { brand_count: queue.length, from_json: opts.fromJson }
+      console.error(`[iherb-kbeauty] loaded ${queue.length} brands from ${opts.fromJson}`)
     } else {
       const disc = await discoverKBeautyBrands(page)
       summary.discover = {
@@ -187,6 +211,21 @@ async function main() {
         .slice(0, opts.maxBrands)
     }
 
+    // Resume: skip codes already listed in a progress file
+    const progressPath = resolve(ROOT, '.iherb-kbeauty-progress.json')
+    let doneCodes = new Set()
+    if (existsSync(progressPath)) {
+      try {
+        const prog = JSON.parse(readFileSync(progressPath, 'utf8'))
+        doneCodes = new Set((prog.done || []).map(String))
+        if (doneCodes.size) {
+          const before = queue.length
+          queue = queue.filter((b) => !doneCodes.has(b.code))
+          console.error(`[iherb-kbeauty] resume: skip ${before - queue.length} done, remaining ${queue.length}`)
+        }
+      } catch { /* ignore corrupt progress */ }
+    }
+
     console.error(`[iherb-kbeauty] harvest queue=${queue.length} dry_run=${opts.dryRun}`)
 
     for (let i = 0; i < queue.length; i++) {
@@ -204,6 +243,7 @@ async function main() {
           dry_run: opts.dryRun,
           max_pages: opts.maxPages,
           delay_ms: opts.delayMs,
+          fast: opts.fast !== false,
           recoveryDeadlineMs: opts.recoveryMinutes * 60 * 1000,
           onBlocked: async (info) => {
             console.error(`[iherb-kbeauty] blocked: ${info?.label || b.code}`)
@@ -237,7 +277,7 @@ async function main() {
           consecutiveBlocked = 0
         }
 
-        summary.brands.push({
+        const row = {
           code: b.code,
           name: b.name,
           brand_key,
@@ -250,7 +290,25 @@ async function main() {
             products: w.products_upserted,
           })),
           stop_reason: result.stop_reason,
-        })
+        }
+        summary.brands.push(row)
+        // Progress checkpoint after each brand
+        try {
+          doneCodes.add(b.code)
+          let prev = { done: [], rows: [] }
+          if (existsSync(progressPath)) {
+            prev = JSON.parse(readFileSync(progressPath, 'utf8'))
+          }
+          const done = [...new Set([...(prev.done || []), b.code])]
+          const rows = [...(prev.rows || []), row]
+          writeFileSync(progressPath, JSON.stringify({
+            updated_at: new Date().toISOString(),
+            done,
+            rows,
+          }, null, 2))
+        } catch (pe) {
+          console.error(`[iherb-kbeauty] progress write failed: ${pe?.message || pe}`)
+        }
       } catch (e) {
         console.error(`[iherb-kbeauty] ${b.code} failed: ${e?.message || e}`)
         summary.brands.push({ code: b.code, name: b.name, error: e?.message || String(e) })

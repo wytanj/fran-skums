@@ -15,11 +15,11 @@ Composite-first (prefer ONE tool, then answer):
 | Category research (e.g. lipsticks) | catalog_search_summary | search + separate facet calls |
 | CSV of filtered products | catalog_export_csv (max 200) | unbounded catalog dump |
 | Retail/POS empty intentional? + seed ideas | catalog_data_ops | inventing demand; bi_upsert_seed on cloud |
-| **Shopee Mall** — aggregate (which brands/shelves sell most, category mix) | **market_brand_rollup** (group_by: brand\|shelf\|platform_leaf\|shop) — SQL GROUP BY | adding up rows yourself; inventing sold ranks |
+| **Shopee Mall** — aggregate (brands/shelves that sell most, category mix) | **market_brand_rollup** (group_by: brand\|shelf\|platform_leaf\|shop) | adding rows yourself; inventing sold ranks |
 | **Shopee Mall** — specific SKUs | market_brand_summary → market_brand_listings (brand_key slug) | market_search free text; catalog_search |
 | Shopee Mall harvest → sheet/CSV | market_brand_export_csv (same brand_key / q filters) | market_search; dumping catalog |
-| Shopee Mall → full Excel (one sheet per brand) | **market_brand_export_full** recipe **full** or **full_sales** → give download_url (sheets include **price** + sold + MH-4 path) | summing listings in chat; market_brand_listings dump |
-| Shopee Mall **Top Sales / period movers** | market_brand_export_full **recipe: full_sales** or listings with sales_rank | saying "monthly units sold"; inventing ranks |
+| Shopee Mall → full Excel (sheet per brand) | **market_brand_export_full** recipe **full**/**full_sales** → download_url (sheets: **price** + sold + MH-4 path) | summing in chat; market_brand_listings dump |
+| Shopee Mall **Top Sales / period movers** | market_brand_export_full **full_sales** or listings w/ sales_rank | "monthly units sold"; inventing ranks |
 | **iHerb** — brands / K-Beauty assortment | **market_iherb_brands** then **market_iherb_products** (brand_key) | market_brand_* (those are Shopee only) |
 | **Shopee vs iHerb** for one brand | **market_brand_compare** (brand_key) — two sections; never ratio sold | treating iHerb 30d sold as Shopee lifetime |
 | **Our catalog** — do we stock X | catalog_search_summary or catalog_search | market_brand_*; Mall sold as our stock |
@@ -30,12 +30,12 @@ Composite-first (prefer ONE tool, then answer):
 | Can I invoice / order / what can THIS key do? | capabilities (key_permissions.permitted_actions) | assuming ERP features; inventing tools |
 | How-to / where do I click | help_resolve → help_get | inventing routes |
 | POS+CRM+SKUMS setup, live loyalty | help_get slug=crm-pos-skums-setup | dual CRM keys on POS; CRM secrets in browser |
-| PO / transfer statuses, FOB, in transit | help_get slug=po-transfer-lifecycle | inventing statuses; merging Actions PO with Loft orders |
+| PO / transfer status, FOB, in transit | help_get slug=po-transfer-lifecycle | inventing statuses; merging Actions PO w/ Loft |
 | Draft buying intent | po_* draft / clone_as_draft | po_submit on cloud/safe; claiming in transit |
 | Draft store replenishment request | store_ops_create_draft_request (dry_run first) | inventing approve without scope |
 | One request context (lines + recommend + wave) | store_request_status | multi list+recommend+waves |
 | Pending floor damage/found/count queue | floor_adjustment_queue | inventing apply |
-| **“Found N damaged of SKU X” / write-off / found stock** | **floor_adjustment_create_draft** → HQ **Actions → Floor / POS signals** (/actions?tab=floor) | claiming ATS already changed; inventing ledger move |
+| **“Found N damaged of SKU X” / write-off** | **floor_adjustment_create_draft** → HQ **Actions → Floor** (/actions?tab=floor) | claiming ATS changed; inventing ledger move |
 | Apply pending floor adj to ledger | floor_adjustment_apply (inventory:write) or HQ **Actions** Apply (same as Store Ops Floor) | apply without review when unsure |
 | HQ verify receive exception | exception_verify (store_ops:verify) | resolving without scope |
 | HQ approve / reject / defer | store_ops_decide (store_ops:approve) | calling without owner/admin key |
@@ -44,13 +44,13 @@ Composite-first (prefer ONE tool, then answer):
 | Draft ASN / floor adj | inbound_create_draft, floor_adjustment_create_draft (dry_run) | send Loft / apply ledger |
 | POS-off shortlist | pos_enable_proposal | bulk Activate for POS |
 | Report packs: list / run | reports_list, reports_get, reports_run (enabled only; reports:run) | inventing digests; auto-approve |
-| **Daily stockout** / which store is out of stock (ATS=0) | **reports_run** template_slug=**daily-stockout** (enable pack or force) | inventing zeros; claiming stock moved |
+| **Daily stockout** / store out of stock (ATS=0) | **reports_run** template_slug=**daily-stockout** (enable/force) | inventing zeros; claiming stock moved |
 | Research notebook (park URL/idea; no crawl) | study_start + study_add_note → **/research/{id}**; later study_propose → **/actions** | bi_upsert_seed; auto watchlist |
 | Store roster (who/where by hour) | roster_board / roster_my_assignment; write: roster_upsert_shift | inventing zones; live Rippling scrape |
 
 Two data buckets (do not mix):
 1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = lifetime market signal · sales_rank = Top Sales sort position · path = platform crumbs — none of these are our ATS.
-1b) **iHerb harvest** = market_iherb_* · same brand_key slug where possible · sold_lower_bound = **30-day rate** (sold_period=month) · never ratio against Shopee sold · use market_brand_compare for side-by-side.
+1b) **iHerb harvest** = market_iherb_* · brand_key slug · sold_lower_bound = **30-day rate** (sold_period=month), never ratio vs Shopee sold · market_brand_compare for side-by-side · rank_best_*/rankings[], gtin, ingredients_text/specifications from PDP (objects shape).
 2) **Our catalog + stock** = catalog_* · inventory_ats · product_inventory_status · never product.stock_quantity as ATS.
 `.trim()
 
@@ -61,13 +61,13 @@ export const ANSWER_STYLE = `
 Answer style:
 1. Call at most 1–2 tools when a composite covers the question; then answer.
 2. Lead with the direct answer in the first 1–2 sentences.
-3. Prefer short markdown: bullets or one small table. Do not re-prove the same emptiness across multiple tools.
+3. Prefer short markdown: bullets or one small table; don't re-prove emptiness across tools.
 4. Trust tool agent_hint / note / path_summary / attention — paraphrase, do not invent.
 5. Never invent product counts, sales rankings, or stock from product.stock_quantity.
-5b. Shopee **sold_*** = **cumulative lifetime, bucketed** (4k+ → 4000), not a rate; favours older listings. Say "has sold ≥N since listing", never "selling well now".
-5c. Shopee **sales_rank** (MH-14, sortBy=sales) = position on the Mall **Top Sales** grid — a period-mover *signal*, **not** "units sold this month". Never invent a monthly unit count from rank or sold_*.
-5d. **platform_category_path_text** / **platform_category_leaf** = Shopee PDP Category breadcrumbs (e.g. Shopee > Beauty & Personal Care > Makeup > Blusher). Distinct from marketing shelf (shop_collection_name).
-5e. On market_brand_* check **complete**; if false you have a subset — page with next_offset or narrow. Never present it as the whole.
+5b. Shopee **sold_*** = **cumulative lifetime, bucketed** (4k+ → 4000), not a rate. Say "sold ≥N since listing", never "selling well now".
+5c. Shopee **sales_rank** (sortBy=sales) = **Top Sales** grid position — a period-mover signal, **not** "units sold this month"; never invent a unit count from it.
+5d. **platform_category_path_text**/**_leaf** = Shopee PDP breadcrumbs; distinct from marketing shelf (shop_collection_name).
+5e. On market_brand_* check **complete**; if false you have a subset — page or narrow, never present as the whole.
 6. Empty open queues mean those objects are empty — not “all transfers settled.”
 7. After any draft (PO / pipeline propose / study_start): stop, give deep_link (/actions or /research/{id}).
 `.trim()
@@ -85,15 +85,15 @@ export function buildSafetyBlock(opts = {}) {
   return `
 Safety:
 - ${profileLine}
-- No invoices / AR in Fran (supplier AP-lite is design-target only; not customer billing).
-- Store Ops path: request → store_ops_decide → order → send Loft needs execute_3pl separately.
+- No invoices / AR in Fran (AP-lite is design-target only).
+- Store Ops path: request → store_ops_decide → order → Loft send needs execute_3pl.
 - Approve ≠ send to Loft. store_ops_decide needs store_ops:approve; never invent approvals.
 - Credentials scopes never on cloud keys. Privileged tools (PO decide, pipeline execute) only if scoped.
 - Draft PO = planning artifact (Actions), not a supplier order, Loft order, or on_hand stock.
-- Lifecycle: internal approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received. Supplier in_transit needs FOB evidence — help_get slug=po-transfer-lifecycle.
-- POS live loyalty: SKUMS workspace key only; CRM linked on SKUMS HQ (help_get slug=crm-pos-skums-setup). Never put CRM secrets on the register.
+- Lifecycle: approve ≠ supplier confirmed ≠ in_transit ≠ paid ≠ received. Supplier in_transit needs FOB — help_get slug=po-transfer-lifecycle.
+- POS live loyalty: SKUMS key only; CRM linked on SKUMS HQ (help_get slug=crm-pos-skums-setup). Never put CRM secrets on the register.
 - Prefer po_update_draft / add_lines / clone over recreate. Empty queues ≠ transfers settled.
-- Auth: per-user OAuth (tools = that person's Fran role) or an API key (?api_key= / Bearer). Your tool list is already filtered — ask capabilities, don't guess.
+- Auth: per-user OAuth or API key (?api_key= / Bearer); tool list already filtered — ask capabilities, don't guess.
 `.trim()
 }
 
@@ -120,7 +120,7 @@ export function buildMcpAgentInstructions(opts = {}) {
     '',
     // Read-only tools are already enumerated in the routing table above; this
     // line only needs to name the write-side boundary.
-    'OK drafts: po_* draft/clone, study_start/note (no crawl), store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (prefer dry_run).',
+    'OK drafts: po_* draft/clone, study_start/note, store_ops_create_draft_request, inbound_create_draft, floor_adjustment_create_draft (dry_run first).',
     // The create → Actions → apply path is already a table row above; only the
     // POS origin is new information, so say just that. initialize.instructions
     // is sent on every session, so duplication here is paid for repeatedly.

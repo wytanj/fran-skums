@@ -570,7 +570,7 @@ export const toolDefinitions = [
   {
     name: 'market_iherb_products',
     description:
-      'iHerb product rows with latest snapshot (price, rating, sold 30-day label/bound, stock). Filter by brand_key. Columnar rows + objects. ALWAYS read caveat: sold_period=month is a rate, not lifetime. Not our catalog ATS.',
+      'iHerb product rows with latest snapshot (price, rating, sold 30-day label/bound, stock). After PDP enrich also: gtin, rank_best_rank/category, rankings[], volume_ml, price_per_ml, platform category_path, specifications (UPC/dims), ingredients_text/suggested_use when specs pass done. ALWAYS read caveat: sold_period=month is a rate, not lifetime. Not our catalog ATS.',
     inputSchema: {
       type: 'object',
       properties: {

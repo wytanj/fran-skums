@@ -6,7 +6,10 @@ import test from 'node:test'
 import {
   IHERB_SOLD_CAVEAT,
   compareBrandShopeeIherb,
+  parseVolumeMl,
   pickLatestSnapshots,
+  pickMergedLatestSnapshots,
+  pricePerMl,
   summarizeIherbBrandRows,
 } from '../marketplace/iherb/query.mjs'
 
@@ -19,6 +22,39 @@ test('pickLatestSnapshots keeps first per product when ordered desc', () => {
   assert.equal(latest.get('a').price, 10)
   assert.equal(latest.get('b').price, 5)
   assert.equal(latest.size, 2)
+})
+
+test('pickMergedLatestSnapshots fills sold/price from older snaps', () => {
+  const merged = pickMergedLatestSnapshots([
+    {
+      product_row_id: 'a',
+      price: null,
+      sold_lower_bound: null,
+      captured_at: '2026-08-10',
+      signals: { harvest_source: 'iherb_pdp_enrich' },
+    },
+    {
+      product_row_id: 'a',
+      price: 12.5,
+      sold_lower_bound: 2000,
+      sold_label: '2,000+ sold in 30 days',
+      sold_period: 'month',
+      captured_at: '2026-08-08',
+      signals: {},
+    },
+  ])
+  const a = merged.get('a')
+  assert.equal(a.price, 12.5)
+  assert.equal(a.sold_lower_bound, 2000)
+  assert.equal(a.sold_period, 'month')
+})
+
+test('parseVolumeMl and pricePerMl', () => {
+  assert.equal(parseVolumeMl('Oil, 6.76 fl oz (200 ml)'), 200)
+  assert.equal(parseVolumeMl('0.5 ml'), 0.5)
+  assert.equal(parseVolumeMl('0.02 fl oz (0.5 ml)'), 0.5)
+  assert.equal(pricePerMl(20, 200), 0.1)
+  assert.equal(pricePerMl(null, 200), null)
 })
 
 test('summarizeIherbBrandRows computes coverage and sold sum', () => {
@@ -85,7 +121,8 @@ test('compareBrandShopeeIherb uses injected deps and never invents a ratio field
       eq: () => api,
       in: () => api,
       order: () => api,
-      limit: async () => payload,
+      range: () => Promise.resolve(payload),
+      limit: () => Promise.resolve(payload),
       then: (resolve, reject) => Promise.resolve(payload).then(resolve, reject),
     }
     return api

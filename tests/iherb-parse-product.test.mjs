@@ -22,12 +22,19 @@ import {
   availabilityToInStock,
   parseIherbProduct,
   parseProductBreadcrumb,
+  parseProductIngredients,
+  parseProductRankings,
+  parseProductSpecs,
 } from '../marketplace/iherb/parseProduct.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CATALOGUE = join(root, 'extensions/sample-iherb-skin1004.html')
 const PDP = join(root, 'extensions/skin1004-product-page.html')
+const PDP_RANKINGS = join(root, 'extensions/sample-iherb-pdp-rankings.html')
+const PDP_NEW_INGREDIENTS = join(root, 'extensions/sample-iherb-pdp-new-ingredients.html')
 const has = existsSync(CATALOGUE) && existsSync(PDP)
+const hasRankings = existsSync(PDP_RANKINGS)
+const hasNewIngredients = existsSync(PDP_NEW_INGREDIENTS)
 
 const catalogue = has
   ? parseIherbCatalogue(readFileSync(CATALOGUE, 'utf8'), { url: 'https://sg.iherb.com/c/skin1004' })
@@ -144,6 +151,102 @@ test('the PDP still captures the 30-day sold text', { skip: !has }, () => {
   // It is rendered text, not part of the payload — a PDP-only pass would
   // otherwise lose the one field that measures demand.
   assert.equal(pdp.sold_label, '2,000+ sold in 30 days')
+  assert.equal(pdp.sold_lower_bound, 2000)
+  assert.equal(pdp.sold_period, 'month')
+})
+
+test('the SKIN1004 PDP has product rankings from .best-selling-rank', { skip: !has }, () => {
+  assert.ok(Array.isArray(pdp.rankings) && pdp.rankings.length >= 3)
+  assert.equal(pdp.rank_best.rank, pdp.rankings[0].rank)
+  assert.equal(pdp.rank_best.category, pdp.rankings[0].category)
+  // First rank is the tightest / most specific category
+  assert.match(pdp.rank_best.category, /K-Beauty|Cleanser|Face Wash|Centella/i)
+  for (const r of pdp.rankings) {
+    assert.ok(Number.isFinite(r.rank) && r.rank > 0)
+    assert.ok(r.category)
+    assert.ok(r.category_slug)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Merrymonde rankings fixture (explicit #5 / #39 / #159 / #614 / #1237)
+// ---------------------------------------------------------------------------
+
+test('Merrymonde PDP rankings match live probe expectations', { skip: !hasRankings }, () => {
+  const html = readFileSync(PDP_RANKINGS, 'utf8')
+  const ranks = parseProductRankings(html)
+  assert.equal(ranks.length, 5)
+  assert.deepEqual(
+    ranks.map((r) => [r.rank, r.category]),
+    [
+      [5, 'K-Beauty Eyeliner'],
+      [39, 'Eyeliner'],
+      [159, 'Eyes'],
+      [614, 'Makeup'],
+      [1237, 'K-Beauty'],
+    ],
+  )
+  assert.equal(ranks[0].category_slug, 'k-beauty-eyeliner')
+  assert.equal(ranks[0].category_id, '107537')
+  assert.equal(ranks[4].category_slug, 'k-beauty')
+
+  const parsed = parseIherbProduct(html, {
+    url: 'https://sg.iherb.com/pr/merrymonde-super-twim-pen-eyeliner-05-mocha-brown-0-02-fl-oz-0-5-ml/150541',
+  })
+  assert.equal(parsed.found, true)
+  assert.equal(parsed.rank_best.rank, 5)
+  assert.equal(parsed.rank_best.category, 'K-Beauty Eyeliner')
+})
+
+test('parseProductRankings ignores empty html', () => {
+  assert.deepEqual(parseProductRankings(''), [])
+  assert.deepEqual(parseProductRankings('<html></html>'), [])
+})
+
+test('SKIN1004 PDP specs + ingredients parse', { skip: !has }, () => {
+  const html = readFileSync(PDP, 'utf8')
+  const specs = parseProductSpecs(html)
+  assert.equal(specs.product_code, 'SIO-26111')
+  assert.equal(specs.upc, '8809576261110')
+  assert.match(specs.package_quantity || '', /200/)
+  assert.ok(specs.dimensions_cm || specs.dimensions)
+
+  const ov = parseProductIngredients(html)
+  assert.ok(ov.ingredients_text && /centella/i.test(ov.ingredients_text))
+  assert.ok(ov.suggested_use && /massage|apply/i.test(ov.suggested_use))
+
+  const full = parseIherbProduct(html)
+  assert.equal(full.gtin, '8809576261110')
+  assert.equal(full.volume_ml, 200)
+  assert.ok(full.price_per_ml != null && full.price_per_ml > 0)
+  assert.ok(full.ingredients_text)
+  assert.ok(full.specifications?.upc)
+})
+
+test('Merrymonde PDP specs include 0.5 ml package', { skip: !hasRankings }, () => {
+  const html = readFileSync(PDP_RANKINGS, 'utf8')
+  const specs = parseProductSpecs(html)
+  assert.equal(specs.upc, '8809701410406')
+  assert.match(specs.package_quantity || '', /0\.5/)
+  const full = parseIherbProduct(html)
+  assert.equal(full.volume_ml, 0.5)
+})
+
+// Newer PDP layout: the ingredient/suggested-use/warnings headings are wrapped
+// in <strong> inside the <h3>, and the content div carries no prodOverview*
+// class (.ingredient-info / #product-supplement-facts). The original selectors
+// missed it entirely — a real capture (DAENG GI MEO RI) that scored 0 on the
+// first specs pass, so ~6% of SKUs silently lost ingredients they actually had.
+test('new .ingredient-info layout (strong-wrapped h3) still yields ingredients', { skip: !hasNewIngredients }, () => {
+  const html = readFileSync(PDP_NEW_INGREDIENTS, 'utf8')
+  const ov = parseProductIngredients(html)
+  assert.ok(ov.ingredients_text && /dimethicone/i.test(ov.ingredients_text), 'ingredients from strong-wrapped h3')
+  assert.ok(ov.suggested_use && /shampoo/i.test(ov.suggested_use), 'suggested use from strong-wrapped h3')
+  assert.ok(ov.warnings && /red spots/i.test(ov.warnings), 'warnings from strong-wrapped h3 (<ol><li> body)')
+
+  const full = parseIherbProduct(html)
+  assert.equal(full.gtin, '8807779151121')
+  assert.ok(full.ingredients_text && /dimethicone/i.test(full.ingredients_text))
 })
 
 // ---------------------------------------------------------------------------

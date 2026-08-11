@@ -3,8 +3,9 @@
  *
  * Differences from Shopee mallHarvestWorker (docs/IHERB_HANDOFF.md):
  *  - No login — public catalogue
- *  - Binding constraint is 403 / rate limit, not captcha
- *  - Notify only after sustained 403 (backoff exhausted)
+ *  - Binding constraint is 403 / rate limit; rare **press-and-hold**
+ *    interstitials (not classic captcha) — human solves in Chrome, worker waits
+ *  - Notify only after sustained block (backoff exhausted)
  *  - Health returns 'unknown' for unrecognised pages, never false 'ok'
  *  - Assert currency on page one of every run
  *  - Writes via upsertIherbCatalogue (not marketplace_listings)
@@ -89,8 +90,9 @@ export function detectIherbHealth(probe = {}) {
   const url = String(probe.url || '').toLowerCase()
   const productCount = Number(probe.productCount) || 0
 
+  // Includes iHerb's bespoke "press and hold" interstitial (seen on long PDP runs).
   if (
-    /access denied|request blocked|permission denied|unusual traffic|bot detection|cf-error|just a moment|checking your browser|rate limit|too many requests|recaptcha|captcha|verify you are human|are you a human/.test(
+    /access denied|request blocked|permission denied|unusual traffic|bot detection|cf-error|just a moment|checking your browser|rate limit|too many requests|recaptcha|captcha|verify you are human|are you a human|press and hold|press\s*&\s*hold|hold (the )?button|hold to continue|security check|bot check/.test(
       blob,
     )
   ) {
@@ -203,8 +205,10 @@ export function assertRunCurrency(coverage, opts = {}) {
 export async function openAndParseIherbPage(page, url, opts = {}) {
   const label = opts.label || url
   const isFirstNav = _iherbNavCount === 0
+  // iHerb public catalogue: no login/captcha — prefer fast path for bulk runs
+  const fast = opts.fast === true
 
-  if (opts.skipPreNavPause !== true) {
+  if (!fast && opts.skipPreNavPause !== true) {
     if (isFirstNav) {
       await humanPreNavPause({
         minMs: opts.preNavMinMs ?? 3000,
@@ -216,6 +220,9 @@ export async function openAndParseIherbPage(page, url, opts = {}) {
       console.error(`[iherb] ${label}: gap ${Math.round(short / 1000)}s`)
       await sleep(short)
     }
+  } else if (fast && !isFirstNav && opts.skipPreNavPause !== true) {
+    // tiny gap only — avoid hammering the same TCP session
+    await sleep(rand(opts.preNavShortMinMs ?? 120, opts.preNavShortMaxMs ?? 350))
   }
 
   let response = null
@@ -226,19 +233,36 @@ export async function openAndParseIherbPage(page, url, opts = {}) {
   }
   _iherbNavCount += 1
 
-  await sleep(isFirstNav ? rand(2000, 4000) : rand(1000, 2200))
+  // Paint settle: short for public pages
+  await sleep(fast
+    ? (isFirstNav ? rand(400, 800) : rand(200, 450))
+    : (isFirstNav ? rand(2000, 4000) : rand(1000, 2200)))
 
-  try {
-    await humanIdleMouse(page)
-  } catch {
-    /* ignore */
+  if (!fast) {
+    try {
+      await humanIdleMouse(page)
+    } catch {
+      /* ignore */
+    }
+    try {
+      await humanScrollPage(page, { bursts: 3 })
+    } catch {
+      /* ignore */
+    }
+    await sleep(rand(600, 1400))
+  } else {
+    // One quick scroll for lazy tiles — no humanize mouse theatre
+    try {
+      await page.evaluate(async () => {
+        window.scrollBy(0, 1200)
+        await new Promise((r) => setTimeout(r, 150))
+        window.scrollBy(0, 1200)
+      })
+    } catch {
+      /* ignore */
+    }
+    await sleep(rand(150, 350))
   }
-  try {
-    await humanScrollPage(page, { bursts: 3 })
-  } catch {
-    /* ignore */
-  }
-  await sleep(rand(600, 1400))
 
   const status = response?.status?.() ?? null
   let probe = await page.evaluate(browserIherbProbeEvaluate).catch(() => ({
@@ -265,11 +289,15 @@ export async function openAndParseIherbPage(page, url, opts = {}) {
   if (health === 'unknown' && catalogue.products.length === 0 && status !== 403) {
     console.error(`[iherb] ${label}: 0 products — re-scroll…`)
     try {
-      await humanScrollPage(page, { bursts: 4 })
+      if (fast) {
+        await page.evaluate(() => window.scrollBy(0, 2000))
+      } else {
+        await humanScrollPage(page, { bursts: 4 })
+      }
     } catch {
       /* ignore */
     }
-    await sleep(rand(1000, 2000))
+    await sleep(fast ? rand(300, 600) : rand(1000, 2000))
     probe = await page.evaluate(browserIherbProbeEvaluate).catch(() => probe)
     html = await page.content().catch(() => html)
     catalogue = parseIherbCatalogue(html, {
@@ -289,7 +317,7 @@ export async function openAndParseIherbPage(page, url, opts = {}) {
   let recovery = null
   if (health === 'blocked') {
     console.error(
-      `[iherb] ${label}: BLOCKED (status=${status ?? '?'}) title=${JSON.stringify(probe.title?.slice(0, 80) || '')} — waiting for recovery (solve captcha in Chrome if shown)…`,
+      `[iherb] ${label}: BLOCKED (status=${status ?? '?'}) title=${JSON.stringify(probe.title?.slice(0, 80) || '')} — waiting for recovery (solve press-and-hold / captcha in Chrome if shown)…`,
     )
     const maxAttempts = opts.maxBlockedAttempts ?? 5
     let attempt = 0
@@ -636,7 +664,8 @@ export async function harvestKBeautyByBids(page, opts) {
   if (!codes.length) throw new Error('harvestKBeautyByBids: codes required')
 
   const maxPages = Math.min(Math.max(opts.max_pages ?? 40, 1), 80)
-  const delayMs = opts.delay_ms ?? 3500
+  const fast = opts.fast !== false // default fast for public K-Beauty
+  const delayMs = opts.delay_ms ?? (fast ? 800 : 3500)
   const expectCurrency = opts.expect_currency || 'SGD'
   const categoryPath = opts.category_path || 'K-Beauty'
 
@@ -654,11 +683,12 @@ export async function harvestKBeautyByBids(page, opts) {
 
     const opened = await openAndParseIherbPage(page, url, {
       label,
-      recoveryDeadlineMs: opts.recoveryDeadlineMs,
-      recoveryPollMs: opts.recoveryPollMs,
+      fast,
+      recoveryDeadlineMs: opts.recoveryDeadlineMs ?? (fast ? 60_000 : 15 * 60 * 1000),
+      recoveryPollMs: opts.recoveryPollMs ?? (fast ? 3000 : 8000),
       onBlocked: opts.onBlocked,
       onResolved: opts.onResolved,
-      skipPreNavPause: pageNum > 1 ? false : opts.skipPreNavPause,
+      skipPreNavPause: pageNum > 1 ? true : opts.skipPreNavPause,
       preNavMinMs: opts.preNavMinMs,
       preNavMaxMs: opts.preNavMaxMs,
     })
