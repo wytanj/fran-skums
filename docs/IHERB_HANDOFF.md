@@ -226,6 +226,8 @@ market_brand_compare { brand_key } →
 
 Scope: `intel:read`. Impl: `marketplace/iherb/query.mjs` + `mcp/src/lib/bi.mjs`.
 
+**Images (2026-08-14):** every live iHerb row already has `metadata.pdp_image` (schema.org `image` from PDP enrich). Tools above **do not return it yet**. Next is Track **IMG-1** in `TODO.md` — add `image_url` to `market_iherb_products` / compare / workbook. Do not re-walk PDPs for photos. Do not share Shopee’s Chrome profile.
+
 ---
 
 ## Repo gotchas that will bite

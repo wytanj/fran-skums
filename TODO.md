@@ -10,7 +10,8 @@
 
 **MCP per-user OAuth (was “R2 OAuth”):** **code built, DB applied, not deployed.** One Claude Enterprise connector config → per-employee permissions. No env vars needed: owner generates + rotates the client id/secret in **Settings → Claude Connector**. Inert until then. See `docs/MCP_OAUTH_DESIGN.md`.  
 
-**Brand radar / Mall harvest:** Track **BR** — **mono scrape backlog cleared (2026-08-01/02)** · **73/73** mono: lifetime sold + **MH-14 sales ranks** (`list_sales_*`) + **MH-4 platform crumbs** · queue **idle** · **no open scrape duties** for the v1 goals · honest “sold/month” = **Top Sales grid rank** (not calendar units; S-E later) · export recipes **full** | **full_sales** · breadcrumb merge on read · **prod redeploy** 2026-08-02 · **next ops host = on-prem Linux/Windows PC** (not this desktop, not Browserbase) · optional later: deeper `max_pages` · more PDPs/SKU · distributors · monthly re-scrape on that box
+**Brand radar / Mall harvest:** Track **BR** — **mono scrape backlog cleared (2026-08-01/02)** · **73/73** mono: lifetime sold + **MH-14 sales ranks** (`list_sales_*`) + **MH-4 platform crumbs** · queue **idle** · **no open scrape duties** for the v1 goals · honest “sold/month” = **Top Sales grid rank** (not calendar units; S-E later) · export recipes **full** | **full_sales** · breadcrumb merge on read · **prod redeploy** 2026-08-02 · **next ops host = on-prem Linux/Windows PC** (not this desktop, not Browserbase) · optional later: deeper `max_pages` · more PDPs/SKU · distributors · monthly re-scrape on that box  
+**Product images (intent, 2026-08-14):** Track **IMG** — iHerb is the pack-shot source. Live warehouse: **46** brands on both channels (advisory said 44) · **2,931 / 2,931** iHerb SKUs already have `metadata.pdp_image` · **0 / 6,353** Shopee Mall rows have `image_url`. Next = expose URL on MCP/export, not a new scrape. See § Track IMG.
 
 **MCP read path:** Track **RP** — **COMPLETE (RP-1…RP-8)** · next product layer = **named report recipes** (not free-form row math) · `market_brand_rollup` / export_csv / **export_full** · design **`docs/MCP_READ_PATH_DESIGN.md`**  
 **Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · CRM WS id always injected on POS proxy · next: L-sim / Jan-1 / campaigns  
@@ -34,6 +35,8 @@
 | **`docs/scrape-summary.md`** | Historical Mall scrape stop / resume (2026-07) |
 | **`marketplace/README.md`** | Collectors + session · grind host intent |
 | **`docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`** | Weekly radar design · worker topology |
+| **`docs/KBEAUTY_ASSORTMENT_ADVISORY.md`** | Opening-range memo · dual-channel roster (44 in memo; warehouse 46) |
+| **`docs/IHERB_HANDOFF.md`** / **`docs/IHERB_PDP_DEPTH_PLAN.md`** | iHerb warehouse + PDP · images already on `pdp_image` |
 | **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
 | **`docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md`** | POS key → SKUMS → CRM facade |
 | **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B |
@@ -83,6 +86,11 @@
      · deeper catalogs max_pages=12 · more MH-4 PDPs per brand
      · distributors · true monthly units (MH-14 S-E / MH-10)
    · Re-export xlsx only when you want a fresh sheet from DB
+0b. IMG product photos — read-path, not a scrape (see § Track IMG)
+   · iHerb Cloudinary URLs already on every SKU (`metadata.pdp_image`)
+   · Expose `image_url` on market_iherb_products / compare / workbook
+   · Download bytes only when promoting to Fran catalog (heroes first)
+   · Shopee images only for iHerb-absent brands (Torriden, Skintific, …)
 1. MCP report recipes (product, high leverage)  ← next eng
    · Named recipes: top_brands_weekly · top_sales_by_brand · shelf_mix · mh4_coverage
    · market_report_run · Airtable/Sheets push · Mall weekly pack (K)
@@ -153,6 +161,7 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 | **Done** | **TEAM** teammate invite | **Shipped + prod** · Kristle = owner ops |
 | **Later** | **S** login MFA = Google Workspace | Planned |
 | **Later** | **G** Shopee collect | **On-prem Linux/Windows PC** is the intended grind host · laptop only for captcha RDP · G2 → MH-11 · Browserbase stays parked |
+| **Later** | **IMG** product pack shots | **URLs already on iHerb** · expose on MCP/export · no Shopee-wide image crawl · see § Track IMG |
 | **Parked** | **WEB** Fran web → store | Parked in `TODO-WEB.md` |
 
 ## Track EX — Near-expiry / Loft short-date gate (ops wiring)
@@ -885,6 +894,7 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 
 - Browserbase as **primary** Shopee collector (Linux-only on Developer plan; captcha)  
 - Using **this personal desktop** as the long-term harvest host — grind moves to an **on-prem Linux/Windows PC** (Track G / BR)  
+- **Shopee-wide image harvest** (6k Mall thumbs) — iHerb pack shots already cover the dual-channel roster (Track IMG)  
 - Multi-marketplace expansion beyond Shopee (Lazada/TikTok) — brand radar is **Shopee SG first**  
 - Phase H ecommerce  
 - R2 OAuth until packages + pilot solid  
@@ -911,6 +921,46 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 | **Cadence learned** | Warm CDP ≈ captcha then OK; sleep freezes CDP; bounce kills solved captchas (off by default); list-only sales ~1 min/brand when warm |
 | **Export / MCP** | Recipes **full** + **full_sales** · path merge on sales rows · default listing fields include path + ranks · **prod 2026-08-02** |
 | **Optional later (not blockers)** | Stand up the on-prem box · deeper catalogs `max_pages=12` · more MH-4 PDPs/SKU · distributors · true monthly units (S-E) · MH-10–13 scheduling |
+
+## Track IMG — Product pack shots (intent 2026-08-14)
+
+**Problem:** assortment / buy deck / POS need pictures. Advisory anchored on **44 dual-channel brands**; live warehouse **2026-08-14** is **46** `brand_key`s with ≥1 iHerb SKU and ≥1 Shopee snapshot (51 if you only require a linked Mall shop). Do not relitigate 44 vs 46 — use the live intersection.
+
+**Measured (paged, same workspace):**
+
+| | |
+|--|--|
+| iHerb SKUs / brands | 2,931 / 182 |
+| Shopee Mall listings / brands | 6,353 / 79 |
+| Dual-channel brands | **46** |
+| Dual-channel iHerb SKUs | **1,191** |
+| `iherb_products.metadata.pdp_image` | **2,931 / 2,931 (100%)** — Cloudinary pack shot |
+| `marketplace_listings.image_url` | **0 / 6,353** — Mall harvest never extracted `img` |
+
+Sample URL: `https://cloudinary.images-iherb.com/image/upload/f_auto,q_auto:eco/images/auu/auu73666/g/17.jpg`
+
+**Lock**
+
+| | |
+|--|--|
+| Photo source | **iHerb** (first-party pack shot, already harvested, no captcha) |
+| Not the source | Shopee card thumbs (promo / bundle / overlay) for dual-channel SKUs |
+| Read path | `metadata.pdp_image` already written by PDP enrich · MCP/export **do not** surface it yet |
+| Bytes | Hotlink Cloudinary for BI. Copy into `product_images` / Storage **only when promoting** a SKU into Fran catalog |
+| Join | Images hang on `iherb.part_number` or `shopee.shop_id:item_id`. No SKU-level cross-channel photo merge. GTIN later. |
+
+**Slices (when scheduled — not tonight)**
+
+| Slice | Work |
+|-------|------|
+| **IMG-1** | Expose `image_url` from `metadata.pdp_image` on `market_iherb_products`, `market_brand_compare`, full workbook |
+| **IMG-2** | Optional column `iherb_products.image_url` — jsonb is enough for v1 |
+| **IMG-3** | Download Appendix A heroes (~25) + opening ~250 into Storage when cataloging |
+| **IMG-4** | Shopee hole-fill only: Torriden / Skintific / NARD (no iHerb pack shot) — Mall `img` on next sales pass or SERP `cf.shopee.sg/file/{hash}` |
+
+**Do not:** re-PDP iHerb for images · crawl 6k Shopee thumbs · dump harvest photos into `product_images` before a catalog row exists.
+
+**46 live dual-channel keys:** abib, anua, april-skin, arencia, aromatica, axis-y, banila-co, beauty-of-joseon, benton, beplain, biodance, celimax, cnp-laboratory, cosrx, dalba, dear-dahlia, dear-klairs, dr-althea, dr-forhair, dr-melaxin, dr-reju-all, elizavecca, fwee, goongbe, house-of-hur, isntree, iunik, jumiso, kundal, medicube, mediheal, mixsoon, mizon, numbuzin, parnell, pyunkang-yul, round-lab, seapuri, skin1004, skinfood, tfit, tirtir, tocobo, too-cool-for-school, vt-cosmetics, wellage.
 
 ### MH-14 — Top sales / month pass (`sortBy=sales`) — **done (v1)**
 

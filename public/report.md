@@ -3,6 +3,8 @@
 
 **Prepared:** 12 Aug 2026 · **Evidence:** Shopee SG Mall harvest (6,353 listings, 79 brands) + iHerb SG K-Beauty harvest (2,738 clean SKUs, 170 brands, full INCI/rank/spec depth) · **Prices:** SGD
 
+**Warehouse note (2026-08-14):** dual-channel `brand_key` intersection is now **46** (memo said 44 — harvest drift, not a new thesis). Every iHerb SKU already has `metadata.pdp_image` (Cloudinary pack shot). Shopee Mall `image_url` is empty. Image plan: `TODO.md` Track **IMG** — expose those URLs; do not re-scrape.
+
 ---
 
 ## 1 · Executive summary

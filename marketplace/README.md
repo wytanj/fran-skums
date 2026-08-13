@@ -5,6 +5,8 @@ Competitive observation for public marketplaces (Shopee first).
 
 **Harvest host (intent, 2026-08-14):** dedicated **on-prem Linux and/or Windows PC** that stays on. Same workers + warm Chrome/CDP. This laptop is not the long-term overnight box. Shopee still wants headed Windows Chrome for captcha; iHerb can be Linux/headless on a **separate** profile. Browserbase / Vercel stay parked. See `TODO.md` Track G.
 
+**Product images (intent, 2026-08-14):** iHerb pack shots are already on `iherb_products.metadata.pdp_image` (100% of 2,931). Mall harvest does **not** fill `marketplace_listings.image_url`. Dual-channel roster is **46** brands. Plan: expose iHerb URLs on MCP/export; Shopee thumbs only for iHerb-absent brands. See `TODO.md` Track **IMG**.
+
 ## Collectors
 
 | `collector_id` | Runtime | Notes |

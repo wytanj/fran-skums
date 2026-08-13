@@ -1,7 +1,8 @@
 # iHerb PDP depth plan — sold, rankings, unit price, ingredients/specs
 
 **Status:** coverage audit done · read-path fixes shipped · **ingredients/specs slice shipped + live-enriched (2026-08-11)** · **ingredient parser layout-bug fixed + re-enriched (2026-08-11)**  
-**Warehouse (2026-08-11):** 2,931 SKUs · 182 brands · 100% gtin · 100% pdp_enriched · 100% specs_enriched · 94.3% rank_best · **99.2% ingredients** · **95.9% suggested_use** · 43.6% price/ml
+**Warehouse (2026-08-11):** 2,931 SKUs · 182 brands · 100% gtin · 100% pdp_enriched · 100% specs_enriched · 94.3% rank_best · **99.2% ingredients** · **95.9% suggested_use** · 43.6% price/ml  
+**Images (checked 2026-08-14):** **100%** `metadata.pdp_image` (Cloudinary). Not yet on MCP. See `TODO.md` Track **IMG** — read-path only, no rescrape.
 
 > Live specs pass 2026-08-11 11:39→12:47: all 182 brands, 2,931 PDPs re-fetched, **0 failed · 0 blocked**. Every SKU carries `specifications` (UPC + dimensions at 100%).
 >
