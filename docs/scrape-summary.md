@@ -1,5 +1,8 @@
 # Shopee Mall scrape summary
 
+Historical stop log (2026-07). **v1 mono scrape closed 2026-08-02** — see `TODO.md` Track BR.  
+**Resume host (intent):** on-prem Linux/Windows PC, not this laptop (`TODO.md` Track G · `docs/MALL_BRAND_CYCLE_RUNBOOK.md`).
+
 **Stopped:** 2026-07-29 (SGT; captcha again — Chrome closed, harvest processes killed)  
 **Prior stop:** 2026-07-28T11:06:34Z (first captcha stop)
 **Workspace:** `c21c057f-ea01-4e19-bc79-fafcf2626b19`
@@ -152,6 +155,8 @@ node scripts/_mark_mh4_redo.mjs --target 40
 | cosrx | 173 | 10 |
 
 ## Ops notes (this session)
+
+These notes are why the grind leaves the laptop: sleep freezes CDP; captcha + `killAllChrome` fight daily Chrome. Resume on the **on-prem harvest PC** when it exists.
 
 - **Warm connect** Chrome CDP reduces cold Puppeteer — captcha usually once per session then OK.
 - **Humanize:** session-first 5–15s warm-up; short gaps when warm; brand gaps; post-block cool-down.

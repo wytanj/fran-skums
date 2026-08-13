@@ -4,7 +4,9 @@
 
 Build Shopee competitive intelligence as an external crawler/worker, not as a Vercel serverless feature and not as the official Shopee channel adapter.
 
-Vercel should remain the control plane: create crawl jobs, show job status, read stored results, and run lightweight analysis. Long-running browser work should run in a local/gstack prototype first, then in a dedicated worker if the crawler becomes production-critical.
+Vercel should remain the control plane: create crawl jobs, show job status, read stored results, and run lightweight analysis. Long-running browser work stays off Vercel.
+
+**Host (2026-08-14):** dedicated **on-prem Linux and/or Windows PC** is the intended grind host (`TODO.md` Track G). The personal desktop is the current prototype only. Shopee still needs headed Windows Chrome for captcha; iHerb can be Linux on the same box. Browserbase / Fly-as-primary stay parked unless they beat that box.
 
 The official Shopee Open API is still useful for our own authorized seller listings and category/attribute validation. It is not the source for public competitor monitoring.
 
@@ -152,12 +154,12 @@ Use this runtime sequence:
    - Worker runs browser sessions with low concurrency, country-aware delays, checkpointing after each page/listing.
    - Store logs in DB, not only in memory.
 
-3. Phase 3: Dedicated crawl service if usage grows
-   - Fly/Railway/VPS worker with a persistent browser or gstack-like profile.
-   - Cron creates nightly jobs by country/category.
+3. Phase 3: Dedicated crawl host
+   - **Intended (2026-08-14):** on-prem Linux/Windows PC with persistent Chrome profile(s) and cron. See `TODO.md` Track G.
+   - Cloud VPS / Fly / Browserbase only if that box is worse.
    - Keep Vercel out of browser execution.
 
-For the "overnight jobs pooled" preference, Phase 2 is the right target. It avoids serverless timeouts while preserving a simple UI-triggered workflow.
+Fran is past Phase 1 (local proof). The missing piece is the **dedicated on-prem host**, not another cloud browser vendor.
 
 ## Shopee-Specific Crawl Strategy
 

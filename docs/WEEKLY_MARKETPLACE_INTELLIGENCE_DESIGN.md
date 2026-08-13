@@ -20,7 +20,7 @@ Operators and leadership need a **Monday morning weekly pack**: price/sold proxi
 ### Goals
 
 1. Import `sample-brands.csv` as the initial **brand universe** and generate crawl seeds.
-2. Run a **weekly** collect batch realistic for human-maintained Shopee sessions on a Windows worker.
+2. Run a **weekly** collect batch realistic for human-maintained Shopee sessions on an **on-prem harvest PC** (Windows Chrome for Shopee; Linux OK for iHerb / Node).
 3. Normalize facts into existing warehouse tables (`marketplace_*`, `marketplace_metrics_daily`).
 4. Produce a **weekly digest** via the **report registry** (track K), not a third parallel digests product.
 5. Ground Grok judgment on warehouse metrics/snapshots only.
@@ -52,7 +52,7 @@ Operators and leadership need a **Monday morning weekly pack**: price/sold proxi
 |---------|------------------------|-----------------|
 | **HQ buyer / inventory manager** | Undercuts, sold proxies, catalog gaps, promote-to-study | `/reports`, MCP `reports_*` / `bi_*` |
 | **Marketer** | Brand visibility, Mall share, new hero SKUs | Report pack + export CSV |
-| **Ops owner (session keeper)** | Collect health, captcha/login_required, cookie refresh | Marketplace jobs UI + Windows worker console |
+| **Ops owner (session keeper)** | Collect health, captcha/login_required, cookie refresh | Marketplace jobs UI + on-prem harvest PC (RDP when blocked) |
 | **Leadership** | 1-page narrative + top 5 moves | Markdown summary / Phase N inbox |
 
 ### Canonical week (Asia/Singapore)
@@ -70,7 +70,7 @@ Mon AM                Buyer + marketing read pack; promote candidates via study/
 Mon–Wed               Deep dives (study sessions) on promoted brands/listings only — human-opened
 ```
 
-**Who runs collect (locked):** Windows worker calling **production internal APIs** (`MARKETPLACE_CRON_SECRET`). Script: `scripts/windows-marketplace-weekly.ps1` (or `.mjs` wrapper) may run multiple times per week; metrics/digest are idempotent per `week_key`. See KD-13.  
+**Who runs collect (locked 2026-07-20 · host updated 2026-08-14):** on-prem harvest PC calling **production internal APIs** (`MARKETPLACE_CRON_SECRET`). Script: `scripts/windows-marketplace-weekly.ps1` (or `.mjs` wrapper) / `_harvest_queue.mjs` may run multiple times per week; metrics/digest are idempotent per `week_key`. See KD-13 + `TODO.md` Track G. The daily laptop is not the long-term host.  
 **Who “owns” Monday read:** HQ buyer (primary), marketing (share/newness), owner (session ops).
 
 ---
@@ -94,10 +94,11 @@ Lock Major Update principles:
         │                                  schedule_kind=weekly
         ▼
  ┌──────────────────────────────────────────────────────────┐
- │ Windows worker (Track G primary)                         │
- │  scripts/windows-marketplace-weekly.ps1                  │
+ │ On-prem harvest PC (Track G host · 2026-08-14)           │
+ │  Windows Chrome for Shopee · Linux OK for iHerb / Node   │
+ │  scripts/windows-marketplace-weekly.ps1 / _harvest_queue │
  │  scheduler-tick → process-jobs (stop_batch) → metrics    │
- │  cookies: SHOPEE_SG_SESSION_JSON / cookie file           │
+ │  cookies: SHOPEE_SG_SESSION_JSON / warm CDP profile      │
  └────────────────────────┬─────────────────────────────────┘
                           ▼ facts (signals.brand_key stamped)
  marketplace_shops / marketplace_listings / marketplace_listing_snapshots
@@ -374,13 +375,15 @@ Do **not** auto-enable all 125 seeds on first import. Materialize is gated by `p
 
 | Role | Choice |
 |------|--------|
-| Primary | Local **Windows Chrome** + `shopee_puppeteer` + warm `SHOPEE_SG_SESSION_JSON` / `SHOPEE_USE_COOKIE_FILE=1` |
+| **Physical host (2026-08-14)** | Dedicated **on-prem Linux and/or Windows PC** that stays on. Not the daily laptop. |
+| Shopee session | Headed **Windows** Chrome (or Windows VM on that box) + `shopee_puppeteer` / CDP `--connect` + warm cookies / profile |
+| iHerb | Same box; Linux/headless OK; **separate** Chrome profile/port from Shopee |
 | Control plane | Vercel: seeds, jobs queue, metrics-tick, reports, UI |
-| Worker topology | **Task Scheduler → production internal HTTP APIs** with `MARKETPLACE_CRON_SECRET` (not local Nuxt dual DB) |
-| Orchestration script | `scripts/windows-marketplace-weekly.ps1` (required deliverable; PR-3 ships stop_batch + smoke; PR-7 hardens runbook) |
-| Not primary | Browserbase Linux, CF Browser Rendering as primary, Vercel browser, bare fetch |
+| Worker topology | **Cron / Task Scheduler on the on-prem PC → production internal HTTP APIs** with `MARKETPLACE_CRON_SECRET` (not local Nuxt dual DB) |
+| Orchestration script | `scripts/windows-marketplace-weekly.ps1` / `_harvest_queue.mjs` (PR-3 ships stop_batch + smoke; PR-7 hardens runbook) |
+| Not primary | Browserbase Linux, CF Browser Rendering as primary, Vercel browser, bare fetch, personal desktop as long-term host |
 
-**Supersedes older Major Update phrasing** that described paid cloud browsers as the default collect layer for Shopee SERP. Track G (2026-07-17) is the lock: Windows warm session primary; cloud browsers experimental/fallback only.
+**Supersedes older Major Update phrasing** that described paid cloud browsers as the default collect layer for Shopee SERP. Track G (2026-07-17) locked **warm Windows Chrome**, not cloud. 2026-08-14 moves that session off the personal desktop onto the on-prem box (`TODO.md` G1.5).
 
 ### 5.2 brand_portfolio mode + card stamping
 
@@ -754,7 +757,8 @@ Never invent prices/sold.
 | Node fetch / bare HTTP | 403 / TLS fingerprint fail | Never primary |
 | Vercel serverless browser | No Chrome; timeouts | Control plane only |
 | Local Puppeteer cold browser | Permanent captcha | Require warm cookies |
-| Browserbase as primary | Linux Developer OS; captcha | Parked (G5 only) |
+| Browserbase as primary | Linux Developer OS; captcha | Parked (G5 only; on-prem PC is the intended host) |
+| Personal desktop as long-term harvest host | Sleep, daily Chrome, `killAllChrome` | **Rejected 2026-08-14** — on-prem PC |
 | Cloudflare Browser Rendering primary | Fixed UA; no captcha solve | Optional fallback only (not weekly primary) |
 | LLM as price/sold source | Stale/wrong | Forbidden |
 | gstack overnight crawl | Research option, not proven here | Not locked architecture |
@@ -936,13 +940,13 @@ No channels/ adapters. No iHerb tables.
 | 4 | **New `marketplace_brand_universe`** (not seeds-only, not catalog brands) | First-class flags, tier, re-import |
 | 5 | **Shopee SG only**; iHerb = interest not scrape | Failed iHerb HTTP; scope |
 | 6 | **`brand_portfolio` = single SERP** + stamp brand_key on cards | Collectors SERP-based; durable metrics join |
-| 7 | **Windows `shopee_puppeteer` + warm cookies** primary | Track G; supersedes Major Update cloud-primary wording for Shopee |
+| 7 | **Warm Windows Chrome + `shopee_puppeteer`** as the Shopee *session*; **on-prem PC** as the *host* (2026-08-14) | Track G; laptop is not the long-term box |
 | 8 | **Pilot allowlist → mid → full** via pilot_tier (default paused) | Deterministic; safe scale |
 | 9 | **stop_batch end-to-end** on login_required/blocked | Current runner continues — must change |
 | 10 | **Suggest ≠ execute**; promote = **list only** | No auto study/PO/Loft |
 | 11 | **Grok numbers only from warehouse** | contracts.mjs |
 | 12 | **Single query per brand in pilot/mid** | Session budget |
-| 13 | **Worker = Task Scheduler + production internal APIs** + `windows-marketplace-weekly` script | One topology for P1 |
+| 13 | **Worker = cron/Task Scheduler on the on-prem harvest PC** + production internal APIs + `windows-marketplace-weekly` / `_harvest_queue` | One topology; not the daily laptop |
 | 14 | **Catalog match = case-insensitive exact** brand name | No fuzzy v1 |
 | 15 | **Scopes = `intel:read`/`intel:write` + `reports:*`** | Matches seeds.post.ts; no marketplace:write |
 | 16 | **Ops pilot = single primary workspace** (schema still multi-tenant) | Avoid multi-ws thrash |

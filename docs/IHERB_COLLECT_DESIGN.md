@@ -60,9 +60,14 @@ fingerprint and reputation filtering, which fails closed and silently.
 
 ### Reuse, do not rebuild
 
-Attach to the **same** debug Chrome on `:9222` with the same warm profile. There
-is no reason for a second browser or profile, and a second one would double the
-operator's setup burden for no gain.
+Reuse the same **worker primitives** as Shopee (CDP attach, `waitForRecovery`,
+notifier, per-brand cooldown). **Do not share Shopee’s Chrome profile or
+`:9222`.** A Shopee bounce/`killAllChrome` must not kill an iHerb run.
+
+**Host (2026-08-14):** on-prem Linux/Windows PC. iHerb has no login and almost
+no captcha — Linux/headless on that box is fine. Dedicated profile
+(`.iherb-chrome-profile`, e.g. `:9223`). Sharing the Shopee laptop Chrome was
+the v1 convenience; it is no longer the intended setup.
 
 What carries over unchanged:
 

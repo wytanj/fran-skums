@@ -1,5 +1,7 @@
 # Scraping on Vercel Serverless: The Problem & Solutions
 
+**Marketplace harvest host (2026-08-14):** Shopee + iHerb grind is intended to run on a dedicated **on-prem Linux/Windows PC**, not Vercel and not the daily laptop. This doc is the older options survey (URL analyser vs batch crawl). Current lock: `TODO.md` Track G · `docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md` §5.1.
+
 ## The Problem
 
 We need to fetch product pages from sites like iHerb, Hwahae, and Olive Young to extract pricing, ratings, reviews, ingredients, and sales velocity. These sites employ anti-bot protection that blocks Node.js `fetch()` based on TLS fingerprinting — not just headers.

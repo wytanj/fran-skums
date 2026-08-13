@@ -3,13 +3,15 @@
 Competitive observation for public marketplaces (Shopee first).  
 **Not** an authorized sales channel adapter (`channels/`).
 
+**Harvest host (intent, 2026-08-14):** dedicated **on-prem Linux and/or Windows PC** that stays on. Same workers + warm Chrome/CDP. This laptop is not the long-term overnight box. Shopee still wants headed Windows Chrome for captcha; iHerb can be Linux/headless on a **separate** profile. Browserbase / Vercel stay parked. See `TODO.md` Track G.
+
 ## Collectors
 
 | `collector_id` | Runtime | Notes |
 |----------------|---------|--------|
 | `mock` | In-process | Deterministic fixtures (tests / dry-run) |
-| `shopee_puppeteer` | Puppeteer via `browser-manager` | **Primary live path (2026-07-17):** local **Windows** Chrome + warm `SHOPEE_SG_SESSION_JSON` |
-| `browserbase` | Browserbase cloud browser + Puppeteer | **Not primary** — Developer plan is Linux OS; Shopee captcha common. Revisit only with non-Linux OS plan + persistent context |
+| `shopee_puppeteer` | Puppeteer via `browser-manager` | Live path: warm **Windows** Chrome + `SHOPEE_SG_SESSION_JSON`. **Host intent:** on-prem PC, not the daily laptop |
+| `browserbase` | Browserbase cloud browser + Puppeteer | **Not primary** — Developer plan is Linux OS; Shopee captcha common. Parked unless Windows + persistent context beats the on-prem box |
 | `cloudflare_browser_run` | Cloudflare Browser Rendering REST | Needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` |
 
 ## Brand universe (weekly radar)
@@ -181,7 +183,7 @@ GET  /api/v1/marketplace/snapshots
 
 ### Session (required for reliable live Shopee)
 
-Cold browsers (especially Linux cloud) get captcha. Prefer a **warm human session** from Windows Chrome:
+Cold browsers (especially Linux cloud) get captcha. Prefer a **warm human session** from Windows Chrome **on the harvest host** (today: this desktop; intended: on-prem PC):
 
 ```env
 # Full cookie jar for .shopee.sg (export from logged-in Chrome after captcha)
@@ -200,7 +202,9 @@ MARKETPLACE_CRON_SECRET=...
 # CLOUDFLARE_API_TOKEN=...
 ```
 
-### G1 — Windows local primary smoke
+### G1 — Windows local / on-prem smoke
+
+G1 proved warm Windows Chrome works. **G1.5** (ops) is moving that session onto the on-prem harvest PC.
 
 1. Export cookies from logged-in Chrome → `sample-cookie.json` or `SHOPEE_SG_SESSION_JSON`
 2. Local SERP smoke:

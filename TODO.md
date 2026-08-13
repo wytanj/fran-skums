@@ -1,14 +1,16 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-08-03  
+**Date:** 2026-08-14  
 **Production:** https://fran-skums.vercel.app · POS https://fran-pos.vercel.app · CRM https://fran-crm-eight.vercel.app  
 **DB:** migrations **001–083 applied** (… **075** harvest notify · **076–079** read path · **080** rostering · **081** daily-stockout seed · **082** mcp oauth · **083** mcp oauth client registry).  
 
-**Held / parked:** Browserbase-as-primary for Shopee · Phase H ecommerce  
+**Held / parked:** Browserbase-as-primary for Shopee · Phase H ecommerce · **personal-desktop harvest as the long-term host**  
+
+**Harvest host (intent, 2026-08-14):** move the grind off this laptop onto an **on-prem Linux and/or Windows PC** that stays on. Same workers (`_harvest_queue`, mall-brand-cycle, iHerb cycles) + warm Chrome/CDP. Laptop = control plane + occasional captcha RDP, not the overnight box. See Track **G** / **BR** “on-prem harvest PC”.  
 
 **MCP per-user OAuth (was “R2 OAuth”):** **code built, DB applied, not deployed.** One Claude Enterprise connector config → per-employee permissions. No env vars needed: owner generates + rotates the client id/secret in **Settings → Claude Connector**. Inert until then. See `docs/MCP_OAUTH_DESIGN.md`.  
 
-**Brand radar / Mall harvest:** Track **BR** — **mono scrape backlog cleared (2026-08-01/02)** · **73/73** mono: lifetime sold + **MH-14 sales ranks** (`list_sales_*`) + **MH-4 platform crumbs** · queue **idle** · **no open scrape duties** for the v1 goals · honest “sold/month” = **Top Sales grid rank** (not calendar units; S-E later) · export recipes **full** | **full_sales** · breadcrumb merge on read · **prod redeploy** 2026-08-02 · optional later: deeper `max_pages` · more PDPs/SKU · distributors · monthly re-scrape
+**Brand radar / Mall harvest:** Track **BR** — **mono scrape backlog cleared (2026-08-01/02)** · **73/73** mono: lifetime sold + **MH-14 sales ranks** (`list_sales_*`) + **MH-4 platform crumbs** · queue **idle** · **no open scrape duties** for the v1 goals · honest “sold/month” = **Top Sales grid rank** (not calendar units; S-E later) · export recipes **full** | **full_sales** · breadcrumb merge on read · **prod redeploy** 2026-08-02 · **next ops host = on-prem Linux/Windows PC** (not this desktop, not Browserbase) · optional later: deeper `max_pages` · more PDPs/SKU · distributors · monthly re-scrape on that box
 
 **MCP read path:** Track **RP** — **COMPLETE (RP-1…RP-8)** · next product layer = **named report recipes** (not free-form row math) · `market_brand_rollup` / export_csv / **export_full** · design **`docs/MCP_READ_PATH_DESIGN.md`**  
 **Loyalty FWB:** Track **L** — M1–M4 + live wire **done** on test WS · CRM WS id always injected on POS proxy · next: L-sim / Jan-1 / campaigns  
@@ -28,8 +30,10 @@
 |-----|------|
 | **This file** | Implementation queue + MCP #1–8 index |
 | **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
-| **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets |
-| **`docs/scrape-summary.md`** | Live Mall scrape stop / resume |
+| **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets · host = on-prem PC |
+| **`docs/scrape-summary.md`** | Historical Mall scrape stop / resume (2026-07) |
+| **`marketplace/README.md`** | Collectors + session · grind host intent |
+| **`docs/WEEKLY_MARKETPLACE_INTELLIGENCE_DESIGN.md`** | Weekly radar design · worker topology |
 | **`docs/LOYALTY_FWB_ARCHITECTURE.md`** | FWB ownership + Track L slices (POS / CRM / SKUMS / MCP) |
 | **`docs/POS_CRM_SKUMS_CONNECTION_ARCHITECTURE.md`** | POS key → SKUMS → CRM facade |
 | **`docs/FORECASTING_ARCHITECTURE.md`** | Demand decision studio · FC slices · K/J/MCP path A/B |
@@ -71,8 +75,11 @@
 
 ```text
 0. BR scrape — CLOSED for v1 goals (no more scrape duties today)
+   · Intended next ops move (not eng this sprint): stand up an
+     on-prem Linux and/or Windows PC as the harvest grind host
+     (Shopee CDP + iHerb). This laptop stops being the overnight box.
    · Optional later (not backlog blockers):
-     · monthly re-run: sales-only queue (command below)
+     · monthly re-run: sales-only queue (command below) — on that PC
      · deeper catalogs max_pages=12 · more MH-4 PDPs per brand
      · distributors · true monthly units (MH-14 S-E / MH-10)
    · Re-export xlsx only when you want a fresh sheet from DB
@@ -117,6 +124,8 @@ inventory_ats · product_inventory_status · catalog_*
 
 ### Monthly sales re-scrape (ops only — not an open eng task)
 
+Run on the **harvest host** (today: this desktop; intended: on-prem PC). Do not start this on the laptop once the box exists.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-shopee-chrome-cdp.ps1
 node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connect --babysit `
@@ -125,7 +134,7 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 
 | Priority | Track | Status / next |
 |----------|--------|----------------|
-| **—** | **BR** weekly brand radar | **v1 closed** · queue idle · optional monthly sales re-run · MH-10–13 / S-E later |
+| **—** | **BR** weekly brand radar | **v1 closed** · queue idle · optional monthly sales re-run · **host intent = on-prem Linux/Windows PC** · MH-10–13 / S-E later |
 | **1 ← next** | **RP+** MCP report recipes / BI handoff | Named recipes + Airtable/Sheets · `top_sales_by_brand` ready on harvest data |
 | **2** | **EX** near-expiry / Loft gate | **Review before build** · P0 wire Send-to-Loft + inbound dates · see § Track EX |
 | **3** | **K** agentic report registry | **Rpt-0–6 done** · **daily-stockout shipped** · next Mall weekly / demand sections |
@@ -143,7 +152,7 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 | **Done** | **Floor** damage → Actions Apply | **Shipped** · MCP/Store Ops/POS → HQ Apply |
 | **Done** | **TEAM** teammate invite | **Shipped + prod** · Kristle = owner ops |
 | **Later** | **S** login MFA = Google Workspace | Planned |
-| **Later** | **G** Shopee collect | Windows primary · G2 → MH-11 |
+| **Later** | **G** Shopee collect | **On-prem Linux/Windows PC** is the intended grind host · laptop only for captcha RDP · G2 → MH-11 · Browserbase stays parked |
 | **Parked** | **WEB** Fran web → store | Parked in `TODO-WEB.md` |
 
 ## Track EX — Near-expiry / Loft short-date gate (ops wiring)
@@ -875,6 +884,7 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 ## Explicitly parked
 
 - Browserbase as **primary** Shopee collector (Linux-only on Developer plan; captcha)  
+- Using **this personal desktop** as the long-term harvest host — grind moves to an **on-prem Linux/Windows PC** (Track G / BR)  
 - Multi-marketplace expansion beyond Shopee (Lazada/TikTok) — brand radar is **Shopee SG first**  
 - Phase H ecommerce  
 - R2 OAuth until packages + pilot solid  
@@ -897,9 +907,10 @@ Wire: `server/utils/notifications.ts` · hooks in `storeReplenishment` / `storeR
 | **Honest fields** | `sold_*` = cumulative lifetime · `sales_rank` = Top Sales grid position · path = Shopee Category trail (MH-4) · **not** calendar monthly units |
 | **Queue** | **Idle** · sales-only monthly re-run is ops cadence (not eng backlog) |
 | **Ops defaults** | `--single-brand-only` · `--babysit` cold→warm · **no Chrome bounce** · sales pass `--skip-mh4 --max-pages 2` |
+| **Intended host** | **On-prem Linux and/or Windows PC** that stays on — not this laptop, not Browserbase, not Vercel. Same CLI + warm Chrome/CDP. Laptop = RDP when Slack says blocked. |
 | **Cadence learned** | Warm CDP ≈ captcha then OK; sleep freezes CDP; bounce kills solved captchas (off by default); list-only sales ~1 min/brand when warm |
 | **Export / MCP** | Recipes **full** + **full_sales** · path merge on sales rows · default listing fields include path + ranks · **prod 2026-08-02** |
-| **Optional later (not blockers)** | Deeper catalogs `max_pages=12` · more MH-4 PDPs/SKU · distributors · true monthly units (S-E) · MH-10–13 scheduling |
+| **Optional later (not blockers)** | Stand up the on-prem box · deeper catalogs `max_pages=12` · more MH-4 PDPs/SKU · distributors · true monthly units (S-E) · MH-10–13 scheduling |
 
 ### MH-14 — Top sales / month pass (`sortBy=sales`) — **done (v1)**
 
@@ -997,6 +1008,7 @@ sold_label · sold_count_lower_bound · title
 | Confirm Mall `@username` | **Chrome extension** side panel **Link** (v0.5 auto-guess brand) | Real human session; one click per shop |
 | Single-page harvest / debug | Extension harvest + `POST /shop-harvest` | Fast manual pass |
 | Multi-page / multi-collection weekly | **Puppeteer + warm profile** — Mode A script or **Mode B `--computer`** | Mode B when captcha likely |
+| **Long-term grind host** | **On-prem Linux and/or Windows PC** (dedicated, always-on) | Get harvest off the personal desktop. Same workers; Shopee still wants a headed Windows Chrome for captcha. iHerb can be Linux/headless on the same box. |
 | Control plane | Vercel APIs + Supabase | Already deployed brand-universe + shop-harvest |
 | Cold Browserbase / Vercel browser | **Not primary** | Captcha / no Chrome |
 
@@ -1040,7 +1052,7 @@ sold_label · sold_count_lower_bound · title
 | **MH-14** | **Top sales / month pass** — `sortBy=sales` · `sales_rank` · `list_sales_*` · recipe **full_sales** — **§ MH-14 above** | **v1 Done** (S1 mono + S-C export/MCP) · S-E true monthly units later |
 | **MH-11** | **Persist harvest health + adaptive pacing** — reuse `marketplace_crawl_seeds` `last_error`/`consecutive_failures`/`next_run_at`; per-shop cooldown + backoff + jitter; daily nav cap; brands spread ~18/day. **Closes G2** | Planned |
 | **MH-12** | **Completeness on writes** — `pages_fetched` / `harvest_complete` / `stopped_reason` in snapshot `signals`; `brand-listings` / `market_brand_summary` / PR-4 WoW flag or exclude truncated runs | Planned (cheap; do early) |
-| **MH-13** | **Schedule it** (delivers MH-5) — Task Scheduler → `mall-brand-cycle --connect --skip-done` on the MH-11 daily slice | Planned |
+| **MH-13** | **Schedule it** (delivers MH-5) — cron / Task Scheduler on the **on-prem harvest PC** → `mall-brand-cycle --connect --skip-done` on the MH-11 daily slice. Not this laptop. | Planned |
 | **PR-4** | Brand `metrics_daily` rollup + WoW (after harvest data exists) | After MH-2 |
 | **PR-5** | Report pack `marketplace-brand-weekly` | After PR-4 |
 | **PR-6** | Weekly Grok brief → `bi_digests` | After PR-5 |
@@ -1081,15 +1093,18 @@ sold_label · sold_count_lower_bound · title
 
 | | Today | Intended |
 |---|---|---|
-| Trigger | Operator types a command per brand | Task Scheduler, daily slice (~18/day) |
-| Captcha recovery | Terminal bell → alt-tab → solve → **press Enter** (run frozen until then) | Slack/in-app ping → solve whenever → auto-resume |
+| **Host** | Personal Windows desktop + debug Chrome `:9222` | **On-prem Linux and/or Windows PC** that stays on. Laptop only for captcha RDP. |
+| Trigger | Operator types a command per brand | Task Scheduler / cron on that PC, daily slice (~18/day) |
+| Captcha recovery | Terminal bell → alt-tab → solve → **press Enter** (run frozen until then) | Slack/in-app ping → RDP the box → solve in *its* Chrome → auto-resume |
 | Operator presence | Required for the whole pass | Only to react to a ping |
 | One brand blocked | **Whole run stops** | That brand cools down, run continues |
 | Blocked history | Console + local `.mall-cycle-state.json` | Persisted → drives pacing + G2 UI |
 | Truncated data | Looks identical to a real sold decline | Flagged; excluded from WoW |
 | Weekly cost | Attended, multi-day at 125 brands | Check Slack a couple of times |
 
-**Standing prerequisite (manual by design):** debug Chrome stays logged in and running. That warm authenticated profile is what keeps the block rate low — it is not an oversight.
+**Standing prerequisite (manual by design):** debug Chrome stays logged in and running **on the harvest PC**. That warm authenticated profile is what keeps the block rate low — it is not an oversight. Do not keep that profile on the daily laptop once the box exists.
+
+**On-prem box notes (lock):** one dedicated machine, not Browserbase, not Vercel. Prefer **Windows** (or a Windows VM) for Shopee headed Chrome + captcha. **Linux** on the same box is fine for iHerb (no login, rare press-and-hold) and for the Node workers. Separate Chrome profiles (`:9222` Shopee, `:9223` iHerb) so a Shopee bounce cannot kill an iHerb run. `killAllChrome` is acceptable only on this box.
 
 **Reuse (already in repo, unused by this path):** `marketplace_crawl_seeds` already has `last_error` / `consecutive_failures` / `last_success_at` / `next_run_at` / `preferred_hour` / `timezone` (mig **047**) — use it instead of `.mall-cycle-state.json` · Phase N bus `server/utils/notifications.ts` (in_app + Slack) replaces the terminal bell · `mapApiItemToCard` already maps `item_basic.historical_sold` → exact integer if MH-10 proves out · `marketplace/scheduler.mjs` already builds `next_run_at`.
 
@@ -1214,6 +1229,7 @@ Example: `amorepacific.hair.body.shop` → select Laneige + Ryo + … (whatever 
 - Treating shop “Serums” as equal to platform “Eye Care”  
 - LLM inventing sold counts or category paths  
 - Browserbase-as-primary Mall crawl  
+- Keeping the overnight grind on the **personal desktop** once an on-prem PC exists  
 - (Now) Stamping multi-brand distributor grids as a single brand_key  
 - **Captcha-solving services** — cost, fragility, and it fights the platform instead of reducing load on it  
 - **Treating a truncated (captcha-stopped) harvest as a real sold decline** — flag it, never average it into WoW  
@@ -1222,17 +1238,20 @@ Example: `amorepacific.hair.body.shop` → select Laneige + Ryo + … (whatever 
 
 ---
 
-## Track G — Shopee / marketplace collect (decision 2026-07-17)
+## Track G — Shopee / marketplace collect (decision 2026-07-17 · host intent 2026-08-14)
 
-**Problem:** Browserbase Developer sessions are **Linux** OS; Shopee still hits captcha/traffic walls. Operator develops/tests on **Windows**, not Linux. Auto captcha solve + cold cloud browser is not a reliable unattended path.
+**Problem:** Browserbase Developer sessions are **Linux** OS; Shopee still hits captcha/traffic walls. Auto captcha solve + cold cloud browser is not a reliable unattended path. The current host (personal desktop) works but is the wrong long-term machine — sleep, `killAllChrome`, and overnight babysitting fight daily use.
 
 ### Decision (lock)
 
 | Role | Choice |
 |------|--------|
-| **Primary runtime** | **Local Windows Chrome** + `shopee_puppeteer` + warm `SHOPEE_SG_SESSION_JSON` / cookie file |
+| **Intended grind host** | **On-prem Linux and/or Windows PC** that stays on. Dedicated Chrome profile(s). Same Node workers as today. |
+| **Shopee on that box** | Headed **Windows** Chrome (or Windows VM) + CDP `--connect` + warm login. Captcha stays human via RDP + MH-9 poll. |
+| **iHerb on that box** | Linux/headless is fine (no login; rare press-and-hold). Separate profile/port from Shopee. |
+| **This laptop** | Control plane + occasional RDP when Slack says blocked. **Not** the overnight host once the box exists. |
 | **Control plane** | Vercel remains seeds / jobs / metrics / UI (already shipped phases 0–2) |
-| **Browserbase** | **Not primary** until Verified/Enterprise (Windows/Mac OS) *and* warm context still loses less than local |
+| **Browserbase** | **Not primary** — parked. Revisit only if Verified/Enterprise Windows + persistent context beats the on-prem box |
 | **Chrome extension** | Optional later: **cookie export** (+ optional “push this SERP”); **not** the crawl engine |
 | **Vercel serverless browser** | Still out of scope for batch Shopee |
 
@@ -1242,13 +1261,14 @@ Unattended multi-seed overnight needs a job runner + writers. Extension is a **s
 
 ### Next slices (when resuming G)
 
-| Slice | Work |
-|-------|------|
+| Slice | Work | Status |
+|-------|------|--------|
 | **G1** | Document + smoke **Windows local primary** path (cookie required; BB demoted in README defaults) | **Done** (marketplace README + weekly script) |
-| **G2** | Job status: surface `login_required` / captcha blocked clearly in UI + seed last_error — **absorbed by BR MH-11**; build it there, not twice |
-| **G3** | Chrome extension: **shop resolve** shipped (`extensions/skums-shopee-shop-resolve`); cookie-export still optional |
-| **G4** | Task Scheduler / Windows worker recipe for nightly seeds |
-| **G5** | Revisit Browserbase only if plan gets non-Linux OS + persistent context works |
+| **G1.5** | **On-prem harvest PC** — buy/stand up box, clone repo, `.shopee-chrome-profile` + optional iHerb profile, CDP, Slack pings, cron/Task Scheduler. Point `_overnight_sales_watch` / monthly sales queue at that machine. | **Intended** (ops, not this sprint) |
+| **G2** | Job status: surface `login_required` / captcha blocked clearly in UI + seed last_error — **absorbed by BR MH-11**; build it there, not twice | Planned |
+| **G3** | Chrome extension: **shop resolve** shipped (`extensions/skums-shopee-shop-resolve`); cookie-export still optional | Partial |
+| **G4** | Cron / Task Scheduler on the **on-prem PC** for nightly/weekly seeds (was “this Windows laptop”) | Planned — after G1.5 |
+| **G5** | Revisit Browserbase only if plan gets non-Linux OS + persistent context **and** the on-prem box is still worse | Parked |
 
 **Refs:** `marketplace/README.md` · `docs/SHOPEE_CRAWLER_NEXT_STEPS.md` · `docs/SCRAPING_DEPLOYMENT_OPTIONS.md` · collectors `shopee_puppeteer` / `browserbase` / `mock`.
 
@@ -1280,8 +1300,8 @@ Next eng:
   M1–M3 + inv manager + empty-key ≠ full ✅ (mig 065)
   K   Rpt-0–6 ✅ · hybrid live sections (velocity, path A/B, sales, finance…)
   FC  FC-0–1 ✅ · next FC-2/3 runs + drafts
-  G   Shopee: local Windows + cookies primary; BB parked as primary (G2 → MH-11)
-  BR  brand radar PR-1–3 ✅ · MH-8–13 unattended harvest · then PR-4 metrics + WoW
+  G   Shopee: on-prem Linux/Windows PC is the grind host · BB parked (G1.5 → G4 / MH-11)
+  BR  brand radar PR-1–3 ✅ · MH-8–13 unattended harvest on that PC · then PR-4 metrics + WoW
   0.x Loft email / dictionary IDs → M4 send_to_loft
   J   supplier KR/HK (draft PO → affirm → FOB PDF → in_transit → ASN)
   P   install UI
@@ -1352,7 +1372,7 @@ Next eng:
 
 ### Held / later
 
-R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Browserbase-as-primary Shopee · multi-marketplace beyond Shopee · Phase H ecommerce · full supplier email ingest (J5) · F0.5 Add country wizard · TEAM-5 suite invite
+R2 OAuth · N6 email provider · A2.5 bind-other-user UI · audit explorer · Browserbase-as-primary Shopee · personal-desktop as long-term harvest host (on-prem PC instead) · multi-marketplace beyond Shopee · Phase H ecommerce · full supplier email ingest (J5) · F0.5 Add country wizard · TEAM-5 suite invite
 
 ### Suggested sequence (decide order)
 

@@ -57,7 +57,11 @@ and two rows would split history and double every brand-grouped rollup.
 the PDP, so a non-fuzzy join is possible later — but it costs one navigation per
 product and Shopee grid rows carry no GTIN, so it is not the first slice.
 
-**Warm Chrome over CDP `:9222`, same profile as Shopee.** No second browser.
+**Warm Chrome over CDP, separate profile from Shopee.** Reuse worker primitives
+(`waitForRecovery`, notifier, cooldown). **Do not** share `:9222` / the Shopee
+profile — a bounce kills both. **Host intent (2026-08-14):** on-prem PC;
+iHerb may be Linux/headless on `:9223`. Same-profile-as-Shopee was the laptop
+v1 setup and is superseded.
 
 ---
 
@@ -177,7 +181,7 @@ locale mid-scroll must not land in an SGD column.
 
 ## Task 3 — harvest worker ✅
 
-**Done.** `marketplace/iherb/harvestWorker.mjs` + `scripts/iherb-brand-cycle.mjs`, CDP-attached like the Shopee one.
+**Done.** `marketplace/iherb/harvestWorker.mjs` + `scripts/iherb-brand-cycle.mjs`, CDP-attached like the Shopee one — **separate profile/port** when the on-prem box is up (`TODO.md` Track G).
 
 Still need one **live** run to close the handoff bar:
 
