@@ -19,7 +19,6 @@ const {
   connections,
   executions,
   loading,
-  nodesByCategory,
   loadAll,
   createCredential,
   updateCredential,
@@ -33,8 +32,9 @@ const {
   pullWooCommerceProducts,
   syncWorldsyntechReferenceData,
   pullWorldsyntechInventory,
+  queryHanshowArticles,
+  flashHanshowLabels,
   fetchExecutions,
-  getCredentialsForNode,
 } = useIntegrations()
 
 const { memberRole } = useWorkspace()
@@ -170,9 +170,59 @@ async function testCrmLink() {
 }
 
 // ── Tabs ──
-const activeTab = ref<'nodes' | 'connections' | 'credentials' | 'executions'>('nodes')
+const activeTab = ref<'connections' | 'credentials' | 'executions'>('connections')
+const route = useRoute()
 
-// ── Skincare Intelligence (app mode — accessed from node catalog) ──
+const PRIMARY_NODE_SLUGS = new Set(['worldsyntech-ofs', 'hanshow-allstar'])
+
+function isPrimaryNode(node?: IntegrationNodeDefinition | null): boolean {
+  return !!node && PRIMARY_NODE_SLUGS.has(node.slug)
+}
+
+const archiveNodes = computed(() =>
+  nodeDefinitions.value
+    .filter(n => !isPrimaryNode(n))
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name)),
+)
+
+const loftNode = computed(() =>
+  nodeDefinitions.value.find(n => n.slug === 'worldsyntech-ofs') || null,
+)
+
+const loftConnectionCount = computed(() =>
+  connections.value.filter(c => (c.node_definition?.slug || integrationSlug(c)) === 'worldsyntech-ofs').length,
+)
+
+const hanshowNode = computed(() =>
+  nodeDefinitions.value.find(n => n.slug === 'hanshow-allstar') || null,
+)
+
+const hanshowConnectionCount = computed(() =>
+  connections.value.filter(c => (c.node_definition?.slug || integrationSlug(c)) === 'hanshow-allstar').length,
+)
+
+const creatableNodes = computed(() =>
+  nodeDefinitions.value.filter(n => isPrimaryNode(n) && n.is_available && !n.is_coming_soon),
+)
+
+const showArchiveNodes = ref(false)
+
+function applyRouteQuery() {
+  const qNode = typeof route.query.node === 'string' ? route.query.node : ''
+  const qApp = typeof route.query.app === 'string' ? route.query.app : ''
+  if (qApp === 'skincare' || qNode === 'skincare' || qNode === 'skincare-intelligence') {
+    skincareMode.value = true
+    return
+  }
+  if (!qNode || !nodeDefinitions.value.length) return
+  const found = nodeDefinitions.value.find(n => n.slug === qNode)
+  if (!found) return
+  if (!isPrimaryNode(found)) showArchiveNodes.value = true
+  openNode(found)
+}
+
+// ── Skincare Intelligence (app mode — opened from the featured card) ──
 const skincareMode = ref(false)
 const skincareTab = ref<'catalog' | 'url-analyser' | 'methodology'>('catalog')
 
@@ -677,11 +727,6 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
   other: 'Other',
 }
 
-const CATEGORY_ORDER: NodeCategory[] = [
-  'ecommerce', 'marketplace', 'automation', 'productivity',
-  'communication', 'database', 'analytics', 'shipping', 'payment', 'other',
-]
-
 // ── Node Detail Modal ──
 const selectedNode = ref<IntegrationNodeDefinition | null>(null)
 const showNodeModal = ref(false)
@@ -693,6 +738,7 @@ function openNode(node: IntegrationNodeDefinition) {
 
 function nodeGlyph(icon?: string | null): string {
   if (icon === 'warehouse') return '3PL'
+  if (icon === 'esl') return 'ESL'
   if (icon === 'api') return 'API'
   if (icon === 'ims') return 'IMS'
   if (icon === 'woocommerce') return 'Woo'
@@ -798,6 +844,14 @@ function isWorldsyntechConnection(conn: IntegrationConnection): boolean {
   return integrationSlug(conn) === 'worldsyntech-ofs'
 }
 
+function isHanshowCredential(cred: IntegrationCredential): boolean {
+  return integrationSlug(cred) === 'hanshow-allstar'
+}
+
+function isHanshowConnection(conn: IntegrationConnection): boolean {
+  return integrationSlug(conn) === 'hanshow-allstar'
+}
+
 async function handleTestCredential(cred: IntegrationCredential) {
   testingCredentialId.value = cred.id
   try {
@@ -881,6 +935,9 @@ const pullErrors = ref<Record<string, string>>({})
 const worldsyntechActionId = ref<string | null>(null)
 const worldsyntechActionResults = ref<Record<string, any>>({})
 const worldsyntechActionErrors = ref<Record<string, string>>({})
+const hanshowActionId = ref<string | null>(null)
+const hanshowActionResults = ref<Record<string, any>>({})
+const hanshowActionErrors = ref<Record<string, string>>({})
 
 async function handlePullWooCommerce(conn: IntegrationConnection, reset = false) {
   pullingConnectionId.value = conn.id
@@ -921,6 +978,48 @@ async function handleSyncWorldsyntechReferenceData(conn: IntegrationConnection) 
     }
   } finally {
     worldsyntechActionId.value = null
+  }
+}
+
+async function handleQueryHanshowArticles(conn: IntegrationConnection) {
+  hanshowActionId.value = conn.id
+  hanshowActionErrors.value = { ...hanshowActionErrors.value, [conn.id]: '' }
+  try {
+    const result = await queryHanshowArticles(conn.id, { pageNum: 1, pageSize: 10 })
+    hanshowActionResults.value = {
+      ...hanshowActionResults.value,
+      [conn.id]: { action: 'query_articles', ...result },
+    }
+    if (activeTab.value === 'executions') await fetchExecutions()
+  } catch (e: any) {
+    hanshowActionErrors.value = {
+      ...hanshowActionErrors.value,
+      [conn.id]: e?.data?.statusMessage || e?.data?.message || e?.message || 'Hanshow article query failed',
+    }
+  } finally {
+    hanshowActionId.value = null
+  }
+}
+
+async function handleFlashHanshow(conn: IntegrationConnection) {
+  const sku = window.prompt('SKU to flash on Hanshow ESLs (cloud accept only — store AP required for the LED)')
+  if (!sku?.trim()) return
+  hanshowActionId.value = conn.id
+  hanshowActionErrors.value = { ...hanshowActionErrors.value, [conn.id]: '' }
+  try {
+    const result = await flashHanshowLabels(conn.id, { sku: sku.trim() })
+    hanshowActionResults.value = {
+      ...hanshowActionResults.value,
+      [conn.id]: { action: 'flash', ...result },
+    }
+    if (activeTab.value === 'executions') await fetchExecutions()
+  } catch (e: any) {
+    hanshowActionErrors.value = {
+      ...hanshowActionErrors.value,
+      [conn.id]: e?.data?.statusMessage || e?.data?.message || e?.message || 'Hanshow flash failed',
+    }
+  } finally {
+    hanshowActionId.value = null
   }
 }
 
@@ -978,6 +1077,7 @@ function formatDuration(ms: number | null): string {
 onMounted(async () => {
   await loadAll()
   await loadCrmLink()
+  applyRouteQuery()
 })
 
 watch(
@@ -985,6 +1085,11 @@ watch(
   () => {
     void loadCrmLink()
   },
+)
+
+watch(
+  () => [nodeDefinitions.value.length, route.query.node, route.query.app] as const,
+  () => applyRouteQuery(),
 )
 
 watch(activeTab, async (tab) => {
@@ -1014,18 +1119,173 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
 <template>
   <div>
+    <div v-if="!skincareMode">
     <div class="mb-6 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-ink">Integrations</h1>
-        <p class="mt-1 text-sm text-muted">Connect external systems using the node-based integration framework</p>
+        <p class="mt-1 max-w-2xl text-sm text-muted">
+          Hosted connectors for Loft and Skincare Intelligence.
+          Catalog, import, and day-to-day ops go through
+          <NuxtLink to="/settings#claude-connector" class="text-brown underline-offset-2 hover:underline">Claude MCP</NuxtLink>
+          or the
+          <NuxtLink to="/api-explorer" class="text-brown underline-offset-2 hover:underline">API</NuxtLink>.
+        </p>
       </div>
       <div class="flex gap-2">
-        <button class="btn-secondary" @click="openCreateCredential()">
+        <button class="btn-secondary" @click="openCreateCredential(loftNode?.id)">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
           </svg>
-          New Credential
+          New Loft credential
         </button>
+      </div>
+    </div>
+
+    <!-- Featured live surfaces -->
+    <div class="mb-6 grid gap-4 sm:grid-cols-2">
+      <div class="card p-5">
+        <div class="flex items-start gap-4">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-600/10 text-sm font-semibold text-cyan-300 ring-1 ring-inset ring-cyan-500/20">
+            3PL
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold text-ink">Loft (WorldSyntech OFS)</h2>
+              <span class="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-success">Live</span>
+            </div>
+            <p class="mt-1 text-sm text-muted">
+              Warehouse stock, inbound notices, and store replenishment via the OFS API.
+            </p>
+            <p class="mt-2 text-xs text-muted">
+              {{ loftConnectionCount }} connection{{ loftConnectionCount === 1 ? '' : 's' }}
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="btn-primary !py-1.5 !px-3 !text-xs" :disabled="!loftNode" @click="loftNode && openNode(loftNode)">
+                Open setup
+              </button>
+              <button class="btn-secondary !py-1.5 !px-3 !text-xs" :disabled="!loftNode" @click="loftNode && openCreateConnection(loftNode.id)">
+                New connection
+              </button>
+              <NuxtLink to="/help/loft-worldsyntech" class="btn-ghost !py-1.5 !px-3 !text-xs">Help</NuxtLink>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <div class="flex items-start gap-4">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-600/10 text-sm font-semibold text-amber-300 ring-1 ring-inset ring-amber-500/20">
+            ESL
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold text-ink">Hanshow All-Star ESL</h2>
+              <span class="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">WIP</span>
+            </div>
+            <p class="mt-1 text-sm text-muted">
+              Query All-Star articles, bind labels, flash tags. Price push waits on Hanshow’s article API. Shelf refresh needs a store AP.
+            </p>
+            <p class="mt-2 text-xs text-muted">
+              {{ hanshowConnectionCount }} connection{{ hanshowConnectionCount === 1 ? '' : 's' }}
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="btn-primary !py-1.5 !px-3 !text-xs" :disabled="!hanshowNode" @click="hanshowNode && openNode(hanshowNode)">
+                Open setup
+              </button>
+              <button class="btn-secondary !py-1.5 !px-3 !text-xs" :disabled="!hanshowNode" @click="hanshowNode && openCreateCredential(hanshowNode.id)">
+                New credential
+              </button>
+              <button class="btn-secondary !py-1.5 !px-3 !text-xs" :disabled="!hanshowNode" @click="hanshowNode && openCreateConnection(hanshowNode.id)">
+                New connection
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card cursor-pointer p-5 transition-all hover:border-peach" @click="skincareMode = true">
+        <div class="flex items-start gap-4">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-500/10 text-lg ring-1 ring-inset ring-pink-500/20">
+            🧴
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold text-ink">Skincare Intelligence</h2>
+              <span class="shrink-0 rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-medium text-streak">Live</span>
+            </div>
+            <p class="mt-1 text-sm text-muted">
+              Crawl Hwahae and Olive Young, score ingredients, and analyse product URLs.
+            </p>
+            <p class="mt-3 text-xs text-brown">Open app →</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <div class="flex items-start gap-4">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-deep/10 text-sm font-semibold text-brown ring-1 ring-inset ring-yellow-deep/20">
+            MCP
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold text-ink">Claude MCP &amp; API</h2>
+              <span class="shrink-0 rounded-full bg-yellow-deep/10 px-2 py-0.5 text-[10px] font-medium text-brown">Preferred</span>
+            </div>
+            <p class="mt-1 text-sm text-muted">
+              Use Claude or the HTTP API for catalog, import format, reports, and ops. New storefronts should not go through the old node catalog.
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <NuxtLink to="/settings#claude-connector" class="btn-primary !py-1.5 !px-3 !text-xs">Connect Claude</NuxtLink>
+              <NuxtLink to="/api-explorer" class="btn-secondary !py-1.5 !px-3 !text-xs">API Explorer</NuxtLink>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unused / incomplete catalog nodes (kept in DB, hidden from the main surface) -->
+    <div v-if="archiveNodes.length" class="mb-6">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between rounded-lg border border-line bg-white px-4 py-3 text-left"
+        @click="showArchiveNodes = !showArchiveNodes"
+      >
+        <div>
+          <p class="text-sm font-medium text-ink">Other catalog nodes</p>
+          <p class="mt-0.5 text-xs text-muted">
+            {{ archiveNodes.length }} unused or incomplete connectors (Shopify, Woo, Zapier, Sheets, …).
+            New work should use MCP or the API.
+          </p>
+        </div>
+        <span class="text-xs text-brown">{{ showArchiveNodes ? 'Hide' : 'Show' }}</span>
+      </button>
+      <div v-if="showArchiveNodes" class="mt-3 overflow-hidden rounded-lg border border-line">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-line bg-surface-sunken/80">
+              <th class="px-4 py-2.5 text-left text-xs font-medium text-muted">Name</th>
+              <th class="px-4 py-2.5 text-left text-xs font-medium text-muted">Category</th>
+              <th class="px-4 py-2.5 text-left text-xs font-medium text-muted">Status</th>
+              <th class="px-4 py-2.5 text-left text-xs font-medium text-muted">Notes</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line-soft">
+            <tr
+              v-for="node in archiveNodes"
+              :key="node.id"
+              class="cursor-pointer hover:bg-surface-sunken/20"
+              @click="openNode(node)"
+            >
+              <td class="px-4 py-2.5 font-medium text-ink">{{ node.name }}</td>
+              <td class="px-4 py-2.5 text-muted">{{ CATEGORY_LABELS[node.category] || node.category }}</td>
+              <td class="px-4 py-2.5">
+                <span v-if="node.is_coming_soon" class="rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium text-muted">Coming soon</span>
+                <span v-else class="rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium text-muted">Unused</span>
+              </td>
+              <td class="px-4 py-2.5 text-xs text-muted">{{ node.slug === 'woocommerce' ? 'Adapter exists; not used by Fran' : 'No live Fran adapter' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -1033,7 +1293,10 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <div class="card mb-6 p-5">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="text-lg font-semibold text-ink">Fran CRM (POS loyalty)</h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-lg font-semibold text-ink">Fran CRM (POS loyalty)</h2>
+            <span class="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-success">Live</span>
+          </div>
           <p class="mt-1 max-w-2xl text-sm text-muted">
             Link this workspace to Fran CRM so POS registers only need a
             <strong class="text-ink-soft">SKUMS API key</strong>. Loyalty traffic is
@@ -1166,7 +1429,6 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
     <div class="mb-6 flex gap-1 rounded-lg border border-line bg-white p-1">
       <button
         v-for="tab in [
-          { key: 'nodes', label: 'Node Catalog' },
           { key: 'connections', label: 'Connections' },
           { key: 'credentials', label: 'Credentials' },
           { key: 'executions', label: 'Execution Log' },
@@ -1186,86 +1448,6 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
       </button>
     </div>
 
-    <!-- ═══ NODE CATALOG ═══ -->
-    <div v-if="activeTab === 'nodes' && !skincareMode" class="space-y-8">
-      <template v-for="cat in CATEGORY_ORDER" :key="cat">
-        <div v-if="nodesByCategory[cat]?.length">
-          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">{{ CATEGORY_LABELS[cat] }}</h2>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div
-              v-for="node in nodesByCategory[cat]"
-              :key="node.id"
-              class="card p-5 transition-all hover:border-line cursor-pointer"
-              @click="openNode(node)"
-            >
-              <div class="flex items-start gap-4">
-                <div :class="['flex h-10 w-10 items-center justify-center rounded-lg ring-1 ring-inset text-lg', node.color || 'bg-surface-sunken text-muted']">
-                  {{ nodeGlyph(node.icon) }}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <h3 class="font-semibold text-ink truncate">{{ node.name }}</h3>
-                    <span v-if="node.is_coming_soon" class="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium text-muted">
-                      Soon
-                    </span>
-                    <span v-if="node.node_type === 'both'" class="shrink-0 rounded-full bg-yellow-deep/10 px-2 py-0.5 text-[10px] font-medium text-brown">
-                      Trigger + Action
-                    </span>
-                    <span v-else-if="node.node_type === 'trigger'" class="shrink-0 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
-                      Trigger
-                    </span>
-                    <span v-else class="shrink-0 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
-                      Action
-                    </span>
-                  </div>
-                  <p class="mt-1 text-sm text-muted line-clamp-2">{{ node.description }}</p>
-                </div>
-              </div>
-              <div class="mt-3 flex items-center gap-2 text-xs text-muted">
-                <span v-if="node.actions?.length">{{ node.actions.length }} action{{ node.actions.length !== 1 ? 's' : '' }}</span>
-                <span v-if="node.actions?.length && node.triggers?.length">&middot;</span>
-                <span v-if="node.triggers?.length">{{ node.triggers.length }} trigger{{ node.triggers.length !== 1 ? 's' : '' }}</span>
-                <span v-if="node.supports_webhooks">&middot; Webhooks</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- ── Intelligence Apps ── -->
-      <div>
-        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Intelligence Apps</h2>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div
-            class="card p-5 transition-all hover:border-peach cursor-pointer border-pink-500/10"
-            @click="skincareMode = true"
-          >
-            <div class="flex items-start gap-4">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-500/10 ring-1 ring-inset ring-pink-500/20 text-lg">
-                🧴
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <h3 class="font-semibold text-ink">Skincare Intelligence</h3>
-                  <span class="shrink-0 rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-medium text-streak">
-                    App
-                  </span>
-                </div>
-                <p class="mt-1 text-sm text-muted line-clamp-2">Crawl Hwahae and Olive Young for skincare product data, ingredient analysis, IPS scoring, skin type compatibility, and conflict detection.</p>
-              </div>
-            </div>
-            <div class="mt-3 flex items-center gap-2 text-xs text-muted">
-              <span>2 sources</span>
-              <span>&middot;</span>
-              <span>IPS scoring</span>
-              <span>&middot;</span>
-              <span>Ingredient analysis</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══ CONNECTIONS ═══ -->
     <div v-if="activeTab === 'connections'">
       <div v-if="connections.length === 0" class="card p-12 text-center">
@@ -1273,7 +1455,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
         </svg>
         <h3 class="mt-3 text-lg font-semibold text-ink">No connections yet</h3>
-        <p class="mt-1 text-sm text-muted">Browse the Node Catalog and set up your first connection.</p>
+        <p class="mt-1 text-sm text-muted">Set up Loft or Hanshow (WIP) from the cards above, or use Claude MCP / the API for catalog work.</p>
       </div>
       <div v-else class="space-y-4">
         <div v-for="conn in connections" :key="conn.id" class="card p-5">
@@ -1341,6 +1523,22 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
                 Restart inventory
               </button>
               <button
+                v-if="isHanshowConnection(conn)"
+                class="btn-ghost text-xs"
+                :disabled="hanshowActionId === conn.id || !conn.credential_id"
+                @click="handleQueryHanshowArticles(conn)"
+              >
+                {{ hanshowActionId === conn.id ? 'Running...' : 'Query articles' }}
+              </button>
+              <button
+                v-if="isHanshowConnection(conn)"
+                class="btn-ghost text-xs"
+                :disabled="hanshowActionId === conn.id || !conn.credential_id"
+                @click="handleFlashHanshow(conn)"
+              >
+                {{ hanshowActionId === conn.id ? 'Running...' : 'Flash SKU' }}
+              </button>
+              <button
                 class="btn-ghost text-xs"
                 @click="handleToggleConnection(conn)"
               >
@@ -1382,6 +1580,17 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <div v-if="worldsyntechActionErrors[conn.id]" class="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-danger">
             {{ worldsyntechActionErrors[conn.id] }}
           </div>
+          <div v-if="hanshowActionResults[conn.id]" class="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+            <template v-if="hanshowActionResults[conn.id].action === 'query_articles'">
+              All-Star articles: {{ hanshowActionResults[conn.id].count ?? hanshowActionResults[conn.id].articles?.length ?? 0 }} (WIP query).
+            </template>
+            <template v-else>
+              {{ hanshowActionResults[conn.id].note || 'Hanshow flash accepted in cloud. Store AP required for the LED.' }}
+            </template>
+          </div>
+          <div v-if="hanshowActionErrors[conn.id]" class="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-danger">
+            {{ hanshowActionErrors[conn.id] }}
+          </div>
         </div>
       </div>
     </div>
@@ -1417,7 +1626,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
             <span v-else-if="cred.is_valid === false" class="text-xs text-danger">Invalid</span>
             <span v-else class="text-xs text-muted">Untested</span>
             <button
-              v-if="isWooCommerceCredential(cred) || isWorldsyntechCredential(cred)"
+              v-if="isWooCommerceCredential(cred) || isWorldsyntechCredential(cred) || isHanshowCredential(cred)"
               class="btn-ghost text-xs"
               :disabled="testingCredentialId === cred.id"
               @click="handleTestCredential(cred)"
@@ -1474,6 +1683,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
         </table>
       </div>
     </div>
+    </div>
 
     <!-- ═══ SKINCARE INTELLIGENCE APP ═══ -->
     <div v-if="skincareMode" class="space-y-6">
@@ -1482,7 +1692,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
         </svg>
-        Back to Node Catalog
+        Back to Integrations
       </button>
 
       <div class="flex items-center justify-between gap-3">
@@ -3114,21 +3324,21 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <div class="border-t border-line p-6 flex justify-end gap-3">
             <button class="btn-secondary" @click="showNodeModal = false">Close</button>
             <button
-              v-if="selectedNode.is_available && !selectedNode.is_coming_soon"
+              v-if="isPrimaryNode(selectedNode) && selectedNode.is_available && !selectedNode.is_coming_soon"
               class="btn-primary"
               @click="showNodeModal = false; openCreateCredential(selectedNode.id)"
             >
               Create Credential
             </button>
             <button
-              v-if="selectedNode.is_available && !selectedNode.is_coming_soon"
+              v-if="isPrimaryNode(selectedNode) && selectedNode.is_available && !selectedNode.is_coming_soon"
               class="btn-primary"
               @click="showNodeModal = false; openCreateConnection(selectedNode.id)"
             >
               Create Connection
             </button>
-            <span v-if="selectedNode.is_coming_soon" class="btn-secondary pointer-events-none opacity-60">
-              Coming Soon
+            <span v-if="!isPrimaryNode(selectedNode)" class="text-xs text-muted">
+              Unused — use Claude MCP or the API instead.
             </span>
           </div>
         </div>
@@ -3152,7 +3362,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <select v-model="credForm.nodeDefId" class="input-field">
                 <option value="">— Select —</option>
                 <option
-                  v-for="node in nodeDefinitions.filter(n => n.is_available && !n.is_coming_soon && Object.keys(n.credential_schema?.properties || {}).length > 0)"
+                  v-for="node in creatableNodes.filter(n => Object.keys(n.credential_schema?.properties || {}).length > 0)"
                   :key="node.id"
                   :value="node.id"
                 >
@@ -3163,7 +3373,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <div>
               <label class="label-field">Credential Name</label>
-              <input v-model="credForm.name" type="text" class="input-field" placeholder="e.g. My Shopify Store" />
+              <input v-model="credForm.name" type="text" class="input-field" placeholder="e.g. Loft sandbox" />
             </div>
 
             <template v-if="credSchemaFields.length > 0">
@@ -3223,7 +3433,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
               <select v-model="connForm.nodeDefId" class="input-field">
                 <option value="">— Select —</option>
                 <option
-                  v-for="node in nodeDefinitions.filter(n => n.is_available && !n.is_coming_soon)"
+                  v-for="node in creatableNodes"
                   :key="node.id"
                   :value="node.id"
                 >
@@ -3234,7 +3444,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
 
             <div>
               <label class="label-field">Connection Name</label>
-              <input v-model="connForm.name" type="text" class="input-field" placeholder="e.g. Main Shopify Store" />
+              <input v-model="connForm.name" type="text" class="input-field" placeholder="e.g. Loft warehouse" />
             </div>
 
             <div v-if="connForm.nodeDefId">

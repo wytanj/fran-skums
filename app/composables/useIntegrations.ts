@@ -150,6 +150,23 @@ export function useIntegrations() {
       }
     }
 
+    if (nodeDef?.slug === 'hanshow-allstar') {
+      try {
+        await $fetch('/api/integrations/hanshow-allstar/test', {
+          method: 'POST',
+          body: { credential_id: id },
+        })
+        await fetchCredentials()
+        return { valid: true }
+      } catch (error: any) {
+        await fetchCredentials()
+        return {
+          valid: false,
+          error: error?.data?.statusMessage || error?.data?.message || error?.message || 'Hanshow All-Star credential test failed',
+        }
+      }
+    }
+
     const { error } = await client
       .from('integration_credentials')
       .update({ is_valid: true, last_tested_at: new Date().toISOString(), test_error: null })
@@ -311,6 +328,57 @@ export function useIntegrations() {
     return result as any
   }
 
+  async function queryHanshowArticles(connectionId: string, opts: {
+    ids?: string[]
+    pageNum?: number
+    pageSize?: number
+    indexes?: string
+  } = {}) {
+    const result = await $fetch('/api/integrations/hanshow-allstar/query-articles', {
+      method: 'POST',
+      body: {
+        connection_id: connectionId,
+        ids: opts.ids,
+        page_num: opts.pageNum,
+        page_size: opts.pageSize,
+        indexes: opts.indexes,
+      },
+    })
+    await fetchConnections()
+    return result as any
+  }
+
+  async function bindHanshowLabels(connectionId: string, links: Array<{ labelId: string; sku?: string; position?: number }>, unbind = false) {
+    const result = await $fetch('/api/integrations/hanshow-allstar/bind-labels', {
+      method: 'POST',
+      body: {
+        connection_id: connectionId,
+        links,
+        unbind,
+      },
+    })
+    await fetchConnections()
+    return result as any
+  }
+
+  async function flashHanshowLabels(connectionId: string, opts: {
+    sku?: string
+    skus?: string[]
+    labelIds?: string[]
+  } = {}) {
+    const result = await $fetch('/api/integrations/hanshow-allstar/flash-labels', {
+      method: 'POST',
+      body: {
+        connection_id: connectionId,
+        sku: opts.sku,
+        skus: opts.skus,
+        label_ids: opts.labelIds,
+      },
+    })
+    await fetchConnections()
+    return result as any
+  }
+
   async function pollWorldsyntechInbound(connectionId: string, opts: {
     offset?: number
     limit?: number
@@ -441,6 +509,9 @@ export function useIntegrations() {
     pullWorldsyntechInventory,
     pullWorldsyntechProducts,
     pollWorldsyntechInbound,
+    queryHanshowArticles,
+    bindHanshowLabels,
+    flashHanshowLabels,
 
     fetchExecutions,
     createExecution,

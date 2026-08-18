@@ -21,6 +21,7 @@
 **Near-expiry / Loft gate:** Track **EX** — schema + B.4 code exist; **ops path not wired** · review before build · see § Track EX  
 **Store roster:** Track **RO** — **moved to Fran HRM** (`docs/HRM_ROSTER.md`) · SKUMS UI/MCP/API removed · POS `/fran/pos/roster/*` returns 410 · mig **080** tables unused  
 **Research notebooks:** Track **RN** — **shipped** · `/research` · MCP study note tools · harvest remains opt-in  
+**Hanshow ESL:** Track **HS** — **WIP** · OAuth + query/bind/flash from HS-ALLSTAR-V220005 · **waiting on article import spec + API client + store AP** · see § Track HS  
 **Floor / Actions:** POS+MCP floor damage → Actions **Apply** · Store Ops HQ form · stock only after Apply  
 **MCP agent routing:** **two buckets shipped** (Mall `market_brand_*` vs catalog/stock)  
 **Web / store-routing site:** **`TODO-WEB.md`**
@@ -29,7 +30,7 @@
 
 | Doc | Role |
 |-----|------|
-| **This file** | Implementation queue + MCP #1–8 index |
+| **This file** | Implementation queue + MCP #1–8 index · Track **HS** Hanshow ESL |
 | **`TODO-WEB.md`** | Fran public web → store conversion, GEO/SEO, offer ladder, Ads ROAS |
 | **`docs/MALL_BRAND_CYCLE_RUNBOOK.md`** | Operator cycle: link → harvest → MH-4 → sheets · host = on-prem PC |
 | **`docs/scrape-summary.md`** | Historical Mall scrape stop / resume (2026-07) |
@@ -163,6 +164,7 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 | **Later** | **S** login MFA = Google Workspace | Planned |
 | **Later** | **G** Shopee collect | **On-prem Linux/Windows PC** is the intended grind host · laptop only for captcha RDP · G2 → MH-11 |
 | **Later** | **IMG** product pack shots | **URLs already on iHerb** · expose on MCP/export · no Shopee-wide image crawl · see § Track IMG |
+| **WIP** | **HS** Hanshow ESL | Query/bind/flash built · **waiting** article import API + `client_id`/`client_secret` + store AP · see § Track HS |
 | **Parked** | **WEB** Fran web → store | Parked in `TODO-WEB.md` |
 
 ## Track EX — Near-expiry / Loft short-date gate (ops wiring)
@@ -961,6 +963,22 @@ Sample URL: `https://cloudinary.images-iherb.com/image/upload/f_auto,q_auto:eco/
 **Do not:** re-PDP iHerb for images · crawl 6k Shopee thumbs · dump harvest photos into `product_images` before a catalog row exists.
 
 **46 live dual-channel keys:** abib, anua, april-skin, arencia, aromatica, axis-y, banila-co, beauty-of-joseon, benton, beplain, biodance, celimax, cnp-laboratory, cosrx, dalba, dear-dahlia, dear-klairs, dr-althea, dr-forhair, dr-melaxin, dr-reju-all, elizavecca, fwee, goongbe, house-of-hur, isntree, iunik, jumiso, kundal, medicube, mediheal, mixsoon, mizon, numbuzin, parnell, pyunkang-yul, round-lab, seapuri, skin1004, skinfood, tfit, tirtir, tocobo, too-cool-for-school, vt-cosmetics, wellage.
+
+## Track HS — Hanshow All-Star ESL (WIP, 2026-08-18)
+
+**Spec in hand:** `docs/hanshow.pdf` HS-ALLSTAR-V220005 (Login + Article query + ESL bind/flash). Cloud: `https://ap-allstar.hanshowcloud.net/`.
+
+**Built (WIP on `/integrations`):** OAuth login (`MD5(password+username)` + Basic `client_id:client_secret`) · query articles by SKU/EAN · bind/unbind ESL ↔ SKU · flash by label or SKU. Node slug `hanshow-allstar`. Routes under `/api/integrations/hanshow-allstar/*`.
+
+**Waiting on Hanshow (do not invent):**
+
+| Need | Why |
+|------|-----|
+| Article **create/update** API spec | Price/name/promo push is not in V220005 |
+| API `client_id` + `client_secret` | Separate from the Test2 web login |
+| Store **access point** (ceiling AP or USB `HS_C09978/79`) + 1 test ESL online | Cloud accept ≠ e-paper change. SKUMS never talks RF. |
+
+**Do not:** treat Wi-Fi AP as enough · put Test2 password in env/repo · ship price push until the article import doc arrives.
 
 ### MH-14 — Top sales / month pass (`sortBy=sales`) — **done (v1)**
 
