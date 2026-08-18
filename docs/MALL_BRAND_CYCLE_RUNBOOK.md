@@ -5,7 +5,7 @@ Procedural cycle for mapping **official Shopee Mall shops** into Fran SKUMS: ide
 **Workspace (pilot):** `c21c057f-ea01-4e19-bc79-fafcf2626b19`  
 **Prod API:** `https://fran-skums.vercel.app`  
 **Extension:** `extensions/skums-shopee-shop-resolve` (side panel, v0.5+)  
-**Harvest host (intent, 2026-08-14):** an **on-prem Linux and/or Windows PC** that stays on — not this laptop, not Browserbase, not Vercel. Same CLI + warm Chrome/CDP. Laptop = link/discover + captcha RDP. See `TODO.md` Track G / BR.
+**Harvest host (intent, 2026-08-14):** an **on-prem Linux and/or Windows PC** that stays on — not this laptop, not Vercel. Same CLI + warm Chrome/CDP. Laptop = link/discover + captcha RDP. See `TODO.md` Track G / BR.
 
 Commands below still work on the current desktop until that box exists. Point them at the on-prem machine once it does. Prefer **Windows** (or a Windows VM) for Shopee headed Chrome. Keep iHerb on a **separate** profile/port (`:9223`) so a Shopee bounce cannot kill it.
 
@@ -229,7 +229,6 @@ polls silently. `--no-notify` disables.
 - Don’t open every PDP manually just to “link brand” — brand is shop-level.  
 - Don’t treat Mall “Serums” as Shopee “Eye Care”.  
 - Don’t run MH-4 before any list harvest (no candidates).  
-- Don’t use cold Browserbase as primary for this path.  
 - Don’t keep the overnight grind on the personal desktop once the on-prem harvest PC exists.
 
 ---

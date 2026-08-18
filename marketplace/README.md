@@ -3,7 +3,7 @@
 Competitive observation for public marketplaces (Shopee first).  
 **Not** an authorized sales channel adapter (`channels/`).
 
-**Harvest host (intent, 2026-08-14):** dedicated **on-prem Linux and/or Windows PC** that stays on. Same workers + warm Chrome/CDP. This laptop is not the long-term overnight box. Shopee still wants headed Windows Chrome for captcha; iHerb can be Linux/headless on a **separate** profile. Browserbase / Vercel stay parked. See `TODO.md` Track G.
+**Harvest host (intent, 2026-08-14):** dedicated **on-prem Linux and/or Windows PC** that stays on. Same workers + warm Chrome/CDP. This laptop is not the long-term overnight box. Shopee still wants headed Windows Chrome for captcha; iHerb can be Linux/headless on a **separate** profile. Vercel stays out of browser work. See `TODO.md` Track G.
 
 **Product images (intent, 2026-08-14):** iHerb pack shots are already on `iherb_products.metadata.pdp_image` (100% of 2,931). Mall harvest does **not** fill `marketplace_listings.image_url`. Dual-channel roster is **46** brands. Plan: expose iHerb URLs on MCP/export; Shopee thumbs only for iHerb-absent brands. See `TODO.md` Track **IMG**.
 
@@ -13,8 +13,7 @@ Competitive observation for public marketplaces (Shopee first).
 |----------------|---------|--------|
 | `mock` | In-process | Deterministic fixtures (tests / dry-run) |
 | `shopee_puppeteer` | Puppeteer via `browser-manager` | Live path: warm **Windows** Chrome + `SHOPEE_SG_SESSION_JSON`. **Host intent:** on-prem PC, not the daily laptop |
-| `browserbase` | Browserbase cloud browser + Puppeteer | **Not primary** — Developer plan is Linux OS; Shopee captcha common. Parked unless Windows + persistent context beats the on-prem box |
-| `cloudflare_browser_run` | Cloudflare Browser Rendering REST | Needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` |
+| `cloudflare_browser_run` | Cloudflare Browser Rendering REST | Optional fallback only — not weekly harvest |
 
 ## Brand universe (weekly radar)
 
@@ -166,7 +165,6 @@ Filters: `brand_key`, `shop_collection_name`, `platform_category_leaf`, `min_sol
 | `shopee/fixtures/` | Sample search JSON for tests |
 | `writers/upsertObservations.mjs` | Upsert shops/listings + insert snapshots |
 | `collectors/shopee-puppeteer` | Puppeteer SERP scrape + session cookies |
-| `collectors/browserbase` | Browserbase session + Puppeteer (proxies, captcha solve) |
 | `collectors/cloudflare-browser-run` | CF `/browser-rendering/content` fallback |
 
 ### Job APIs
@@ -194,11 +192,6 @@ SHOPEE_SG_SESSION_JSON=[{"name":"SPC_ST","value":"...","domain":".shopee.sg","pa
 MARKETPLACE_CRON_SECRET=...
 # Inter-seed delay (processMarketplaceJobs, shopee_puppeteer only)
 # SHOPEE_INTER_SEED_MS=8000
-# Browserbase — parked as primary (Linux Developer OS + captcha). Optional experiment only:
-# BROWSERBASE_API_KEY=...
-# BROWSERBASE_PROXIES=1
-# BROWSERBASE_REGION=ap-southeast-1
-# BROWSERBASE_CONTEXT_ID=...   # if revisiting: persist after human solve
 # Optional CF fallback:
 # CLOUDFLARE_ACCOUNT_ID=...
 # CLOUDFLARE_API_TOKEN=...
@@ -246,13 +239,6 @@ Live smoke (local Windows Chrome — primary):
 SHOPEE_USE_COOKIE_FILE=1 node scripts/_smoke_shopee_live.mjs
 # Interactive captcha if needed:
 # SHOPEE_INTERACTIVE=1 SHOPEE_USE_COOKIE_FILE=1 node scripts/_smoke_shopee_live.mjs
-```
-
-Browserbase smoke (optional only — not primary):
-
-```bash
-# Prefer cookies if trying BB at all:
-SHOPEE_USE_COOKIE_FILE=1 node scripts/_smoke_shopee_browserbase.mjs
 ```
 
 ## Phase 2 (current)

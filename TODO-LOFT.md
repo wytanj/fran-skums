@@ -1,6 +1,6 @@
 # TODO — Loft Logistics / WorldSyntech OFS (phased PR plan)
 
-**Status:** Phases **P–E** + operator docs + Help shipped; **Phase F core** in; **sandbox REST live on demo3** (2026-08-11); Phase 0 live IDs + **clientportal** pilot still open  
+**Status:** Phases **P–E** + operator docs + Help shipped; **Phase F core** in; **sandbox REST live on demo3** (`LOFT_SANDBOX_TOKEN` works). Live clientportal token + LISE delivery-method IDs still theirs. Our leftover is adapter work on the **existing 30-route OFS** — do not wait for new typed fields.
 **Date:** 2026-08-11  
 **Assumption:** Loft is the production 3PL (WorldSyntech OFS).  
 **Permission foundation:** `docs/ORG_PERMISSION_SCOPES.md` (2026-07-13 design — Phase P catalog freeze).  
@@ -375,6 +375,8 @@ Align with org scopes §6.
 
 **Source:** https://clientportal.loftlogistic.com/apidoc (identical route set to demo3).  
 **Lesson from sandbox write:** OFS is legacy UI/schema — typed fields are thin; **park SKUMS enrichment in free-text** (`order_comment`, line `product_description`) via `buildWorldsyntechRemark` (`fulfillment/worldsyntech-ofs/mapping.ts`, commit `81247a8`).
+
+**Limited API lock (2026-08-14):** sandbox token proved login + ASN create. The 30-route surface is the product. We will **not** ask Loft for UPC/expiry/batch/carton columns or a richer schema. Remarks JSON is the enrichment path. Our remaining code is G.1 (`product/create` apidoc `title` + `skus[]` — not in the adapter yet), G.2 cancels, EX-1 send UI, and a prod gate that refuses demo/`0` delivery methods. What we still need **from them**: a working **live** Basic token on `clientportal.loftlogistic.com` (or the confirmed LISE host) and real LISE `delivery_method_id`s (demo3 returned Shopee geo methods). Official status enum tables are nice-to-have; provisional poll maps stay until then.
 
 ### P0 — Use every pilot day (build / harden first)
 
@@ -890,7 +892,7 @@ All G routes: `integrations:execute` and/or `store_ops:execute_3pl` as appropria
 
 ### PR-G.0 — Env credentials + smoke checklist `[ops]` `[skums]`  ★ first
 
-- [ ] Document sandbox vs **clientportal** base URLs in `LOFT_OPS_DICTIONARY` (from PR-0.2 table)
+- [x] Document sandbox vs **clientportal** base URLs in `LOFT_OPS_DICTIONARY` (from PR-0.2 table)
 - [ ] Integrations UI: separate sandbox / live credential blobs (or labeled connections)
 - [ ] Operator runbook: run `scripts/_smoke_loft_sandbox.mjs` after token rotate
 - [ ] Block production `send` when `base_url` is demo-only unless `allow_demo_ofs` flag
@@ -1160,17 +1162,23 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 
 ### Still open (do not treat as done)
 
-- [ ] **Send** Phase 0 email (`docs/LOFT_OPS_DICTIONARY.md`); paste Loft answers; set live credential + delivery_method_ids
-- [ ] Wire **live** connection to `https://clientportal.loftlogistic.com` once Rest + Basic token work
-- [ ] **G.1** product create/update mapper (apidoc `title` + `skus[]`)
+**Theirs (blocked on Loft):**
+- [ ] Working **live** Basic token + Rest on `clientportal.loftlogistic.com` (or confirmed LISE host) — sandbox token already OK
+- [ ] LISE `delivery_method_id`s for store door / self-collect (not demo3 Shopee geo methods)
+
+**Ours (can build against sandbox now):**
+- [ ] **G.1** product create/update mapper (apidoc `title` + `skus[]`) — no `product/create` in adapter today
 - [ ] **G.2** order + ASN cancel
-- [ ] **G.0** delivery_method_id map for LISE (not demo Shopee methods)
+- [ ] **EX-1** HQ Send-to-Loft actually calls `send-to-loft` (gate is dead on the UI path)
+- [ ] Prod send gate: refuse `delivery_method_id` `0` / demo-only host unless `allow_demo_ofs`
+- [ ] G.0 smoke in operator runbook after token rotate
 - [ ] Full `requireScope` on every legacy integration route (P.3 completeness)
 - [ ] Empty API key scopes → deny/package (breaking change when ready)
-- [ ] Phase F wave cutoffs + allocation polish (in progress)
 - [x] Phase N bus on top of `store_ops_notifications` (in_app + Slack; email provider later)
 - [x] Sandbox REST smoke + remark-JSON on order/ASN mappers (`81247a8`)
 - [ ] POS never owns ASN (D.3 remains non-goal)
+
+**Do not wait on:** new OFS columns for UPC/expiry/batch — remarks JSON is the contract.
 
 ---
 
@@ -1194,6 +1202,7 @@ P.0 → P.1 → A.1 → A.2 → A.3 → B.0 → B.1 → B.1b → B.5 → B.2 →
 | 2026-07-15 | **Commit + deploy** `docs/Commit Summary 15072026.md`; Phase F started |
 | 2026-07-15 | **Phase F core:** migration `061` delivery calendars + cutoffs + wave allocations; Store Ops Waves tab; POS next-wave on request form |
 | 2026-08-11 | **Sandbox OFS live:** demo3 REST login OK (`LOFT_SANDBOX_TOKEN` + portal user); ASN create proved (`SKUMS-ASN-*`); live token still fails; clientportal apidoc = same 30 routes; remark JSON in mappers; endpoint priority map + Phase G.0–G.6 in this file |
+| 2026-08-14 | Sandbox token confirmed again. Limited 30-route API accepted as the product. Split leftover: **ours** G.1/G.2/EX-1/prod gate · **theirs** live token + LISE delivery methods. Dropped waiting on typed UPC/expiry columns. |
 
 ---
 

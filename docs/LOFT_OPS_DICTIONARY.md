@@ -1,7 +1,7 @@
 # Loft / WorldSyntech OFS — Ops Dictionary
 
-**Status:** working draft — structure complete; **live OFS IDs pending Loft reply**  
-**Plan:** `TODO-LOFT.md` Phase 0 (PR-0.1)  
+**Status:** working draft — structure complete; **sandbox REST proven**; live OFS IDs / clientportal token still pending Loft  
+**Plan:** `TODO-LOFT.md` Phase 0 + G (limited 30-route API accepted — enrich via remarks, do not wait on new columns)  
 **Last updated:** 2026-07-15  
 **Related:** `docs/SKUMS_OPERATOR_RUNBOOK.md` (day-to-day ops) · `docs/LOFT_SOW_KIV.md` · `docs/WORLDSYNTECH_3PL_INTEGRATION_PLAN.md` · `fulfillment/worldsyntech-ofs/`
 

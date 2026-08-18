@@ -6,7 +6,7 @@ Build Shopee competitive intelligence as an external crawler/worker, not as a Ve
 
 Vercel should remain the control plane: create crawl jobs, show job status, read stored results, and run lightweight analysis. Long-running browser work stays off Vercel.
 
-**Host (2026-08-14):** dedicated **on-prem Linux and/or Windows PC** is the intended grind host (`TODO.md` Track G). The personal desktop is the current prototype only. Shopee still needs headed Windows Chrome for captcha; iHerb can be Linux on the same box. Browserbase / Fly-as-primary stay parked unless they beat that box.
+**Host (2026-08-14):** dedicated **on-prem Linux and/or Windows PC** is the intended grind host (`TODO.md` Track G). The personal desktop is the current prototype only. Shopee still needs headed Windows Chrome for captcha; iHerb can be Linux on the same box.
 
 The official Shopee Open API is still useful for our own authorized seller listings and category/attribute validation. It is not the source for public competitor monitoring.
 
@@ -156,7 +156,6 @@ Use this runtime sequence:
 
 3. Phase 3: Dedicated crawl host
    - **Intended (2026-08-14):** on-prem Linux/Windows PC with persistent Chrome profile(s) and cron. See `TODO.md` Track G.
-   - Cloud VPS / Fly / Browserbase only if that box is worse.
    - Keep Vercel out of browser execution.
 
 Fran is past Phase 1 (local proof). The missing piece is the **dedicated on-prem host**, not another cloud browser vendor.

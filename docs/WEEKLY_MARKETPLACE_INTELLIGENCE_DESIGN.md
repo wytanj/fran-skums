@@ -37,7 +37,7 @@ Operators and leadership need a **Monday morning weekly pack**: price/sold proxi
 | Shopee Open API competitor monitoring | Forbidden / wrong product surface |
 | Auto catalog create, PO, Loft, approve | Facts ≠ judgment ≠ action |
 | LLM as source of truth for price/sold | Explicitly forbidden |
-| Cloud Linux browser as primary (Browserbase Developer, CF primary) | Failed / demoted; see §11 |
+| Cloud Linux browser as primary | Failed / dropped — on-prem Windows Chrome instead |
 | Vercel serverless browser batch | No Chrome binary; timeouts; control plane only |
 | Chrome extension as crawl engine | Cookie export later only (G3) |
 | Hwahae/OliveYoung / skincare crawl revival | Separate domain; weekly v1 does not depend on it |
@@ -381,7 +381,7 @@ Do **not** auto-enable all 125 seeds on first import. Materialize is gated by `p
 | Control plane | Vercel: seeds, jobs queue, metrics-tick, reports, UI |
 | Worker topology | **Cron / Task Scheduler on the on-prem PC → production internal HTTP APIs** with `MARKETPLACE_CRON_SECRET` (not local Nuxt dual DB) |
 | Orchestration script | `scripts/windows-marketplace-weekly.ps1` / `_harvest_queue.mjs` (PR-3 ships stop_batch + smoke; PR-7 hardens runbook) |
-| Not primary | Browserbase Linux, CF Browser Rendering as primary, Vercel browser, bare fetch, personal desktop as long-term host |
+| Not primary | Cloud Linux browsers, Vercel browser, bare fetch, personal desktop as long-term host |
 
 **Supersedes older Major Update phrasing** that described paid cloud browsers as the default collect layer for Shopee SERP. Track G (2026-07-17) locked **warm Windows Chrome**, not cloud. 2026-08-14 moves that session off the personal desktop onto the on-prem box (`TODO.md` G1.5).
 
@@ -757,7 +757,7 @@ Never invent prices/sold.
 | Node fetch / bare HTTP | 403 / TLS fingerprint fail | Never primary |
 | Vercel serverless browser | No Chrome; timeouts | Control plane only |
 | Local Puppeteer cold browser | Permanent captcha | Require warm cookies |
-| Browserbase as primary | Linux Developer OS; captcha | Parked (G5 only; on-prem PC is the intended host) |
+| Cloud Linux browser as harvest host | Captcha / wrong OS fingerprint | **Dropped** — on-prem Windows Chrome |
 | Personal desktop as long-term harvest host | Sleep, daily Chrome, `killAllChrome` | **Rejected 2026-08-14** — on-prem PC |
 | Cloudflare Browser Rendering primary | Fixed UA; no captcha solve | Optional fallback only (not weekly primary) |
 | LLM as price/sold source | Stale/wrong | Forbidden |
