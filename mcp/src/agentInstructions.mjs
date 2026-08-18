@@ -47,7 +47,7 @@ Composite-first (prefer ONE tool, then answer):
 | Report packs: list / run | reports_list, reports_get, reports_run (enabled only; reports:run) | inventing digests; auto-approve |
 | **Daily stockout** / store out of stock (ATS=0) | **reports_run** template_slug=**daily-stockout** (enable/force) | inventing zeros; claiming stock moved |
 | Research notebook (park URL/idea; no crawl) | study_start + study_add_note → **/research/{id}**; later study_propose → **/actions** | bi_upsert_seed; auto watchlist |
-| Store roster (who/where by hour) | roster_board / roster_my_assignment; write: roster_upsert_shift | inventing zones; live Rippling scrape |
+| Store roster / who is on today | **Not SKUMS** — use Fran HRM MCP | roster_* on this server |
 
 Two data buckets (do not mix):
 1) **Shopee Mall harvest** = market_brand_* · brand_key slug (beauty-of-joseon) · sold = lifetime market signal · sales_rank = Top Sales sort position · path = platform crumbs — none of these are our ATS.

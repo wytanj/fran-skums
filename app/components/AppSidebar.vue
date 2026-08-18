@@ -51,7 +51,6 @@ const groups = computed(() => [
     items: [
       { to: '/inventory', label: 'Inventory', icon: 'warehouse' },
       { to: '/store-ops', label: 'Store Ops', icon: 'arrows' },
-      { to: '/roster', label: 'Roster', icon: 'users' },
       { to: '/expiry', label: 'Expiry', icon: 'clock' },
       { to: '/forecasting', label: 'Forecasting', icon: 'chart' },
       { to: '/reports', label: 'Reports', icon: 'chart' },

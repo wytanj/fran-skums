@@ -19,7 +19,7 @@
 **Teammate / Kristle:** Track **TEAM** — **shipped + prod** · owner ops invite · Phase **S** = Workspace SSO + MFA later  
 **Demand forecast:** Track **FC** — **FC-1 done** · next FC-2/3 · feeds **K Rpt-6**  
 **Near-expiry / Loft gate:** Track **EX** — schema + B.4 code exist; **ops path not wired** · review before build · see § Track EX  
-**Store roster:** Track **RO** — **shipped** · zones + hourly shifts · `/roster` · MCP `roster_*` · POS my-zone + board · mig **080**  
+**Store roster:** Track **RO** — **moved to Fran HRM** (`docs/HRM_ROSTER.md`) · SKUMS UI/MCP/API removed · POS `/fran/pos/roster/*` returns 410 · mig **080** tables unused  
 **Research notebooks:** Track **RN** — **shipped** · `/research` · MCP study note tools · harvest remains opt-in  
 **Floor / Actions:** POS+MCP floor damage → Actions **Apply** · Store Ops HQ form · stock only after Apply  
 **MCP agent routing:** **two buckets shipped** (Mall `market_brand_*` vs catalog/stock)  
@@ -46,6 +46,7 @@
 | **`docs/MCP_USER_PERMISSION_DESIGN.md`** | Web ↔ MCP permission model (A2) |
 | **`docs/ORG_PERMISSION_SCOPES.md`** | Canonical scope catalog (keep in DB; **UI collapses under F0**) |
 | **`TODO-LOFT.md`** | Loft / store-ops / 3PL plan |
+| **`docs/HRM_ROSTER.md`** | Rosters are Fran HRM only — SKUMS does not own staff/shifts |
 | **`docs/SKUMS_OPERATOR_RUNBOOK.md`** | Operator how-to |
 | **`mcp/README.md`** | MCP setup (stdio + cloud) |
 | **`fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`** | POS policy evaluator / quote / commit plan |
@@ -66,7 +67,7 @@
 | **A3 MCP OAuth** | **Built · DB applied · not deployed** · per-employee permissions through one Claude Enterprise connector · client id/secret managed in Settings (no env vars) · API keys unchanged for scripts/cron |
 | **Harvest ops** | `_harvest_queue` cold→babysit · **no Chrome bounce** by default · sales-only monthly command ready |
 | **RP** | **RP-1…RP-8 done** · mig **076–079** applied + prod |
-| **RO roster** | **Shipped** · mig **080** · zones/shifts · `/roster` · MCP + POS my-zone/board · sample staff seed |
+| **RO roster** | **Moved to fran-hrm** · SKUMS `/roster` + `roster_*` MCP removed |
 | **RN research** | **Shipped** · `/research` notebooks · MCP study note tools · Product Quality dropped from nav |
 | **Floor damage** | **Shipped** · MCP/Store Ops create draft · Actions → Floor Apply/Reject · POS events surface on HQ |
 | **K stockout pack** | **Shipped** · `daily-stockout` preset · section `inventory.store_stockouts` · mig **081** · MCP `template_slug` |
@@ -155,7 +156,7 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 | **Done** | **A2** Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
 | **P1** | **A3** MCP per-user OAuth | **Built · mig 082+083 applied · not deployed** · generate credentials in Settings → Claude Connector · `docs/MCP_OAUTH_DESIGN.md` |
 | **Done** | **RP** MCP read path | **RP-1…RP-8 DONE** |
-| **Done** | **RO** store roster | **Shipped** · mig 080 · `/roster` · MCP + POS |
+| **Moved** | **RO** store roster | **Fran HRM** · see `docs/HRM_ROSTER.md` |
 | **Done** | **RN** research notebooks | **Shipped** · `/research` · MCP study notes |
 | **Done** | **Floor** damage → Actions Apply | **Shipped** · MCP/Store Ops/POS → HQ Apply |
 | **Done** | **TEAM** teammate invite | **Shipped + prod** · Kristle = owner ops |
@@ -842,7 +843,7 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 ## Completed tracks (do not redo)
 
 - M0–M6 · Help · R1 remote MCP · Loft P–F · MCP composites **#1–8** · **A2.1–A2.4** · permission-gated cloud approve · Phase N N1–N4 · Claude connector tools live · **M1–M3** · inv manager **065** · **K Rpt-0–6** (mig **066–067**) · **daily-stockout** (mig **081**)  
-- **RO** roster (mig **080**) · **RN** research notebooks · floor damage → Actions Apply · BR mono v1 (sold + sales ranks + crumbs)  
+- **RO** roster **moved to fran-hrm** · **RN** research notebooks · floor damage → Actions Apply · BR mono v1 (sold + sales ranks + crumbs)  
 - Detail in git history / `TODO-LOFT.md` / commit summaries  
 
 ### Phase N — stakeholder notifications
