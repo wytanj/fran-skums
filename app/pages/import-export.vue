@@ -374,7 +374,9 @@ onMounted(async () => {
         <div class="card p-6">
           <h2 class="mb-2 text-lg font-semibold text-ink">Upload product sheet</h2>
           <p class="mb-4 text-sm text-muted">
-            Drop a dirty supplier catalog (CSV / TSV / Excel). We detect headers (including ABW-style multi-line
+            Drop a dirty supplier catalog, or a Claude-reformatted sheet from
+            <code class="text-xs">catalog_import_format</code>
+            (CSV / TSV / Excel). We detect headers (including ABW-style multi-line
             preambles), auto-map columns, and for large files ({{ LARGE_IMPORT_ROW_THRESHOLD.toLocaleString() }}+)
             persist job progress until completion.
           </p>

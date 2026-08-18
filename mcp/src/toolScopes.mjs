@@ -20,6 +20,7 @@ export const TOOL_SCOPE_CATALOG = {
 
   // Catalog
   catalog_health: { scope: 'intel:read', action: 'Catalog structure / import readiness' },
+  catalog_import_format: { scope: 'intel:read', action: 'SKUMS import sheet contract for reformatting supplier files' },
   catalog_sample: { scope: 'intel:read', action: 'Sample N catalog products' },
   catalog_search_summary: { scope: 'intel:read', action: 'Category research with facets' },
   catalog_export_csv: { scope: 'intel:read', action: 'Export bounded catalog CSV' },

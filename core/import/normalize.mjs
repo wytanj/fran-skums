@@ -137,6 +137,16 @@ export function normalizeProductFromRow(row, rowIndex, reverseMap, opts) {
     } else if (skumsField === '_category') {
       setNested(product.product_data, 'core.category', cleanString(val))
       product._category_name = cleanString(val)
+    } else if (skumsField === 'title_ko') {
+      const ko = cleanString(val)
+      if (ko) {
+        product._title_ko = ko
+        setNested(product.product_data, 'title_ko', ko)
+      }
+    } else if (skumsField === 'shelf') {
+      setNested(product.product_data, 'planogram.shelf', cleanString(val))
+    } else if (skumsField === 'priority') {
+      setNested(product.product_data, 'planogram.priority', cleanString(val))
     } else if (skumsField === 'pos_enabled') {
       product.product_data.pos_enabled = converted
       product.product_data.sellable_in_pos = converted
@@ -230,13 +240,16 @@ export function normalizeProductFromRow(row, rowIndex, reverseMap, opts) {
   // Strip internal helper fields before insert
   const brandName = product._brand_name || null
   const categoryName = product._category_name || null
+  const titleKo = product._title_ko || null
   delete product._brand_name
   delete product._category_name
+  delete product._title_ko
 
   return {
     product,
     brand_name: brandName,
     category_name: categoryName,
+    title_ko: titleKo,
     identity: { name: product.title, status: product.status },
     identifiers,
     sku_assignments,

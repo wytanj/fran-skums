@@ -6,6 +6,7 @@
 
 export const FIXED_IMPORT_FIELDS = [
   { key: 'title', label: 'Title', group: 'Product', type: 'string', required: true },
+  { key: 'title_ko', label: 'Title (Korean)', group: 'Product', type: 'string' },
   { key: 'sku', label: 'SKU', group: 'Product', type: 'string' },
   { key: 'upc', label: 'UPC', group: 'Product', type: 'string' },
   { key: 'ean', label: 'EAN', group: 'Product', type: 'string' },
@@ -26,6 +27,8 @@ export const FIXED_IMPORT_FIELDS = [
   { key: 'tags_csv', label: 'Tags', group: 'Product', type: 'string_array' },
   { key: '_brand', label: 'Brand', group: 'Product', type: 'string' },
   { key: '_category', label: 'Category', group: 'Product', type: 'string' },
+  { key: 'shelf', label: 'Shelf', group: 'Planogram', type: 'string' },
+  { key: 'priority', label: 'Priority', group: 'Planogram', type: 'string' },
 ]
 
 /**
@@ -34,7 +37,17 @@ export const FIXED_IMPORT_FIELDS = [
 export function buildAliases(extraFields = []) {
   /** @type {Record<string, string[]>} */
   const map = {
-    title: ['title', 'name', 'product_name', 'product name', 'product title', 'item name', 'item_name', 'item'],
+    title: ['title', 'name', 'product_name', 'product name', 'product title', 'item name', 'item_name', 'item', 'product name(en)', 'product name en'],
+    title_ko: [
+      'title_ko',
+      'name_ko',
+      'korean name',
+      'name korean',
+      'name (korean)',
+      'product name(kr)',
+      'product name kr',
+      'product name(korean)',
+    ],
     sku: ['sku', 'variant_sku', 'variant sku', 'item_sku', 'product_sku', 'stock keeping unit', 'article_number'],
     upc: ['upc', 'barcode', 'bar code'],
     ean: ['ean', 'ean13', 'ean_13', 'ean-13'],
@@ -84,6 +97,8 @@ export function buildAliases(extraFields = []) {
     tags_csv: ['tags', 'tag', 'labels', 'product_tags'],
     _brand: ['brand', 'brand_name', 'brand name', 'vendor', 'vendor_name', 'vendor name', 'maker', 'label'],
     _category: ['category', 'category_name', 'category name', 'product_type', 'product type', 'department', 'collection'],
+    shelf: ['shelf', 'shelf_no', 'shelf number', 'planogram_shelf'],
+    priority: ['priority', 'main', 'hero', 'star'],
   }
 
   for (const field of extraFields) {

@@ -39,7 +39,7 @@ test('getCloudMcpInstructions is composite-first and short-answer', () => {
   assert.match(text, /cloud-safe|CLOUD|cloud/i)
   assert.ok(text.length > 400)
   // Research notebook routing added ~2026-08; keep under ~8k for initialize.instructions
-  assert.ok(text.length < 8000, 'initialize.instructions should stay reasonably compact')
+  assert.ok(text.length < 8500, 'initialize.instructions should stay reasonably compact')
   assert.match(text, /sales_rank|Top Sales/)
 })
 
@@ -52,6 +52,7 @@ test('stdio instructions include PO clone stop rule', () => {
 test('routing table lists all composites', () => {
   for (const name of [
     'catalog_health',
+    'catalog_import_format',
     'catalog_sample',
     'catalog_search_summary',
     'catalog_export_csv',

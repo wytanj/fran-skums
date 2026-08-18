@@ -25,6 +25,15 @@ export {
   reverseColumnMap,
 } from './normalize.mjs'
 
+export {
+  SKUMS_IMPORT_HEADERS,
+  SKUMS_IMPORT_COLUMNS,
+  SKUMS_IMPORT_RULES,
+  importFormatSpec,
+  importFormatCsv,
+  importFormatXlsxBuffer,
+} from './format.mjs'
+
 /** Large-file threshold: force job-centric UI + progress persistence */
 export const LARGE_IMPORT_ROW_THRESHOLD = 2000
 export const IMPORT_BATCH_SIZE = 100

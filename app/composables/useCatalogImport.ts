@@ -289,6 +289,47 @@ export function useCatalogImport() {
     return map
   }
 
+  async function loadExistingBarcodeMap(codes: string[]): Promise<Map<string, string>> {
+    const map = new Map<string, string>()
+    if (!currentWorkspace.value || !codes.length) return map
+    const unique = [...new Set(codes.map((c) => String(c).replace(/\s+/g, '')).filter(Boolean))]
+    const chunk = 200
+    for (let i = 0; i < unique.length; i += chunk) {
+      const slice = unique.slice(i, i + chunk)
+      const { data } = await client
+        .from('products')
+        .select('id, upc, ean, gtin')
+        .eq('workspace_id', currentWorkspace.value.id)
+        .or(`upc.in.(${slice.join(',')}),ean.in.(${slice.join(',')}),gtin.in.(${slice.join(',')})`)
+      for (const row of data || []) {
+        for (const key of ['upc', 'ean', 'gtin'] as const) {
+          if (row[key]) map.set(String(row[key]), row.id)
+        }
+      }
+    }
+    return map
+  }
+
+  async function upsertKoreanTitles(
+    rows: Array<{ productId: string; titleKo: string }>,
+  ) {
+    if (!rows.length) return
+    for (const row of rows) {
+      await client.from('product_localizations').upsert(
+        {
+          product_id: row.productId,
+          locale_code: 'ko',
+          title: row.titleKo,
+          source_locale: 'en',
+          translation_status: 'human_reviewed',
+          translated_by: 'import:supplier',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'product_id,locale_code' },
+      )
+    }
+  }
+
   function yieldToBrowser() {
     return new Promise((resolve) => setTimeout(resolve, 0))
   }
@@ -411,6 +452,13 @@ export function useCatalogImport() {
       ? csvRows.value.map((r) => String(r[skuHeader] || '').trim()).filter(Boolean)
       : []
     const existingBySku = await loadExistingSkuMap(allSkus)
+    const barcodeHeader = reverseForSku.upc || reverseForSku.ean || reverseForSku.gtin
+    const allBarcodes = barcodeHeader
+      ? csvRows.value
+          .map((r) => String(r[barcodeHeader] || '').replace(/\s+/g, ''))
+          .filter(Boolean)
+      : []
+    const existingByBarcode = await loadExistingBarcodeMap(allBarcodes)
     if (importJobId) {
       await persistJobProgress(
         importJobId,
@@ -429,6 +477,8 @@ export function useCatalogImport() {
       rowNumber: number
       product: Record<string, any>
       existingId: string | null
+      titleKo: string | null
+      barcode: string | null
       staged?: Record<string, any>
     }
     const pending: Pending[] = []
@@ -479,6 +529,7 @@ export function useCatalogImport() {
 
       const toInsert = pending.filter((p) => !p.existingId).map((p) => p.product)
       const toUpdate = pending.filter((p) => p.existingId)
+      const koWrites: Array<{ productId: string; titleKo: string }> = []
 
       if (toInsert.length) {
         const { error } = await client.from('products').insert(toInsert as any[])
@@ -497,6 +548,29 @@ export function useCatalogImport() {
             }
           }
         }
+        const newCodes = pending
+          .filter((p) => !p.existingId && p.titleKo && p.barcode)
+          .map((p) => String(p.barcode))
+        if (newCodes.length && currentWorkspace.value) {
+          const { data: createdRows } = await client
+            .from('products')
+            .select('id, upc, ean, gtin')
+            .eq('workspace_id', currentWorkspace.value.id)
+            .or(
+              `upc.in.(${newCodes.join(',')}),ean.in.(${newCodes.join(',')}),gtin.in.(${newCodes.join(',')})`,
+            )
+          const byCode = new Map<string, string>()
+          for (const row of createdRows || []) {
+            for (const key of ['upc', 'ean', 'gtin'] as const) {
+              if (row[key]) byCode.set(String(row[key]), row.id)
+            }
+          }
+          for (const item of pending) {
+            if (item.existingId || !item.titleKo || !item.barcode) continue
+            const id = byCode.get(item.barcode)
+            if (id) koWrites.push({ productId: id, titleKo: item.titleKo })
+          }
+        }
       }
 
       for (const item of toUpdate) {
@@ -511,8 +585,11 @@ export function useCatalogImport() {
         } else {
           success++
           updated++
+          if (item.titleKo) koWrites.push({ productId: item.existingId!, titleKo: item.titleKo })
         }
       }
+
+      if (koWrites.length) await upsertKoreanTitles(koWrites)
 
       pending.length = 0
       stagedRows.length = 0
@@ -557,7 +634,12 @@ export function useCatalogImport() {
       }
 
       const sku = normalized.product.sku || normalized.product.product_data?.supplier?.item_id
-      const existingId = sku ? existingBySku.get(String(sku)) || null : null
+      const barcode =
+        normalized.product.ean || normalized.product.upc || normalized.product.gtin || null
+      const existingId =
+        (sku ? existingBySku.get(String(sku)) : null) ||
+        (barcode ? existingByBarcode.get(String(barcode)) : null) ||
+        null
       // Track newly created SKUs so later rows in same file upsert correctly
       if (!existingId && sku) {
         // placeholder until insert returns — re-import same file mid-run uses insert once
@@ -572,6 +654,8 @@ export function useCatalogImport() {
         rowNumber: i + 1,
         product: normalized.product,
         existingId,
+        titleKo: normalized.title_ko || null,
+        barcode: barcode ? String(barcode) : null,
       })
 
       if (pending.length >= IMPORT_BATCH_SIZE || i === csvRows.value.length - 1) {

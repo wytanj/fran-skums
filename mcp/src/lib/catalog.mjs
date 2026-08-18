@@ -12,6 +12,11 @@ import {
   catalogDataOps,
   fetchCatalogMatchPool,
 } from '../../../core/catalog/index.mjs'
+import {
+  importFormatSpec,
+  importFormatCsv,
+  importFormatXlsxBuffer,
+} from '../../../core/import/format.mjs'
 import { getDb } from '../context.mjs'
 
 /**
@@ -145,4 +150,26 @@ export async function dataOpsCatalog(workspaceId, args = {}) {
     marketplace: args.marketplace || null,
     country: args.country || null,
   })
+}
+
+/**
+ * Exact SKUMS import sheet contract for Claude to reformat supplier files.
+ * @param {{ kind?: string, include_xlsx?: boolean }} [args]
+ */
+export async function importFormatCatalog(args = {}) {
+  const kind = args.kind === 'full' ? 'full' : 'planogram'
+  const spec = importFormatSpec(kind)
+  const out = {
+    ...spec,
+    csv_template: importFormatCsv(spec),
+    agent_hint:
+      'Call this first. Rewrite the user’s dirty sheet into these exact headers. Save as reformatted.xlsx. Tell them to upload at /import-export. Do not invent UPC, sku, price, or Korean if missing.',
+  }
+  if (args.include_xlsx === true) {
+    const XLSX = (await import('xlsx')).default
+    const buf = importFormatXlsxBuffer(spec, XLSX)
+    out.xlsx_base64 = Buffer.from(buf).toString('base64')
+    out.xlsx_filename = 'skums-import-format.xlsx'
+  }
+  return out
 }

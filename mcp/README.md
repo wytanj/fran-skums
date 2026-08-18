@@ -207,6 +207,7 @@ Env vars can also come from the shell that launches the MCP process; the server 
 | `catalog_stats` | intel:read |
 | `catalog_search` | intel:read |
 | `catalog_get` | intel:read |
+| `catalog_import_format` | intel:read — exact headers/rules so Claude can emit reformatted.xlsx for `/import-export` |
 
 ### Study / Research notebooks
 Notebooks park product/brand ideas (**no Shopee crawl**). UI: `/research`. Pipeline still lands in `/actions`.

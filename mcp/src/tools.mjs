@@ -784,6 +784,25 @@ export const toolDefinitions = [
   // ── Catalog Q&A (Fran products table — not marketplace BI) ──
   // Prefer composite tools first (catalog_health / sample / search_summary) for speed.
   {
+    name: 'catalog_import_format',
+    description:
+      'Exact SKUMS catalog import sheet (headers, rules, example rows, csv_template). Call this BEFORE reformatting a dirty supplier / planogram xlsx. Output must use these lowercase headers so HQ Import auto-maps. User then uploads reformatted.xlsx at /import-export. Does not write products. intel:read / safe / cloud.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kind: {
+          type: 'string',
+          enum: ['planogram', 'full'],
+          description: 'planogram = title, title_ko, upc, brand, shelf, priority (default). full adds sku + category.',
+        },
+        include_xlsx: {
+          type: 'boolean',
+          description: 'If true, attach a blank example workbook as xlsx_base64. Default false.',
+        },
+      },
+    },
+  },
+  {
     name: 'catalog_export_csv',
     description:
       'Bounded CSV export of catalog rows (default 50, max 200). Filter by q/brand/status/sku. Columns include retail_price, cost, pos_enabled for offline retail fill / re-import. Never dumps full 10k catalog. intel:read / safe / cloud.',
@@ -2025,6 +2044,11 @@ export async function handleTool(name, args = {}) {
       case 'product_inventory_status': {
         requireScope('intel:read')
         const result = await inventory.productStatus(requireWorkspaceId(), a)
+        return jsonResult(result)
+      }
+      case 'catalog_import_format': {
+        requireScope('intel:read')
+        const result = await catalog.importFormatCatalog(a)
         return jsonResult(result)
       }
       case 'catalog_export_csv': {

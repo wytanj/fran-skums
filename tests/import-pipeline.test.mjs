@@ -77,6 +77,38 @@ describe('import pipeline map + normalize', () => {
     assert.equal(n.product.product_data.sellable_in_pos, false)
   })
 
+  test('official SKUMS format headers auto-map including title_ko', () => {
+    const proposal = proposeColumnMapping(
+      ['title', 'title_ko', 'upc', 'brand', 'shelf', 'priority'],
+      {},
+    )
+    assert.equal(proposal.has_title, true)
+    assert.equal(proposal.mapping.title, 'title')
+    assert.equal(proposal.mapping.title_ko, 'title_ko')
+    assert.equal(proposal.mapping.upc, 'upc')
+    assert.equal(proposal.mapping.brand, '_brand')
+    assert.equal(proposal.mapping.shelf, 'shelf')
+    assert.equal(proposal.mapping.priority, 'priority')
+  })
+
+  test('normalize keeps Korean title off the products row', () => {
+    const csv = 'title,title_ko,upc,brand\nSerum,세럼,8800256108053,Medicube\n'
+    const parsed = parseDelimitedText(csv)
+    const proposal = proposeColumnMapping(parsed.headers)
+    const reverse = reverseColumnMap(proposal.mapping)
+    const n = normalizeProductFromRow(parsed.rows[0], 0, reverse, {
+      workspace_id: 'ws-1',
+      file_name: 'reformatted.csv',
+    })
+    assert.equal(n.product.title, 'Serum')
+    assert.equal(n.title_ko, '세럼')
+    assert.equal(n.product.product_data.title_ko, '세럼')
+    assert.equal(n.product.title_ko, undefined)
+    assert.equal(n.product.ean, '8800256108053')
+    assert.equal(n.brand_name, 'Medicube')
+    assert.equal(n.product.status, 'draft')
+  })
+
   test('M5: default_pos_enabled only true when explicitly true', () => {
     const parsed = parseDelimitedText(sample)
     const proposal = proposeColumnMapping(parsed.headers, { providerHint: parsed.providerHint })

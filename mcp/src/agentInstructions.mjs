@@ -11,6 +11,7 @@ Composite-first (prefer ONE tool, then answer):
 | User intent | Prefer tool | Avoid |
 |-------------|----------------|-------|
 | Catalog structure / “best products” / import readiness | catalog_health | multi-offset catalog_search |
+| Reformat supplier/planogram sheet for upload | **catalog_import_format** → reformatted.xlsx | inventing UPC/columns |
 | Sample N products | catalog_sample | many sequential searches |
 | Category research (e.g. lipsticks) | catalog_search_summary | search + separate facet calls |
 | CSV of filtered products | catalog_export_csv (max 200) | unbounded catalog dump |
