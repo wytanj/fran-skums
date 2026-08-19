@@ -1,14 +1,14 @@
 # Fran SKUMS — TODO (implementation queue)
 
-**Date:** 2026-08-14  
+**Date:** 2026-08-19  
 **Production:** https://fran-skums.vercel.app · POS https://fran-pos.vercel.app · CRM https://fran-crm-eight.vercel.app  
-**DB:** migrations **001–083 applied** (… **075** harvest notify · **076–079** read path · **080** rostering · **081** daily-stockout seed · **082** mcp oauth · **083** mcp oauth client registry).  
+**DB:** migrations **001–087 applied** (… **080** roster unused · **081** daily-stockout · **082–083** mcp oauth, checksum-mismatch historical · **084–085** invite · **086** iHerb catalogue · **087** Hanshow ESL node). 015/054 also checksum-mismatch historical.  
 
 **Held / parked:** Phase H ecommerce · **personal-desktop harvest as the long-term host**  
 
 **Harvest host (intent, 2026-08-14):** move the grind off this laptop onto an **on-prem Linux and/or Windows PC** that stays on. Same workers (`_harvest_queue`, mall-brand-cycle, iHerb cycles) + warm Chrome/CDP. Laptop = control plane + occasional captcha RDP, not the overnight box. See Track **G** / **BR** “on-prem harvest PC”.  
 
-**MCP per-user OAuth (was “R2 OAuth”):** **code built, DB applied, not deployed.** One Claude Enterprise connector config → per-employee permissions. No env vars needed: owner generates + rotates the client id/secret in **Settings → Claude Connector**. Inert until then. See `docs/MCP_OAUTH_DESIGN.md`.  
+**MCP per-user OAuth (was “R2 OAuth”):** **on prod.** One Claude Enterprise connector → per-employee permissions. Owner generates + rotates client id/secret in **Settings → Claude Connector**. Inert until a client exists. See `docs/MCP_OAUTH_DESIGN.md`.  
 
 **Brand radar / Mall harvest:** Track **BR** — **mono scrape backlog cleared (2026-08-01/02)** · **73/73** mono: lifetime sold + **MH-14 sales ranks** (`list_sales_*`) + **MH-4 platform crumbs** · queue **idle** · **no open scrape duties** for the v1 goals · honest “sold/month” = **Top Sales grid rank** (not calendar units; S-E later) · export recipes **full** | **full_sales** · breadcrumb merge on read · **prod redeploy** 2026-08-02 · **next ops host = on-prem Linux/Windows PC** (not this desktop) · optional later: deeper `max_pages` · more PDPs/SKU · distributors · monthly re-scrape on that box  
 **Product images (intent, 2026-08-14):** Track **IMG** — iHerb is the pack-shot source. Live warehouse: **46** brands on both channels (advisory said 44) · **2,931 / 2,931** iHerb SKUs already have `metadata.pdp_image` · **0 / 6,353** Shopee Mall rows have `image_url`. Next = expose URL on MCP/export, not a new scrape. See § Track IMG.
@@ -21,7 +21,7 @@
 **Near-expiry / Loft gate:** Track **EX** — schema + B.4 code exist; **ops path not wired** · review before build · see § Track EX  
 **Store roster:** Track **RO** — **moved to Fran HRM** (`docs/HRM_ROSTER.md`) · SKUMS UI/MCP/API removed · POS `/fran/pos/roster/*` returns 410 · mig **080** tables unused  
 **Research notebooks:** Track **RN** — **shipped** · `/research` · MCP study note tools · harvest remains opt-in  
-**Hanshow ESL:** Track **HS** — **WIP** · OAuth + query/bind/flash from HS-ALLSTAR-V220005 · **waiting on article import spec + API client + store AP** · see § Track HS  
+**Hanshow ESL:** Track **HS** — **WIP on prod** (`56a0152`) · `/integrations` card · OAuth + query/bind/flash · **waiting on Hanshow:** article import spec, API `client_id`/`client_secret`, store AP + 1 test ESL · see § Track HS  
 **Floor / Actions:** POS+MCP floor damage → Actions **Apply** · Store Ops HQ form · stock only after Apply  
 **MCP agent routing:** **two buckets shipped** (Mall `market_brand_*` vs catalog/stock)  
 **Web / store-routing site:** **`TODO-WEB.md`**
@@ -57,7 +57,7 @@
 
 ## Start here next
 
-### What’s done (recent → 2026-08-03)
+### What’s done (recent → 2026-08-19)
 
 | Area | Outcome |
 |------|---------|
@@ -65,7 +65,10 @@
 | **MH-14 sales ranks** | S-A/B/C eng ✅ · S1 mono **`--sort-by sales --skip-mh4 --max-pages 2`** finished · honest label = Top Sales **rank** + lifetime sold (not calendar monthly units) |
 | **MH-4 crumbs** | Last four brands done (pyunkang-yul, sulwhasoo, round-lab, house-of-hur) · path merge onto sales rows in read/export |
 | **MCP / export** | Recipes **full** + **full_sales** · default listings include path + `sales_rank` · demo-safe labels · **prod redeploy 2026-08-02** |
-| **A3 MCP OAuth** | **Built · DB applied · not deployed** · per-employee permissions through one Claude Enterprise connector · client id/secret managed in Settings (no env vars) · API keys unchanged for scripts/cron |
+| **A3 MCP OAuth** | **On prod** · per-employee permissions through one Claude Enterprise connector · generate client in Settings → Claude Connector · API keys unchanged for scripts/cron |
+| **HS Hanshow ESL** | **WIP on prod** · mig **087** · query/bind/flash from V220005 · **blocked on Hanshow** article import spec + API client + store AP |
+| **Integrations UI** | Dummy nodes (Shopify/Woo/Zapier/…) collapsed; live surface = Loft, Hanshow (WIP), Skincare Intel, Fran CRM, MCP |
+| **Catalog import format** | MCP `catalog_import_format` shipped · HQ `title_ko` + UPC upsert · no MCP xlsx ingest |
 | **Harvest ops** | `_harvest_queue` cold→babysit · **no Chrome bounce** by default · sales-only monthly command ready |
 | **RP** | **RP-1…RP-8 done** · mig **076–079** applied + prod |
 | **RO roster** | **Moved to fran-hrm** · SKUMS `/roster` + `roster_*` MCP removed |
@@ -110,6 +113,7 @@
 
 5. Parallel when blocked
    · Loft G.1 product push + G.2 cancel · live token from Loft · J · L campaigns
+   · HS: nothing to code until Hanshow sends article import spec + API client + a store AP is online
 ```
 
 ### Claude / MCP cheat sheet
@@ -155,7 +159,7 @@ node scripts/_harvest_queue.mjs -w c21c057f-ea01-4e19-bc79-fafcf2626b19 --connec
 | **5** | **L** loyalty FWB | Live wire shipped · Jan-1 / campaigns |
 | **Done** | **A** MCP composites #1–8 | **Done** |
 | **Done** | **A2** Web ↔ MCP permissions | **Core done** — optional A2.5 bind-other UI |
-| **P1** | **A3** MCP per-user OAuth | **Built · mig 082+083 applied · not deployed** · generate credentials in Settings → Claude Connector · `docs/MCP_OAUTH_DESIGN.md` |
+| **P1** | **A3** MCP per-user OAuth | **On prod** · generate credentials in Settings → Claude Connector · `docs/MCP_OAUTH_DESIGN.md` |
 | **Done** | **RP** MCP read path | **RP-1…RP-8 DONE** |
 | **Moved** | **RO** store roster | **Fran HRM** · see `docs/HRM_ROSTER.md` |
 | **Done** | **RN** research notebooks | **Shipped** · `/research` · MCP study notes |
@@ -821,8 +825,9 @@ node --test tests/effective-scopes-a2.test.mjs tests/api-key-lifecycle-a24.test.
 - [x] Migration **066** report registry on shared project
 - [x] Migration **067** report.run.completed policy on shared project
 - [x] Migration **068** marketplace brand universe on shared project (local applied 2026-07-20)
-- [ ] **Apply migration 075** (`npm run db:migrate`) — MH-9 harvest notification policies
+- [x] **Apply migration 075** (`npm run db:migrate`) — MH-9 harvest notification policies
 - [x] **Migrations 080–081** applied (roster + daily-stockout seed) — 2026-08-03
+- [x] **Migrations 084–087** applied (invite policy, iHerb catalogue, Hanshow ESL node) — 2026-08-19
 - [ ] Set **`SKUMS_API_BASE`** + **`MARKETPLACE_CRON_SECRET`** locally for MH-9 blocked/recovered pings
 - [ ] Confirm prod deploy green after each push
 - [ ] Confirm prod DB has **063–068** if not same project as local migrate
@@ -968,7 +973,7 @@ Sample URL: `https://cloudinary.images-iherb.com/image/upload/f_auto,q_auto:eco/
 
 **Spec in hand:** `docs/hanshow.pdf` HS-ALLSTAR-V220005 (Login + Article query + ESL bind/flash). Cloud: `https://ap-allstar.hanshowcloud.net/`.
 
-**Built (WIP on `/integrations`):** OAuth login (`MD5(password+username)` + Basic `client_id:client_secret`) · query articles by SKU/EAN · bind/unbind ESL ↔ SKU · flash by label or SKU. Node slug `hanshow-allstar`. Routes under `/api/integrations/hanshow-allstar/*`.
+**Built (WIP on `/integrations`, prod `56a0152`):** OAuth login (`MD5(password+username)` + Basic `client_id:client_secret`) · query articles by SKU/EAN · bind/unbind ESL ↔ SKU · flash by label or SKU. Node slug `hanshow-allstar`. Routes under `/api/integrations/hanshow-allstar/*`. Mig **087** applied.
 
 **Waiting on Hanshow (do not invent):**
 
