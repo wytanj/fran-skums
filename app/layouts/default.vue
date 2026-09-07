@@ -55,7 +55,7 @@ watch(() => route.fullPath, () => { drawerOpen.value = false })
         <AppTopbar />
       </header>
 
-      <main class="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+      <main class="mx-auto w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8" :class="route.path.startsWith('/apps/shipping') ? 'max-w-none' : 'max-w-[1400px]'">
         <slot />
       </main>
     </div>
