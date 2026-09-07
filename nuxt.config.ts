@@ -21,6 +21,7 @@ export default defineNuxtConfig({
   // and server endpoints. See STRUCTURE.md and apps/<id>/manifest.ts.
   extends: [
     './apps/skincare',
+    './apps/shipping',
   ],
 
   modules: [
@@ -104,6 +105,9 @@ export default defineNuxtConfig({
     queueProcessorKey: process.env.QUEUE_PROCESSOR_KEY || '',
     // Marketplace BI scheduler (falls back to QUEUE_PROCESSOR_KEY in route)
     marketplaceCronSecret: process.env.MARKETPLACE_CRON_SECRET || '',
+    shippingIngestSecret: process.env.SHIPPING_INGEST_SECRET || '',
+    shippingReconSecret: process.env.SHIPPING_RECON_SECRET || '',
+    shippingReconEmail: process.env.SHIPPING_RECON_EMAIL || 'jeremy@heyfran.com',
     // Per-user OAuth for the Claude MCP connector. Unset = feature is inert and
     // the API-key-in-URL path is unchanged. @see server/utils/mcpOauth.ts
     mcpOauthClientId: process.env.MCP_OAUTH_CLIENT_ID || '',

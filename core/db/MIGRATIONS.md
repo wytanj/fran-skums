@@ -82,6 +82,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 085 | invite_unique_pending_only.sql | Partial unique index: at most one **pending** invite per (workspace, lower(email)) | Replaces `unique (workspace_id, email, status)`, which capped history at one revoked + one accepted row and made the second revoke of the same address fail with a duplicate key error |
 | 086 | iherb_catalogue.sql | iHerb catalogue warehouse | Separate from Shopee marketplace tables |
 | 087 | hanshow_esl.sql | Hanshow All-Star ESL node (WIP) | Login + article query + bind/flash. Price push blocked until Hanshow article API. |
+| 088 | shipping_visualizer.sql | Fran shipping observation tables + RLS | apps/shipping visualizer; also apps/shipping/db/001 |
 
 ## Planned Phase C Spine
 
