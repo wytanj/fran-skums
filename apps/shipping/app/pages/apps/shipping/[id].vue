@@ -96,6 +96,15 @@ function stepClass(status: string, step: string) {
   if (stepDone(status, step)) return "bg-success-soft text-success"
   return "bg-surface-sunken text-muted"
 }
+
+const shipmentSubtitle = computed(() => {
+  const s = shipment.value
+  if (!s) return ""
+  const forwarder = s.forwarder_name || "—"
+  const origin = s.origin_name || "?"
+  const destination = s.destination_name || "?"
+  return `${forwarder} · ${s.mode} · ${origin} → ${destination}`
+})
 </script>
 
 <template>
@@ -111,7 +120,7 @@ function stepClass(status: string, step: string) {
       <UiPageHeader
         eyebrow="Shipment detail"
         :title="shipment.title"
-        :subtitle="`${shipment.forwarder_name || "—"} · ${shipment.mode} · ${shipment.origin_name || "?"} → ${shipment.destination_name || "?"}`"
+        :subtitle="shipmentSubtitle"
       >
         <template #actions>
           <a
