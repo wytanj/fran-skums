@@ -16,6 +16,15 @@ const noteBusy = ref(false)
 
 const id = computed(() => String(route.params.id || ""))
 
+const headerSubtitle = computed(() => {
+  const row = shipment.value
+  if (!row) return ''
+  const fwd = row.forwarder_name || '—'
+  const origin = row.origin_name || '?'
+  const dest = row.destination_name || '?'
+  return [fwd, row.mode, origin + ' → ' + dest].filter(Boolean).join(' · ')
+})
+
 const fsm = ["intake","quote","booked","pickup_scheduled","in_transit","arrived_sg","delivered","closed"]
 
 async function load() {
@@ -120,7 +129,7 @@ const shipmentSubtitle = computed(() => {
       <UiPageHeader
         eyebrow="Shipment detail"
         :title="shipment.title"
-        :subtitle="shipmentSubtitle"
+        :subtitle="headerSubtitle"
       >
         <template #actions>
           <a
