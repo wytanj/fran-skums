@@ -52,10 +52,22 @@
 | **`mcp/README.md`** | MCP setup (stdio + cloud) |
 | **`fran-pos/LOYALTY_POLICY_EXECUTION_PLAN.md`** | POS policy evaluator / quote / commit plan |
 | **`grok-forecasting.md` / `claude-forecast.md`** | Research notes — not the queue |
+| **`docs/FRAN_GROUNDING_PLAN.md`** | Heyfran 2nd-store grounding: forced Merch→Money lanes, SoT map (shipping/merch/fixtures/planogram), wrong-lane flags · not a build brief |
 
 ---
 
 ## Start here next
+
+### Track GROUND — 2nd-store ops grounding (parked)
+
+**Doc:** [`docs/FRAN_GROUNDING_PLAN.md`](docs/FRAN_GROUNDING_PLAN.md) · **not eng priority** (does not displace RP+ / EX / K / FC).
+
+- Forced lanes: Soobin insights → Fern/Tiff + fran-skums → Hiok money → VM/Studio J
+- Shipping SoT already live: `apps/shipping` + `shipping_*` (demo workspace only until prod WS)
+- Planogram / fran-zone cutover: **direction only** — no build until J T unlocks
+- Open J T asks A–F live in the grounding doc
+
+
 
 ### What’s done (recent → 2026-08-19)
 
