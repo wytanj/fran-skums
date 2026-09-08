@@ -44,6 +44,7 @@ Store Dev + Studio J. Bay cards keep **fixture-deps ≠ merch-deps**.
 | Fern / Tiff filling bay sheets by hand | Judgment + skums checks, not spreadsheet archaeology |
 | Spend / production before Hiok | Money gate skipped |
 | Chat / PPT / Sheets treated as SoT | Multi-SoT debt; bots cannot enforce |
+| Treating latest Studio J PDF as SoT | Same disease on fixtures; bots cannot enforce bay deps |
 | Skipping fran-skums checks | Priors not grounded in catalog / stock / sales |
 | Merch blocked on fixtures (or reverse) with no explicit dep | Hides the real blocker on the wrong bay card |
 
@@ -54,9 +55,25 @@ Store Dev + Studio J. Bay cards keep **fixture-deps ≠ merch-deps**.
 | Domain | SoT | Not SoT |
 |--------|-----|---------|
 | **Shipping** | `apps/shipping` + `shipping_*` (timeline, staff notes, curated WhatsApp). Drive = file cabinet only. Demo WS above. | Chat as ops memory |
-| **Merch / POG / heroes / endcap / lightbox** | **Target:** fran-skums planogram data model | Today’s debt: Merch curation PPTX + Hiok VM Plan sheet + Studio J PDFs + chat as ops bus; no facing-level SKU truth. Flag multi-SoT; do not optimize it. |
-| **Fixtures** | Store Dev / Studio J drawings + fran-zone map + bay **fixture-deps** | Merch chat debating stainless borders / swatches |
+| **Merch / POG / heroes / endcap / lightbox** | **Target:** fran-skums planogram data model | Today's debt: Merch curation PPTX + Hiok VM Plan sheet + chat as ops bus (Studio J PDFs belong in the **fixture** lane, not merch); no facing-level SKU truth. Flag multi-SoT; do not optimize it. |
+| **Fixtures** | **Target:** fran-skums bay **fixture-deps** (+ fran-zone ID map). Studio J / landlord PDFs are **ingest events** only. | Dated AutoCAD/PDF dumps in Drive/chat (`LAYOUT_*`, `BUGIS_LAYOUTS_*`, `TECHNICAL DRAWING SET_*`, elevations, one-offs). Whichever PDF landed last is **not** SoT. |
 | **Planogram (direction)** | Data in fran-skums Supabase (`bays` / `shelves` / `facings`, workspace like shipping); 3D stays **fran-zone** loading bay JSON (replace hardcoded `layout.js` merch later); `apps/planogram` for MD/VM | Hardcoded merch / fake bottles as truth |
+
+### Studio J PDF drip (same disease as Merch sheets)
+
+Studio J has **no fixture SoT either**. They keep exporting dated PDFs because there is no system for them — same class of mistake as Merch PPT + VM sheet.
+
+**Observed cadence (Drive, as of 2026-09-08):** not daily. New dated exports every **~3–7 days** while design is hot, burstier for elevations/fixtures. Lineage example:
+
+`LAYOUT_060826` → `BUGIS_LAYOUTS_130826` / `170826` → `Furniture Layout_190826` → tech set `280826` → `010926` (touched again 4 Sep) → elevations / cashier / mask one-offs → `NOA_FP 040926` → elevations `080926` (8 Sep).
+
+**Watch folder (file cabinet, not SoT):** `09 Expansion` → `02 Bugis+ (CapitaLand)` → `00 Store Fit Out` → `03 Store Layout Drafts` → `00 technical drawings` — especially `FRAN_TECHNICAL DRAWING SET_*` dated bumps. Drive does not iterate one living object; each drop is usually a **new PDF**.
+
+**Rule for bots + humans:**
+1. Every new Studio J / landlord PDF = an **ingest event** into fran-skums **fixture-deps** on the right bay cards (landlord approval, heights, cabling, graphics, hook alloc, etc.).
+2. Never treat "latest PDF in chat/Drive" as the system of record.
+3. Until fixture-deps exist, every new PDF is just another competing copy — flag it, do not optimize the drip.
+4. Wrong-lane if Merch/Marketing absorbs drawing archaeology instead of Store Dev / Studio J.
 
 ### Locked fixture refs (as of 2026-09-07)
 
@@ -113,6 +130,7 @@ Store Dev + Studio J. Bay cards keep **fixture-deps ≠ merch-deps**.
 | D | Who owns LED checkout vendor vs friendly naming until resolved? |
 | E | Collapse merch multi-SoT debt first via **endcaps**, or via **hero→lightbox** path? |
 | F | Fixture landlord approval: **escalate now**, or next Store Dev cycle? |
+| G | Confirm Studio J / landlord PDFs are **ingest-only** into fixture-deps (never Drive/chat SoT)? |
 
 ---
 
