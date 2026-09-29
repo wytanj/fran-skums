@@ -120,6 +120,7 @@ Cross-links (required for reconciliation):
 
 | Anti-pattern | Why |
 |--------------|-----|
+| Type on-hand into `products.stock_quantity` | `inventory_levels` is quantity. Lots are written when inbound confirm records expiry. |
 | Points balance only in POS customers table | Diverges offline; CRM is ledger |
 | CRM as inventory ledger | Wrong domain; no ATS / location model |
 | SKUMS as loyalty points ledger | No member graph / policy versions |

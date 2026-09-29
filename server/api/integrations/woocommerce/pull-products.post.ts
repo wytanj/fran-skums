@@ -117,8 +117,6 @@ function buildProductRow(
     title: mapped.title,
     status: mapped.status,
     currency: mapped.currency,
-    stock_quantity: mapped.stock_quantity,
-    track_inventory: mapped.track_inventory,
     product_data: mergedProductData,
     updated_at: new Date().toISOString(),
   }
@@ -303,7 +301,6 @@ async function syncVariants(
       options: mapped.options,
       retail_price: mapped.retail_price,
       sale_price: mapped.sale_price,
-      stock_quantity: mapped.stock_quantity,
       weight: mapped.weight,
       image_url: mapped.image_url,
       is_active: mapped.is_active,

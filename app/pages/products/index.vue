@@ -19,7 +19,6 @@ const columns = [
   { key: 'ean', label: 'EAN' },
   { key: 'upc', label: 'UPC' },
   { key: 'status', label: 'Status', sortable: true },
-  { key: 'stock_quantity', label: 'Stock', sortable: true, class: 'text-right' },
   { key: 'retail_price', label: 'Price', sortable: true, class: 'text-right' },
   { key: 'updated_at', label: 'Updated', sortable: true },
 ]
@@ -183,17 +182,6 @@ onMounted(load)
 
       <template #cell-status="{ value }">
         <StatusBadge :status="value" />
-      </template>
-
-      <template #cell-stock_quantity="{ row }">
-        <span
-          :class="[
-            'text-right font-medium tabular-nums',
-            row.stock_quantity <= (row.low_stock_threshold || 10) ? 'text-danger' : 'text-ink',
-          ]"
-        >
-          {{ row.stock_quantity }}
-        </span>
       </template>
 
       <template #cell-retail_price="{ row }">

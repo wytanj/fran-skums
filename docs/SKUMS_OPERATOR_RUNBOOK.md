@@ -51,8 +51,9 @@ Approve ≠ send: **Send to Loft** needs `store_ops:execute_3pl`.
 | Screen | Path | Use for |
 |--------|------|---------|
 | Dashboard | `/` | Queue counts, shortcuts |
-| Products | `/products` | Master data, Activate for POS |
-| Inventory | `/inventory` | Levels, warehouse POs (not store Loft waves) |
+| Products | `/products` | Master data and Activate for POS. On-hand is Inventory, not this list. |
+| Inventory | `/inventory` | Ledger levels and warehouse POs (not store Loft waves) |
+| Expiry | `/expiry` | Read lots recorded when HQ confirms an inbound shipment |
 | **Store Ops** | `/store-ops` | Requests, orders, inbound ASN, receiving, exceptions, **floor adjustments** |
 | Actions | `/actions` | AI/MCP draft POs (buying intent) — not Loft store ops |
 | Integrations | `/integrations` | WorldSyntech OFS connection, pull products/inventory |

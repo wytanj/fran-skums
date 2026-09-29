@@ -36,3 +36,15 @@ test('expiry lots are read-only outside inbound confirm', () => {
   assert.ok(!existsSync(new URL('../server/api/v1/expiry/batches.post.ts', import.meta.url)))
   assert.match(read('server/utils/inboundShipment.ts'), /expiry_batches/)
 })
+
+test('catalogue screens do not present products.stock_quantity as on-hand', () => {
+  assert.doesNotMatch(read('app/pages/products/index.vue'), /stock_quantity/)
+  assert.doesNotMatch(read('app/pages/index.vue'), /stock_quantity/)
+  assert.doesNotMatch(read('server/api/v1/pos/catalog.get.ts'), /product\.stock_quantity/)
+  assert.doesNotMatch(read('server/api/integrations/woocommerce/pull-products.post.ts'), /stock_quantity/)
+})
+
+test('Hanshow ESL stays', () => {
+  assert.ok(existsSync(new URL('../esl/hanshow-allstar/client.ts', import.meta.url)))
+  assert.match(read('app/pages/integrations.vue'), /hanshow-allstar/)
+})
