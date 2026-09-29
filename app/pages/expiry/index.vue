@@ -4,17 +4,12 @@ import type { ExpiryBatch, ExpiryLifoRow, ExpirySummary, ExpiryMicrosite } from 
 const {
   batches, lifoItems, summary, microsites, loading,
   loadSummary, loadBatches, loadLifo, loadMicrosites,
-  createBatch, deleteBatch, createMicrosite, deleteMicrosite,
+  createMicrosite, deleteMicrosite,
   expiryLabel, daysUntilExpiry, expiryUrgency,
 } = useExpiry()
 const { setContext, clearContext } = useAssistant()
 
 const activeTab = ref<'overview' | 'batches' | 'lifo' | 'microsites'>('overview')
-
-// Batch creation
-const showBatchForm = ref(false)
-const newBatch = ref({ batch_code: '', received_at: new Date().toISOString().slice(0, 10), notes: '' })
-const batchSaving = ref(false)
 
 // Microsite creation
 const showMicrositeForm = ref(false)
@@ -25,30 +20,6 @@ const micrositeSaving = ref(false)
 const { notify } = useActionFeedback()
 function showSuccess(msg: string) { notify.success(msg) }
 function showError(msg: unknown) { notify.error(typeof msg === 'string' ? new Error(msg) : msg) }
-
-async function handleCreateBatch() {
-  if (!newBatch.value.batch_code.trim()) return
-  batchSaving.value = true
-  const { error } = await createBatch({
-    batch_code: newBatch.value.batch_code,
-    received_at: newBatch.value.received_at,
-    notes: newBatch.value.notes || null,
-    source: 'manual',
-  })
-  batchSaving.value = false
-  if (error) return showError(error.message)
-  showSuccess('Batch created')
-  showBatchForm.value = false
-  newBatch.value = { batch_code: '', received_at: new Date().toISOString().slice(0, 10), notes: '' }
-}
-
-async function handleDeleteBatch(id: string) {
-  if (!confirm('Delete this batch and all its items?')) return
-  const { error } = await deleteBatch(id)
-  if (error) showError(error.message)
-  else showSuccess('Batch deleted')
-  await loadSummary()
-}
 
 async function handleCreateMicrosite() {
   if (!newMicrosite.value.slug.trim() || !newMicrosite.value.title.trim()) return
@@ -166,7 +137,7 @@ onUnmounted(() => clearContext())
           </svg>
           <div>
             <p class="text-sm font-medium text-warning">{{ summary.unresolved }} items have unresolved SKUs</p>
-            <p class="mt-1 text-xs text-muted">These SKU strings couldn't be matched to a product. Add SKU aliases in a batch detail page or ensure the product exists with that SKU.</p>
+            <p class="mt-1 text-xs text-muted">These SKU strings couldn't be matched to a product. Make sure a product exists with that SKU or barcode.</p>
           </div>
         </div>
       </div>
@@ -201,32 +172,8 @@ onUnmounted(() => clearContext())
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="text-lg font-semibold text-ink">Batches</h2>
-            <p class="mt-1 text-sm text-muted">Each batch represents a goods receipt with associated expiry data.</p>
+            <p class="mt-1 text-sm text-muted">Each batch is a Loft inbound receipt. Batches are created when HQ confirms an inbound shipment with expiry dates.</p>
           </div>
-          <button class="btn-primary" @click="showBatchForm = !showBatchForm">
-            {{ showBatchForm ? 'Cancel' : '+ New Batch' }}
-          </button>
-        </div>
-
-        <!-- Create form -->
-        <div v-if="showBatchForm" class="mb-6 rounded-lg border border-line bg-surface-sunken p-4 space-y-3">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="label-field">Batch Code *</label>
-              <input v-model="newBatch.batch_code" class="input-field" placeholder="e.g. MFG-2026-0301" />
-            </div>
-            <div>
-              <label class="label-field">Received Date</label>
-              <input v-model="newBatch.received_at" type="date" class="input-field" />
-            </div>
-          </div>
-          <div>
-            <label class="label-field">Notes</label>
-            <textarea v-model="newBatch.notes" class="input-field" rows="2" placeholder="Optional notes about this batch" />
-          </div>
-          <button class="btn-primary" :disabled="!newBatch.batch_code.trim() || batchSaving" @click="handleCreateBatch">
-            {{ batchSaving ? 'Creating…' : 'Create Batch' }}
-          </button>
         </div>
 
         <!-- Batch list -->
@@ -245,17 +192,13 @@ onUnmounted(() => clearContext())
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <button
-                class="text-xs text-danger hover:text-danger z-10"
-                @click.prevent.stop="handleDeleteBatch(batch.id)"
-              >Delete</button>
               <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </div>
           </NuxtLink>
         </div>
-        <p v-else-if="!loading" class="py-8 text-center text-sm text-muted">No batches yet. Create one to start tracking expiry data.</p>
+        <p v-else-if="!loading" class="py-8 text-center text-sm text-muted">No batches yet. Confirm an inbound shipment with expiry dates in Store Ops to record one.</p>
       </div>
     </div>
 
@@ -297,7 +240,7 @@ onUnmounted(() => clearContext())
             </tbody>
           </table>
         </div>
-        <p v-else class="py-8 text-center text-sm text-muted">No in-stock items to plan. Import batch data to get started.</p>
+        <p v-else class="py-8 text-center text-sm text-muted">No in-stock items to plan yet.</p>
       </div>
     </div>
 

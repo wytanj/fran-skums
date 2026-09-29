@@ -109,7 +109,6 @@ const FIXED_FIELDS: SkumsField[] = [
   { key: 'sale_price', label: 'Sale Price', group: 'Pricing', path: 'sale_price', type: 'number' },
   { key: 'cost_price', label: 'Cost Price', group: 'Pricing', path: 'cost_price', type: 'number' },
   { key: 'currency', label: 'Currency', group: 'Pricing', path: 'currency', type: 'string' },
-  { key: 'stock_quantity', label: 'Stock Quantity', group: 'Inventory', path: 'stock_quantity', type: 'integer' },
   { key: 'weight', label: 'Weight', group: 'Shipping', path: 'weight', type: 'number' },
   { key: 'weight_unit', label: 'Weight Unit', group: 'Shipping', path: 'weight_unit', type: 'string' },
   { key: 'pos_enabled', label: 'POS Enabled', group: 'POS', path: 'pos_enabled', type: 'boolean' },
@@ -184,7 +183,7 @@ const exporting = ref(false)
 const exportFieldSelections = computed(() => {
   return skumsFields.value.map(f => ({
     ...f,
-    selected: ref(['title', 'status', 'tags_csv', 'identifiers.sku', 'identifiers.ean', 'identifiers.upc', 'pricing.price', 'pricing.cost_price', 'pricing.currency', 'inventory.stock_quantity', 'core.description'].includes(f.key)),
+    selected: ref(['title', 'status', 'tags_csv', 'identifiers.sku', 'identifiers.ean', 'identifiers.upc', 'pricing.price', 'pricing.cost_price', 'pricing.currency', 'core.description'].includes(f.key)),
   }))
 })
 
@@ -195,7 +194,6 @@ function initExportFields() {
     'title', 'status', 'tags_csv',
     'identifiers.sku', 'identifiers.ean', 'identifiers.upc',
     'pricing.price', 'pricing.cost_price', 'pricing.currency',
-    'inventory.stock_quantity',
     'core.description',
   ])
   exportFields.value = skumsFields.value.map(f => ({

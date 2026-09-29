@@ -16,7 +16,6 @@ const stats = ref({
   totalProducts: 0,
   activeProducts: 0,
   draftProducts: 0,
-  lowStock: 0,
   totalValue: 0,
   actionDraftPos: 0,
   actionPendingPos: 0,
@@ -29,12 +28,11 @@ async function loadDashboard() {
   loading.value = true
   const wsId = currentWorkspace.value.id
 
-  const [totalRes, activeRes, draftRes, lowStockRes, recentRes, draftPoRes, pendingPoRes] = await Promise.all([
+  const [totalRes, activeRes, draftRes, recentRes, draftPoRes, pendingPoRes] = await Promise.all([
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId),
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'active'),
     client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'draft'),
-    client.from('products').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).lt('stock_quantity', 10).eq('track_inventory', true),
-    client.from('products').select('id, title, sku, status, stock_quantity, retail_price, currency, updated_at').eq('workspace_id', wsId).order('updated_at', { ascending: false }).limit(5),
+    client.from('products').select('id, title, sku, status, retail_price, currency, updated_at').eq('workspace_id', wsId).order('updated_at', { ascending: false }).limit(5),
     client.from('internal_purchase_orders').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'draft'),
     client.from('internal_purchase_orders').select('*', { count: 'exact', head: true }).eq('workspace_id', wsId).eq('status', 'pending_approval'),
   ])
@@ -43,7 +41,6 @@ async function loadDashboard() {
     totalProducts: totalRes.count || 0,
     activeProducts: activeRes.count || 0,
     draftProducts: draftRes.count || 0,
-    lowStock: lowStockRes.count || 0,
     totalValue: 0,
     actionDraftPos: draftPoRes.count || 0,
     actionPendingPos: pendingPoRes.count || 0,
@@ -181,16 +178,10 @@ watch(isAuthed, (v) => {
         </template>
       </UiPageHeader>
 
-      <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="mb-6 grid gap-3 sm:grid-cols-3">
         <UiStat label="Total products" :value="loading ? '—' : stats.totalProducts" />
         <UiStat label="Active" :value="loading ? '—' : stats.activeProducts" tone="success" />
         <UiStat label="Drafts" :value="loading ? '—' : stats.draftProducts" tone="warning" />
-        <UiStat
-          label="Low stock"
-          :value="loading ? '—' : stats.lowStock"
-          :tone="stats.lowStock > 0 ? 'danger' : 'ink'"
-          hint="Tracked SKUs under 10"
-        />
       </div>
 
       <NuxtLink

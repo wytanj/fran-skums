@@ -151,10 +151,7 @@ export default defineEventHandler(async (event) => {
         || null
       const unitPrice = Number(product.sale_price ?? product.retail_price ?? 0)
       const level = stockByProductId.get(product.id)
-      // Prefer store-scoped inventory_levels ATS; fall back to legacy product.stock_quantity
-      const stockQuantity = level
-        ? level.available
-        : (product.stock_quantity ?? 0)
+      const stockQuantity = level ? level.available : 0
 
       return {
         id: product.id,

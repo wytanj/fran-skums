@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     'description', 'short_description', 'status',
     'cost_price', 'retail_price', 'sale_price', 'currency',
     'weight', 'weight_unit', 'length', 'width', 'height', 'dimension_unit',
-    'stock_quantity', 'low_stock_threshold', 'track_inventory',
+    'low_stock_threshold', 'track_inventory',
     'seo_title', 'seo_description', 'seo_keywords', 'canonical_url',
     'tags', 'brand_id', 'category_id', 'schema_id',
     'product_data', 'is_canonical', 'rendition_name', 'export_target',

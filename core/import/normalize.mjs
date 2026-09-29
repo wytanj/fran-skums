@@ -106,7 +106,6 @@ export function normalizeProductFromRow(row, rowIndex, reverseMap, opts) {
     retail_price: { type: 'number' },
     sale_price: { type: 'number' },
     cost_price: { type: 'number' },
-    stock_quantity: { type: 'integer' },
     weight: { type: 'number' },
     pos_enabled: { type: 'boolean' },
     tags_csv: { type: 'string_array' },

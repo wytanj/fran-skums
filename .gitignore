@@ -44,3 +44,5 @@ scripts/_product_list_analysis.json
 .claude/settings.local.json
 
 .vercel
+
+.local/
