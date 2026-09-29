@@ -103,7 +103,6 @@ const form = reactive({
   width: null as number | null,
   height: null as number | null,
   dimension_unit: 'cm',
-  stock_quantity: 0,
   low_stock_threshold: 10,
   track_inventory: true,
   seo_title: '',
@@ -258,7 +257,7 @@ async function handleSave() {
   error.value = ''
 
   try {
-    const { brand, category, images, variants, manuals: _m, canonical_product, forks, product_schema, ...formFields } = form as any
+    const { brand, category, images, variants, manuals: _m, canonical_product, forks, product_schema, stock_quantity: _stock, ...formFields } = form as any
     await updateProduct(route.params.id as string, {
       ...formFields,
       seo_keywords: form.seo_keywords ? form.seo_keywords.split(',').map((k: string) => k.trim()) : [],
@@ -713,11 +712,8 @@ onMounted(() => { load(); loadBrandsAndCategories() })
         </div>
         <div class="card p-6">
           <h3 class="mb-4 text-base font-semibold text-ink">Inventory</h3>
-          <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <label class="label-field">Stock Quantity</label>
-              <input v-model.number="form.stock_quantity" type="number" class="input-field" />
-            </div>
+          <p class="mb-4 text-xs text-muted">On-hand comes from the inventory ledger. Change stock through receiving, floor adjustments, or POs.</p>
+          <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="label-field">Low Stock Threshold</label>
               <input v-model.number="form.low_stock_threshold" type="number" class="input-field" />

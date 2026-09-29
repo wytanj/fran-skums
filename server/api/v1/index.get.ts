@@ -59,7 +59,7 @@ export default defineEventHandler(() => {
       schemas: { list: 'GET /api/v1/schemas' },
       webhooks: { receive: 'POST /api/v1/webhooks/:path' },
       expiry: {
-        batches: 'GET|POST /api/v1/expiry/batches',
+        batches: 'GET /api/v1/expiry/batches',
         lifo: 'GET /api/v1/expiry/lifo',
         summary: 'GET /api/v1/expiry/summary',
         aliases: 'GET|POST /api/v1/expiry/aliases',

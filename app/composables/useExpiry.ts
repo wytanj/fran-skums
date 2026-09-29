@@ -1,7 +1,6 @@
 import type {
-  ExpiryBatch, ExpiryItem, ExpiryItemStatus,
+  ExpiryBatch, ExpiryItem,
   ExpiryLifoRow, ExpirySummary, ExpiryMicrosite,
-  SkuAlias,
 } from '~/types'
 
 export function useExpiry() {
@@ -55,22 +54,6 @@ export function useExpiry() {
     return { data, error }
   }
 
-  async function createBatch(batch: Partial<ExpiryBatch>) {
-    const { data, error } = await client
-      .from('expiry_batches')
-      .insert({ ...batch, workspace_id: wsId()! })
-      .select()
-      .single()
-    if (!error) await loadBatches()
-    return { data, error }
-  }
-
-  async function deleteBatch(id: string) {
-    const { error } = await client.from('expiry_batches').delete().eq('id', id)
-    if (!error) await loadBatches()
-    return { error }
-  }
-
   // ----- Items -----
 
   async function loadBatchItems(batchId: string) {
@@ -81,40 +64,6 @@ export function useExpiry() {
       .order('expiry_year', { ascending: true })
       .order('expiry_month', { ascending: true })
     return { data: (data || []) as ExpiryItem[], error }
-  }
-
-  async function createItem(item: Partial<ExpiryItem>) {
-    const { data, error } = await client
-      .from('expiry_items')
-      .insert({ ...item, workspace_id: wsId()! })
-      .select('*, product:product_id(id, title, sku, ean)')
-      .single()
-    return { data, error }
-  }
-
-  async function createItems(items: Partial<ExpiryItem>[]) {
-    const rows = items.map(i => ({ ...i, workspace_id: wsId()! }))
-    const { data, error } = await client
-      .from('expiry_items')
-      .insert(rows)
-      .select('*, product:product_id(id, title, sku, ean)')
-    return { data, error }
-  }
-
-  async function updateItemStatus(id: string, status: ExpiryItemStatus, qty?: number) {
-    const updates: Record<string, any> = { status }
-    if (qty !== undefined) updates.remaining_qty = qty
-    const { data, error } = await client
-      .from('expiry_items')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    return { data, error }
-  }
-
-  async function deleteItem(id: string) {
-    return await client.from('expiry_items').delete().eq('id', id)
   }
 
   // ----- LIFO view -----
@@ -134,37 +83,6 @@ export function useExpiry() {
     loading.value = false
     if (!error) lifoItems.value = (data || []) as ExpiryLifoRow[]
     return { data, error }
-  }
-
-  // ----- SKU Aliases -----
-
-  async function loadAliases(productId?: string) {
-    if (!wsId()) return { data: [] as SkuAlias[], error: null }
-    let q = client.from('sku_aliases').select('*').eq('workspace_id', wsId()!)
-    if (productId) q = q.eq('product_id', productId)
-    q = q.order('created_at', { ascending: false })
-    const { data, error } = await q
-    return { data: (data || []) as SkuAlias[], error }
-  }
-
-  async function createAlias(alias: { product_id: string; alias_value: string; alias_type?: string; label?: string }) {
-    const { data, error } = await client
-      .from('sku_aliases')
-      .insert({
-        workspace_id: wsId()!,
-        product_id: alias.product_id,
-        alias_type: alias.alias_type || 'sku',
-        alias_value: alias.alias_value,
-        label: alias.label || null,
-        source: 'manual',
-      })
-      .select()
-      .single()
-    return { data, error }
-  }
-
-  async function deleteAlias(id: string) {
-    return await client.from('sku_aliases').delete().eq('id', id)
   }
 
   // ----- Microsites -----
@@ -229,10 +147,9 @@ export function useExpiry() {
 
   return {
     batches, lifoItems, summary, microsites, loading,
-    loadSummary, loadBatches, getBatch, createBatch, deleteBatch,
-    loadBatchItems, createItem, createItems, updateItemStatus, deleteItem,
+    loadSummary, loadBatches, getBatch,
+    loadBatchItems,
     loadLifo,
-    loadAliases, createAlias, deleteAlias,
     loadMicrosites, createMicrosite, updateMicrosite, deleteMicrosite,
     expiryLabel, daysUntilExpiry, expiryUrgency,
   }

@@ -647,7 +647,6 @@ export default defineEventHandler(() => {
                     cost_price: { type: 'number' },
                     retail_price: { type: 'number' },
                     sale_price: { type: 'number' },
-                    stock_quantity: { type: 'integer' },
                     tags: { type: 'array', items: { type: 'string' } },
                     schema_id: { type: 'string', format: 'uuid' },
                     brand_id: { type: 'string', format: 'uuid' },
@@ -703,7 +702,6 @@ export default defineEventHandler(() => {
                     status: { type: 'string' },
                     product_data: { type: 'object' },
                     retail_price: { type: 'number' },
-                    stock_quantity: { type: 'integer' },
                     tags: { type: 'array', items: { type: 'string' } },
                   },
                 },
@@ -808,45 +806,6 @@ export default defineEventHandler(() => {
             { name: 'offset', in: 'query', schema: { type: 'integer', default: 0 } },
           ],
           responses: { '200': { description: 'Batch list' } },
-        },
-        post: {
-          operationId: 'createExpiryBatch',
-          summary: 'Create a batch with items',
-          description: 'Create an expiry batch and optionally its items in one call. SKU resolution happens automatically.',
-          tags: ['Expiry'],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['batch_code'],
-                  properties: {
-                    batch_code: { type: 'string' },
-                    received_at: { type: 'string', format: 'date' },
-                    notes: { type: 'string' },
-                    source: { type: 'string', default: 'api' },
-                    items: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        required: ['sku', 'expiry_month', 'expiry_year'],
-                        properties: {
-                          sku: { type: 'string', description: 'Raw SKU / code (auto-resolved to product_id)' },
-                          quantity: { type: 'integer', default: 1 },
-                          expiry_month: { type: 'integer', minimum: 1, maximum: 12 },
-                          expiry_year: { type: 'integer' },
-                          expiry_day: { type: 'integer', minimum: 1, maximum: 31 },
-                          unit_cost: { type: 'number' },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: { '201': { description: 'Batch created with items' } },
         },
       },
       '/expiry/lifo': {
