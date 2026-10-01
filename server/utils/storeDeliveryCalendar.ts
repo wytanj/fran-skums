@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+﻿import type { SupabaseClient } from '@supabase/supabase-js'
 import { ensureWave, listUpcomingWaveDates } from './storeReplenishment'
 
 const WEEKDAY_LABELS: Record<number, string> = {
@@ -220,7 +220,7 @@ export async function resolveNextWaveForStore(
         }
       : null,
     message: nextOpen
-      ? `Next scheduled replenishment: ${nextOpen.weekday_label} ${nextOpen.wave_date}. Ad-hoc requests are for lift/urgent only — default pipe is ${cadenceLabels}.`
+      ? `Next scheduled replenishment: ${nextOpen.weekday_label} ${nextOpen.wave_date}. Ad-hoc requests are for lift/urgent only â€” default pipe is ${cadenceLabels}.`
       : `Default replenishment cadence: ${cadenceLabels}.`,
   }
 }
@@ -285,11 +285,11 @@ export async function previewWaveAllocation(
   if (waveErr) throw waveErr
   if (!wave) throw Object.assign(new Error('Wave not found'), { statusCode: 404 })
 
-  const { data: loftLoc } = await client
+  const { data: whLoc } = await client
     .from('inventory_locations')
     .select('id, code')
     .eq('workspace_id', params.workspaceId)
-    .eq('code', 'LOFT-SG')
+    .eq('code', 'WH-MAIN')
     .maybeSingle()
 
   const { data: deferred } = await client
@@ -302,7 +302,7 @@ export async function previewWaveAllocation(
     .eq('wave_id', params.waveId)
     .in('status', ['deferred_to_wave', 'approved', 'converted'])
 
-  // Aggregate demand by sku × store
+  // Aggregate demand by sku Ã— store
   type Demand = { sku: string; product_id: string | null; store_key: string; requested_qty: number; request_ids: string[] }
   const demandMap = new Map<string, Demand>()
 
@@ -337,24 +337,24 @@ export async function previewWaveAllocation(
     bySku.set(d.sku, list)
   }
 
-  // Loft ATS
+  // Fran WH ATS (WH-MAIN; Loft ditched)
   const skus = [...bySku.keys()]
   const productIds = [...new Set([...demandMap.values()].map((d) => d.product_id).filter(Boolean))] as string[]
-  const loftOnHand = new Map<string, number>() // by product_id or sku
+  const whOnHand = new Map<string, number>() // by product_id or sku
 
-  if (loftLoc?.id && productIds.length) {
+  if (whLoc?.id && productIds.length) {
     const { data: levels } = await client
       .from('inventory_levels')
       .select('product_id, on_hand, reserved, product:products(sku)')
       .eq('workspace_id', params.workspaceId)
-      .eq('location_id', loftLoc.id)
+      .eq('location_id', whLoc.id)
       .in('product_id', productIds)
 
     for (const level of levels || []) {
       const ats = Math.max(0, Number(level.on_hand || 0) - Number(level.reserved || 0))
-      loftOnHand.set(String(level.product_id), ats)
+      whOnHand.set(String(level.product_id), ats)
       const sku = (level as any).product?.sku
-      if (sku) loftOnHand.set(String(sku).toUpperCase(), ats)
+      if (sku) whOnHand.set(String(sku).toUpperCase(), ats)
     }
   }
 
@@ -362,8 +362,8 @@ export async function previewWaveAllocation(
   for (const [sku, demands] of bySku) {
     const productId = demands.find((d) => d.product_id)?.product_id || null
     const available =
-      (productId && loftOnHand.get(productId))
-      ?? loftOnHand.get(sku.toUpperCase())
+      (productId && whOnHand.get(productId))
+      ?? whOnHand.get(sku.toUpperCase())
       ?? 0
     const allocated = allocateSkuAcrossStores(
       available,
@@ -374,7 +374,7 @@ export async function previewWaveAllocation(
     allocations.push({
       sku,
       product_id: productId,
-      loft_available_qty: available,
+      wh_available_qty: available,
       total_requested_qty: totalRequested,
       total_allocated_qty: totalAllocated,
       shortfall: Math.max(0, totalRequested - totalAllocated),
@@ -392,14 +392,14 @@ export async function previewWaveAllocation(
 
   return {
     wave,
-    loft_location_id: loftLoc?.id || null,
+    wh_location_id: whLoc?.id || null,
     allocations,
     summary: {
       skus: allocations.length,
       short_skus: allocations.filter((a) => a.shortfall > 0).length,
       total_shortfall_units: allocations.reduce((s, a) => s + a.shortfall, 0),
     },
-    note: 'Preview only — human must approve wave release; send still requires store_ops:execute_3pl',
+    note: 'Preview only â€” human must approve wave release; send still requires store_ops:execute_3pl',
   }
 }
 
@@ -422,7 +422,7 @@ export async function saveWaveAllocationPreview(
           wave_id: params.waveId,
           product_id: row.product_id,
           sku: row.sku,
-          loft_available_qty: row.loft_available_qty,
+          wh_available_qty: row.wh_available_qty,
           total_requested_qty: row.total_requested_qty,
           total_allocated_qty: row.total_allocated_qty,
           status: 'draft',
@@ -440,5 +440,6 @@ export async function saveWaveAllocationPreview(
   return { preview, saved }
 }
 
-// Do not re-export ensureWave — Nitro auto-import collides with storeReplenishment.ensureWave.
+// Do not re-export ensureWave â€” Nitro auto-import collides with storeReplenishment.ensureWave.
 export { WEEKDAY_LABELS }
+

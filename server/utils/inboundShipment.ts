@@ -1,6 +1,7 @@
+import { loftSendDisabledError, resolveFranWhLocationId } from './franWarehouse'
 /**
- * Inbound ASN: KR/HK → Loft (TODO-LOFT Phase D).
- * Create local ASN → send to OFS → poll receive → LISE confirm → promote LOFT-SG.
+ * Inbound ASN: KR/HK â†’ Loft (TODO-LOFT Phase D).
+ * Create local ASN â†’ send to OFS â†’ poll receive â†’ LISE confirm â†’ promote LOFT-SG.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InboundShipmentRequest } from '../../fulfillment/_types'
@@ -31,14 +32,9 @@ function shipmentNumber() {
   return `ASN-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 999).toString().padStart(3, '0')}`
 }
 
+/** @deprecated Loft ditched — resolves Fran WH (WH-MAIN). */
 export async function resolveLoftLocationId(client: SupabaseClient, workspaceId: string) {
-  const { data } = await client
-    .from('inventory_locations')
-    .select('id, code')
-    .eq('workspace_id', workspaceId)
-    .eq('code', 'LOFT-SG')
-    .maybeSingle()
-  return data?.id || null
+  return resolveFranWhLocationId(client, workspaceId)
 }
 
 export async function createInboundShipment(
@@ -168,6 +164,7 @@ export async function sendInboundToLoft(
     connectionId: string
   },
 ) {
+  throw loftSendDisabledError()
   const { data: shipment, error } = await client
     .from('inbound_shipments')
     .select('*, lines:inbound_shipment_lines(*)')
@@ -358,7 +355,7 @@ function mapInboundRemoteStatus(remote: string, current: string): InboundStatus 
 }
 
 /**
- * LISE confirm: lock received qtys, optional expiry, promote to LOFT-SG on_hand.
+ * LISE confirm: lock received qtys, optional expiry, Promote to Fran WH on_hand.
  */
 export async function confirmInboundAndPromote(
   client: SupabaseClient,
@@ -422,14 +419,14 @@ export async function confirmInboundAndPromote(
 
   const loftId = shipment.destination_location_id || await resolveLoftLocationId(client, params.workspaceId)
   if (!loftId) {
-    throw Object.assign(new Error('LOFT-SG inventory location missing — run seed_workspace_inventory_locations'), { statusCode: 400 })
+    throw Object.assign(new Error('Fran WH (WH-MAIN) inventory location missing - run seed / mig 088'), { statusCode: 400 })
   }
 
   // New SKU gate: block promote if product unmapped
   const missingProduct = (lines || []).filter((l: any) => !l.product_id)
   if (missingProduct.length) {
     throw Object.assign(
-      new Error(`${missingProduct.length} line(s) missing product_id — map SKUs before promote`),
+      new Error(`${missingProduct.length} line(s) missing product_id â€” map SKUs before promote`),
       { statusCode: 400, data: { skus: missingProduct.map((l: any) => l.sku) } },
     )
   }
@@ -492,7 +489,7 @@ export async function confirmInboundAndPromote(
             })
           }
         } catch {
-          // expiry optional — do not fail promote
+          // expiry optional â€” do not fail promote
         }
       }
 
@@ -525,6 +522,8 @@ export async function confirmInboundAndPromote(
     already_promoted: alreadyPromoted,
     message: alreadyPromoted
       ? 'Already promoted; status set to available'
-      : `Promoted ${promoted.length} line(s) to LOFT-SG`,
+      : `Promoted ${promoted.length} line(s) to Fran WH (WH-MAIN)`,
   }
 }
+
+

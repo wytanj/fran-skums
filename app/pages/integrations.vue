@@ -1151,6 +1151,7 @@ watch(() => [skincareFilters.source, skincareFilters.subcategory, skincareFilter
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="font-semibold text-ink">Loft (WorldSyntech OFS)</h2>
+            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">Fran owns WH - Loft send/packlist path retired. Fill from Fran WH (WH-MAIN) only. Connector kept for history.</p>
               <span class="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-success">Live</span>
             </div>
             <p class="mt-1 text-sm text-muted">

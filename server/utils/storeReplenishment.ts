@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Store replenishment orchestration (TODO-LOFT Phase B).
  * Request = signal only. HQ decides approve_now | reject | defer_to_wave.
  * Send to Loft is a separate execute_3pl step.
@@ -11,6 +11,7 @@ import {
   type WorldsyntechCredentials,
 } from '../../fulfillment/worldsyntech-ofs/client'
 import { mapWorldsyntechOrderCreateResult } from '../../fulfillment/worldsyntech-ofs/mapping'
+import { loftSendDisabledError } from './franWarehouse'
 import { upsertIntegrationEntityMapping } from './integrationActions'
 import { emitLifecycleNotification } from './notifications'
 
@@ -46,8 +47,8 @@ export async function notifyReplenishmentRequestSubmitted(
     params.storeLabel ? `Store: ${params.storeLabel}` : null,
     `${params.lineCount} line(s)`,
     params.reason ? `Reason: ${params.reason}` : null,
-    'Review with baseline/lift (MCP) — approve now, defer to Mon/Thu wave, or reject.',
-  ].filter(Boolean).join(' · ')
+    'Review with baseline/lift (MCP) â€” approve now, defer to Mon/Thu wave, or reject.',
+  ].filter(Boolean).join(' Â· ')
 
   const deepLink = `/store-ops?tab=queue&request=${params.requestId}`
   const result = await emitLifecycleNotification(client, {
@@ -131,9 +132,9 @@ export async function notifyReplenishmentRequestDecided(
   const body = [
     params.decisionReason ? `Note: ${params.decisionReason}` : null,
     params.decision === 'approve_now'
-      ? 'Order created — send to Loft is a separate step.'
+      ? 'Order created â€” send to Loft is a separate step.'
       : null,
-  ].filter(Boolean).join(' · ') || `HQ decision: ${params.decision}`
+  ].filter(Boolean).join(' Â· ') || `HQ decision: ${params.decision}`
 
   return emitLifecycleNotification(client, {
     workspaceId: params.workspaceId,
@@ -227,7 +228,7 @@ function fallbackMonThuDates(count: number) {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
   while (out.length < count) {
-    // JS: 0=Sun … 1=Mon … 4=Thu
+    // JS: 0=Sun â€¦ 1=Mon â€¦ 4=Thu
     const day = d.getDay()
     const isodow = day === 0 ? 7 : day
     if (isodow === 1 || isodow === 4) {
@@ -556,6 +557,7 @@ export async function sendOrderToLoft(
     overrideBy?: string | null
   },
 ) {
+  throw loftSendDisabledError()
   const { data: order, error } = await client
     .from('store_replenishment_orders')
     .select('*, lines:store_replenishment_order_lines(*)')
@@ -695,7 +697,7 @@ export async function recommendReplenishmentDecision(
     score += 2
     reasons.push('Priority is urgent')
   } else {
-    reasons.push('Priority is normal/low — weekly wave may be enough')
+    reasons.push('Priority is normal/low â€” weekly wave may be enough')
   }
 
   if (request.needed_by) {
@@ -753,3 +755,4 @@ export async function recommendReplenishmentDecision(
     next_wave_dates: waves,
   }
 }
+
