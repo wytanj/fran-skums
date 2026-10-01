@@ -429,7 +429,7 @@ async function createInboundAsn() {
         lines,
       },
     })
-    showOk('ASN draft created (not sent to Loft yet)')
+    showOk('ASN draft created (Loft send retired; confirm to Fran WH)')
     showInboundForm.value = false
     inboundForm.value = {
       tracking_number: '',
@@ -465,7 +465,7 @@ async function confirmInbound(shipment: any) {
         })),
       },
     })
-    showOk(res.message || 'Confirmed and promoted to LOFT-SG')
+    showOk(res.message || 'Confirmed and promoted to Fran WH')
     await loadInbound()
   } catch (e: any) {
     showErr(e?.data?.statusMessage || e?.message || 'Confirm failed')
@@ -517,7 +517,8 @@ async function refreshAll() {
 }
 
 const sourceLocations = computed(() =>
-  locations.value.filter(location => ['3pl', 'warehouse'].includes(location.location_type)),
+  // Fran WH only - Loft/3pl excluded from packlist fill source
+  locations.value.filter(location => location.location_type === 'warehouse'),
 )
 
 const storeLocations = computed(() =>
@@ -525,7 +526,7 @@ const storeLocations = computed(() =>
 )
 
 const defaultSourceLocation = computed(() =>
-  sourceLocations.value.find(location => location.location_type === '3pl') ||
+  sourceLocations.value.find(location => location.code === 'WH-MAIN') ||
   sourceLocations.value.find(location => location.location_type === 'warehouse') ||
   null,
 )
@@ -565,7 +566,7 @@ async function decideRequest(
     })
     showOk(
       decision === 'approve_now'
-        ? 'Approved — order created (send to Loft is a separate step)'
+        ? 'Approved - order created (fill from Fran WH; Loft send retired)'
         : decision === 'defer_to_wave'
           ? 'Deferred to Mon/Thu wave'
           : 'Request rejected',
@@ -589,7 +590,7 @@ async function verifyException(
       body: {
         workspace_id: currentWorkspace.value.id,
         action,
-        note: action === 'escalate' ? 'Escalated to Loft ops' : null,
+        note: action === 'escalate' ? 'Escalated to Fran WH ops' : null,
       },
     })
     showOk(
@@ -616,7 +617,7 @@ const openExceptions = computed(() =>
 const stats = computed(() => [
   { label: 'HQ inbox', value: inboxUnread.value, sub: 'Unread notifications' },
   { label: 'Open requests', value: queueRequests.value.length, sub: 'Store replenishment asks' },
-  { label: 'Active orders', value: activeOrders.value.length, sub: 'Awaiting 3PL or receipt' },
+  { label: 'Active orders', value: activeOrders.value.length, sub: 'Awaiting WH fill or receipt' },
   {
     label: 'Open exceptions',
     value: openExceptions.value.length,
@@ -710,7 +711,7 @@ async function handleCreateRequest() {
   const number = result?.data?.request?.request_number
   notify.success(
     number ? `Request ${number} submitted to HQ queue` : 'Request submitted to HQ queue',
-    `${validLines.length} line${validLines.length === 1 ? '' : 's'} · not sent to Loft — HQ must approve first.`,
+    `${validLines.length} line${validLines.length === 1 ? '' : 's'} · not filled from Fran WH yet - HQ must approve first.`,
   )
   showRequestForm.value = false
   resetRequestForm()
@@ -763,7 +764,7 @@ async function convertRequestToOrder(request: StoreReplenishmentRequest) {
     if (error) throw error
   }, {
     success: `Replenishment order created from ${request.request_number}`,
-    successDetail: 'Still internal — not sent to Loft until you send it explicitly.',
+    successDetail: 'Still internal - fill from Fran WH; Loft send retired.',
   })
 }
 
@@ -1234,7 +1235,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       <div class="flex flex-col gap-3 border-b border-line px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 class="text-base font-semibold text-ink">Replenishment orders</h2>
-          <p class="mt-1 text-sm text-muted">Operational movement records that can later be sent to Loft or another 3PL connector.</p>
+          <p class="mt-1 text-sm text-muted">Internal packlist / fill / transfer from Fran WH (WH-MAIN). Loft send retired.</p>
         </div>
       </div>
       <div v-if="orders.length === 0" class="px-5 py-10 text-center text-sm text-muted">
@@ -1286,7 +1287,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
     <div v-show="activeTab === 'inbound'" class="space-y-5">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-muted">
-          KR/HK → M&amp;P → Loft ASN. Draft locally, send to OFS, confirm to promote LOFT-SG stock. POS does not see this.
+          KR/HK inbound ASN to Fran WH. Confirm promotes WH-MAIN. Loft/OFS send retired. POS does not see this.
         </p>
         <button class="btn-primary" @click="showInboundForm = !showInboundForm">
           {{ showInboundForm ? 'Close' : 'New ASN' }}
@@ -1375,7 +1376,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             </div>
             <div class="text-xs text-muted">
               <span v-if="ship.external_stock_incoming_main_id">OFS main {{ ship.external_stock_incoming_main_id }}</span>
-              <span v-else>Not sent to Loft</span>
+              <span v-else>Not sent (Loft retired)</span>
             </div>
             <div class="flex flex-wrap gap-2 xl:justify-end">
               <button
@@ -1383,7 +1384,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 class="btn-primary !px-3 !py-1.5 text-xs"
                 @click="confirmInbound(ship)"
               >
-                LISE confirm → LOFT-SG
+                LISE confirm to Fran WH
               </button>
             </div>
           </div>
@@ -1514,7 +1515,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
         <div class="flex items-center justify-between gap-4">
           <div>
             <h2 class="text-base font-semibold text-ink">Inventory exception</h2>
-            <p class="text-sm text-muted">Log variances that need SKUMS review or 3PL follow-up.</p>
+            <p class="text-sm text-muted">Log variances that need SKUMS review or WH follow-up.</p>
           </div>
           <button type="button" class="text-sm text-muted hover:text-ink" @click="showExceptionForm = false">
             Close
@@ -1640,7 +1641,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 class="btn-secondary !px-3 !py-1.5 text-xs"
                 @click="verifyException(exception, 'escalate')"
               >
-                Escalate Loft
+                Escalate WH
               </button>
               <button
                 class="rounded-lg px-3 py-1.5 text-xs text-muted hover:bg-surface-sunken hover:text-ink"
@@ -1684,7 +1685,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
           <label>
             <span class="label-field">Default delivery mode</span>
             <select v-model="storeSettings.default_delivery_mode" class="input-field">
-              <option value="delivery">Loft delivery</option>
+              <option value="delivery">Fran WH delivery</option>
               <option value="self_collect">Self-collect</option>
             </select>
           </label>
@@ -1728,7 +1729,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
       </div>
 
       <div v-if="allocationPreview" class="card p-5 space-y-3">
-        <h2 class="text-base font-semibold text-ink">Allocation preview (Loft ATS)</h2>
+        <h2 class="text-base font-semibold text-ink">Allocation preview (Fran WH ATS)</h2>
         <p class="text-xs text-muted">
           {{ allocationPreview.note || allocationPreview.preview?.note }}
           · Short SKUs: {{ allocationPreview.summary?.short_skus ?? allocationPreview.preview?.summary?.short_skus ?? '—' }}
@@ -1738,7 +1739,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
             <thead class="text-xs text-muted">
               <tr>
                 <th class="py-2 pr-3">SKU</th>
-                <th class="py-2 pr-3">Loft ATS</th>
+                <th class="py-2 pr-3">Fran WH ATS</th>
                 <th class="py-2 pr-3">Requested</th>
                 <th class="py-2 pr-3">Allocated</th>
                 <th class="py-2">Shortfall</th>
@@ -1751,7 +1752,7 @@ watch(() => currentWorkspace.value?.id, refreshAll)
                 class="border-t border-line"
               >
                 <td class="py-2 pr-3 font-mono text-ink-soft">{{ row.sku }}</td>
-                <td class="py-2 pr-3 text-ink-soft">{{ row.loft_available_qty }}</td>
+                <td class="py-2 pr-3 text-ink-soft">{{ row.wh_available_qty ?? row.loft_available_qty }}</td>
                 <td class="py-2 pr-3 text-ink-soft">{{ row.total_requested_qty }}</td>
                 <td class="py-2 pr-3 text-success">{{ row.total_allocated_qty }}</td>
                 <td class="py-2" :class="row.shortfall > 0 ? 'text-danger' : 'text-muted'">{{ row.shortfall }}</td>

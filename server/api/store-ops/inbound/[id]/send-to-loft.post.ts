@@ -12,6 +12,8 @@ import type { WorldsyntechCredentials } from '../../../../../fulfillment/worldsy
  * Scopes: store_ops:inbound + execute_3pl family
  */
 export default defineEventHandler(async (event) => {
+  // Fran owns WH - Loft send disabled (gated in util; Class C hold).
+
   const id = String(getRouterParam(event, 'id') || '').trim()
   const body = await readBody(event)
   const workspaceId = String(body.workspace_id || '').trim()

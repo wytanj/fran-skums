@@ -1,9 +1,10 @@
-/**
+﻿/**
  * Store receive + exception verification (TODO-LOFT Phase C).
- * Policy: auto-apply uncontested good qty; exception lines → inventory_exceptions for HQ verify.
+ * Policy: auto-apply uncontested good qty; exception lines â†’ inventory_exceptions for HQ verify.
  * Phase N: open exceptions emit lifecycle notifications for store_ops:verify.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { resolveWhStoreTransitLocationId } from './franWarehouse'
 import { emitLifecycleNotification } from './notifications'
 
 export type ReceiveExceptionType = 'short' | 'damaged' | 'over' | 'wrong_sku' | 'unexpected_item' | 'unmapped_sku'
@@ -563,3 +564,5 @@ export async function verifyInventoryException(
 
   return updated
 }
+
+

@@ -81,6 +81,7 @@ Run in order. All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `CREA
 | 084 | invite_policy_no_auth_users.sql | Invite self-view policy reads `auth.jwt() ->> 'email'` instead of `auth.users` | Fixes "permission denied for table users" when inviting. **Never query `auth.users` from an RLS policy** — `authenticated` has no privilege on it. Guarded by `tests/rls-no-auth-users.test.mjs` |
 | 085 | invite_unique_pending_only.sql | Partial unique index: at most one **pending** invite per (workspace, lower(email)) | Replaces `unique (workspace_id, email, status)`, which capped history at one revoked + one accepted row and made the second revoke of the same address fail with a duplicate key error |
 | 086 | iherb_catalogue.sql | iHerb catalogue warehouse | Separate from Shopee marketplace tables |
+| 088 | 088_fran_wh_only_packlist.sql | Fran WH-only packlist; deprecate LOFT-SG labels; seed XFER-WH-STORE |
 | 087 | hanshow_esl.sql | Hanshow All-Star ESL node (WIP) | Login + article query + bind/flash. Price push blocked until Hanshow article API. |
 
 ## Planned Phase C Spine
