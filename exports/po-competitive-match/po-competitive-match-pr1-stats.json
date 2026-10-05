@@ -1,0 +1,159 @@
+{
+  "generated_at_sgt": "2026-10-05T14:03:30.303539+08:00",
+  "po_rows": 1986,
+  "iherb_products_indexed": 2931,
+  "iherb_join_possible": true,
+  "iherb_blocker": null,
+  "shopee_threshold": 0.6,
+  "shopee_harvest": [
+    "/workspace/tmp/mall-harvest-full.xlsx",
+    "/workspace/tmp/mall-harvest-full-sales.xlsx"
+  ],
+  "counts_by_match_source": {
+    "none": 1351,
+    "iherb": 267,
+    "shopee": 368
+  },
+  "pct_by_match_source": {
+    "none": 68.03,
+    "iherb": 13.44,
+    "shopee": 18.53
+  },
+  "iherb_preferred_over_shopee_overlap": 156,
+  "empty_price_sgd": {
+    "iherb": 11,
+    "shopee": 205
+  },
+  "top_uncovered_brands": [
+    {
+      "brand": "peripera",
+      "none_rows": 88
+    },
+    {
+      "brand": "joocyee",
+      "none_rows": 70
+    },
+    {
+      "brand": "judydoll",
+      "none_rows": 63
+    },
+    {
+      "brand": "fwee",
+      "none_rows": 53
+    },
+    {
+      "brand": "bbi@",
+      "none_rows": 49
+    },
+    {
+      "brand": "aztk",
+      "none_rows": 40
+    },
+    {
+      "brand": "clio",
+      "none_rows": 38
+    },
+    {
+      "brand": "maogeping",
+      "none_rows": 38
+    },
+    {
+      "brand": "veecci",
+      "none_rows": 30
+    },
+    {
+      "brand": "vdl",
+      "none_rows": 28
+    },
+    {
+      "brand": "skintific",
+      "none_rows": 23
+    },
+    {
+      "brand": "the saem",
+      "none_rows": 23
+    },
+    {
+      "brand": "t-fit",
+      "none_rows": 22
+    },
+    {
+      "brand": "unleasia",
+      "none_rows": 22
+    },
+    {
+      "brand": "tirtir",
+      "none_rows": 21
+    },
+    {
+      "brand": "red chamber",
+      "none_rows": 19
+    },
+    {
+      "brand": "innisfree",
+      "none_rows": 18
+    },
+    {
+      "brand": "watercome",
+      "none_rows": 16
+    },
+    {
+      "brand": "coringco",
+      "none_rows": 15
+    },
+    {
+      "brand": "dewytree",
+      "none_rows": 15
+    },
+    {
+      "brand": "2an",
+      "none_rows": 14
+    },
+    {
+      "brand": "cell fusion c",
+      "none_rows": 14
+    },
+    {
+      "brand": "huxley",
+      "none_rows": 14
+    },
+    {
+      "brand": "naming",
+      "none_rows": 12
+    },
+    {
+      "brand": "studio17",
+      "none_rows": 12
+    },
+    {
+      "brand": "marshique",
+      "none_rows": 11
+    },
+    {
+      "brand": "so natural",
+      "none_rows": 11
+    },
+    {
+      "brand": "growus",
+      "none_rows": 11
+    },
+    {
+      "brand": "the face shop",
+      "none_rows": 10
+    },
+    {
+      "brand": "fation",
+      "none_rows": 10
+    }
+  ],
+  "csv_path": "/workspace/briefs/po-competitive-match-pr1.csv",
+  "readme_path": "/workspace/briefs/po-competitive-match-pr1-README.md",
+  "notes": [
+    "iHerb exact via gtin 12↔13 digit normalize against Supabase iherb_products + latest iherb_product_snapshots (fran-skums project)",
+    "Shopee fuzzy reused from /workspace/tmp/po_shopee_fuzzy.json (brandKey token overlap); score>=0.6",
+    "Prefer iHerb over Shopee when both; review_note left blank",
+    "Shopee harvest ~2026-07/08; many mall listing prices null in harvest — sales workbook used to backfill when present",
+    "iHerb last_seen / snapshot ~2026-08-11 SGT",
+    "Box /workspace/.env points at a different Supabase without iherb_products; used desktop fran-skums .env"
+  ]
+}
