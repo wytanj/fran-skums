@@ -96,7 +96,12 @@ export function parsePoRecords(records) {
 /**
  * @param {string} text
  */
-export function parseCsv(text) {
+/**
+ * Every column, header names normalized. Does not drop match columns.
+ * @param {string} text
+ * @returns {Array<Record<string, string>>}
+ */
+export function parseCsvObjects(text) {
   const source = String(text || '').replace(/^\uFEFF/, '')
   const rows = []
   let row = []
@@ -150,7 +155,29 @@ export function parseCsv(text) {
     })
     records.push(obj)
   }
-  return parsePoRecords(records)
+  return records
+}
+
+/**
+ * @param {string} text
+ */
+export function parseCsv(text) {
+  return parsePoRecords(parseCsvObjects(text))
+}
+
+/**
+ * PR1 stores currency and the Singapore day in one cell, for example "SGD 2026-08-11".
+ * @param {unknown} value
+ * @returns {{ currency: string, date: string }}
+ */
+export function parseCurrencyDate(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return { currency: '', date: '' }
+  const both = text.match(/^([A-Za-z]{3})\s+(\d{4}-\d{2}-\d{2})$/)
+  if (both) return { currency: both[1].toUpperCase(), date: both[2] }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return { currency: '', date: text }
+  if (/^[A-Za-z]{3}$/.test(text)) return { currency: text.toUpperCase(), date: '' }
+  return { currency: '', date: '' }
 }
 
 /**
@@ -379,6 +406,58 @@ function bestShopee(productName, brand, candidates) {
 }
 
 /**
+ * @param {{ barcode?: string }} line
+ * @param {ReturnType<typeof buildMatchCatalog>} catalog
+ */
+export function findIherbHit(line, catalog) {
+  for (const key of barcodeLookupKeys(line?.barcode)) {
+    const hit = catalog.iherbByBarcode.get(key)
+    if (hit) return hit
+  }
+  return null
+}
+
+/**
+ * @param {{ brand?: string, product_name?: string }} line
+ * @param {ReturnType<typeof buildMatchCatalog>} catalog
+ */
+export function findShopeeHit(line, catalog) {
+  const brand = String(line?.brand ?? '').trim()
+  const productName = String(line?.product_name ?? '').trim()
+  const brandKey = resolveBrandKey(brand, catalog.aliasToBrandKey)
+  const candidates = brandKey ? catalog.shopeeByBrand.get(brandKey) || [] : []
+  return bestShopee(productName, brand, candidates)
+}
+
+/**
+ * Empty iHerb prices first, then rows with no match. Priced rows stay out of the queue.
+ * @param {Array<Record<string, unknown>>} rows
+ */
+export function iherbRefreshPlan(rows) {
+  const emptyPrice = []
+  const none = []
+  for (const row of rows || []) {
+    const source = String(row.match_source || '')
+    const price = String(row.price_sgd || '').trim()
+    const line = {
+      barcode: String(row.barcode || '').trim(),
+      brand: String(row.brand || '').trim(),
+      product_name: String(row.product_name || '').trim(),
+      listing_url: String(row.listing_url || '').trim(),
+      priority: source === 'iherb' && !price ? 'empty_price' : 'none',
+    }
+    if (!line.barcode) continue
+    if (source === 'iherb' && !price) emptyPrice.push(line)
+    else if (source === 'none') none.push(line)
+  }
+  return {
+    empty_price: emptyPrice,
+    none,
+    queue: [...emptyPrice, ...none],
+  }
+}
+
+/**
  * @param {{ barcode?: string, brand?: string, product_name?: string }} line
  * @param {ReturnType<typeof buildMatchCatalog>} catalog
  */
@@ -393,9 +472,8 @@ export function matchPoLine(line, catalog) {
     review_note: '',
   }
 
-  for (const key of barcodeLookupKeys(barcode)) {
-    const hit = catalog.iherbByBarcode.get(key)
-    if (!hit) continue
+  const hit = findIherbHit(line, catalog)
+  if (hit) {
     return {
       ...base,
       match_source: 'iherb',
@@ -407,9 +485,7 @@ export function matchPoLine(line, catalog) {
     }
   }
 
-  const brandKey = resolveBrandKey(brand, catalog.aliasToBrandKey)
-  const candidates = brandKey ? catalog.shopeeByBrand.get(brandKey) || [] : []
-  const shopee = bestShopee(product_name, brand, candidates)
+  const shopee = findShopeeHit(line, catalog)
   if (shopee) {
     const listing = shopee.listing
     return {
@@ -483,6 +559,121 @@ export function renderMatchCsv(rows) {
   const lines = [MATCH_COLUMNS.join(',')]
   for (const row of rows || []) {
     lines.push(MATCH_COLUMNS.map((column) => csvCell(row[column])).join(','))
+  }
+  return `${lines.join('\n')}\n`
+}
+
+export const WIDE_COLUMNS = [
+  'barcode',
+  'brand',
+  'product_name',
+  'iherb_price_sgd',
+  'iherb_url',
+  'iherb_seen_at',
+  'iherb_confidence',
+  'shopee_price_sgd',
+  'shopee_url',
+  'shopee_title',
+  'shopee_seen_at',
+  'shopee_confidence',
+  'match_source',
+  'confidence',
+  'price_sgd',
+  'seen_at',
+  'review_note',
+]
+
+const WIDE_CONFIDENCE = new Set(['iherb_confidence', 'shopee_confidence', 'confidence'])
+
+function formatConfidence(value) {
+  if (value == null || value === '') return ''
+  const n = Number(value)
+  if (!Number.isFinite(n)) return ''
+  if (n === 1) return '1.0'
+  return String(Math.round(n * 1000) / 1000)
+}
+
+/**
+ * Both channels stay on the row. The pick is iHerb, then Shopee at the 0.6 overlap, then none.
+ * @param {{ barcode?: string, brand?: string, product_name?: string }} line
+ * @param {ReturnType<typeof buildMatchCatalog>} catalog
+ */
+export function toWideRow(line, catalog) {
+  const iherb = findIherbHit(line, catalog)
+  const shopee = findShopeeHit(line, catalog)
+  const iherbPrice = iherb ? priceSgd(iherb) : ''
+  const shopeePrice = shopee ? priceSgd(shopee.listing) : ''
+  const iherbSeen = iherb ? dateSeen(iherb.captured_at || iherb.date_seen || iherb.seen_at) : ''
+  const shopeeSeen = shopee
+    ? dateSeen(shopee.listing.crawled_at || shopee.listing.date_seen || shopee.listing.seen_at)
+    : ''
+  const shopeeConfidence = shopee ? Math.round(shopee.confidence * 1000) / 1000 : ''
+
+  let match_source = 'none'
+  let confidence = ''
+  let price_sgd = ''
+  let seen_at = ''
+  if (iherb) {
+    match_source = 'iherb'
+    confidence = 1
+    price_sgd = iherbPrice
+    seen_at = iherbSeen
+  } else if (shopee) {
+    match_source = 'shopee'
+    confidence = shopeeConfidence
+    price_sgd = shopeePrice
+    seen_at = shopeeSeen
+  }
+
+  return {
+    barcode: String(line?.barcode ?? '').trim(),
+    brand: String(line?.brand ?? '').trim(),
+    product_name: String(line?.product_name ?? '').trim(),
+    iherb_price_sgd: iherbPrice,
+    iherb_url: iherb ? String(iherb.url || iherb.listing_url || '') : '',
+    iherb_seen_at: iherbSeen,
+    iherb_confidence: iherb ? 1 : '',
+    shopee_price_sgd: shopeePrice,
+    shopee_url: shopee ? String(shopee.listing.listing_url || shopee.listing.url || '') : '',
+    shopee_title: shopee ? String(shopee.listing.title || '') : '',
+    shopee_seen_at: shopeeSeen,
+    shopee_confidence: shopeeConfidence,
+    match_source,
+    confidence,
+    price_sgd,
+    seen_at,
+    review_note: '',
+  }
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} rows
+ */
+export function wideStats(rows) {
+  const list = rows || []
+  const base = matchStats(list)
+  const iherbRows = list.filter((row) => row.iherb_confidence !== '' && row.iherb_confidence != null)
+  const shopeeRows = list.filter((row) => row.shopee_confidence !== '' && row.shopee_confidence != null)
+  const blank = (value) => !String(value || '').trim()
+  return {
+    ...base,
+    iherb_channel: iherbRows.length,
+    shopee_channel: shopeeRows.length,
+    empty_iherb_price: iherbRows.filter((row) => blank(row.iherb_price_sgd)).length,
+    empty_shopee_price: shopeeRows.filter((row) => blank(row.shopee_price_sgd)).length,
+  }
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} rows
+ */
+export function renderWideCsv(rows) {
+  const lines = [WIDE_COLUMNS.join(',')]
+  for (const row of rows || []) {
+    lines.push(WIDE_COLUMNS.map((column) => {
+      const value = WIDE_CONFIDENCE.has(column) ? formatConfidence(row[column]) : row[column]
+      return csvCell(value)
+    }).join(','))
   }
   return `${lines.join('\n')}\n`
 }
