@@ -51,3 +51,35 @@ The PO file may be csv, json, or xlsx. Recognized headers are UPC, EAN, GTIN, or
 To run without the database, pass `--iherb`, `--shopee`, and optional `--brands` json files. That path does not read Supabase.
 
 The command prints `rows`, `iherb`, `shopee`, `none`, and `shopee_overlap_ge_0.7`.
+
+## Build the v2 sheet
+
+The v2 sheet keeps the iHerb price and the Shopee price on the same row. `match_source` is `iherb` when the barcode hits iHerb. It is `shopee` when there is no iHerb hit and the title overlap is at least 0.6. Otherwise it is `none`. `review_note` stays blank.
+
+From the repo root, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `MARKETPLACE_WORKSPACE_ID` set:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\po-v2-run.ps1 -SkipHarvest
+```
+
+That command reads iHerb from Supabase and rebuilds Shopee from the July and August mall workbooks. It does not open Chrome.
+
+To refresh Shopee Mall listings, log into Shopee in the Chrome window the script opens, then run:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\po-v2-run.ps1
+```
+
+`scripts\po-v2-run.ps1` stops every chrome.exe before it starts the debug Chrome. Close work you still need in Chrome before that command.
+
+To refresh only the Shopee rows whose price is blank, run:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\po-v2-run.ps1 -PriceRefreshOnly
+```
+
+`-Brands joocyee,tirtir` limits the Mall crawl to those pack keys. A brand in `marketplace/poBrandAliasPack.mjs` is crawled only when `shop_verified` is true. A null `shop_username` is a TODO. The script does not invent a shop id.
+
+The v2 file is `exports/po-competitive-match/po-competitive-match-v2.csv`. Counts are in `po-competitive-match-v2-stats.json` in the same folder. The committed csv copies iHerb prices from the PR1 sheet. Shopee prices in that file come from the July and August mall workbooks. Run the command above when you want iHerb read again from Supabase.
+
+The v2 columns are `barcode`, `brand`, `product_name`, `iherb_price_sgd`, `iherb_url`, `iherb_seen_at`, `iherb_confidence`, `shopee_price_sgd`, `shopee_url`, `shopee_title`, `shopee_seen_at`, `shopee_confidence`, `match_source`, `confidence`, `price_sgd`, `seen_at`, and `review_note`.

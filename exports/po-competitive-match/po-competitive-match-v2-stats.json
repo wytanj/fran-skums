@@ -1,0 +1,33 @@
+{
+  "rows": 1986,
+  "iherb": 267,
+  "shopee": 79,
+  "none": 1640,
+  "iherb_pct": 13.4,
+  "shopee_pct": 4,
+  "none_pct": 82.6,
+  "shopee_high": 40,
+  "shopee_min_overlap": 0.6,
+  "shopee_high_overlap": 0.7,
+  "iherb_channel": 267,
+  "shopee_channel": 138,
+  "empty_iherb_price": 11,
+  "empty_shopee_price": 99,
+  "pr1": {
+    "iherb": 267,
+    "shopee": 368,
+    "none": 1351
+  },
+  "iherb_refresh_hits": 0,
+  "shopee_listings": 4179,
+  "xlsx": [
+    ".local/po-v2-inputs/mall-harvest-full.xlsx",
+    ".local/po-v2-inputs/mall-harvest-full-sales.xlsx"
+  ],
+  "shopee_json": [],
+  "iherb_refresh": null,
+  "notes": [
+    "iHerb prices come from the PR1 sheet until an iherb-refresh file is passed.",
+    "Shopee rows are the shared matcher at overlap 0.6 on the workbooks and any harvest json. iHerb still wins when both hit."
+  ]
+}
